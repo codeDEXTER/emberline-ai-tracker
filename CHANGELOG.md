@@ -29,7 +29,11 @@ the only history that exists for it.
   problem, shows up here and nowhere else — and it makes the cost of
   ceremony legible, which is what tells you when a lighter tier would
   have done. Entries must include the parts that went badly; a log of
-  only clean runs is worthless for analysis.
+  only clean runs is worthless for analysis. Every entry names its project
+  explicitly even though the file lives inside that project — tasks run
+  from worktrees so the location isn't self-evident while writing, entries
+  get pasted elsewhere, and collating several projects' logs to compare
+  how tasks ran only works if each entry stands on its own.
 
 - **The seven agent definitions now live in `agents/` here**, with
   `~/.claude/agents` symlinked to it. They were sitting in `~/.claude/`,
