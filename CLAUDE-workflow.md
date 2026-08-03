@@ -305,16 +305,28 @@ The shape, kept consistent so entries can be compared across tasks:
 **Task:** one sentence, in the user's terms
 **Tier:** feature | small-fix | research   **Phase:** prototype | production
 
-| # | Agent | Why it was called | What came back |
-|---|-------|-------------------|----------------|
-| 1 | code-engineer | implement the 9 criteria | claimed all pass |
-| 2 | test-engineer | independent validation | 3 bugs, 1 critical |
+| # | Agent | Why it was called | What came back | Tokens | Tools | Duration |
+|---|-------|-------------------|----------------|-------:|------:|---------:|
+| 1 | code-engineer | implement the 9 criteria | claimed all pass | 194k | 115 | 18m |
+| 2 | test-engineer | independent validation | 3 bugs, 1 critical | 116k | 56 | 11m |
+| | | | **total** | **310k** | **171** | **29m** |
 
 **Disputes:** what was contested, who won, on what argument
 **Escalated to the user:** what needed a decision, and what was decided
-**Cost:** ~N tokens across M agents
 **Outcome:** merged / not merged / parked, and why
 ```
+
+**Where the per-agent numbers come from, and why they must be written down
+immediately:** each agent's completion notification carries its exact token
+count, tool-use count, and wall-clock duration. **Those figures are only visible
+at that moment** — they are not recoverable later from the transcript without
+significant digging. So record them into the log as each agent returns rather
+than reconstructing the table at the end of the task, or the numbers will be
+guesses, which defeats the purpose of keeping them.
+
+Report tokens to three significant figures (`194k`), duration in whole minutes,
+and always include a total row — the total is what answers "was this tier worth
+it."
 
 **Name the project in every entry**, even though the file already sits inside
 it. Three reasons it can't be left implicit: a task runs from a worktree, so
