@@ -36,3 +36,4 @@ Write `REQUIREMENTS.md` into the project (or update the relevant section if it a
 - **What you wrote** — the numbered criteria, and what's explicitly out of scope.
 - **Questions for the sponsor** — anything you couldn't resolve, with concrete alternatives, clearly blocking if it is.
 - **Any `[requirements-gap]` entries** you logged this pass.
+- A closing line stating plainly that this artifact has not yet been shown to or approved by the sponsor — the calling session relays it and gets a yes before any design or implementation work starts from it.

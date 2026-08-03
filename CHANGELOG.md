@@ -8,6 +8,22 @@ is the thing to read first.
 
 ## 2026-08-03
 
+- **A new approval checkpoint: requirements and design artifacts need a
+  sponsor yes too, not just the initial scope agreement.** Found on
+  finance-tracker's `person-dossier` task: a design-engineer's screen spec
+  went straight to a code-engineer with no pause, so the sponsor only saw
+  what had been designed after it was already built. Agreeing an issue is
+  worth working on is a different decision from approving the specific
+  requirements or design spec produced for it, and the second one had no
+  gate. This is the project manager's job specifically — only it has a
+  channel to the sponsor, so a rule written into the agent files alone would
+  have nothing to act on — but `requirements-engineer.md`/`design-engineer.md`
+  now each close their report format with an explicit statement that their
+  artifact isn't self-approving, reinforcing the checkpoint at the point
+  it's easiest to skip. A small, already-approved revision (a typo fix)
+  doesn't need to go back through this — same judgment as the re-gate
+  policy above.
+
 - **Three amendments from the first day of real use**, all from things that
   actually happened rather than anticipated ones. (1) **The user can merge a
   PR from the chat** — the AI summarises what's in it and merges on the word,
