@@ -9,6 +9,11 @@ Plain-language write-ups of how the system works or what changed, aimed at
 someone who wasn't in the room. Written to be read on their own, without the
 conversation that produced them.
 
+Each report should also ship a **full-page PNG** beside it (same basename), so it
+can be dropped into a slide or a message without sending a link or asking anyone
+to render markdown. Regenerate it whenever the report changes — a stale image is
+worse than none, because it will be the version that gets shared.
+
 The standard to match is `ai-working-team.md`: short sentences, concrete
 examples, a diagram where one helps, and the awkward parts left in. A report
 that only describes what went well is marketing, and useless six weeks later
