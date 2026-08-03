@@ -301,6 +301,7 @@ The shape, kept consistent so entries can be compared across tasks:
 
 ```markdown
 ## 2026-08-03 · <task/branch name>
+**Project:** finance-tracker
 **Task:** one sentence, in the user's terms
 **Tier:** feature | small-fix | research   **Phase:** prototype | production
 
@@ -314,6 +315,14 @@ The shape, kept consistent so entries can be compared across tasks:
 **Cost:** ~N tokens across M agents
 **Outcome:** merged / not merged / parked, and why
 ```
+
+**Name the project in every entry**, even though the file already sits inside
+it. Three reasons it can't be left implicit: a task runs from a worktree, so
+"where the file is" is not obviously the project at the moment of writing;
+entries get pasted into a review or a chat and must still say what they refer
+to; and collating several projects' logs to compare how tasks ran is the whole
+point of keeping them — which only works if each entry stands on its own. If a
+task genuinely spans more than one project, name all of them.
 
 Two things make it worth keeping rather than a chore. It is the **evidence base
 for improving the agents** — a role whose findings are repeatedly disputed, or a
