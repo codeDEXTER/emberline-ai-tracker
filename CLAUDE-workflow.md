@@ -488,6 +488,13 @@ Added 2026-08-03, after the first batch of rule changes went straight to
 `main`, which contradicted the no-direct-to-main rule stated above in this
 same file.
 
+**This applies to this repo only.** Projects do not use pull requests —
+finance-tracker, pockets and the rest keep the flow described at the top of
+this file: worktree, pre-merge checklist, then merge into `main` on the
+user's approval. Stated explicitly because project sessions read this file
+too, and "every change goes through a pull request" would otherwise look
+like it applied to them. (User's decision, 2026-08-03.)
+
 **Every change here goes on a branch and through a pull request**, even a
 one-line fix, even though this is a solo repo. Not ceremony for its own
 sake — a diff is far better review material than a summary in chat, and
