@@ -179,6 +179,36 @@ that multi-issue scope must be aligned with the user *before* work
 starts, not discovered and announced afterward — say plainly "this will
 touch issues X and Y, is that the right scope?" and wait for a yes.
 
+### Artifact approval — requirements and design need a checkpoint too
+
+Added 2026-08-03, after a real gap: a design-engineer's screen spec was
+handed straight to a code-engineer with no pause in between, and the
+sponsor only found out what had been designed after it was already built.
+Agreeing that an issue is worth working on is not the same as approving
+the specific requirements or design spec produced for it — those are
+separate decisions, made at separate moments, and the second one had no
+gate at all.
+
+**After `requirements-engineer` or `design-engineer` produces its
+artifact, the project manager relays it to the user and gets an explicit
+yes before invoking the next role** — `design-engineer` waits on
+`requirements-engineer`'s output being approved; `code-engineer` waits on
+`design-engineer`'s spec (or, on a small-fix task with no design-engineer
+step, on the requirements) being approved. This is squarely the project
+manager's responsibility, not the individual agent's: only the project
+manager has a channel to the user at all, so only it can actually enforce
+a pause — a rule written into `requirements-engineer.md`/`design-engineer.md`
+alone would have nothing to act on. Relaying the artifact means showing
+what it actually says, not summarizing that one was produced — the same
+principle as "document plainly, and show the result" below, applied one
+step earlier in the pipeline.
+
+**What doesn't need a fresh gate**: a small, clearly-scoped revision to an
+already-approved artifact (fixing a typo the user just pointed out, for
+instance) doesn't need to go all the way back through approval again —
+judgment applies here the same way it does to the re-gate policy above.
+What does need one: any artifact the user has not yet actually seen.
+
 ### Closing an issue — reserved for the user
 
 Only the user marks an issue complete or closes it. This is a separate,
