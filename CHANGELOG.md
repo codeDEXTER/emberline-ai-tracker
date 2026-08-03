@@ -8,6 +8,31 @@ is the thing to read first.
 
 ## 2026-08-03
 
+- **Three amendments from the first day of real use**, all from things that
+  actually happened rather than anticipated ones. (1) **The user can merge a
+  PR from the chat** — the AI summarises what's in it and merges on the word,
+  so visiting github.com is optional; it still never merges unprompted, and
+  must summarise first or "merge it" becomes a rubber stamp. (2) **`LESSONS.md`
+  now has a specified format**, because two sessions created the file
+  independently in the same project on the same day and produced incompatible
+  layouts — the rule had named the entry types but never the shape. Existing
+  entries in the old layout stay as they are; append-only means not
+  reformatting someone else's record either. (3) **A fix commit must touch a
+  record file**, added to `code-engineer`: a commit that changes behaviour and
+  updates nothing leaves the changelog asserting something false, and no test
+  run can catch it. That gap recurred one commit after a gate named it, which
+  is the signal it belongs in the agent's standing instructions rather than in
+  another one-off correction.
+
+- **Recorded the biggest caveat on the first task's result** in the story
+  snapshot: none of the thirteen passes used the actual agent definitions.
+  They were written mid-session and register at session start, so every pass
+  ran as a general-purpose agent with the role's instructions pasted in. That
+  preserved fresh context and the written boundaries, but not the tool
+  grants — the real inspector cannot edit files at all, whereas a
+  general-purpose agent is merely told not to. The shape was proven; the
+  machinery that enforces it was not.
+
 - **Added `docs/` and a running story**, with a **low-priority** rule adopted
   by every project referencing this file. the-sponsor is a project manager by
   profession and wants to present this experience to fellow managers in a few
