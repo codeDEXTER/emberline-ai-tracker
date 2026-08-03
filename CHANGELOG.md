@@ -24,6 +24,31 @@ is the thing to read first.
   doesn't need to go back through this — same judgment as the re-gate
   policy above.
 
+- **A proposal framework**, adopted by every project referencing this file.
+  Prompted by finance-tracker, where 7 numbered proposals carried no status at
+  all — and where researching it turned up that tracking was already being
+  improvised in three places that disagreed: proposal 06 printing "Proposal 08"
+  on its own page, status smuggled into brand lines with no field to hold it,
+  `CLAUDE-checklist.md` keeping its own parallel record, and proposal 04 having
+  reversed its own conclusion by editing itself.
+
+  The load-bearing decision is the-sponsor's, and it went against what was
+  proposed: **one proposal per task, not one per role.** However many agents
+  run, they contribute sections and the user decides once. The four-stage
+  chain was rejected because stage-gate research is consistent that a gate
+  which isn't a real decision point is worse than none — and the defence large
+  organisations use, a different approver per stage, is unavailable to a single
+  sponsor. One gate can't rubber-stamp itself.
+
+  The rest: six statuses each naming an action (no `deferred`, no
+  `partly-accepted` — both decay); status in the document with the index
+  regenerated from it, never the reverse; one number sequence with type as a
+  field; conclusions immutable while labels and links stay fixable;
+  traceability one-way from the cheap-to-edit side. On acceptance a draft issue
+  is written for the user and a session is *offered* — named
+  `<app> - <no> - <description>` — never started, since picking what to work on
+  is his call.
+
 - **Three amendments from the first day of real use**, all from things that
   actually happened rather than anticipated ones. (1) **The user can merge a
   PR from the chat** — the AI summarises what's in it and merges on the word,
