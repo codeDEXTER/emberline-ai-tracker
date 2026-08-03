@@ -1,0 +1,11 @@
+# macOS writes these into any folder opened in Finder. They are per-machine
+# noise, never content, and one appeared here as soon as the folder became a
+# repo — so ignore them rather than letting them turn up as untracked files
+# every time someone runs git status.
+.DS_Store
+._*
+
+# Editor and OS scratch
+*.swp
+.idea/
+.vscode/
