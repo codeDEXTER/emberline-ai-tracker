@@ -2,8 +2,9 @@
 
 Every change to a file in this folder gets an entry here — same convention
 as a project's own `CHANGELOG.md`: newest first, one or two lines, why not
-just what. This folder isn't a git repo (see `README.md`), so this file is
-the only history that exists for it.
+just what. This folder is its own git repo (see `README.md`), but `git log`
+only records that something changed; this file records what it was for, and
+is the thing to read first.
 
 ## 2026-08-03
 
