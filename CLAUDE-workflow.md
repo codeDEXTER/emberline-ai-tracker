@@ -290,6 +290,26 @@ suggestion to the user rather than acted on:
 - `[resolved-dispute]` — a bug report successfully disputed (quality manager)
 - `[requirements-gap]` — an ambiguity resolved with the user (requirements engineer)
 
+**The format, because two sessions invented different ones.** On 2026-08-03 two
+sessions created `LESSONS.md` independently in the same project and produced
+incompatible layouts — the rule named the entry *types* but never the shape.
+Use a heading per entry:
+
+```markdown
+## [type] YYYY-MM-DD · A one-line title stating the lesson
+Written by: <role> · <branch or task>
+
+The finding, and what to do differently. Concrete enough to act on cold.
+```
+
+The title must state the lesson, not the symptom — "sed line-trimming is not
+`str.strip()`" rather than "build script bug". A reader scanning headings should
+be able to tell whether an entry applies to them without opening it.
+
+Entries stay **append-only**: never rewrite, reorder or reformat another
+session's, including ones in an older layout. Leave them as they are and match
+this shape going forward.
+
 ### REQUIREMENTS.md and the checklist complement each other
 
 The project's checklist file stays authoritative for *what to work on*.
@@ -539,6 +559,19 @@ The PR is also what makes the reserved-for-the-user rule above
 
 The AI opens the PR; **the user merges it.** Never merge your own rule
 change.
+
+**The user can merge from the chat instead of GitHub.** Once a PR is open,
+summarise what is in it and offer to merge; if the user says so, run
+`gh pr merge --merge --delete-branch`, then update local `main` and delete the
+local branch. Visiting github.com stays optional, for when the user actually
+wants to read the diff.
+
+Two things this does not change. **The AI still never merges without the user
+saying so in that conversation** — merging because a gate passed would remove
+the one approval gate this whole structure is built around; "convenient" and
+"automatic" are different things. And **always summarise the contents before
+offering**, or "merge it" becomes a rubber stamp on something unread, which is
+the same failure as an implementer signing off its own work.
 
 **No worktree needed** for this repo, unlike the projects. Worktrees exist
 so parallel sessions don't collide over a build; four markdown files and a
