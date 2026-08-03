@@ -8,6 +8,20 @@ is the thing to read first.
 
 ## 2026-08-03
 
+- **Rule changes here now go via branch and pull request**, with aashish
+  merging — the AI never merges its own rule change. Prompted by noticing
+  that the first batch of changes went straight to `main`, contradicting
+  the no-direct-to-main rule stated in this same file. Worth the overhead
+  on a solo repo because a diff reviews better than a chat summary, and
+  because a bad rule here reaches every project silently. It also turns
+  the reserved-for-the-user rule into a mechanism rather than a habit.
+  No worktree for this repo — worktrees prevent build collisions and
+  there is no build here. **One honest limit recorded with it**: because
+  `~/.claude/agents` symlinks into `agents/`, an agent definition is live
+  the moment it is saved, so for those files the PR is a record and a
+  review surface, not a gate. Copy-on-merge would gate it but bring back
+  the two-copies drift the symlink was adopted to remove.
+
 - **First corrections from real use** — the improve-the-agents loop firing
   for the first time, on evidence from the `run-identity-badges` task in
   finance-tracker rather than on theory:
