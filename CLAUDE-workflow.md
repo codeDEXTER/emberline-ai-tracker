@@ -199,12 +199,15 @@ claiming something renders correctly is not the same as showing it does.
 
 ## The agent roles — and who improves them
 
-Added 2026-08-03. Seven specialist agent definitions live in `~/.claude/agents/`
-(`research-agent`, `design-explorer`, `requirements-engineer`,
-`design-engineer`, `code-engineer`, `test-engineer`, `quality-manager`). They
-are machine-global rather than stored in this folder, because that's where
-Claude Code loads agent definitions from — but they are governed by the same
-rule as this file.
+Added 2026-08-03. Seven specialist agent definitions live in **`agents/` in this
+folder** (`research-agent`, `design-explorer`, `requirements-engineer`,
+`design-engineer`, `code-engineer`, `test-engineer`, `quality-manager`).
+`~/.claude/agents` is a symlink pointing here, since that's where Claude Code
+loads definitions from — so they carry the same version history as the rules
+that govern them, and are covered by the same reserved-for-the-user rule as
+this file. They are machine-global (any session on this Mac can invoke them,
+not only ones under `apps/`) and **register at session start**, so a change
+made mid-session doesn't take effect until a new one.
 
 **The project manager is this session.** There is deliberately no
 `project-manager.md`. A subagent cannot talk to the user — its output returns

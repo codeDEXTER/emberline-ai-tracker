@@ -18,6 +18,17 @@ the only history that exists for it.
   keeps its job — `git log` records that something changed, this file
   records what it was for, and it's still the thing to read first.
 
+- **The seven agent definitions now live in `agents/` here**, with
+  `~/.claude/agents` symlinked to it. They were sitting in `~/.claude/`,
+  which has no version control — so the rules governing the agents had
+  history while the agents themselves had none, which is precisely the
+  gap this repo was created to close. Editing a file in `agents/` now
+  edits the live agent, and the same reserved-for-the-user rule covers
+  both. Worth remembering: they are machine-global, and they register at
+  session start, so a mid-session change to one is invisible until the
+  next session (found the hard way — the first attempt to invoke
+  `code-engineer` failed because it had been written minutes earlier).
+
 - Add **"Leave nothing running"** to the run-identity section, directed by
   aashish after watching the first real task go through the agents: any
   agent that starts an app instance must stop it before reporting, on the
