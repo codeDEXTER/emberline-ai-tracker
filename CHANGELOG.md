@@ -8,8 +8,10 @@ is the thing to read first.
 
 ## 2026-08-03
 
-- **A new approval checkpoint: requirements and design artifacts need a
-  sponsor yes too, not just the initial scope agreement.** Found on
+- **SUPERSEDED, same day, by the proposal framework below.** Kept because the
+  failure it was written from is real and the replacement has to keep covering
+  it. The gap it named: requirements and design artifacts need a sponsor yes,
+  not just the initial scope agreement. Found on
   finance-tracker's `person-dossier` task: a design-engineer's screen spec
   went straight to a code-engineer with no pause, so the sponsor only saw
   what had been designed after it was already built. Agreeing an issue is
@@ -23,6 +25,17 @@ is the thing to read first.
   it's easiest to skip. A small, already-approved revision (a typo fix)
   doesn't need to go back through this — same judgment as the re-gate
   policy above.
+
+  **Why it was superseded within the hour**: it gated every role transition,
+  which would have meant four sequential approvals per feature — and aashish's
+  call was one proposal per task instead. His reasoning, and the research
+  agrees: a chain of gates a single sponsor approves in sequence decays into
+  rubber stamps, and the defence large organisations use for that (a different
+  approver at each stage) doesn't exist here. It was also incomplete — it added
+  checkpoints without any of the tracking around them: no status, no
+  traceability, nothing about what happens after a yes. The single-gate rule
+  still prevents the exact failure this was written from, and keeps its better
+  half: relaying means showing the artifact, not summarising that one exists.
 
 - **A proposal framework**, adopted by every project referencing this file.
   Prompted by finance-tracker, where 7 numbered proposals carried no status at
