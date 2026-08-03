@@ -1,7 +1,9 @@
 # Your AI working team
 
 *Report, 2026-08-03. Plain language, for someone who wasn't in the room.*
-Rendered version: https://claude.ai/code/artifact/ce745104-b7fd-466a-8aa4-16bd43659cbf
+Rendered version: https://claude.ai/code/artifact/ce745104-b7fd-466a-8aa4-16bd43659cbf  
+Shareable image: [`ai-working-team.png`](ai-working-team.png) — the whole page as one
+PNG, for dropping into a slide or a message without sending a link.
 
 ---
 
