@@ -8,6 +8,32 @@ is the thing to read first.
 
 ## 2026-08-03
 
+- **First corrections from real use** — the improve-the-agents loop firing
+  for the first time, on evidence from the `run-identity-badges` task in
+  finance-tracker rather than on theory:
+  - `code-engineer` must now **commit before reporting**. The gate found
+    that branch at zero commits, having spent a full pass verifying work
+    that existed only in a working tree, with every build stamped to a
+    commit predating the change. No brief had said to commit — a process
+    gap, so it becomes a standing rule instead of a per-task instruction.
+  - `code-engineer` now treats **any value reaching generated code as
+    untrusted**, branch names and labels included. A run-label written
+    unquoted into a generated `.app` launcher gave arbitrary command
+    execution on every launch, and was reported as working until an
+    independent pass found it.
+  - `quality-manager` now checks **commit state and merge-compatibility
+    first**, not as a closing item — they cost seconds, and skipping them
+    wasted an entire gate.
+  - Added a **re-gate policy**: behaviour changes require another gate,
+    documentation and commit-only changes do not, and `AGENT-LOG.md` must
+    record when one was skipped. "The gate passed" and "the gate passed an
+    earlier version of this branch" are different claims.
+  - Not made a rule, but recorded: two of the four things that went wrong
+    were the project manager's briefs, not the agents — a criterion written
+    wrongly, and a missing instruction. The standing fix is to let
+    `requirements-engineer` write criteria rather than the project manager
+    improvising them.
+
 - **This folder is now its own git repository** —
   `github-owner/ai-common-rules` (private), created by the-sponsor and adopted at
   his direction. It reverses the earlier "deliberately not a git

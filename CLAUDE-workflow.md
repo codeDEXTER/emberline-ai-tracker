@@ -262,6 +262,21 @@ needs restating.
 - **Handled without escalating**: which agents to invoke for an agreed task,
   routing a confirmed bug back for a fix, re-running a gate after that fix.
 
+### When a gate has to be re-run
+
+After a gate blocks and the code engineer addresses it, whether the gate runs
+again depends on what changed:
+
+- **Behaviour changed → re-gate.** Any edit to code that runs.
+- **Nothing that runs changed → do not re-gate.** A docstring, a comment, a
+  changelog line, or committing already-verified work. Re-running a full gate to
+  re-confirm what it just confirmed costs as much as the original pass and
+  learns nothing.
+
+When a gate is skipped, **`AGENT-LOG.md` must say so and why**. "The gate passed"
+and "the gate passed an earlier version of this branch" are different claims,
+and only one of them is true in that case.
+
 ### LESSONS.md
 
 Each project keeps its own `LESSONS.md` at its root (not in this folder — it's
