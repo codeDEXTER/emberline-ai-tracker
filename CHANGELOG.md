@@ -8,8 +8,10 @@ is the thing to read first.
 
 ## 2026-08-03
 
-- **A new approval checkpoint: requirements and design artifacts need a
-  sponsor yes too, not just the initial scope agreement.** Found on
+- **SUPERSEDED, same day, by the proposal framework below.** Kept because the
+  failure it was written from is real and the replacement has to keep covering
+  it. The gap it named: requirements and design artifacts need a sponsor yes,
+  not just the initial scope agreement. Found on
   finance-tracker's `person-dossier` task: a design-engineer's screen spec
   went straight to a code-engineer with no pause, so the sponsor only saw
   what had been designed after it was already built. Agreeing an issue is
@@ -23,6 +25,46 @@ is the thing to read first.
   it's easiest to skip. A small, already-approved revision (a typo fix)
   doesn't need to go back through this — same judgment as the re-gate
   policy above.
+
+  **Why it was superseded within the hour**: it gated every role transition,
+  which would have meant four sequential approvals per feature — and aashish's
+  call was one proposal per task instead. His reasoning, and the research
+  agrees: a chain of gates a single sponsor approves in sequence decays into
+  rubber stamps, and the defence large organisations use for that (a different
+  approver at each stage) doesn't exist here. It was also incomplete — it added
+  checkpoints without any of the tracking around them: no status, no
+  traceability, nothing about what happens after a yes. The single-gate rule
+  still prevents the exact failure this was written from, and keeps its better
+  half: relaying means showing the artifact, not summarising that one exists.
+
+- **A proposal framework**, adopted by every project referencing this file.
+  Prompted by finance-tracker, where 7 numbered proposals carried no status at
+  all — and where researching it turned up that tracking was already being
+  improvised in three places that disagreed: proposal 06 printing "Proposal 08"
+  on its own page, status smuggled into brand lines with no field to hold it,
+  `CLAUDE-checklist.md` keeping its own parallel record, and proposal 04 having
+  reversed its own conclusion by editing itself.
+
+  The load-bearing decision is aashish's, and it went against what was
+  proposed: **one proposal per topic, not one per role — and not one per
+  session.** A proposal stays open across conversations, gaining sections,
+  until he decides; "one per task" was the first wording and it invited
+  treating each new chat as a new task, which quietly rebuilds the four-proposal
+  chain the rule exists to prevent. However many agents
+  run, they contribute sections and the user decides once. The four-stage
+  chain was rejected because stage-gate research is consistent that a gate
+  which isn't a real decision point is worse than none — and the defence large
+  organisations use, a different approver per stage, is unavailable to a single
+  sponsor. One gate can't rubber-stamp itself.
+
+  The rest: six statuses each naming an action (no `deferred`, no
+  `partly-accepted` — both decay); status in the document with the index
+  regenerated from it, never the reverse; one number sequence with type as a
+  field; conclusions immutable while labels and links stay fixable;
+  traceability one-way from the cheap-to-edit side. On acceptance a draft issue
+  is written for the user and a session is *offered* — named
+  `<app> - <no> - <description>` — never started, since picking what to work on
+  is his call.
 
 - **Three amendments from the first day of real use**, all from things that
   actually happened rather than anticipated ones. (1) **The user can merge a
