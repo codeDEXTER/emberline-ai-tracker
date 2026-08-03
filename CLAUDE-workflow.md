@@ -519,6 +519,100 @@ a hunch, not a finding:
 against something that may be discarded next week is how a backlog fills with
 items that were never real.
 
+## Proposals — one per task, tracked to a decision
+
+Added 2026-08-03. **Adopted by every project that references this file.**
+
+A proposal is how work that needs a decision reaches the user. It lives in the
+project's `docs/proposals/`.
+
+### One proposal per task, not one per role
+
+However many agents run — research alone, or requirements and design together,
+or all four — **the task produces exactly one proposal.** Each role contributes
+a section; the project manager assembles them; the user decides once.
+
+Roles chain freely inside a task without stopping for approval. That is
+deliberate: the user approves the *plan* (which agents run) up front, then the
+*result* at the end. The cost is real and should be stated when it applies — a
+wrong requirement wastes the design work built on it too.
+
+**What stays absolute:** nothing reaches the code engineer until the user has
+accepted the proposal.
+
+Four separate approvals per feature was the alternative, and it was rejected for
+a good reason: stage-gate research is consistent that a gate which isn't a real
+decision point is worse than no gate, because it costs time and manufactures
+false confidence. Large organisations defend against that with a *different
+approver* at each stage. With one sponsor that is impossible, so the chain would
+have decayed into a sequence of rubber stamps. One gate cannot.
+
+### Status lives in the document
+
+Six statuses, each naming something that happens next — a status nobody acts on
+is decoration:
+
+| Status | What happens next |
+|---|---|
+| `draft` | Nobody acts. Replaces a `draft-` filename prefix. |
+| `proposed` | With the user. Everything downstream is blocked. |
+| `accepted` | Draft issue written for the user's acceptance; a session is offered (below). **Not** a commitment to build, **not** authority to create issues. |
+| `rejected` | Nothing happens. Kept so the question isn't re-asked in three months. |
+| `superseded-by NN` / `amends NN` | Read NN instead / read NN alongside. The IETF Obsoletes-vs-Updates split — whole replacement versus partial change. |
+| `built` | The work it authorised is done. History. |
+
+There is deliberately **no `deferred`** (it becomes a graveyard, and for one
+developer it is indistinguishable from a checklist item under "Later") and **no
+`partly-accepted`** (no mainstream format has it — partial acceptance is a fact
+about *the work*, so record the accepted-item list in the checklist entry and
+leave the proposal whole).
+
+**Status goes in the proposal itself** — a `<meta name="proposal-status">` plus a
+visible chip — and `docs/proposals/README.md` is **regenerated from those tags**,
+never hand-maintained. Every established tool works document-as-source,
+index-as-derived; none does the reverse. Regenerating is a required step in the
+pre-merge checklist, not something done on request: the one team that put status
+in the document and left the index manual still needed a bot to stop it drifting.
+
+### Numbering and type
+
+**One sequence** across all proposals regardless of which role wrote them, so
+ordering stays chronological and nothing needs renaming. The stage is a `type`
+field — `research` / `requirements` / `design-concept` / `design-spec` /
+`findings` — not a filename prefix.
+
+### Immutability
+
+**Conclusions are frozen once a proposal is accepted.** Status, cross-links and
+typo or label fixes may be corrected freely; a wrong printed number is a label,
+not a conclusion. Substantial change means a **new** proposal carrying
+`amends NN` or `supersedes NN` — never an edit to the old one.
+
+This is the near-unanimous convention across ADR, PEP, RFC and KEP practice, and
+it exists because a document that quietly changes its own conclusion misleads
+every later reader with no signal that it happened.
+
+### Traceability runs one way
+
+The checklist entry and the issue say "proposal 06". **The proposal says nothing
+about issues.** Reverse lookup is a search, not a stored list.
+
+The asymmetry is the point: maintaining links inside the proposal means editing
+it whenever an issue is created, which fights immutability directly and is the
+half that rots.
+
+### When a proposal is accepted
+
+1. A **draft issue** is written for the user's acceptance — what, where, why it
+   matters, what done looks like, proposed labels. Creating the real issue stays
+   the user's call, unchanged.
+2. A **session is offered** for the work, named
+   `<app> - <proposal/issue no> - <short description>` — e.g.
+   `finance-tracker - proposal 09 - fd closure sign`.
+
+The session is offered, not started. Picking what to work on is the user's
+decision, and a session that starts itself has quietly taken it.
+
 ## Keep the story — LOW PRIORITY, every project
 
 Added 2026-08-03. **Adopted by every project that references this file.**
