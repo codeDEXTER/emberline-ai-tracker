@@ -1,0 +1,60 @@
+# common-rules
+
+Workflow rules shared across every project under `/Users/the-sponsor/apps/`,
+kept in one place instead of duplicated into each project's `CLAUDE.md`.
+
+**This folder is its own git repository, deliberately separate from every
+project's.** `apps/` itself is not a repo — each project underneath it
+(`finance-tracker/`, `pockets/`, etc.) is independent, and this folder sits
+outside all of them on purpose, so these rules aren't tied to any single
+project's history or branch. That separation is the point and hasn't
+changed; what changed on 2026-08-03 is that the folder gained a repo of its
+own (`github-owner/ai-common-rules`, private) rather than having no version
+control at all.
+
+`CHANGELOG.md` remains the human-readable record of *why* each rule changed,
+and stays the thing to read first — `git log` records that a change
+happened, the changelog records what it was for.
+
+## Files
+
+- **`CLAUDE-workflow.md`** — the actual rules: git worktree-per-task, the
+  pre-merge checklist shape, issue tracking (checklist file as source of
+  truth, GitHub issues as a one-way mirror), and the issue lifecycle (the
+  user is project manager and decides creation/scope/priority/picking/
+  closing; the AI researches, builds, reviews, and tests within that).
+- **`CHANGELOG.md`** — every change made to the files in this folder,
+  documented in plain language.
+
+## How a project adopts this
+
+Add a short pointer near the top of the project's own `CLAUDE.md`:
+
+> Shared workflow rules (git worktree-per-task, pre-merge checklist, issue
+> tracking, confirmation gates): `../common-rules/CLAUDE-workflow.md` —
+> read that first. This project's specifics for it: test command is
+> `<...>`, build/run is `<...>`, GitHub repo is `<owner/repo>`.
+
+Then keep only the project's own specifics in its `CLAUDE.md` — the exact
+test/build commands, its repo name, its label taxonomy, any gitignored
+files a fresh worktree needs copied in, and anything else genuinely
+specific to that project. Don't copy `CLAUDE-workflow.md`'s text inline;
+that defeats the point of sharing it.
+
+## Editing these rules
+
+**Reserved for the user, same as the issue lifecycle rules inside
+`CLAUDE-workflow.md` itself.** The AI does not edit any file in this
+folder on its own initiative — not to fix a typo, not because it noticed
+a stale note or a gotcha worth recording. It surfaces what it noticed and
+asks; a change only happens once the user has explicitly directed it in
+that conversation. The reason the bar is higher here than for an ordinary
+project file: if a rule here changes, every adopting project benefits (or
+is affected) automatically — that's the reason this folder exists, but it
+also means an unprompted change here silently changes behavior everywhere
+at once, not just in the one project a session happens to be in.
+
+When the user does direct a change: add a `CHANGELOG.md` entry here
+explaining why, and if it actually affects behavior for an
+already-adopted project (not just wording), mention that to the user —
+worth a one-line heads-up next time you're working in that project too.
