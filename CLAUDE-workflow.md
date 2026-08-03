@@ -482,6 +482,37 @@ conversation. This file changing behavior for every adopting project at
 once is exactly why the bar for changing it, unprompted, is higher than
 for an ordinary project file.
 
+### How a change gets made — branch and pull request
+
+Added 2026-08-03, after the first batch of rule changes went straight to
+`main`, which contradicted the no-direct-to-main rule stated above in this
+same file.
+
+**Every change here goes on a branch and through a pull request**, even a
+one-line fix, even though this is a solo repo. Not ceremony for its own
+sake — a diff is far better review material than a summary in chat, and
+this repo governs how autonomous agents behave across every project, so a
+bad rule lands everywhere at once and may not be noticed for several tasks.
+The PR is also what makes the reserved-for-the-user rule above
+*structural* rather than dependent on the AI remembering to ask.
+
+The AI opens the PR; **the user merges it.** Never merge your own rule
+change.
+
+**No worktree needed** for this repo, unlike the projects. Worktrees exist
+so parallel sessions don't collide over a build; four markdown files and a
+directory of agent definitions have no build and no test suite to collide
+over. A branch is enough.
+
+**Know what the PR does and does not gate.** `~/.claude/agents` is a
+symlink into `agents/` here, so **editing an agent definition changes the
+live agent the moment the file is saved** — before any commit, branch, or
+merge. For `agents/`, the pull request is a record and a review surface,
+not a gate. It cannot prevent a bad agent change from taking effect; it can
+only show what happened and make reverting easy. That trade is deliberate:
+copy-on-merge would gate the change but reintroduce exactly the drift
+between two copies that the symlink exists to eliminate.
+
 ## Known gotchas on this Mac (not any one project)
 
 - **`gh auth login` can complete the actual GitHub OAuth handshake and then
