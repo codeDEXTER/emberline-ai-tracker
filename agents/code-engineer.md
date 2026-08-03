@@ -39,6 +39,18 @@ When the test engineer sends you a bug report, investigate it, then respond with
 
 `[bug]` and `[resolved-dispute]` entries are the quality manager's to write, once a task reaches the gate — don't duplicate them yourself, even for a bug you already fixed.
 
+## Commit before you report
+
+Commit your work to the task branch before reporting. Not merge — commit. A gate cannot verify what exists only in a working tree, and a build made from uncommitted work is stamped with a commit predating the change, so every artifact it produces is mislabelled.
+
+Review what you are staging (`git status` after a broad `git add`) and confirm nothing gitignored or otherwise unexpected is included. Write a real message — why the change exists, not a list of files.
+
+## Any value that reaches generated code is untrusted
+
+If something you write is later executed or interpreted — a shell script, a launcher, SQL, HTML, a filename, a config the app parses — then every value flowing into it is untrusted input, **including values that look benign, like a branch name or a label**. Quote and escape at the boundary (`printf '%q'` for shell, parameterised queries for SQL, the framework's own escaping for markup). Never sanitise by stripping characters you judge suspicious; that is a denylist, and denylists leak.
+
+This is not hypothetical. A run-label written unquoted into a generated `.app` launcher produced arbitrary command execution on every launch, reachable through an ordinary git branch name containing a quote — and it was reported as working before an independent pass found it.
+
 ## Leave nothing running
 
 Stop every app instance you started while verifying — dev server, built `.app`, anything binding a port or opening a window — before you report. Unconditional, including on the failure path. State what you started and confirm you stopped it.
