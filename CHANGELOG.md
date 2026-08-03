@@ -46,7 +46,11 @@ is the thing to read first.
   reversed its own conclusion by editing itself.
 
   The load-bearing decision is the-sponsor's, and it went against what was
-  proposed: **one proposal per task, not one per role.** However many agents
+  proposed: **one proposal per topic, not one per role — and not one per
+  session.** A proposal stays open across conversations, gaining sections,
+  until he decides; "one per task" was the first wording and it invited
+  treating each new chat as a new task, which quietly rebuilds the four-proposal
+  chain the rule exists to prevent. However many agents
   run, they contribute sections and the user decides once. The four-stage
   chain was rejected because stage-gate research is consistent that a gate
   which isn't a real decision point is worse than none — and the defence large
