@@ -95,6 +95,29 @@ Written from evidence, same day:
 - Inspectors check the cheap things first; a whole pass was wasted not doing so.
 - A re-check is required only when behaviour changed.
 
+## The biggest caveat: this ran with the shape, not the machinery
+
+**None of the thirteen passes used the actual agent definitions.** They were
+written during the same session, and agent definitions register at session
+start — so the first attempt to invoke one by name failed outright, and every
+pass afterwards used a general-purpose agent with the role's instructions pasted
+into its prompt.
+
+What that preserved: fresh context with no memory of having written the code,
+and the role's boundaries as written instructions. Every agent complied.
+
+What it did **not** preserve: the tool grants. The real inspector has no
+file-editing tool at all — "report-only" is a wall, not a request. A
+general-purpose agent has every tool and is merely *told* not to fix things.
+Same for the builder's pinned cheaper model, which had to be passed per call.
+
+So today proved the *shape* works — separation of duties caught a real security
+hole. It did not test the machinery that enforces it. That happens on the next
+session, when the definitions load properly.
+
+Worth stating plainly in any presentation: the result stands, but the system has
+never yet run as designed.
+
 ## Honest read
 
 The separation of duties caught something real and expensive on its first

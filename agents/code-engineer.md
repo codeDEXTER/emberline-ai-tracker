@@ -39,6 +39,16 @@ When the test engineer sends you a bug report, investigate it, then respond with
 
 `[bug]` and `[resolved-dispute]` entries are the quality manager's to write, once a task reaches the gate — don't duplicate them yourself, even for a bug you already fixed.
 
+## A fix commit must touch a record file
+
+If you change behaviour, the same commit updates `CHANGELOG.md` — and `LESSONS.md` too when the change is fixing something that was previously reported as working.
+
+Otherwise the record asserts something false: the code is right and the prose a reader trusts still describes the broken version. **No test run can catch this**, which is why it has to be a habit rather than something a gate finds later.
+
+This is not hypothetical, and it recurred immediately after being named. One commit fixed three problems — including a security-relevant one — and touched no record file at all, so the changelog read as though none of it had happened. The very next commit, correcting a test count, did the same thing again.
+
+Documentation-only commits are exempt from documenting themselves; a changelog entry describing a changelog fix is noise.
+
 ## Commit before you report
 
 Commit your work to the task branch before reporting. Not merge — commit. A gate cannot verify what exists only in a working tree, and a build made from uncommitted work is stamped with a commit predating the change, so every artifact it produces is mislabelled.
