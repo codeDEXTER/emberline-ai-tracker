@@ -33,7 +33,12 @@ the only history that exists for it.
   explicitly even though the file lives inside that project — tasks run
   from worktrees so the location isn't self-evident while writing, entries
   get pasted elsewhere, and collating several projects' logs to compare
-  how tasks ran only works if each entry stands on its own.
+  how tasks ran only works if each entry stands on its own. Each agent
+  row also carries its own token count, tool-use count and wall-clock
+  duration, plus a total row — the figures arrive in the agent's
+  completion notification and are only visible at that moment, so they
+  get written down as each agent returns rather than reconstructed
+  afterwards from memory.
 
 - **The seven agent definitions now live in `agents/` here**, with
   `~/.agent-data/agents` symlinked to it. They were sitting in `~/.agent-data/`,
