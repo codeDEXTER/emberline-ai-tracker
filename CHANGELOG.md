@@ -18,6 +18,16 @@ the only history that exists for it.
   keeps its job — `git log` records that something changed, this file
   records what it was for, and it's still the thing to read first.
 
+- Add **"Leave nothing running"** to the run-identity section, directed by
+  aashish after watching the first real task go through the agents: any
+  agent that starts an app instance must stop it before reporting, on the
+  failure path included. Badges say which copy is which but do nothing to
+  stop copies piling up, so without this the identity work only manages a
+  mess it should have prevented. The stable copy is the deliberate
+  exception — it stays up so there is always something to review. Mirrored
+  into the `code-engineer`, `test-engineer` and `quality-manager`
+  definitions, since those are the roles that actually start things.
+
 - Add four sections to `CLAUDE-workflow.md`, all directed by aashish after
   reviewing two proposals and a decision register in the same conversation:
   **the agent roles and who improves them**, **project phases**, **telling

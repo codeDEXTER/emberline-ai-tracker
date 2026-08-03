@@ -347,6 +347,23 @@ confusion this section exists to remove.
 For a packaged app, a distinct bundle name per build keeps test builds separate
 in Cmd-Tab and the Dock instead of masquerading as the installed one.
 
+### Leave nothing running
+
+Badges say which copy is which; they do nothing to stop copies accumulating.
+So: **any agent that starts an app instance stops it before reporting** — dev
+server, built `.app`, anything binding a port or opening a window. This is
+unconditional and applies on the failure path too; an agent that abandons a
+task halfway shuts down what it started on the way out, and says in its report
+what it started and that it stopped it.
+
+A validation pass that ends with three servers still up has recreated the exact
+confusion this section exists to remove, and leaves the next session with ports
+that look occupied for no visible reason.
+
+**The stable copy is the one exception.** It is meant to stay up so the user
+always has something to review and file issues against — no agent stops it, and
+no agent builds over it.
+
 ## Findings become well-formed issue drafts
 
 Added 2026-08-03. Creating an issue stays the user's call (see the issue
