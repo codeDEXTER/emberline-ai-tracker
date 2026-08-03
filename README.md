@@ -18,6 +18,17 @@ happened, the changelog records what it was for.
 
 ## Files
 
+- **`agents/`** — the seven specialist agent definitions
+  (`research-agent`, `design-explorer`, `requirements-engineer`,
+  `design-engineer`, `code-engineer`, `test-engineer`,
+  `quality-manager`). **`~/.agent-data/agents` is a symlink to this
+  directory**, which is where Claude Code actually loads agent
+  definitions from — so editing a file here is editing the live agent,
+  and the definitions get the same version history as the rules that
+  govern them. Two things to know: they are machine-global (any session
+  on this Mac can invoke them, not just ones under `apps/`), and they
+  **register at session start**, so a definition added or changed
+  mid-session doesn't take effect until a new one.
 - **`CLAUDE-workflow.md`** — the actual rules: git worktree-per-task, the
   pre-merge checklist shape, issue tracking (checklist file as source of
   truth, GitHub issues as a one-way mirror), and the issue lifecycle (the
