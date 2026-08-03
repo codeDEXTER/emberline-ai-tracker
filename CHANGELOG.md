@@ -8,6 +8,13 @@ is the thing to read first.
 
 ## 2026-08-03
 
+- **Scoped the pull-request rule to this repo only** — projects keep
+  worktree, checklist, merge on approval, with no PR. the-sponsor's
+  decision, made when the question came up on the first project branch
+  after the PR rule landed. Written down explicitly because project
+  sessions read `CLAUDE-workflow.md` too, and "every change goes
+  through a pull request" reads as universal without the qualifier.
+
 - **Rule changes here now go via branch and pull request**, with the-sponsor
   merging — the AI never merges its own rule change. Prompted by noticing
   that the first batch of changes went straight to `main`, contradicting
