@@ -179,35 +179,6 @@ that multi-issue scope must be aligned with the user *before* work
 starts, not discovered and announced afterward — say plainly "this will
 touch issues X and Y, is that the right scope?" and wait for a yes.
 
-### Artifact approval — requirements and design need a checkpoint too
-
-Added 2026-08-03, after a real gap: a design-engineer's screen spec was
-handed straight to a code-engineer with no pause in between, and the
-sponsor only found out what had been designed after it was already built.
-Agreeing that an issue is worth working on is not the same as approving
-the specific requirements or design spec produced for it — those are
-separate decisions, made at separate moments, and the second one had no
-gate at all.
-
-**After `requirements-engineer` or `design-engineer` produces its
-artifact, the project manager relays it to the user and gets an explicit
-yes before invoking the next role** — `design-engineer` waits on
-`requirements-engineer`'s output being approved; `code-engineer` waits on
-`design-engineer`'s spec (or, on a small-fix task with no design-engineer
-step, on the requirements) being approved. This is squarely the project
-manager's responsibility, not the individual agent's: only the project
-manager has a channel to the user at all, so only it can actually enforce
-a pause — a rule written into `requirements-engineer.md`/`design-engineer.md`
-alone would have nothing to act on. Relaying the artifact means showing
-what it actually says, not summarizing that one was produced — the same
-principle as "document plainly, and show the result" below, applied one
-step earlier in the pipeline.
-
-**What doesn't need a fresh gate**: a small, clearly-scoped revision to an
-already-approved artifact (fixing a typo the user just pointed out, for
-instance) doesn't need to go all the way back through approval again —
-judgment applies here the same way it does to the re-gate policy above.
-What does need one: any artifact the user has not yet actually seen.
 
 ### Closing an issue — reserved for the user
 
@@ -518,6 +489,126 @@ a hunch, not a finding:
 **Prototype-phase work raises only blocking issues.** Filing polish tickets
 against something that may be discarded next week is how a backlog fills with
 items that were never real.
+
+## Proposals — one per task, tracked to a decision
+
+Added 2026-08-03. **Adopted by every project that references this file.**
+
+A proposal is how work that needs a decision reaches the user. It lives in the
+project's `docs/proposals/`.
+
+### One proposal per topic, not one per role — and not one per session
+
+However many agents run — research alone, or requirements and design together,
+or all four — **a topic produces exactly one proposal.** Each role contributes a
+section; the project manager assembles them; the user decides once.
+
+Roles chain freely without stopping for approval. That is deliberate: the user
+approves the *plan* (which agents run) up front, then the *result* at the end.
+The cost is real and should be stated when it applies — a wrong requirement
+wastes the design work built on it too.
+
+**A proposal stays open across sessions until it is decided.** If research runs
+today and the user asks for requirements tomorrow, that is the *same* proposal
+gaining a section — not a second one. It sits at `draft` the whole time and only
+moves to `proposed` when the user is actually being asked to decide.
+
+This is the rule's weak point, so it is stated plainly: "one per task" invites
+treating each new conversation as a new task, which quietly rebuilds the chain of
+four proposals this exists to prevent. **Before writing a new proposal, check
+`docs/proposals/` for an open one on the same topic and extend it.** A second
+proposal on a live topic is only correct when the first has already been decided
+and this genuinely supersedes or amends it — in which case it says so in its
+status.
+
+**What stays absolute:** nothing reaches the code engineer until the user has
+accepted the proposal.
+
+That absolute exists because of a real failure on finance-tracker's
+`person-dossier` task, worth keeping on the record: a design-engineer's screen
+spec went straight to a code-engineer with no pause, and the user only found out
+what had been designed once it was already built. An earlier rule (2026-08-03,
+now superseded) fixed that by gating *every* role transition. This supersedes it
+with a single gate at the end — which still prevents that failure, because the
+spec cannot reach a code engineer unapproved.
+
+**Relaying means showing, not summarising.** The proposal contains each
+contributing role's actual output, not a note that one was produced. That was
+the other half of the earlier rule and it survives intact — a single gate is only
+a real gate if what passes through it is legible.
+
+Four separate approvals per feature was the alternative, and it was rejected for
+a good reason: stage-gate research is consistent that a gate which isn't a real
+decision point is worse than no gate, because it costs time and manufactures
+false confidence. Large organisations defend against that with a *different
+approver* at each stage. With one sponsor that is impossible, so the chain would
+have decayed into a sequence of rubber stamps. One gate cannot.
+
+### Status lives in the document
+
+Six statuses, each naming something that happens next — a status nobody acts on
+is decoration:
+
+| Status | What happens next |
+|---|---|
+| `draft` | Nobody acts. Replaces a `draft-` filename prefix. |
+| `proposed` | With the user. Everything downstream is blocked. |
+| `accepted` | Draft issue written for the user's acceptance; a session is offered (below). **Not** a commitment to build, **not** authority to create issues. |
+| `rejected` | Nothing happens. Kept so the question isn't re-asked in three months. |
+| `superseded-by NN` / `amends NN` | Read NN instead / read NN alongside. The IETF Obsoletes-vs-Updates split — whole replacement versus partial change. |
+| `built` | The work it authorised is done. History. |
+
+There is deliberately **no `deferred`** (it becomes a graveyard, and for one
+developer it is indistinguishable from a checklist item under "Later") and **no
+`partly-accepted`** (no mainstream format has it — partial acceptance is a fact
+about *the work*, so record the accepted-item list in the checklist entry and
+leave the proposal whole).
+
+**Status goes in the proposal itself** — a `<meta name="proposal-status">` plus a
+visible chip — and `docs/proposals/README.md` is **regenerated from those tags**,
+never hand-maintained. Every established tool works document-as-source,
+index-as-derived; none does the reverse. Regenerating is a required step in the
+pre-merge checklist, not something done on request: the one team that put status
+in the document and left the index manual still needed a bot to stop it drifting.
+
+### Numbering and type
+
+**One sequence** across all proposals regardless of which role wrote them, so
+ordering stays chronological and nothing needs renaming. The stage is a `type`
+field — `research` / `requirements` / `design-concept` / `design-spec` /
+`findings` — not a filename prefix.
+
+### Immutability
+
+**Conclusions are frozen once a proposal is accepted.** Status, cross-links and
+typo or label fixes may be corrected freely; a wrong printed number is a label,
+not a conclusion. Substantial change means a **new** proposal carrying
+`amends NN` or `supersedes NN` — never an edit to the old one.
+
+This is the near-unanimous convention across ADR, PEP, RFC and KEP practice, and
+it exists because a document that quietly changes its own conclusion misleads
+every later reader with no signal that it happened.
+
+### Traceability runs one way
+
+The checklist entry and the issue say "proposal 06". **The proposal says nothing
+about issues.** Reverse lookup is a search, not a stored list.
+
+The asymmetry is the point: maintaining links inside the proposal means editing
+it whenever an issue is created, which fights immutability directly and is the
+half that rots.
+
+### When a proposal is accepted
+
+1. A **draft issue** is written for the user's acceptance — what, where, why it
+   matters, what done looks like, proposed labels. Creating the real issue stays
+   the user's call, unchanged.
+2. A **session is offered** for the work, named
+   `<app> - <proposal/issue no> - <short description>` — e.g.
+   `finance-tracker - proposal 09 - fd closure sign`.
+
+The session is offered, not started. Picking what to work on is the user's
+decision, and a session that starts itself has quietly taken it.
 
 ## Keep the story — LOW PRIORITY, every project
 
