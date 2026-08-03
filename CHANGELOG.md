@@ -8,6 +8,22 @@ is the thing to read first.
 
 ## 2026-08-03
 
+- **Added `docs/` and a running story**, with a **low-priority** rule adopted
+  by every project referencing this file. the-sponsor is a project manager by
+  profession and wants to present this experience to fellow managers in a few
+  weeks — the arc from a single chat doing everything, through building an
+  agent team, to measuring and trimming it. `docs/story/README.md` holds the
+  narrative in chapters, `docs/story/snapshots/` holds point-in-time records
+  with real measured numbers, and `docs/` holds plain-language reports for
+  someone who wasn't in the room (`ai-working-team.md` is the standard to
+  match). Explicitly low priority: it never blocks a task, delays a merge, or
+  justifies an extra agent pass — the raw facts already live in `AGENT-LOG.md`
+  and the changelogs, so a snapshot can be written later from those. It lives
+  here rather than in a project because the story is about the way of working,
+  not about any one app. The rule requires snapshots to carry the parts that
+  went badly and the mundane interruptions: a record of only smooth runs is
+  useless for a presentation and worse than useless for learning.
+
 - **Scoped the pull-request rule to this repo only** — projects keep
   worktree, checklist, merge on approval, with no PR. the-sponsor's
   decision, made when the question came up on the first project branch

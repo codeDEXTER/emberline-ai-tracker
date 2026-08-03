@@ -469,6 +469,40 @@ a hunch, not a finding:
 against something that may be discarded next week is how a backlog fills with
 items that were never real.
 
+## Keep the story — LOW PRIORITY, every project
+
+Added 2026-08-03. **Adopted by every project that references this file.**
+
+There is a running record in `common-rules/docs/story/` of how working this way
+has actually gone — from a single chat doing everything, through building a team
+of agents, to measuring and trimming it. the-sponsor is a project manager by
+profession and intends to present this experience to fellow managers: what was
+tried, what it cost, what broke, what the numbers showed.
+
+**This is explicitly low priority.** It never blocks a task, never delays a
+merge, and never justifies extra agent passes. If a session is busy, skip it —
+the `AGENT-LOG.md` and `CHANGELOG.md` entries already capture the raw facts, and
+a snapshot can be written later from those.
+
+**Where things go:**
+
+- `docs/story/README.md` — the narrative, in chapters. Update when a chapter
+  genuinely changes, not per task.
+- `docs/story/snapshots/YYYY-MM-DD-<slug>.md` — a point-in-time record with real
+  measured numbers. Written when something notable happens: a new way of working
+  is tried, a cost figure surprises, an approach is abandoned.
+- `docs/*.md` — plain-language reports for someone who wasn't in the room.
+
+**It lives in this shared folder, not in a project**, because the story spans all
+of them — it is about the way of working, not about any one app. Project-specific
+write-ups stay in that project's own `docs/`.
+
+**What makes a snapshot worth keeping:** real numbers rather than impressions,
+and the parts that went badly. A record of only smooth runs is worthless for a
+presentation and worse than nothing for learning — the failures are the content.
+Include the mundane interruptions too (a toolchain breaking, another session
+moving `main`); a story where nothing ordinary goes wrong isn't believable.
+
 ## Changing these shared rules — also reserved for the user
 
 Added 2026-08-02. The same principle as the Issue lifecycle section above
