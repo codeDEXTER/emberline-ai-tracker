@@ -18,6 +18,19 @@ the only history that exists for it.
   keeps its job — `git log` records that something changed, this file
   records what it was for, and it's still the thing to read first.
 
+- Add **`AGENT-LOG.md`** — a per-project record of which agents ran, in
+  what order, what each returned, and what it cost, written by the project
+  manager because it is the only role that sees the whole sequence
+  (agents cannot see each other). Directed by aashish, who wants to be
+  able to look back and analyse how a task was actually run without
+  reading a transcript. Two payoffs beyond the record itself: it is the
+  evidence base for the improve-the-agents loop — a role whose findings
+  keep getting disputed, or a gate that keeps missing the same class of
+  problem, shows up here and nowhere else — and it makes the cost of
+  ceremony legible, which is what tells you when a lighter tier would
+  have done. Entries must include the parts that went badly; a log of
+  only clean runs is worthless for analysis.
+
 - **The seven agent definitions now live in `agents/` here**, with
   `~/.claude/agents` symlinked to it. They were sitting in `~/.claude/`,
   which has no version control — so the rules governing the agents had

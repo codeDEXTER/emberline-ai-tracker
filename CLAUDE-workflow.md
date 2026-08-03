@@ -281,6 +281,51 @@ The project's checklist file stays authoritative for *what to work on*.
 `REQUIREMENTS.md` holds acceptance criteria for *the task currently in flight*,
 written per feature — not a retroactive spec for the whole project.
 
+## AGENT-LOG.md — what was called, in what order, and what came back
+
+Added 2026-08-03. Each project keeps an `AGENT-LOG.md` at its root, alongside
+`CHANGELOG.md` and `LESSONS.md`. It exists so the user can look back at how a
+task was actually run — which agents, in what sequence, what each returned, and
+what it cost — without reading a transcript.
+
+**The project manager writes it, because no one else can.** Agents cannot see
+each other; only the session doing the orchestrating knows the whole sequence.
+This is bookkeeping, not development work, so it does not breach the rule that
+the project manager never writes code or specs.
+
+**One entry per task**, appended when the task closes — merged, abandoned, or
+parked. Newest first, same convention as `CHANGELOG.md`. Committed, not
+gitignored: it is project history.
+
+The shape, kept consistent so entries can be compared across tasks:
+
+```markdown
+## 2026-08-03 · <task/branch name>
+**Task:** one sentence, in the user's terms
+**Tier:** feature | small-fix | research   **Phase:** prototype | production
+
+| # | Agent | Why it was called | What came back |
+|---|-------|-------------------|----------------|
+| 1 | code-engineer | implement the 9 criteria | claimed all pass |
+| 2 | test-engineer | independent validation | 3 bugs, 1 critical |
+
+**Disputes:** what was contested, who won, on what argument
+**Escalated to the user:** what needed a decision, and what was decided
+**Cost:** ~N tokens across M agents
+**Outcome:** merged / not merged / parked, and why
+```
+
+Two things make it worth keeping rather than a chore. It is the **evidence base
+for improving the agents** — a role whose findings are repeatedly disputed, or a
+gate that repeatedly misses the same class of problem, is visible here and
+nowhere else. And it makes the **cost of ceremony legible**: multi-agent work is
+substantially more expensive than a single session, so a record of what each
+task actually cost is what tells the user when a lighter tier would have done.
+
+Record what actually happened, including the parts that went badly — an agent
+that had to be re-run, a fix that broke something else, a tier chosen wrongly.
+A log that only records clean runs is worth nothing for analysis.
+
 ## Project phases — prototype and production
 
 Added 2026-08-03. Phase is a property of **the surface being changed**, not of
