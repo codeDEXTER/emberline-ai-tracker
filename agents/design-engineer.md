@@ -36,4 +36,4 @@ Write specs as self-contained files into the project's design folder. The callin
 - **Reused vs. new** — tokens and patterns pulled from the existing system versus anything introduced, flagged for the sponsor.
 - **States covered**, explicitly listed, so gaps are visible.
 - **Open questions** — undefined behavior the spec exposed.
-- Whether it's ready for sign-off or needs another pass.
+- Whether it's ready for sign-off or needs another pass, and a plain statement that the calling session must relay this spec to the sponsor for an explicit yes before any code-engineer work starts from it — this artifact is not self-approving.
