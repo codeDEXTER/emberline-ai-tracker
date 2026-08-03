@@ -497,16 +497,29 @@ Added 2026-08-03. **Adopted by every project that references this file.**
 A proposal is how work that needs a decision reaches the user. It lives in the
 project's `docs/proposals/`.
 
-### One proposal per task, not one per role
+### One proposal per topic, not one per role — and not one per session
 
 However many agents run — research alone, or requirements and design together,
-or all four — **the task produces exactly one proposal.** Each role contributes
-a section; the project manager assembles them; the user decides once.
+or all four — **a topic produces exactly one proposal.** Each role contributes a
+section; the project manager assembles them; the user decides once.
 
-Roles chain freely inside a task without stopping for approval. That is
-deliberate: the user approves the *plan* (which agents run) up front, then the
-*result* at the end. The cost is real and should be stated when it applies — a
-wrong requirement wastes the design work built on it too.
+Roles chain freely without stopping for approval. That is deliberate: the user
+approves the *plan* (which agents run) up front, then the *result* at the end.
+The cost is real and should be stated when it applies — a wrong requirement
+wastes the design work built on it too.
+
+**A proposal stays open across sessions until it is decided.** If research runs
+today and the user asks for requirements tomorrow, that is the *same* proposal
+gaining a section — not a second one. It sits at `draft` the whole time and only
+moves to `proposed` when the user is actually being asked to decide.
+
+This is the rule's weak point, so it is stated plainly: "one per task" invites
+treating each new conversation as a new task, which quietly rebuilds the chain of
+four proposals this exists to prevent. **Before writing a new proposal, check
+`docs/proposals/` for an open one on the same topic and extend it.** A second
+proposal on a live topic is only correct when the first has already been decided
+and this genuinely supersedes or amends it — in which case it says so in its
+status.
 
 **What stays absolute:** nothing reaches the code engineer until the user has
 accepted the proposal.
