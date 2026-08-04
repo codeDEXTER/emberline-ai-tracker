@@ -33,6 +33,32 @@ is the thing to read first.
   above demotes. An agent reading only its own file would otherwise have kept
   the framing this change exists to replace.
 
+- **`bin/rulecheck` — a session checks it is on the current rules before doing
+  anything.** the-sponsor's ask, and the reason is in the ask: he kept having to say
+  "check common rules" again. These rules changed **five times today alone**, so
+  a session working from what it read earlier is following a version that no
+  longer exists, and nothing told it so.
+
+  The version is `<commit-count>-<short-sha>` — the count orders it, the sha
+  identifies it exactly. A project records the one it last aligned with in
+  `.common-rules-version` at its root, **committed**, so a worktree checkout
+  carries it automatically and needs no stamp of its own. Exit 0 aligned, 1
+  behind, 2 cannot tell — and "cannot tell" means re-read in full, not "probably
+  fine".
+
+  The part that makes it worth running rather than just informative: it prints
+  **what changed**, by diffing `CHANGELOG.md` between the two commits, not merely
+  that something did. A session then reads the sections those touch. `--align`
+  is deliberately a separate act after reading — it is a claim that this session
+  knows the current rules, and a false claim there is worse than no stamp, since
+  the next session inherits it and skips the check.
+
+  Documented with a `SessionStart` hook per project (`rulecheck --quiet`),
+  because the rule as written still relies on a session remembering — which is
+  the exact weakness it exists to remove. Adding that hook is per-project work
+  and hasn't been done. Neither project has ever recorded a version, so both read
+  as never-aligned until they do.
+
 - **`proposal-auditor`, an eighth agent — so L2 isn't the project manager's own
   opinion.** the-sponsor's question, and it went straight at the weakness flagged in
   the L2 rule below: the project manager would be approving output from a
