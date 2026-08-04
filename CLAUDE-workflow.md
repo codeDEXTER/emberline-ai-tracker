@@ -439,6 +439,89 @@ accepted proposal is not settled requirements**, and a brief quoting one is not
 a substitute for `REQUIREMENTS.md` and a screen spec. Skipping straight to the
 code engineer is exactly what produced the failure this rule exists to stop.
 
+### Loops — how work comes back, and how the system learns
+
+Added 2026-08-04 (proposal 03). The rules above read forward, which made the
+workflow look one-directional. It isn't. Reading it for *return* paths found
+only three stated here, four more buried in agent definitions where the project
+manager never reads them, and six that should exist and didn't.
+
+**Three classes, and they fail differently:**
+
+| Class | Corrects | Ends at |
+|---|---|---|
+| **Correction** | the work, inside one task | another agent, same task |
+| **Direction** | what the task *is* | the user, or an earlier role |
+| **Learning** | **the system itself** | **always the user** — rules and agent definitions are reserved |
+
+The learning loops are the ones that compound and the ones that were missing.
+They all terminate with the user, which is right — but it means **the user is the
+only mechanism**, so each needs a trigger that says when to act. A system that
+fails the same way repeatedly and cannot say so is the failure being closed here.
+
+**The gate names where it is sending work.** A gate report says `code` (the
+implementation is wrong), `design` (the spec is wrong or incomplete), or
+`research` (the approach is wrong). Default stays `code`; the point is the other
+two become sayable. Before this, every failure routed to the code engineer — so
+"this approach is wrong" and "this line is wrong" were procedurally identical,
+and both landed with the person whose job is to make the code pass. That is how
+a wrong approach gets patched until it passes. **The gate recommends the
+destination; the user decides**, exactly as it recommends rather than authorises
+a merge.
+
+**An L2 escalation names its destination** — back to requirements, back to the
+proposal as an `amends`, or forward with the decision recorded. Never improvised.
+
+**Every loop is bounded and says what happens at the bound.** Test↔code has two
+rounds; nothing else had a limit. Same shape for all: a stated number of returns,
+then it escalates. An unbounded loop between two agents burns tokens invisibly
+and looks like progress.
+
+**A recurring lesson is escalated, with a threshold and an owner.** The quality
+manager counts `LESSONS.md` entries by type and area as part of the gate it
+already runs, and **on the third occurrence of the same lesson it must say so** —
+as a finding that an agent's *instructions* are wrong, not that the lesson needs
+restating. It cannot fix it; agent definitions are the user's.
+
+**Promotion is a loop, and it re-enters at requirements.** Prototype → production
+is the pipeline running a second time over work that skipped it, not a checklist
+appended to the end. Same roles, same gate, same L2. What makes it cheap is that
+the code already exists; what makes it necessary is that nothing ever wrote down
+what that code was supposed to do.
+
+**The outermost loop is real: shipped → finding → issue.** The user using the
+clean copy and finding something is a *return path into the workflow*, not an
+external event. It is why a clean copy must always be running — not tidiness, but
+the input to the only loop that starts with reality rather than with a plan.
+
+**An accepted proposal that was never built comes back.** `accepted` looks like
+*done* and means *owed*. A proposal at `accepted` with no issue against it is
+**resurfaced** in the next review of that project's proposals, until it becomes
+an issue, is built, or is rejected outright. Found on pockets, whose register
+held **3 accepted, 11 proposed, 0 built** — three things decided and nothing
+anywhere bringing them up again.
+
+### Where parallel is safe
+
+Added 2026-08-04 (proposal 03). No new principle needed — the tool grants above
+already answer it. **Parallelism is safe exactly where no two workers write the
+same artifact.**
+
+- **Read-only roles fan out freely.** `research-agent`, `proposal-auditor`,
+  `test-engineer`, `quality-manager` write nothing, so nothing they do can
+  collide. Several auditors with different lenses, or testers split by criterion,
+  are better than one of each — not merely safe.
+- **Writing roles run one per artifact** — not one per task. Two design engineers
+  on two unrelated screens is fine; two on one screen is the divergence problem
+  in miniature. `design-explorer` is the exception that proves it: its concepts
+  are distinct files by construction, and divergence is the point.
+- **Sequence is set by dependency, not ceremony.** Design needs requirements;
+  test needs code; the gate needs everything. But exploration can run *alongside*
+  requirements, and research fans out before anything exists to depend on.
+
+Across tasks this is the same rule with the artifact being a whole surface — see
+"Working alongside other sessions".
+
 ### Escalation
 
 - **Always to the user**: anything the issue lifecycle above already reserves;
@@ -604,7 +687,35 @@ most models tested, so:
 - **Research / proposal**: research agent and/or requirements engineer —
   nothing merges, so there's nothing to gate.
 
-Research and design steps are optional and run only when the task needs them.
+### Research has triggers — it is not "when the task needs it"
+
+Added 2026-08-04 (proposal 03). That phrasing used to stand here on its own, and
+it is not a trigger, it is a hope. The definitions were circular too: the tier
+was "research agent and/or requirements engineer", and the agent's own trigger
+was "the research/proposal tier". Each pointed at the other, so nothing fired.
+
+**Four triggers, each checkable rather than felt:**
+
+- **No options were ever considered** for a direction now being built.
+- **An assumption failed mid-task** — stop and find out, don't guess forward.
+- **The same lesson has recurred.** The third occurrence is a research task, not
+  a third patch.
+- **A gate returned `research`** (see the loops section).
+
+**Research runs before the proposal, in the management session.** This is the
+part that was actually broken. A task session is created *from* an accepted
+proposal, so by the time one exists the direction is already chosen and research
+has nothing left to inform — the only honest thing left is writing down what was
+decided, which is requirements engineering. That is why requirements work is
+visible and research is not.
+
+Measured 2026-08-04: **management sessions had made three specialist agent calls
+in their entire history, against thirty in task sessions.** Research is not rare
+because it is unwanted. It is rare because the only place it gets reached is the
+one place where the direction is already fixed.
+
+Design steps stay optional, and skipping design is allowed only for work with no
+visible surface — said out loud and recorded, per the L2 section.
 
 **Model tiers follow ceremony tiers.** `code-engineer` is pinned to `sonnet`; a
 separate reviewer catches more of a weaker writer's mistakes than a stronger
