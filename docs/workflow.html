@@ -1,0 +1,431 @@
+<title>common-rules · The whole workflow, on one page</title>
+<meta name="doc-type" content="reference">
+<meta name="derived-from" content="CLAUDE-workflow.md">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --card:#FFFFFF; --ink:#1B1E23; --dim:#6B6660;
+    --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E;
+    --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E; --chip-ink:#FBFAF9;
+    --you:#6B4E9E; --lane:#EFEDEA;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --card:#161B24; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --you:#A98FD6; --lane:#101620; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --card:#161B24; --ink:#E8E6E1;
+            --dim:#8B93A0; --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985;
+            --loss:#C97A81; --warn:#D2A05A; --chip-ink:#0C0F14; --you:#A98FD6; --lane:#101620; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --card:#FFFFFF; --ink:#1B1E23;
+            --dim:#6B6660; --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B;
+            --loss:#A8434B; --warn:#B4761E; --chip-ink:#FBFAF9; --you:#6B4E9E; --lane:#EFEDEA; }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1060px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:34px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:66ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  section > p { max-width:70ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:72ch; }
+  code, .mono { font-family:var(--mono); font-size:12.6px; }
+  a { color:var(--accent); }
+
+  /* ---- the flow ---- */
+  .flow { display:grid; gap:0; margin-top:24px; }
+  .stage { display:grid; grid-template-columns:132px 1fr; gap:0 20px; align-items:start;
+           border-left:2px solid var(--border); padding:0 0 26px 22px; position:relative; }
+  .stage:last-child { padding-bottom:4px; }
+  .stage::before { content:""; position:absolute; left:-7px; top:5px; width:12px; height:12px;
+                   border-radius:50%; background:var(--accent); border:2px solid var(--ground); }
+  .stage.you::before { background:var(--you); }
+  .stage.gate::before { background:var(--warn); }
+  .stage .who { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em;
+                text-transform:uppercase; color:var(--dim); padding-top:3px; }
+  .stage .who b { display:block; color:var(--accent); font-size:10.5px; letter-spacing:.09em; }
+  .stage.you .who b { color:var(--you); }
+  .stage.gate .who b { color:var(--warn); }
+  .stage h3 { margin:0 0 5px; font-size:16.5px; font-weight:620; letter-spacing:-.01em; }
+  .stage p { margin:0; color:var(--dim); font-size:13.8px; max-width:68ch; }
+  .stage .out { margin-top:7px; display:flex; flex-wrap:wrap; gap:6px; }
+  .pill { font-family:var(--mono); font-size:10px; letter-spacing:.06em; padding:3px 8px;
+          border-radius:4px; background:var(--lane); border:1px solid var(--border); color:var(--ink);
+          white-space:nowrap; }
+  .pill.stop { border-color:var(--loss); color:var(--loss); }
+  .pill.doc  { border-color:var(--accent); color:var(--accent); }
+
+  .tablewrap { overflow-x:auto; margin-top:18px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:640px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.2px; white-space:nowrap; }
+
+  .lab { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+         display:inline-block; padding:2px 7px; border-radius:4px; white-space:nowrap;
+         color:var(--chip-ink); }
+  .lab.u { background:var(--you); } .lab.pm { background:var(--accent); }
+  .lab.a { background:var(--gain); } .lab.n { background:var(--loss); }
+
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:22px 0; max-width:74ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.warn { border-left-color:var(--warn); }
+  .verdict p:last-child { margin-bottom:0; }
+
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(232px,1fr)); gap:14px; margin-top:20px; }
+  .c { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+  .c b { display:block; font-size:14px; margin-bottom:5px; }
+  .c span { color:var(--dim); font-size:12.9px; }
+  ul { max-width:72ch; } li { margin-bottom:7px; }
+  pre { background:var(--surface); border:1px solid var(--border); border-radius:8px;
+        padding:12px 14px; overflow-x:auto; font-family:var(--mono); font-size:12.4px; line-height:1.5; }
+  @media (max-width:660px) {
+    .page { padding:34px 18px 60px; } h1 { font-size:27px; }
+    .stage { grid-template-columns:1fr; gap:4px; }
+    .stage .who { padding-top:0; }
+  }
+</style>
+
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · reference</span>
+  <span>derived from CLAUDE-workflow.md · rules version 40-800c38b · 2026-08-04</span>
+</div>
+
+<h1>The whole workflow, on one page</h1>
+
+<p class="standfirst">Every rule that governs work under <code>apps/</code>, in the order it
+actually happens. The authoritative text is <code>CLAUDE-workflow.md</code>; this is the map,
+kept in step with it.</p>
+
+<section>
+<div class="eyebrow"><span>Idea to merged, end to end</span><span class="tag">purple = you · blue = project manager · amber = a gate</span></div>
+
+<div class="flow">
+
+  <div class="stage">
+    <div class="who">any session<b>rulecheck</b></div>
+    <div>
+      <h3>Confirm the session is on the current rules</h3>
+      <p>Before reading code, before the worktree, before anything. The rules move several
+      times a day; a session working from what it read this morning is following a version
+      that no longer exists. It prints <em>what changed</em>, not merely that something did.</p>
+      <div class="out"><span class="pill mono">rulecheck</span><span class="pill mono">rulecheck --align</span><span class="pill doc">.common-rules-version</span></div>
+    </div>
+  </div>
+
+  <div class="stage you">
+    <div class="who">you<b>L0 · scope</b></div>
+    <div>
+      <h3>An idea, a finding, or an issue you want picked up</h3>
+      <p>Creating an issue, agreeing its scope and priority, picking what's next and closing it
+      are all yours. Agents may only draft — a finding becomes a five-field issue draft, never a
+      filed issue.</p>
+      <div class="out"><span class="pill doc">CLAUDE-checklist.md</span><span class="pill doc">GitHub issue (mirror)</span></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="who">research-agent<br>design-explorer<b>explore</b></div>
+    <div>
+      <h3>Explore before anything hardens</h3>
+      <p>Precedent, feasibility, several structurally different concepts. Optional — run when the
+      task needs it. The explorer runs <em>before</em> requirements, because mockups are a
+      thinking tool for deciding what the thing should even be.</p>
+      <div class="out"><span class="pill">options with tradeoffs</span><span class="pill">concepts, ambition first</span></div>
+    </div>
+  </div>
+
+  <div class="stage gate">
+    <div class="who">project manager<b>L1 · proposal</b></div>
+    <div>
+      <h3>One proposal per topic — artifact, then buttons</h3>
+      <p>However many agents ran, the topic produces <strong>one</strong> proposal; each role
+      contributes a section. It arrives as a rendered HTML artifact with a committed copy already
+      in <code>docs/proposals/</code>, and the decision question follows in the same breath, with
+      buttons. One decision per prompt.</p>
+      <div class="out"><span class="pill doc">docs/proposals/NN-…html</span><span class="pill">Accept · Amend · Reject · Show me first</span></div>
+    </div>
+  </div>
+
+  <div class="stage you">
+    <div class="who">you<b>decide</b></div>
+    <div>
+      <h3>Accept, and a session is offered</h3>
+      <p>A draft issue is written for your acceptance, and a session <em>offered</em> — never
+      started, because picking what to work on is your decision. Its brief opens
+      <strong>“Project-manage”</strong>, not “Implement”, and names the tier and the agent set
+      before any task detail.</p>
+      <div class="out"><span class="pill">&lt;app&gt; - proposal NN - short description</span></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="who">code session<b>worktree</b></div>
+    <div>
+      <h3>Its own folder and its own branch</h3>
+      <p><code>EnterWorktree</code> is the first action on any project repo — no direct-to-main
+      work, no two chats sharing a checkout. Copy in the gitignored files the run needs
+      (<code>.env</code>, data dirs) immediately, or a fresh worktree fails in ways that look
+      exactly like real bugs.</p>
+      <div class="out"><span class="pill">.claude/worktrees/&lt;task&gt;</span><span class="pill stop">merge main in — never optional</span></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="who">requirements-engineer<b>what “built” means</b></div>
+    <div>
+      <h3>The proposal is a direction, not the requirements</h3>
+      <p>Numbered, testable criteria, explicit about what is out of scope. Ask rather than assume;
+      a settled ambiguity gets logged so nobody re-asks it.</p>
+      <div class="out"><span class="pill doc">REQUIREMENTS.md</span><span class="pill doc">LESSONS.md [requirements-gap]</span></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="who">design-engineer<b>buildable</b></div>
+    <div>
+      <h3>Every state, not just the happy one</h3>
+      <p>Layout, tokens, and the states that actually break things: empty, loading, error,
+      one item, too many, longest plausible string. Skippable only when there is no visible
+      surface — said out loud and recorded, like any skip.</p>
+      <div class="out"><span class="pill doc">screen spec</span><span class="pill doc">AGENT-LOG.md if skipped</span></div>
+    </div>
+  </div>
+
+  <div class="stage gate">
+    <div class="who">proposal-auditor<b>independent</b></div>
+    <div>
+      <h3>How far has this moved from what you accepted?</h3>
+      <p>Read-only, decides nothing. Classifies every divergence — <code>faithful</code>,
+      <code>elaboration</code>, <code>drift</code>, <code>silent decision</code>, <code>gap</code>
+      — so the next decision runs on evidence rather than on the project manager's own opinion of
+      its own pipeline.</p>
+      <div class="out"><span class="pill">drift + silent decision → you</span><span class="pill">gap → back to requirements</span></div>
+    </div>
+  </div>
+
+  <div class="stage gate">
+    <div class="who">project manager<b>L2 · approve</b></div>
+    <div>
+      <h3>Requirements and design accepted, together</h3>
+      <p>Nothing reaches the code engineer before this. Four things escalate past L2 to you and
+      none are judgment calls: it contradicts what the proposal decided, scope moved, a decision
+      surfaced the proposal never made, or it is materially larger than implied.</p>
+      <div class="out"><span class="pill stop">no L2, no code</span></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="who">code-engineer<b>build</b></div>
+    <div>
+      <h3>Implementation, inside the worktree</h3>
+      <p>UI separated from logic — MVVM for SwiftUI, a services layer for Python/NiceGUI. Commits
+      before reporting. Never certifies its own work, never expands scope, and never starts from
+      a proposal alone.</p>
+      <div class="out"><span class="pill">pinned to sonnet</span><span class="pill doc">CHANGELOG entry</span></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="who">test-engineer<b>validate</b></div>
+    <div>
+      <h3>Against the criteria, not against the code</h3>
+      <p>Raises structured bug reports; never fixes anything itself. The two negotiate through
+      bounded rounds — a dispute unresolved after <strong>two</strong> comes to you.</p>
+      <div class="out"><span class="pill">bug reports</span><span class="pill stop">2 rounds, then escalate</span></div>
+    </div>
+  </div>
+
+  <div class="stage gate">
+    <div class="who">quality-manager<b>the gate</b></div>
+    <div>
+      <h3>Pre-merge, report-only</h3>
+      <p>Cheap preconditions first (commit state, merge-base), then outcome-not-surface
+      verification. Fixes nothing, approves nothing — its verdict is a recommendation. Behaviour
+      changed means re-gate; a docstring or changelog line does not.</p>
+      <div class="out"><span class="pill">1 compatible with main</span><span class="pill">2 tests pass</span><span class="pill">3 built &amp; exercised</span><span class="pill">4 changelog</span></div>
+    </div>
+  </div>
+
+  <div class="stage you">
+    <div class="who">you<b>merge</b></div>
+    <div>
+      <h3>Merge, then the clean copy is refreshed</h3>
+      <p>Approving the merge is yours. The task is not finished at the merge: rebuild from
+      <code>main</code>, replace the installed copy, restart it, register it as
+      <code>stable</code>. A merge that leaves the installed app on last week's build has finished
+      the git work only.</p>
+      <div class="out"><span class="pill">projects: no PRs</span><span class="pill">common-rules: PR, you merge</span></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="who">every session<b>leave nothing</b></div>
+    <div>
+      <h3>Close what you started — and only that</h3>
+      <p><code>apprun stop --all</code> ends the task: the process <em>and</em> the browser window,
+      which is the half that used to get missed. A live stranger's copy, an orphan, and the stable
+      copy are all declined. A <code>--demo</code> copy started for you survives and says so.</p>
+      <div class="out"><span class="pill stop">never pkill / killall</span><span class="pill">orphans need your yes</span></div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>Who decides what</span><span class="tag">the part that never moves</span></div>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Decision</th><th>Whose</th><th>Note</th></tr>
+  <tr><td>Create an issue · agree scope · pick what's next · close it</td><td><span class="lab u">you</span></td><td>agents draft only, never file</td></tr>
+  <tr><td>Accept or reject a proposal (L1)</td><td><span class="lab u">you</span></td><td>artifact + buttons, one decision per prompt</td></tr>
+  <tr><td>Approve a merge</td><td><span class="lab u">you</span></td><td>the gate recommends; it does not authorise</td></tr>
+  <tr><td>Change these shared rules</td><td><span class="lab u">you</span></td><td>PR opened by the AI, merged by you</td></tr>
+  <tr><td>Clear an orphaned app instance</td><td><span class="lab u">you</span></td><td>it may be the window you're looking at</td></tr>
+  <tr><td>Promote prototype → production</td><td><span class="lab u">you</span></td><td>silent promotion is the documented failure</td></tr>
+  <tr><td>Accept requirements + design (L2)</td><td><span class="lab pm">project manager</span></td><td>on the auditor's evidence; four triggers escalate</td></tr>
+  <tr><td>Ceremony tier · which agents run</td><td><span class="lab pm">project manager</span></td><td>said out loud at scope agreement</td></tr>
+  <tr><td>Route a confirmed bug back · re-run a gate</td><td><span class="lab pm">project manager</span></td><td>no escalation needed</td></tr>
+  <tr><td>Anything an agent decides about its own work</td><td><span class="lab n">nobody</span></td><td>no agent certifies, approves, or fixes its own review</td></tr>
+</table>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>The eight agents</span><span class="tag">tool grants are the enforcement, not the prose</span></div>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Agent</th><th>Owns</th><th>Never</th><th>Tools</th></tr>
+  <tr><td class="k">research-agent</td><td>Precedent, feasibility, options with tradeoffs</td><td>Writes requirements; picks a direction</td><td class="k">Read Grep Glob Web</td></tr>
+  <tr><td class="k">design-explorer</td><td>Structurally different concepts, early</td><td>Converges; produces a buildable spec</td><td class="k">Read Write Grep Glob Web Skill</td></tr>
+  <tr><td class="k">requirements-engineer</td><td>REQUIREMENTS.md — numbered, testable</td><td>Designs; chooses between directions</td><td class="k">Read Write Grep Glob</td></tr>
+  <tr><td class="k">design-engineer</td><td>Buildable specs, every state, tokens</td><td>Writes production code; explores</td><td class="k">Read Write Grep Glob</td></tr>
+  <tr><td class="k">proposal-auditor</td><td>Distance from the accepted proposal, classified</td><td>Writes or fixes either; approves</td><td class="k">Read Grep Glob</td></tr>
+  <tr><td class="k">code-engineer</td><td>Implementation in its worktree</td><td>Certifies itself; expands scope</td><td class="k">Read Write Edit Bash Grep Glob</td></tr>
+  <tr><td class="k">test-engineer</td><td>Validation; structured bug reports</td><td>Fixes anything it finds</td><td class="k">Read Grep Glob Bash</td></tr>
+  <tr><td class="k">quality-manager</td><td>The pre-merge gate; LESSONS curation</td><td>Fixes anything; approves the merge</td><td class="k">Read Grep Glob Bash</td></tr>
+</table>
+</div>
+
+<p class="note"><b>The project manager is deliberately not on this list.</b> There is no
+<code>project-manager.md</code> — a subagent cannot talk to you, and deciding what reaches you is
+the role's central job, so it sits in the conversation. Invoked with the Agent tool and
+<code>subagent_type</code>; the behavioural test is blunt — <em>if the session itself is calling
+Edit, it is no longer the project manager.</em></p>
+</section>
+
+<section>
+<div class="eyebrow"><span>How much ceremony</span><span class="tag">light is the default</span></div>
+
+<div class="cards">
+  <div class="c"><b>Feature</b><span>Full pipeline, every role the task calls for.</span></div>
+  <div class="c"><b>Small fix</b><span>Code engineer + quality manager only.</span></div>
+  <div class="c"><b>Research / proposal</b><span>Research and/or requirements. Nothing merges, so nothing to gate.</span></div>
+</div>
+
+<p class="note">Phase sets the default tier — prototype defaults to light, production to full — and
+phase is a property of the <em>surface being changed</em>, not the whole project. Published research
+found full-ceremony role pipelines <em>reduced</em> correctness for most models, which is why the
+tiers exist at all. <code>code-engineer</code> is pinned to <code>sonnet</code>; a separate reviewer
+catches more of a weaker writer's mistakes than a stronger one's, and that is what makes the pin
+safe. <strong>Never downgrade <code>test-engineer</code> or <code>quality-manager</code></strong> —
+they are the mechanism the whole trade-off depends on.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>Telling running copies apart</span><span class="tag">absence is the signal</span></div>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Run</th><th>Port</th><th>Title</th><th>Badge</th></tr>
+  <tr><td>Stable — the clean copy</td><td class="k">project default (8502)</td><td class="k">&lt;App&gt;</td><td><b>none</b></td></tr>
+  <tr><td>Test (worktree)</td><td class="k">8600–8699</td><td class="k">TEST · &lt;branch&gt; — &lt;App&gt;</td><td>amber</td></tr>
+  <tr><td>Prototype</td><td class="k">8700–8799</td><td class="k">PROTO · &lt;branch&gt; — &lt;App&gt;</td><td>violet</td></tr>
+</table>
+</div>
+
+<p class="note">Ports derive from a hash of the branch name, so a branch always lands on the same
+one and an open tab stays pointed at the right thing. <b>Exactly one stable copy exists at a
+time</b>, and one icon is reserved for it — the Dock shows an icon long before you can read a
+title.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>Where things get written down</span><span class="tag">and who writes them</span></div>
+
+<div class="tablewrap">
+<table>
+  <tr><th>File</th><th>Written by</th><th>For</th></tr>
+  <tr><td class="k">CLAUDE-checklist.md</td><td>project manager</td><td>Open items. <b>The source of truth</b>; GitHub issues are a one-way mirror</td></tr>
+  <tr><td class="k">REQUIREMENTS.md</td><td>requirements-engineer</td><td>What “built” means for the task in flight</td></tr>
+  <tr><td class="k">docs/proposals/</td><td>project manager</td><td>Decisions and the argument behind them. Conclusions immutable</td></tr>
+  <tr><td class="k">CHANGELOG.md</td><td>whoever merges</td><td>Why a change was made, not what changed</td></tr>
+  <tr><td class="k">LESSONS.md</td><td>agents, typed, append-only</td><td>bug · gotcha · attempt · resolved-dispute · requirements-gap</td></tr>
+  <tr><td class="k">AGENT-LOG.md</td><td>project manager</td><td>Which agents ran, in what order, tokens and duration</td></tr>
+  <tr><td class="k">ASKS.md</td><td>any session</td><td>What you've asked for about <em>how work is done</em>, and the patterns in it</td></tr>
+  <tr><td class="k">.common-rules-version</td><td>rulecheck --align</td><td>The rules version this project last confirmed</td></tr>
+</table>
+</div>
+
+<p class="note">A recurring lesson means an <em>agent's instructions</em> are wrong, not that the
+lesson needs restating. Improving an agent definition is reserved for you, same as the rules —
+an agent that can rewrite the specs it reviews against is no longer an independent check.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>The two tools</span><span class="tag">rules nobody has to remember</span></div>
+
+<pre>rulecheck                    # am I on the current rules? prints what changed
+rulecheck --align            # record this version — only after actually reading
+
+apprun start --project P --phase stable|test|proto --port N --pid N [--demo]
+apprun list                  # what you still owe
+apprun stop --all            # process + window, before you report
+apprun sweep [--clear]       # orphans from dead sessions; --clear needs your yes</pre>
+
+<p class="note">Both exist for the same reason: a rule that depends on a session remembering is a
+rule that decays. Neither is complete — nothing forces a session to call <code>apprun start</code>
+in the first place, and an unregistered instance is invisible to every later cleanup. That is the
+honest remaining gap in both.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>The short list</span><span class="tag">if you remember nothing else</span></div>
+
+<ul>
+  <li><b>No direct-to-main, ever</b>, and no two chats sharing a checkout.</li>
+  <li><b>An accepted proposal is not settled requirements.</b> Requirements, then design, then L2 — never straight to code.</li>
+  <li><b>One proposal per topic</b>, however many agents ran, and it survives across sessions until decided.</li>
+  <li><b>Show, don't summarise.</b> Artifact over prose; demo before approval; the render, not a description of it.</li>
+  <li><b>Stop only what you started</b> — and stop the window too.</li>
+  <li><b>Nothing about issues, merges, promotions or these rules happens without you.</b></li>
+</ul>
+
+<div class="verdict warn">
+  <b>How this page stays true</b>
+  <p>It is <em>derived</em> from <code>CLAUDE-workflow.md</code>, not a second source of truth.
+  Where they disagree, that file wins and this one is wrong. Any change to the shared rules
+  updates this page and its version stamp in the same pull request — a bird's-eye view that has
+  quietly drifted is worse than none, because it is trusted at a glance and read without
+  suspicion.</p>
+</div>
+</section>
+
+</div>
