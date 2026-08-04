@@ -157,6 +157,89 @@ explicitly there, don't assume it here.
 
 Only once all four pass does the branch merge into `main`.
 
+## Working alongside other sessions
+
+Added 2026-08-04 (proposal 02, accepted the same day). The worktree rule above
+stops parallel sessions overwriting each other *live*. It was never designed to
+stop them **diverging**, and they do.
+
+Measured on finance-tracker the day this was written: **43 uncommitted files
+across seven parallel worktrees, none of them ahead of `main`**, and **seven
+files held by more than one session** — `nicegui_app/pages/ledger.py` by four.
+Four different uncommitted rewrites of one screen. Whichever merges first wins;
+the second conflicts; the third and fourth meet a file they no longer recognise.
+Nobody did anything wrong — there was simply no step anywhere that asks *who
+else is working here*.
+
+### Look before you start — `bin/whoelse`
+
+```bash
+/Users/aashish/apps/common-rules/bin/whoelse            # do I overlap with anyone?
+/Users/aashish/apps/common-rules/bin/whoelse --contested # batch view, before picking
+```
+
+Run it **before the first edit**, after `EnterWorktree`. It reads the three
+places that already knew and nobody consulted — `git worktree list`, a
+`git status` in each, and whether any of it is ahead of `main` — and reports
+overlaps. Exit 0 clear, 1 overlap, 2 cannot tell.
+
+**Overlap is a stop, not a warning.** If another session holds a file this task
+needs, **do not proceed on it.** Report it and let the user sequence the work.
+Same principle already in force for running apps: a port in your range you did
+not start is a collision to report, not to reclaim.
+
+### Inform the other session — don't duplicate its work
+
+When there is an overlap, the answer is not to work around it or to redo it. Say
+so to the owning session: sessions can message each other directly, and the
+message arrives there as a labelled turn with a link back, so the user sees both
+sides. State what this task needs, what overlaps, and ask them to commit or hand
+over.
+
+**Draft the message and get the user's yes before sending it.** It arrives in
+their name in another conversation; they should know what was said.
+
+### Commit, or it doesn't exist
+
+A session that pauses **commits work-in-progress to its own branch first** —
+even broken, even mid-thought, marked `WIP`. Uncommitted work is invisible to
+every branch-based check, unprotected by anything, and one bad command from
+gone. It also makes intent legible: a diff says what a branch is doing when
+`claude/happy-benz-46db8a` cannot.
+
+### Parallelism is granted per surface, not per issue
+
+**The workflow change.** The user picks issues; the system owes them a warning
+when the ones picked collide. Four issues touching `ledger.py` were never four
+parallel tasks — they were one queue nobody drew.
+
+So **before a batch of sessions is opened**, compare the surfaces the issues
+will land on (`whoelse --contested`, plus the issues' own stated scope) and
+sequence the contested ones. Independent issues still run fully in parallel —
+keeping this per-surface rather than throttling everything is the whole point.
+
+### A finding on another task's surface is a handover, not a note
+
+Informing is not handover. When a session finds — often during research — that
+something could be improved, and that improvement belongs to another in-flight
+task's surface, **responsibility is assigned explicitly.** One of three, chosen
+out loud, never left implicit:
+
+| Outcome | What has to happen |
+|---|---|
+| **The finder keeps it** | The finder's issue grows — a mid-task scope change, which already escalates to the user. The other task is told, because its surface just changed underneath it |
+| **The owner takes it** | Folded into the other issue; its requirements gain a criterion; that session receives the **full finding**, not a summary; **the finder is told it was accepted**, so it stops building around the old behaviour |
+| **Neither** | It becomes its own issue, sequenced after both — recorded as deferred *by decision*, not by omission |
+
+**The decision is the user's**, because it is a scope change and every scope
+change discovered mid-task already escalates.
+
+**Record it against both issues in the checklist.** A handover that lives only
+in two chat transcripts has not happened. The two failure modes this closes are
+*silent absorption* — one side fixes it, the other never hears and keeps
+building on behaviour that no longer exists — and *mutual drop*, where both
+assume the other has it and the finding resurfaces months later as a bug.
+
 ## Issue tracking — the project's own checklist file is the source of truth, GitHub issues are a one-way mirror
 
 **The project's own living checklist file (e.g. `CLAUDE-checklist.md`,

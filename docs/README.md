@@ -7,7 +7,7 @@ belongs in that project's own `docs/`, not here.
 
 The whole workflow on one page: idea to merged in the order it actually happens,
 who decides what, the eight agents with their tool grants, where things get
-written down, and the two tools. `workflow.png` sits beside it for sharing.
+written down, and the three tools. `workflow.png` sits beside it for sharing.
 
 **It is derived from `CLAUDE-workflow.md`, not a second source of truth** —
 where they disagree, that file wins. Per its own rule there, **any PR that

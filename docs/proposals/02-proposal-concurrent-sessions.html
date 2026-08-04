@@ -2,7 +2,7 @@
 <meta name="proposal-id" content="02">
 <meta name="proposal-topic" content="concurrent-sessions">
 <meta name="proposal-type" content="proposal">
-<meta name="proposal-status" content="proposed">
+<meta name="proposal-status" content="accepted">
 <style>
   :root {
     --ground:#F4F3F1; --surface:#FBFAF9; --card:#FFFFFF; --ink:#1B1E23; --dim:#6B6660;
@@ -40,6 +40,7 @@
   p.note { color:var(--dim); font-size:13.5px; max-width:72ch; }
   code, .mono { font-family:var(--mono); font-size:12.6px; }
   a { color:var(--accent); }
+  .chip.accepted { background:var(--gain); }
   .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
           padding:3px 9px; border-radius:4px; background:var(--warn); color:var(--chip-ink); }
 
@@ -95,7 +96,7 @@
 
 <div class="brand">
   <span>common-rules · Proposal 02</span>
-  <span><span class="chip">proposed</span> &nbsp; 2026-08-04 · rules 40-800c38b</span>
+  <span><span class="chip accepted">accepted</span> &nbsp; 2026-08-04 · rules 40-800c38b</span>
 </div>
 
 <h1>Parallel sessions that don't collide</h1>
@@ -340,10 +341,30 @@ change discovered mid-task, however small, already escalates.</p>
 </section>
 
 <section>
-<div class="eyebrow"><span>Status</span><span class="tag">proposal 02</span></div>
-<p>This is <code>proposed</code> and nothing has been built. The evidence above was measured, not
-estimated. Accepting changes the workflow for every project referencing the shared rules, which is
-why the decision is yours and the questions come one at a time.</p>
+<div class="eyebrow"><span>Decided</span><span class="tag">2026-08-04 · aashish</span></div>
+<p><b>Accepted, all six rules.</b> Now in <code>CLAUDE-workflow.md</code> under "Working
+alongside other sessions", with <code>bin/whoelse</code> built and exercised against the very
+contention described above.</p>
+
+<p>The four open questions were not answered separately, so the document's own stated positions
+were applied — listed here so any of them can be changed by saying so:</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Question</th><th>Applied</th></tr>
+  <tr><td>Block or warn?</td><td><b>Block.</b> Overlap stops the session, as R2 is written.</td></tr>
+  <tr><td>Who sends the handover message?</td><td><b>The session drafts, you approve.</b> It
+  arrives in your name in another conversation; you should know what was said.</td></tr>
+  <tr><td>R5 per batch or per session?</td><td><b>Per batch</b> — surfaces compared before a set
+  of sessions is opened, which is the strong version and the only one that helps at picking time.</td></tr>
+  <tr><td>Who assigns an R6 handover?</td><td><b>You</b>, per the document's default reading: it
+  is a scope change, and those already escalate.</td></tr>
+</table>
+</div>
+
+<p class="note">Separately: the 43 uncommitted files were left untouched on your instruction. The
+risk described above stands unchanged — <code>whoelse --contested</code> now reports it on demand
+rather than requiring someone to go looking.</p>
 </section>
 
 </div>
