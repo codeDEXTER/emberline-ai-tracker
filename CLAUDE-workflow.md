@@ -1107,6 +1107,22 @@ conversation. This file changing behavior for every adopting project at
 once is exactly why the bar for changing it, unprompted, is higher than
 for an ordinary project file.
 
+### The bird's-eye view — `docs/workflow.html`, kept in step
+
+Added 2026-08-04. This file is long and reads in the order it was written, not
+in the order work happens. `docs/workflow.html` is the map: the whole pipeline
+on one page, who decides what, the eight agents and their tool grants, the
+records, and the two tools — with a PNG alongside it for sharing.
+
+**It is derived, not a second source of truth.** Where the two disagree, this
+file wins and the page is wrong.
+
+So: **any pull request that changes these rules updates that page and its
+version stamp in the same PR.** Not as a follow-up, not "next time someone
+regenerates it". A bird's-eye view that has quietly drifted is worse than none —
+it is trusted at a glance and read without suspicion, which is precisely what
+makes a stale one dangerous rather than merely unhelpful.
+
 ### How a change gets made — branch and pull request
 
 Added 2026-08-03, after the first batch of rule changes went straight to
