@@ -452,7 +452,7 @@ confusion this section exists to remove.
 For a packaged app, a distinct bundle name per build keeps test builds separate
 in Cmd-Tab and the Dock instead of masquerading as the installed one.
 
-### Leave nothing running
+### Leave nothing running — and stop only what you started
 
 Badges say which copy is which; they do nothing to stop copies accumulating.
 So: **any agent that starts an app instance stops it before reporting** — dev
@@ -465,9 +465,136 @@ A validation pass that ends with three servers still up has recreated the exact
 confusion this section exists to remove, and leaves the next session with ports
 that look occupied for no visible reason.
 
-**The stable copy is the one exception.** It is meant to stay up so the user
-always has something to review and file issues against — no agent stops it, and
-no agent builds over it.
+The rule scopes to the **session**, not to the individual agent. Several agents
+in one task may hand the same running copy along — the test engineer reusing the
+server the code engineer started is normal and wasteful to forbid. What must not
+happen is the task finishing with it still up. **The session that started an
+instance is the session that closes it, when the task that needed it is done** —
+and the project manager (this session) is the one accountable for that, because
+it is the only role that sees the whole task.
+
+#### Never close an instance you didn't start
+
+Added 2026-08-04. The opposite failure is worse than the one above, because it
+destroys someone else's work rather than merely littering. **An agent stops only
+the instances its own session started.** Anything else that is running belongs to
+somebody — the user reviewing a build, or a parallel session mid-validation — and
+killing it takes away the thing they were looking at, usually without them
+learning why it vanished.
+
+This makes the stable copy a *case* of the rule rather than an exception to it:
+no session started it, so no session stops it, and no session builds over it.
+
+In practice that means cleanup is **targeted, never a sweep**:
+
+- Track what you start — the PID and the port — and close by that. An agent that
+  didn't record what it started cannot clean up correctly and should say so
+  rather than guess.
+- **No blanket kills.** `pkill -f streamlit`, `killall <App>`, or anything that
+  clears a port range on principle will take down copies you never started. If
+  you catch yourself matching on the app's name instead of on your own PID or
+  your own derived port, stop.
+- A port in your own range that you did *not* start is not yours to reclaim.
+  Branch-derived ports collide when the same branch is open twice; that is a
+  conflict to report, not to resolve by killing the occupant.
+- If an instance you started has already been closed by the time you clean up,
+  that is fine — say so and move on.
+
+**Leaving a stranger's copy running is the correct outcome**, even when it looks
+like the exact mess the section above is about. Ownership decides, not tidiness.
+
+#### The run registry — `bin/apprun`
+
+Added 2026-08-04. The two rules above are unfollowable without one fact no agent
+has: *who started this*. So it gets recorded. `common-rules/bin/apprun` keeps
+`~/.claude/app-runs.jsonl` — one line per instance, carrying project, phase,
+port, pid, url, branch, and the **session id and session pid** of whoever started
+it.
+
+Ownership is then exact rather than guessed: `CLAUDE_CODE_SESSION_ID` says whose
+it is, and `kill -0` on the recorded session pid says whether that owner still
+exists. Three duties, and they are the whole protocol:
+
+```bash
+apprun start --project <p> --phase stable|test|proto --port <n> --pid <n>   # on launch
+apprun list                                                                # what you still owe
+apprun stop --all                                                          # before reporting
+```
+
+- **`start` immediately after launching anything.** An unregistered instance is
+  invisible to every later cleanup — it is exactly how the pile forms.
+- **`stop` refuses what isn't yours.** A live stranger's copy, an orphan, the
+  stable copy: all three are declined with the reason. The rule stops depending
+  on an agent remembering it.
+- **`stop` closes the browser window too** — see below.
+- **`sweep` reports orphans** and never clears them without `--clear`, which is
+  the user's call, because one of those windows may be what they are looking at.
+
+#### Stopping the server is not closing the window
+
+This is the gap that produced the actual complaint. Every rule here talked about
+processes and ports; a NiceGUI or Streamlit launch opens a **browser window**,
+and killing the server leaves that window sitting there, dead, still titled like
+the app. Ten sessions that each cleaned up perfectly still leave ten windows.
+
+So **cleanup closes the window as well as the process.** `apprun stop` does it —
+matching on the exact `http://127.0.0.1:<port>` of the instance being stopped, so
+it can only ever hit that one. If the window can't be closed (browser not
+running, automation not permitted), say so rather than reporting a clean finish.
+
+#### Orphans — the one thing a stranger may close
+
+An instance whose app is up but whose **owning session is gone** is an orphan.
+Nobody will ever come back for it, so the ownership rule alone would keep it
+running forever — which is how "stop only what you started" quietly turns into
+the pile it was meant to prevent.
+
+`apprun sweep` lists them with their age and project. Clearing them needs the
+user's explicit yes; a session never clears orphans on its own initiative, and
+never as a side effect of some other task.
+
+**A copy started for the user to look at is not cleaned up on the usual
+schedule** — see "Offer a demo before asking for the yes". It stays until they
+say they are done, and the session reports that it left it up and where.
+
+**The stable copy is never an orphan**, however long it outlives whatever started
+it. Outliving sessions is its entire job.
+
+### There is always a clean copy to open
+
+Added 2026-08-04. Protecting the stable copy is not the same as guaranteeing one
+exists, and only the second is any use when the user wants to just open the app.
+
+**The clean copy is refreshed from `main`, after a feature merges.** That is the
+moment it is both safe and meaningful to rebuild: the work is integrated, gated
+and merged, so a rebuild carries the new feature and nothing half-finished. Not
+at session start (which would rebuild for no reason), not mid-task (the rule
+against building over the stable copy still holds everywhere else).
+
+So the post-merge routine ends with: rebuild from `main`, replace the installed
+copy, restart it, and register it as `--phase stable`. A merge that leaves the
+installed app on last week's build has finished the git work and not the task.
+
+`apprun sweep` says plainly when nothing is up — **`NO CLEAN COPY RUNNING`** —
+because the failure that matters is silent: the user goes to open the app and
+there is nothing to open, and no one noticed.
+
+#### The final app gets its own icon
+
+The badges and titles in the table above only help once a window is open and
+being read. The Dock and Cmd-Tab show an **icon**, and if every build shares one,
+the user is back to guessing which of five identical tiles is the real app.
+
+So: **one icon is reserved for the installed stable copy and used by nothing
+else.** Test and prototype builds carry a visibly different mark — different
+enough to tell apart at Dock size, in peripheral vision, without reading a label.
+A tinted or badged variant of the same shape is the usual answer; a bundle name
+suffix is not sufficient on its own, because the icon is what the eye lands on.
+
+Picking the reserved icon is design work and belongs to a project, not to this
+file. Where a project's icon carries **stale branding** — a mark from a name the
+app no longer has — that is a finding worth raising rather than living with,
+since it makes the one tile that should be unmistakable say the wrong thing.
 
 ## Findings become well-formed issue drafts
 
@@ -489,6 +616,39 @@ a hunch, not a finding:
 **Prototype-phase work raises only blocking issues.** Filing polish tickets
 against something that may be discarded next week is how a backlog fills with
 items that were never real.
+
+### Offer a demo before asking for the yes
+
+Added 2026-08-04. A draft issue is a paragraph of text, and approving it from
+text alone means deciding about a screen the user hasn't looked at in weeks.
+So **the project manager offers to show the thing before asking for approval** —
+of a draft issue, and of any proposal about an existing surface.
+
+The demo is of *what is there now*, not of the fix — nothing is built yet. Its
+job is to put the user in front of the actual screen so the decision is made
+against the real thing rather than a description of it.
+
+**An offer, not a gate.** The user says "just approve it" often and that is a
+complete answer; the point is that they were given the choice, not that they
+took it. Don't demo unprompted, and don't hold the question hostage to it.
+
+Two things make an offer worth accepting:
+
+- **Navigation, click by click, in the app's own words.** "Sidebar → Ledger,
+  Subscriptions tab, the row for Safeguard" — not "the subscriptions area".
+  Name what to look at once there, and what looks wrong about it.
+- **No new window where the clean copy will do.** An issue about existing
+  behaviour demos on the stable copy, which is already running and is the one
+  the user trusts. Starting a second copy to show something the first one
+  already shows is how the pile the user complained about gets rebuilt.
+
+A demo that genuinely needs its own instance (a branch, a prototype, a state the
+stable copy can't reach) registers as `test` or `proto` like anything else — but
+**it is not cleaned up on the usual schedule.** It was started *for* the user; it
+stays until they say they're done with it, and the session says plainly that it
+left it up and on which port. Closing the window someone is still reading is the
+failure the ownership rules exist to prevent, and a demo is the easiest place to
+commit it by reflex.
 
 ## Proposals — one per task, tracked to a decision
 
@@ -602,7 +762,9 @@ half that rots.
 
 1. A **draft issue** is written for the user's acceptance — what, where, why it
    matters, what done looks like, proposed labels. Creating the real issue stays
-   the user's call, unchanged.
+   the user's call, unchanged. Where the issue concerns an existing surface,
+   **offer the demo before asking** (see "Offer a demo before asking for the
+   yes") — click-by-click navigation, on the clean copy where it will do.
 2. A **session is offered** for the work, named
    `<app> - <proposal/issue no> - <short description>` — e.g.
    `finance-tracker - proposal 09 - fd closure sign`.
@@ -707,6 +869,48 @@ not a gate. It cannot prevent a bad agent change from taking effect; it can
 only show what happened and make reverting easy. That trade is deliberate:
 copy-on-merge would gate the change but reintroduce exactly the drift
 between two copies that the symlink exists to eliminate.
+
+### Notice the repeats — `ASKS.md`
+
+Added 2026-08-04. Almost every rule in this file started as the user asking for
+something in a chat. Most of those asks were made more than once, in different
+projects, before anyone noticed they were the same ask — which means the rule
+existed as a pattern in his instructions well before it existed as a rule, and
+in the meantime every session had to be told again.
+
+So **sessions keep a track of what he asks them to do**, in `ASKS.md` in this
+folder. Append-only, one entry per instruction, same shape as `LESSONS.md`. What
+belongs in it is narrow:
+
+- **Log instructions about *how work is done*** — process, sequence, what to
+  show him, what to never do, what to ask before doing.
+- **Not what to build.** "Add an export button" is a requirement and belongs in
+  an issue. "Show me a mockup before you build anything" is an ask.
+- **Log corrections too**, especially ones where he changed a decision he'd
+  already made. A reversal says more about what he actually wants than the
+  original instruction did.
+
+**When entries rhyme, propose the rule.** Not automatically, and not on a count:
+propose when you can state the general form in one sentence and point at two or
+more distinct instances that it covers. If you cannot state it in one sentence,
+you have a coincidence, not a pattern.
+
+It goes through the normal route — a proposal, his decision, a PR. **Amending an
+existing rule is usually the right shape**, not a new section: most patterns turn
+out to be an existing rule that didn't reach far enough, and a second section
+saying almost the same thing is how this file becomes unreadable.
+
+**The obvious failure mode, stated plainly so it can be caught:** this rule
+rewards finding patterns, and a session that wants to look useful can assemble
+one out of any two instructions. Rules invented that way have no felt problem
+behind them, and they are exactly the rules that get followed literally and
+wrongly. **A pattern nobody was actually hurt by is not worth a rule.** If the
+honest summary is "he mentioned two vaguely similar things", log both and say
+nothing.
+
+The log is not a rule change and needs no PR — but it is in this folder, so
+entries are observations of what he said, never inferences about what he'd
+probably want.
 
 ## Known gotchas on this Mac (not any one project)
 

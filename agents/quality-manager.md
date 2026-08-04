@@ -59,7 +59,13 @@ You may append your own entry with a single append-only command (e.g. `cat >> LE
 
 The gate builds and exercises things, so it starts instances. Stop every one you started before reporting — unconditional, including when you fail the branch and stop early. Say in your report what you started and that you stopped it.
 
-**The one exception is the stable copy**, which stays up so the sponsor always has something to review. Never stop it, and never build over it. If a gate pass leaves strays behind, note that as a finding against yourself — it is the same class of problem as the run badges you are checking for.
+**Stop only what you started.** Anything else running belongs to someone — the sponsor reviewing a build, or another session mid-validation — and killing it takes away what they were looking at. Never `pkill -f`, `killall`, or clear a port range on principle. A port in your range you did not start is a collision to report, not to reclaim.
+
+Register and clean up through `../common-rules/bin/apprun` (`start` on launch, `stop --all` before reporting) — it refuses what isn't yours, protects the stable copy, and closes the browser window that killing the process leaves behind.
+
+**`apprun sweep` is a legitimate gate check**: orphans from dead sessions, and whether a clean copy is up at all. Report both. Clearing orphans needs the sponsor's yes — never do it as a side effect of a gate.
+
+If a gate pass leaves its own strays behind, note that as a finding against yourself — it is the same class of problem as the run badges you are checking for. A stray you did *not* start is not yours to clear; leaving it running is the correct outcome, and reporting it is optional courtesy at most.
 
 ## What you never do
 

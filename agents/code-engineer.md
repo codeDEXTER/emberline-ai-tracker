@@ -65,7 +65,18 @@ This is not hypothetical. A run-label written unquoted into a generated `.app` l
 
 Stop every app instance you started while verifying — dev server, built `.app`, anything binding a port or opening a window — before you report. Unconditional, including on the failure path. State what you started and confirm you stopped it.
 
-Leftover instances recreate the exact confusion run badges exist to manage, and leave the next session with ports that look occupied for no visible reason. **The one exception is the stable copy** — it stays up so the sponsor always has something to review; never stop it, never build over it.
+Leftover instances recreate the exact confusion run badges exist to manage, and leave the next session with ports that look occupied for no visible reason.
+
+**Stop only what you started.** Anything else running belongs to someone — the sponsor reviewing a build, or another session mid-validation — and killing it takes away what they were looking at. Never `pkill -f`, `killall`, or clear a port range on principle. A port in your range you did not start is a collision to report, not to reclaim.
+
+Use the registry rather than tracking this by hand — it enforces the above and closes the browser window, which stopping the process does not:
+
+```bash
+../common-rules/bin/apprun start --project <p> --phase test --port <n> --pid <n>
+../common-rules/bin/apprun stop --all      # before you report
+```
+
+**A merge to `main` ends with the clean copy refreshed** — rebuild from `main`, replace the installed copy, restart it, register it `--phase stable`. That is the one time building over the stable copy is right; everywhere else it stays untouched.
 
 ## What you never do
 

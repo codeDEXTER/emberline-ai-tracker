@@ -6,6 +6,138 @@ just what. This folder is its own git repo (see `README.md`), but `git log`
 only records that something changed; this file records what it was for, and
 is the thing to read first.
 
+## 2026-08-04
+
+- **Cleanup is now scoped by ownership**, in `CLAUDE-workflow.md`'s "Leave
+  nothing running" section (retitled "— and stop only what you started").
+  Two halves. The first restates the existing rule at **session** scope rather
+  than per-agent: agents within a task can share a running copy, but the task
+  does not end with it still up, and the project manager is accountable for
+  that. The second is the new half and the reason aashish asked: **an agent
+  stops only what its own session started.** Anything else running belongs to
+  someone — the user reviewing a build, or a parallel session mid-validation —
+  and killing it takes their work away silently. So cleanup is targeted (by
+  recorded PID and port), never a sweep: no `pkill -f`, no `killall`, no
+  clearing a port range on principle, and a port in your own range that you
+  didn't start is a collision to report rather than to reclaim.
+
+  This also demotes the stable copy from an exception to a *case* of the rule —
+  no session started it, so no session stops it. Behaviour change for adopted
+  projects: previously a tidy-minded agent could have justified killing a stray
+  server it found; now that is explicitly wrong, and leaving a stranger's copy
+  running is the correct outcome.
+
+  The same wording went into the three agent definitions that actually start
+  instances — `code-engineer`, `test-engineer`, `quality-manager` — because all
+  three still carried "the one exception is the stable copy", which the rule
+  above demotes. An agent reading only its own file would otherwise have kept
+  the framing this change exists to replace.
+
+- **`ASKS.md` — track what he asks for, propose the pattern.** His point, and it
+  is a fair one: almost every rule in `CLAUDE-workflow.md` started as him asking
+  for something in a chat, and most were asked more than once, in different
+  projects, before anyone noticed they were the same ask. The rule existed as a
+  pattern in his instructions long before it existed as a rule, and until then
+  every session had to be told again.
+
+  So sessions log instructions about *how work is done* — not what to build; an
+  export button is a requirement, "show me a mockup first" is an ask — and
+  corrections especially, since a reversal says more about what he wants than
+  the original instruction did. When entries rhyme, propose it: not on a count,
+  but when the general form fits in one sentence and covers two or more distinct
+  entries. **Amending an existing rule is usually the right shape**, because most
+  patterns turn out to be a rule that didn't reach far enough, and a second
+  section saying nearly the same thing is how this file becomes unreadable.
+
+  Written with its own failure mode stated in the text, because it is a real
+  one: the rule rewards finding patterns, and a session wanting to look useful
+  can manufacture one from any two instructions. Those rules have no felt problem
+  behind them and are the ones followed literally and wrongly. A pattern nobody
+  was hurt by is not worth a rule.
+
+  Backfilled with 15 entries from this changelog and the common-rules session,
+  and two patterns fell straight out — both of which the file argues should be
+  *amendments*, not new sections. First: **he wants the state of things visible
+  at a glance** (the diagnostic log, run badges, one stable copy, closing
+  instances, a clean copy, a reserved icon, approving a PR without opening git —
+  seven entries across four surfaces, each ruled individually, the general form
+  never written down, which is exactly why each new surface needed its own ask).
+  Second: **show him the thing, don't describe it** (mockups early, an image of
+  the doc page, a demo before approval, and the surviving half of the deprecated
+  PR #6 rule) — already stated in three places that don't reference each other.
+
+- **Offer a demo before asking for the yes.** A draft issue is a paragraph of
+  text, and approving it from text alone means deciding about a screen that
+  hasn't been looked at in weeks. So the project manager now offers to *show*
+  the thing first — of a draft issue, and of any proposal about an existing
+  surface. The demo is of what is there now, not of the fix; nothing is built
+  yet, and its job is to put aashish in front of the real screen so he decides
+  against it rather than against a description.
+
+  Deliberately **an offer, not a gate**: "just approve it" is a complete answer,
+  and the rule is satisfied by having given the choice. Two things make an offer
+  worth taking — navigation click by click in the app's own words ("Sidebar →
+  Ledger, Subscriptions tab, the Safeguard row"), and **no new window where the
+  clean copy will do**, since starting a second copy to show what the first one
+  already shows rebuilds the exact pile he complained about an hour earlier.
+
+  This collides with the cleanup rule directly, so the carve-out is explicit and
+  mechanical: a copy started **for the user** is marked `--demo` in the registry,
+  survives a blanket `apprun stop --all`, and prints a line telling the session
+  to say in its report that it left it up and where. Closing the window someone
+  is still reading is precisely the failure the ownership rules exist to prevent,
+  and end-of-task cleanup is the easiest place to commit it by reflex.
+
+- **`bin/apprun`, a run registry — and the reason it exists.** aashish reported
+  still seeing a lot of windows open despite the rule above. Checking the
+  machine explained why: it was *clean* — one server (stable, :8502), one Safari
+  window on it, nothing in the test or proto ranges. The sessions had stopped
+  their servers correctly. **The windows aren't the servers.** Every rule we had
+  talked about processes and ports; a NiceGUI launch opens a browser window, and
+  killing the server leaves it there, dead, still titled like the app. Ten
+  compliant sessions leave ten windows. So cleanup now closes the window too,
+  matched on the exact `127.0.0.1:<port>` of the instance being stopped.
+
+  Two further gaps the same check exposed. **Ownership was unenforceable** —
+  nothing recorded who started what, so an agent could believe it was following
+  "stop only what you started" while the pile grew. And **the ownership rule made
+  orphans permanent**: when a session dies its instances belong to nobody, so
+  under the rule as written nothing could ever stop them. Both are fixed by the
+  registry: entries carry `CLAUDE_CODE_SESSION_ID` and that session's pid, so
+  ownership is a lookup and "is the owner still alive" is a `kill -0` — exact,
+  not a heuristic. An orphan is the one category a stranger may close, and only
+  with aashish's explicit yes, because one of those windows may be the one he is
+  looking at. `stop` declines a live stranger's copy, an orphan, and the stable
+  copy, each with the reason.
+
+  Judgment call worth flagging: this is the first executable in a folder that has
+  only ever held rules. Written because "each agent hand-rolls the bookkeeping"
+  is precisely how the drift returns — but it is a widening of what this repo is,
+  and reversible if aashish would rather it lived in a project.
+
+- **There is always a clean copy to open.** Protecting the stable copy is not the
+  same as guaranteeing one exists, and only the second helps when he just wants
+  to open the app. His call on timing: **refreshed from `main` after a feature
+  merges** — the moment the work is integrated, gated and merged, so a rebuild
+  carries the new feature and nothing half-finished. Not at session start, not
+  mid-task. A merge that leaves the installed app on last week's build has
+  finished the git work and not the task. `apprun sweep` says `NO CLEAN COPY
+  RUNNING` outright, because that failure is otherwise silent until he goes to
+  open the app and finds nothing there.
+
+- **The final app gets its own reserved icon.** Badges and window titles only
+  help once a window is open and being read; the Dock and Cmd-Tab show an icon,
+  and if every build shares one, he is back to guessing which of five identical
+  tiles is real. So one icon is reserved for the installed stable copy and used
+  by nothing else, with test and proto builds visibly different at Dock size. His
+  prompt was that the current one doesn't sit well — and it is worse than a taste
+  problem: finance-tracker's `icon-512.png` is a gold **W**, left over from
+  "Wealth Tracker", a name the app hasn't had since it became Sangam in Jul 2026.
+  The one tile that should be unmistakable currently says the wrong thing.
+  Drawing the replacement is design work belonging to finance-tracker, not here;
+  what this file adds is the rule that the reserved icon exists and that stale
+  branding on it is a finding, not something to live with.
+
 ## 2026-08-03
 
 - **SUPERSEDED, same day, by the proposal framework below.** Kept because the

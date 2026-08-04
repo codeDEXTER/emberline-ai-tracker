@@ -34,6 +34,22 @@ happened, the changelog records what it was for.
   truth, GitHub issues as a one-way mirror), and the issue lifecycle (the
   user is project manager and decides creation/scope/priority/picking/
   closing; the AI researches, builds, reviews, and tests within that).
+- **`bin/apprun`** — the run registry. The only executable here, and it
+  exists because one rule in `CLAUDE-workflow.md` ("stop only what you
+  started") is unfollowable without a fact no agent otherwise has: who
+  started a given instance. It keeps `~/.claude/app-runs.jsonl`, keyed on
+  `CLAUDE_CODE_SESSION_ID`, so ownership is checked rather than assumed —
+  `stop` declines a live stranger's copy, an orphan, and the stable copy,
+  each with its reason. It also closes the browser window, which stopping
+  the process does not. Stdlib Python 3 only, no dependencies.
+  `apprun sweep` reports orphans from dead sessions and says outright when
+  no clean copy is running. A copy started with `--demo` — one the *user*
+  is looking at — survives a blanket `stop --all` and says so.
+- **`ASKS.md`** — an append-only log of what the user has asked for about
+  *how work is done* (not what to build), and the patterns found in it.
+  Sessions add to it; when entries rhyme, the pattern is proposed as a rule
+  or, more often, as an amendment to one that didn't reach far enough.
+  Adding an entry is not a rule change and needs no PR.
 - **`CHANGELOG.md`** — every change made to the files in this folder,
   documented in plain language.
 
