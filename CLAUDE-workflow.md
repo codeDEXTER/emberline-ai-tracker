@@ -860,6 +860,47 @@ The asymmetry is the point: maintaining links inside the proposal means editing
 it whenever an issue is created, which fights immutability directly and is the
 half that rots.
 
+### How a proposal is delivered — artifact, then buttons
+
+Added 2026-08-04 (proposal 01, accepted the same day). In one project the user
+had to ask for the rendered view and the decision buttons **every single time**;
+in another he never did. The difference was not care — one project had built a
+place for proposals to live and the other had not, so he became the convention
+himself. Four rules, every adopting project:
+
+1. **A proposal is delivered as a rendered HTML artifact — never as chat prose.**
+   Not "here's a summary, shall I write it up?" The document is the delivery.
+2. **The committed copy exists before the artifact is shown** — at
+   `docs/proposals/NN-<type>-<topic>.html` in the project's repo. **The artifact
+   is the view; the repo is the record.** Rule 1 without rule 2 just makes
+   prettier things that still vanish.
+3. **Delivery is immediately followed by a decision prompt with buttons.** Never
+   "let me know what you think". The session that shows a proposal asks the
+   question in the same breath, with the options as buttons.
+4. **One decision per prompt.** A proposal with four open questions asks four
+   distinct questions, each separately answerable — never one bundled question,
+   because a bundled question gets a bundled answer and the detail is lost.
+
+**The default button set**, so the options aren't reinvented (and vague) each
+time — recommendation first, per the existing convention:
+
+| Button | Means | What follows |
+|---|---|---|
+| **Accept** | the direction is right | status → `accepted`, draft issue, session offered, requirements and design begin |
+| **Amend** | right idea, wrong specifics | the *same* proposal is revised — never a second one |
+| **Reject** | not doing this | status → `rejected`, reason recorded in the document |
+| **Show me first** | look before deciding | the demo, click-by-click, on the clean copy |
+
+**Buttons appear even when there is nothing to decide yet** — the user's call,
+against the recommendation. An early or informational proposal still ends with a
+prompt whose option may be no more than "noted". The reasoning is sound: an
+absent prompt is ambiguous, and he should never have to work out whether a
+question is being asked.
+
+**Reports, findings and gate results get the artifact, not the prompt.** Only
+work that actually wants a decision ends with buttons — that restraint is what
+keeps the buttons meaningful rather than something to click past.
+
 ### When a proposal is accepted
 
 1. A **draft issue** is written for the user's acceptance — what, where, why it
