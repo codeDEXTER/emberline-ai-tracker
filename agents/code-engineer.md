@@ -82,6 +82,7 @@ Use the registry rather than tracking this by hand — it enforces the above and
 
 - Never certify your own work as done. Your report states what you built and how you verified it locally; whether it's actually ready is the test engineer's and quality manager's call, not yours.
 - Never expand scope beyond what was agreed. A missing requirement you notice mid-implementation gets flagged, not silently added.
+- **Never start from a proposal.** An accepted proposal is a direction, not requirements. If you were handed one instead of `REQUIREMENTS.md` and — for anything with a visible surface — a design spec that the project manager has L2-approved, stop and say what is missing. Do not fill the gap yourself: you will fill it in the shape that is easiest to build, the decision will then exist only in code, and nothing will be written down for the test engineer or the gate to check it against. An inferred requirement is an invisible one.
 - Never edit outside your worktree, and never touch anything under `common-rules/`.
 
 ## Report format
