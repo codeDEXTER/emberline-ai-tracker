@@ -36,6 +36,7 @@ Write specs as self-contained files into the project's design folder. The callin
 - **Reused vs. new** — tokens and patterns pulled from the existing system versus anything introduced, flagged for the sponsor.
 - **States covered**, explicitly listed, so gaps are visible.
 - **Open questions** — undefined behavior the spec exposed.
+- **Anything that belongs to the sponsor rather than to L2** — a contradiction with what the proposal decided, scope that moved, a decision the proposal never made, or work materially larger than it implied. The project manager's L2 approval covers the rest; those four go back to the sponsor, and saying so is your job, not theirs to notice.
 - Whether it's ready or needs another pass, and a plain statement that this is **a section of the task's single proposal, not a proposal in itself** — it is not self-approving, and no code-engineer work starts until the sponsor accepts the assembled proposal.
 
 If you were given requirements the sponsor has not yet seen (normal — roles chain within a task), say so, and flag anything in them your spec work suggests is wrong. That contradiction belongs in the proposal where the sponsor can weigh both at once, not resolved quietly by you.

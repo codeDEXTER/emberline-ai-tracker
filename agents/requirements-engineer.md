@@ -36,4 +36,5 @@ Write `REQUIREMENTS.md` into the project (or update the relevant section if it a
 - **What you wrote** — the numbered criteria, and what's explicitly out of scope.
 - **Questions for the sponsor** — anything you couldn't resolve, with concrete alternatives, clearly blocking if it is.
 - **Any `[requirements-gap]` entries** you logged this pass.
+- **Whether this is post-acceptance work** — an accepted proposal being turned into criteria. If so, say which proposal, and that the design engineer runs next and the pair needs the project manager's L2 approval before any code is written. The proposal being accepted is not that approval.
 - A closing line stating plainly that this is **a section of the task's single proposal, not a proposal in itself**, and has not been shown to or approved by the sponsor. Later roles in the same task may build on it without a separate approval — that is deliberate, and it is why a wrong criterion here wastes their work too. Nothing reaches the code engineer until the sponsor accepts the assembled proposal.

@@ -200,9 +200,10 @@ claiming something renders correctly is not the same as showing it does.
 
 ## The agent roles — and who improves them
 
-Added 2026-08-03. Seven specialist agent definitions live in **`agents/` in this
+Added 2026-08-03. Eight specialist agent definitions live in **`agents/` in this
 folder** (`research-agent`, `design-explorer`, `requirements-engineer`,
-`design-engineer`, `code-engineer`, `test-engineer`, `quality-manager`).
+`design-engineer`, `proposal-auditor`, `code-engineer`, `test-engineer`,
+`quality-manager`).
 `~/.agent-data/agents` is a symlink pointing here, since that's where Claude Code
 loads definitions from — so they carry the same version history as the rules
 that govern them, and are covered by the same reserved-for-the-user rule as
@@ -235,6 +236,7 @@ is the failure this whole structure exists to prevent.
 | `design-engineer` | Buildable specs from a locked direction — every state, tokens, consistency | Writes production code; explores alternatives |
 | `code-engineer` | Implementation in its worktree | Certifies its own work as done; expands scope |
 | `test-engineer` | Validation against criteria; bug reports | Fixes anything it finds |
+| `proposal-auditor` | Distance between the accepted proposal and the requirements/design, classified | Writes or fixes either; decides whether drift is acceptable; approves |
 | `quality-manager` | The pre-merge gate; LESSONS.md curation | Fixes anything; approves the merge |
 
 **Design is deliberately two roles.** Exploration wants provocation and
@@ -291,10 +293,15 @@ issue number, the requirements file, the accepted proposal and a list of
 acceptance criteria *is* a code-engineer task brief — and a session handed one
 will execute it, because the live instruction beats a file it was told to go
 read. That is what happened in all six. The brief being complete is not a reason
-to skip the pipeline; it is a reason the **upstream** roles can be skipped, and
-the criteria being written down is precisely what makes `test-engineer` and
-`quality-manager` checkable. Requirements and design already settled means the
-tier is small-fix, not no-tier: **code engineer, then quality manager, minimum.**
+to skip the pipeline; the criteria being written down is precisely what makes
+`test-engineer` and `quality-manager` checkable.
+
+**Corrected 2026-08-04, same day it was written.** The first version of this
+paragraph said a complete brief meant the upstream roles could be skipped and
+the tier was small-fix. That is wrong, and the section below says why: **an
+accepted proposal is not settled requirements**, and a brief quoting one is not
+a substitute for `REQUIREMENTS.md` and a screen spec. Skipping straight to the
+code engineer is exactly what produced the failure this rule exists to stop.
 
 ### Escalation
 
@@ -814,6 +821,10 @@ half that rots.
 The session is offered, not started. Picking what to work on is the user's
 decision, and a session that starts itself has quietly taken it.
 
+3. That session's **first work is requirements, then design, then L2** — not
+   implementation. See "After acceptance" below; the accepted proposal is the
+   input to that work, not a substitute for it.
+
 #### The brief that starts it — name the agents, or they won't run
 
 Added 2026-08-04. The rules say the project manager "names which agents will be
@@ -828,8 +839,14 @@ detail — and it is addressed to a project manager, not to a developer:
 ```markdown
 Project-manage GitHub issue #36 in <repo>: "<title>".
 
-Tier: small fix — requirements and design are settled in <proposal/requirements
-file>. Agents: code-engineer, then quality-manager. You do not write the code.
+From proposal <NN>, accepted <date>. The proposal is the direction, not the
+requirements. Agents, in order: requirements-engineer, design-engineer, then
+your L2 approval, then code-engineer, test-engineer, quality-manager.
+You do not write the code, the specs, or run the checks.
+
+<If REQUIREMENTS.md and a design spec already exist and carry an L2 approval,
+say so here and name the agents that remain. Skipping design for work with no
+visible surface is fine — say that too, and record it in AGENT-LOG.md.>
 
 Read /Users/the-sponsor/apps/common-rules/CLAUDE-workflow.md and CLAUDE.md first.
 EnterWorktree is the first action on this repo.
@@ -849,6 +866,105 @@ Two details that look cosmetic and are not:
   to `<project>/.claude/worktrees/common-rules/` and does not exist. The six
   briefs all carried the relative form; sessions recovered by hunting for the
   absolute path, which is luck, not a mechanism.
+
+### After acceptance: requirements, then design, then L2 — never straight to code
+
+Added 2026-08-04. **An accepted proposal is not settled requirements.** It is a
+decision about direction, argued in prose, and it is the input to requirements
+work rather than a replacement for it. So acceptance starts a sequence, and the
+sequence is not optional:
+
+1. **`requirements-engineer`** turns the accepted proposal into `REQUIREMENTS.md`
+   — numbered, testable, explicit about what is out of scope.
+2. **`design-engineer`** turns those requirements into a buildable spec — every
+   state, not just the happy one.
+3. **`proposal-auditor`** measures how far the pair has moved from the accepted
+   proposal, and classifies every divergence.
+4. **L2 approval** — the project manager reviews both together, with the audit in
+   hand, and approves before any code-engineer work starts.
+5. Only then the code engineer, the test engineer, and the gate.
+
+**L1 is the user accepting the proposal; L2 is the project manager accepting the
+requirements and design produced from it.** Two different decisions about two
+different artifacts. L1 says *this is the direction*; L2 says *this is what
+"built" means, and it is complete enough to hand over*. Collapsing them means the
+second decision is never made by anyone — it just gets inferred, one file at a
+time, by whoever is writing the code.
+
+**Why it cannot be skipped:** the code engineer will not expand requirements and
+design properly, and it isn't a flaw in that agent — it is being asked to do two
+jobs whose instincts conflict. Given a gap it fills it in passing, in the shape
+that is easiest to build, and the decision then exists only as code. Nothing was
+written down, so there is nothing for the test engineer to check against and
+nothing for the gate to hold it to. **An inferred requirement is an invisible
+one.** It fails silently and late, if it ever fails visibly at all.
+
+#### L2 is not the project manager's own opinion — `proposal-auditor` supplies the evidence
+
+Added 2026-08-04. L2 has an obvious weakness: the project manager would be
+approving output from a pipeline it commissioned itself. So the comparison is
+done by someone else. `proposal-auditor` reads the accepted proposal, the
+requirements and the design, and classifies **every** divergence into one of
+five buckets:
+
+| | Meaning | Whose call |
+|---|---|---|
+| `faithful` | says what the proposal decided | — |
+| `elaboration` | detail the proposal implied but didn't spell out | **L2** |
+| `drift` | something the proposal decided, now changed | **the user** |
+| `silent decision` | a decision the proposal never made and can't imply | **the user** |
+| `gap` | a proposal decision the requirements don't cover | back to requirements |
+
+That classification is what L2 acts on. Elaboration is what requirements and
+design work is *for* and the project manager approves it. Drift and silent
+decisions are two of the four escalations below, now detected rather than
+noticed. A gap means the work isn't ready for L2 at all.
+
+**It is deliberately not the quality manager.** That agent would otherwise
+approve the criteria at L2 and later gate the built work against those same
+criteria — marking its own homework at the point independence matters most. The
+same principle already stated for agent definitions applies here: an agent that
+approved the specs it reviews against is no longer an independent check.
+
+The auditor is **read-only and decides nothing.** It measures distance; the
+project manager approves or escalates. It cannot catch a proposal that was vague
+to begin with — but it is required to say when the proposal was silent, which is
+its own useful finding. It runs **only on post-acceptance work**: no proposal, no
+auditor, and a small fix pays nothing for it.
+
+**Escalate to the user when the update is major** — L2 is the project manager's
+call, but four things are the user's, and none of them are judgment calls:
+
+- the requirements or design **contradict** something the proposal decided
+- **scope moves** — a surface, route, or class of state that the proposal did
+  not contemplate is added or dropped
+- a decision surfaces that the proposal **did not make and cannot be inferred**
+- the work turns out **materially larger or costlier** than the proposal implied
+
+Anything else is L2 and the project manager approves it. When in doubt escalate:
+a question costs a message, and a wrong assumption costs the build.
+
+**Skipping design specifically**, for work with no visible surface, is allowed —
+and must be **stated out loud and recorded in `AGENT-LOG.md`**, the same as a
+skipped gate. Silence is what makes a skip indistinguishable from an oversight.
+
+#### The failure this came from — issue #31
+
+Worth keeping concrete, because the cost was total. The `#31` brief went from
+proposal 07 straight to "Implement", for **the most design-dependent task in the
+batch**: a rail, a seam, and a dock, where the whole point was that the boundary
+between confirming a write and asking a question be obvious *at a glance*. No
+`REQUIREMENTS.md`. No screen spec. A layout problem handed over as prose.
+
+The session implemented all of it itself across 256 messages. The user then
+intervened — "check common rules and rework the session, use the 3 agents
+defined by common rules" — and the session's own reply was *"You're right, I
+broke the rule that matters most here"*, after which **it reverted every one of
+its seven changes and started again.** An entire session's work, discarded.
+
+And the rework still ran only `code-engineer`. Even being told to use the agents
+did not produce requirements or design work, because nobody had said that the
+proposal wasn't already the requirements. That is the gap this section closes.
 
 ## Keep the story — LOW PRIORITY, every project
 
