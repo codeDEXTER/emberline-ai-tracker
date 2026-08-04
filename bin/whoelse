@@ -1,0 +1,192 @@
+#!/usr/bin/env python3
+"""whoelse — who else is working in this project, and do we collide?
+
+Proposal 02. The worktree rule stops parallel sessions overwriting each other
+live; it was never designed to stop them *diverging*. Four sessions can hold
+four different uncommitted rewrites of the same file and nothing says so — every
+branch reads as identical to main, because none of them committed.
+
+This looks in the three places that already know, and nobody reads:
+
+  git worktree list      what checkouts exist
+  git status  per one    what each is actually touching, committed or not
+  git rev-list           whether any of it is visible to main yet
+
+  whoelse                # who else is here, and do they overlap with me?
+  whoelse --contested    # batch view: every file held by more than one worktree
+  whoelse --quiet        # say nothing when there is no overlap (for hooks)
+
+Exit codes: 0 no overlap · 1 overlap with your worktree (or, with --contested,
+any contested file at all) · 2 cannot tell.
+
+Overlap is a stop, not a warning: report it and let the user sequence the work.
+A file another session is holding is not yours to edit, for the same reason a
+port you did not start is not yours to reclaim.
+"""
+
+import argparse
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
+                        "/usr/bin/git") if Path(g).exists()), "git")
+
+
+def git(*args, cwd="."):
+    r = subprocess.run([GIT, "-C", str(cwd), *args], capture_output=True, text=True)
+    return r.stdout.rstrip("\n") if r.returncode == 0 else None
+
+
+def worktrees(anchor):
+    """Every checkout of this repo, main one included."""
+    out = git("worktree", "list", "--porcelain", cwd=anchor)
+    if out is None:
+        return None
+    trees, cur = [], {}
+    for line in out.splitlines():
+        if line.startswith("worktree "):
+            if cur:
+                trees.append(cur)
+            cur = {"path": line[9:], "branch": None}
+        elif line.startswith("branch "):
+            cur["branch"] = line[7:].replace("refs/heads/", "")
+        elif line == "detached":
+            cur["branch"] = "(detached)"
+    if cur:
+        trees.append(cur)
+    return trees
+
+
+def touched(path):
+    """Files with uncommitted changes. Committed-but-unmerged work is separate."""
+    out = git("status", "--porcelain", cwd=path)
+    if out is None:
+        return []
+    files = []
+    for line in out.splitlines():
+        f = line[3:].strip()
+        if " -> " in f:            # renames report old -> new
+            f = f.split(" -> ", 1)[1]
+        if f:
+            files.append(f.strip('"'))
+    return files
+
+
+def ahead(path, base="main"):
+    n = git("rev-list", "--count", f"{base}..HEAD", cwd=path)
+    try:
+        return int(n)
+    except (TypeError, ValueError):
+        return None
+
+
+def age(path):
+    try:
+        secs = int(time.time() - os.path.getmtime(path))
+    except OSError:
+        return "?"
+    h, m = secs // 3600, (secs % 3600) // 60
+    if h >= 24:
+        return f"{h // 24}d"
+    return f"{h}h{m:02d}m" if h else f"{m}m"
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="whoelse", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--project", default=None, help="default: the repo containing cwd")
+    ap.add_argument("--contested", action="store_true",
+                    help="every file held by more than one worktree, not just yours")
+    ap.add_argument("--quiet", action="store_true", help="silent when there is no overlap")
+    a = ap.parse_args()
+
+    anchor = a.project or os.getcwd()
+    if git("rev-parse", "--git-dir", cwd=anchor) is None:
+        print(f"not a git repo: {anchor} — cannot tell who else is here.", file=sys.stderr)
+        return 2
+    trees = worktrees(anchor)
+    if not trees:
+        print("cannot read the worktree list.", file=sys.stderr)
+        return 2
+
+    here = Path(anchor).resolve()
+    state, mine = [], None
+    for t in trees:
+        p = Path(t["path"]).resolve()
+        files = touched(p)
+        e = {"path": p, "name": p.name, "branch": t["branch"] or "?",
+             "files": set(files), "ahead": ahead(p), "age": age(p)}
+        state.append(e)
+        # the worktree containing cwd — cwd may be a subdirectory of it
+        if here == p or p in here.parents:
+            if mine is None or len(str(p)) > len(str(mine["path"])):
+                mine = e
+
+    owners = {}
+    for e in state:
+        for f in e["files"]:
+            owners.setdefault(f, []).append(e["name"])
+    contested = {f: ns for f, ns in owners.items() if len(ns) > 1}
+
+    # Work that exists only as loose files: invisible to main, unprotected.
+    invisible = [e for e in state if e["files"] and not e["ahead"]]
+
+    if a.contested:
+        if not contested:
+            if not a.quiet:
+                print(f"no contested files across {len(state)} worktree(s).")
+            return 0
+        print(f"{len(contested)} file(s) held by more than one worktree — "
+              f"these are a queue, not parallel work:\n")
+        for f, ns in sorted(contested.items(), key=lambda x: -len(x[1])):
+            print(f"  {len(ns)}x  {f}")
+            print(f"        {', '.join(sorted(ns))}")
+        if invisible:
+            print(f"\n{len(invisible)} worktree(s) hold uncommitted work that is not "
+                  f"ahead of main — invisible to every branch-based check:")
+            for e in invisible:
+                print(f"  {e['name']:<32} {len(e['files'])} file(s), last touched {e['age']} ago")
+        return 1
+
+    others = [e for e in state if not mine or e["path"] != mine["path"]]
+    active = [e for e in others if e["files"] or e["ahead"]]
+    if not a.quiet:
+        if active:
+            print(f"{len(active)} other worktree(s) with work in them:")
+            for e in sorted(active, key=lambda e: e["name"]):
+                bits = []
+                if e["files"]:
+                    bits.append(f"{len(e['files'])} uncommitted")
+                if e["ahead"]:
+                    bits.append(f"{e['ahead']} commit(s) ahead")
+                print(f"  {e['name']:<32} {e['branch']:<34} {', '.join(bits)}, {e['age']} ago")
+        else:
+            print("nobody else has work in this project.")
+
+    if mine is None:
+        if not a.quiet:
+            print("\nNot inside a worktree, so there is nothing of yours to compare. "
+                  "Use --contested for the batch view.")
+        return 0
+
+    clash = {f: [n for n in ns if n != mine["name"]]
+             for f, ns in contested.items() if mine["name"] in ns}
+    if not clash:
+        if not a.quiet:
+            print(f"\nNo overlap with {mine['name']}.")
+        return 0
+
+    print(f"\nSTOP — {len(clash)} file(s) you are touching are also held elsewhere:\n")
+    for f, ns in sorted(clash.items()):
+        print(f"  {f}")
+        print(f"        also: {', '.join(sorted(ns))}")
+    print("\nDo not proceed on these. Report them and let the user sequence the work — "
+          "then message the owning session rather than duplicating it.")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

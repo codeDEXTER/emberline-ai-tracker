@@ -1,7 +1,34 @@
-# docs — reports and the running story
+# docs — the workflow map, reports, proposals, and the running story
 
-Two things live here, both cross-project by nature. Anything specific to one
-project belongs in that project's own `docs/`, not here.
+Everything here is cross-project by nature. Anything specific to one project
+belongs in that project's own `docs/`, not here.
+
+## `workflow.html` — the bird's-eye view
+
+The whole workflow on one page: idea to merged in the order it actually happens,
+who decides what, the eight agents with their tool grants, where things get
+written down, and the three tools. `workflow.png` sits beside it for sharing.
+
+**It is derived from `CLAUDE-workflow.md`, not a second source of truth** —
+where they disagree, that file wins. Per its own rule there, **any PR that
+changes the shared rules updates this page and its version stamp in the same
+PR**. A bird's-eye view that has drifted is worse than none: it is trusted at a
+glance and read without suspicion.
+
+Regenerate the PNG after any edit:
+
+```
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless \
+  --screenshot=/tmp/wf.png --window-size=1180,20000 --force-device-scale-factor=2 \
+  --hide-scrollbars "file://$PWD/docs/workflow.html"
+```
+
+then crop the trailing blank with PIL (see `CHANGELOG.md`, 2026-08-04).
+
+## `proposals/` — decisions about the shared rules themselves
+
+Numbered HTML, status in the document, index derived from the documents. Project
+proposals live in that project's own `docs/proposals/`.
 
 ## `docs/*.md` — reports
 

@@ -41,8 +41,12 @@ happened, the changelog records what it was for.
   it last aligned with in `.common-rules-version` at its root, committed
   like any other record. Best wired to a `SessionStart` hook per project
   (`rulecheck --quiet`) so nobody has to remember.
-- **`bin/apprun`** — the run registry. The only executable here, and it
-  exists because one rule in `CLAUDE-workflow.md` ("stop only what you
+- **`bin/whoelse`** — who else is working in this project, and do we collide?
+  Reads `git worktree list`, a `git status` in each, and whether any of it is
+  ahead of `main` — the three places that already knew and nobody consulted.
+  Overlap is a stop, not a warning. `--contested` gives the batch view for
+  sequencing issues before sessions are opened.
+- **`bin/apprun`** — the run registry. It exists because one rule in `CLAUDE-workflow.md` ("stop only what you
   started") is unfollowable without a fact no agent otherwise has: who
   started a given instance. It keeps `~/.claude/app-runs.jsonl`, keyed on
   `CLAUDE_CODE_SESSION_ID`, so ownership is checked rather than assumed —

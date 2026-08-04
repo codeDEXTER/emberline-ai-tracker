@@ -1,0 +1,370 @@
+<title>common-rules · Parallel sessions that don't collide — Proposal</title>
+<meta name="proposal-id" content="02">
+<meta name="proposal-topic" content="concurrent-sessions">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="accepted">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --card:#FFFFFF; --ink:#1B1E23; --dim:#6B6660;
+    --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E;
+    --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --card:#161B24; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --card:#161B24; --ink:#E8E6E1;
+            --dim:#8B93A0; --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985;
+            --loss:#C97A81; --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --card:#FFFFFF; --ink:#1B1E23;
+            --dim:#6B6660; --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B;
+            --loss:#A8434B; --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1000px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:34px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:66ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  section > p { max-width:70ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:72ch; }
+  code, .mono { font-family:var(--mono); font-size:12.6px; }
+  a { color:var(--accent); }
+  .chip.accepted { background:var(--gain); }
+  .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+          padding:3px 9px; border-radius:4px; background:var(--warn); color:var(--chip-ink); }
+
+  .stat { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin:24px 0 6px; }
+  .s { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:15px 16px; }
+  .s b { display:block; font-size:29px; font-weight:640; letter-spacing:-.02em;
+         font-variant-numeric:tabular-nums; line-height:1.1; }
+  .s span { color:var(--dim); font-size:12.6px; display:block; margin-top:5px; }
+  .s.bad b { color:var(--loss); } .s.warn b { color:var(--warn); }
+
+  .tablewrap { overflow-x:auto; margin-top:18px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:620px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.2px; white-space:nowrap; }
+  td.n { font-variant-numeric:tabular-nums; }
+
+  .lab { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+         display:inline-block; padding:2px 7px; border-radius:4px; white-space:nowrap;
+         color:var(--chip-ink); }
+  .lab.hot { background:var(--loss); } .lab.mid { background:var(--warn); }
+  .lab.ok { background:var(--gain); }
+
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:22px 0; max-width:74ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.bad { border-left-color:var(--loss); }
+  .verdict.warn { border-left-color:var(--warn); }
+  .verdict p:last-child { margin-bottom:0; }
+
+  .rules { display:grid; gap:14px; margin-top:20px; }
+  .r { background:var(--surface); border:1px solid var(--border); border-radius:10px;
+       padding:15px 18px; display:grid; grid-template-columns:auto 1fr; gap:4px 14px; align-items:baseline; }
+  .r .n { font-family:var(--mono); font-size:12px; font-weight:700; color:var(--accent); letter-spacing:.06em; }
+  .r b { font-size:15px; }
+  .r p { grid-column:2; margin:4px 0 0; color:var(--dim); font-size:13.8px; max-width:66ch; }
+  .r .have { grid-column:2; margin-top:7px; }
+
+  .qgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; margin-top:20px; }
+  .q { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+  .q b { display:block; font-size:14px; margin-bottom:5px; }
+  .q span { color:var(--dim); font-size:12.8px; }
+  ul { max-width:72ch; } li { margin-bottom:7px; }
+  pre { background:var(--surface); border:1px solid var(--border); border-radius:8px;
+        padding:12px 14px; overflow-x:auto; font-family:var(--mono); font-size:12.4px; line-height:1.5; }
+  @media (max-width:620px){ .page{padding:34px 18px 60px;} h1{font-size:27px;} }
+</style>
+
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · Proposal 02</span>
+  <span><span class="chip accepted">accepted</span> &nbsp; 2026-08-04 · rules 40-800c38b</span>
+</div>
+
+<h1>Parallel sessions that don't collide</h1>
+
+<p class="standfirst">You asked how to stop parallel sessions reaching different conclusions and
+conflicting later. I went to look at what's actually on disk first. It is worse than the question
+implies, and it changes the answer: the problem isn't only that sessions disagree — it's that
+none of them can see each other at all.</p>
+
+<section>
+<div class="eyebrow"><span>What is on disk right now</span><span class="tag">finance-tracker, measured 2026-08-04</span></div>
+
+<div class="stat">
+  <div class="s bad"><b>43</b><span>uncommitted files across parallel worktrees</span></div>
+  <div class="s bad"><b>0</b><span>of those worktrees are ahead of <code>main</code></span></div>
+  <div class="s warn"><b>6</b><span>files being edited by more than one session</span></div>
+  <div class="s"><b>9</b><span>worktrees, 8 sessions, 1 project</span></div>
+</div>
+
+<p>Seven sessions built something. <strong>None of them committed anything.</strong> Every one of
+those branches reads as identical to <code>main</code> from the outside; the work exists only as
+loose files in a folder, invisible to git, to every other session, and to any check that asks
+"what is in flight?"</p>
+
+<p>And they are not working on separate things:</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>File</th><th>Sessions editing it</th><th>Which</th></tr>
+  <tr><td class="k">nicegui_app/pages/ledger.py</td><td class="n"><span class="lab hot">4</span></td>
+      <td>issue 29 · issue 35 · issue 36 · issue 37</td></tr>
+  <tr><td class="k">nicegui_app/main.py</td><td class="n"><span class="lab mid">3</span></td>
+      <td>issue 30 · issue 36 · issue 37</td></tr>
+  <tr><td class="k">finance_tracker/reports.py</td><td class="n"><span class="lab mid">3</span></td>
+      <td>issue 29 · issue 36 · issue 37</td></tr>
+  <tr><td class="k">nicegui_app/theme.py</td><td class="n"><span class="lab mid">3</span></td>
+      <td>issue 29 · issue 36 · issue 37</td></tr>
+  <tr><td class="k">tests/test_reports.py</td><td class="n"><span class="lab mid">3</span></td>
+      <td>issue 29 · issue 36 · issue 37</td></tr>
+  <tr><td class="k">nicegui_app/session.py</td><td class="n"><span class="lab mid">2</span></td>
+      <td>issue 36 · issue 37</td></tr>
+</table>
+</div>
+
+<div class="verdict bad">
+  <b>The collision is already built, it just hasn't landed</b>
+  <p>Four sessions have four different uncommitted rewrites of <code>ledger.py</code>. Whichever
+  merges first wins; the second hits a conflict; the third and fourth hit a file they no longer
+  recognise. Nobody has done anything wrong — the worktree rule worked exactly as designed and
+  kept them from overwriting each other live. It was never designed to stop them <em>diverging</em>.</p>
+</div>
+
+<p class="note">This is not new. It has already happened twice at the rules level: two sessions
+independently created <code>LESSONS.md</code> in incompatible formats, and a second session's PR
+added an approval checkpoint that contradicted a decision you had already made. That one was
+caught <em>only</em> because rule changes go through a pull request — nothing else would have
+shown it.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>Why it happens</span><span class="tag">four distinct causes, not one</span></div>
+
+<ul>
+  <li><b>Nobody looks.</b> There is no step anywhere in the workflow that asks "who else is
+  working here?" A session enters its worktree and starts.</li>
+  <li><b>Intent is invisible.</b> Even looking, a branch name says <code>claude/happy-benz-46db8a</code>.
+  Nothing says "I am rewriting the ledger's health strip."</li>
+  <li><b>Uncommitted work is invisible to git.</b> Every one of those 43 files is unreachable by
+  any branch-based check. The work is real and the repo says nothing exists.</li>
+  <li><b>Conclusions diverge before files do.</b> Two sessions can decide opposite things about
+  the same screen days before either edits it. By the time it shows up as a conflict, both have
+  built on the decision.</li>
+</ul>
+
+<p class="note">The last one is the hard half and the one you actually named. A file-level check
+cannot catch it. What can is refusing to let two tasks own the same <em>surface</em> at once —
+which is the workflow change in R5.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>The proposal</span><span class="tag">six rules · two need building</span></div>
+
+<div class="rules">
+  <div class="r">
+    <span class="n">R1</span><b>Look before you start.</b>
+    <p>Before the first edit, a session checks who else is in this project: other sessions, live
+    or paused, and which worktrees hold uncommitted changes to the files this task will touch.
+    Cheap, and derived from ground truth rather than a registry that can rot.</p>
+    <div class="have"><span class="lab mid">needs a tool</span> <span class="mono">bin/whoelse</span></div>
+  </div>
+
+  <div class="r">
+    <span class="n">R2</span><b>Overlap is a stop, not a warning.</b>
+    <p>If another session holds files this task needs, <strong>do not proceed</strong>. Report it
+    and let the user sequence the work. Exactly the principle already in force for running apps:
+    a port in your range you didn't start is a collision to report, not to reclaim.</p>
+    <div class="have"><span class="lab ok">rule only</span></div>
+  </div>
+
+  <div class="r">
+    <span class="n">R3</span><b>Inform the other session — don't duplicate its work.</b>
+    <p>Your ask, and the mechanism already exists: a session can send a message directly to
+    another, which arrives there as a labelled turn with a link back. Say what this task needs,
+    what overlaps, and ask them to commit or hand over. You see both sides.</p>
+    <div class="have"><span class="lab ok">already available</span> <span class="mono">send_message</span></div>
+  </div>
+
+  <div class="r">
+    <span class="n">R4</span><b>Commit, or it doesn't exist.</b>
+    <p>A session that pauses commits work-in-progress to its branch first — even broken, even
+    mid-thought, marked WIP. Right now 43 files of real work are one <code>rm -rf</code> from
+    gone and invisible to every check in the system. A WIP commit also makes intent legible:
+    the diff says what the branch is doing when the branch name can't.</p>
+    <div class="have"><span class="lab ok">rule only</span></div>
+  </div>
+
+  <div class="r">
+    <span class="n">R5</span><b>Parallelism is granted per surface, not per issue.</b>
+    <p><strong>The workflow change.</strong> You pick issues; the system should tell you when the
+    ones you picked collide. Four issues touching <code>ledger.py</code> were never four parallel
+    tasks — they were one queue nobody drew. Before a batch of sessions is opened, the surfaces
+    are compared and contested ones are sequenced. Independent issues still run fully in parallel;
+    that is the point of keeping this per-surface rather than throttling everything.</p>
+    <div class="have"><span class="lab mid">needs the tool + a step at issue-picking</span></div>
+  </div>
+
+  <div class="r">
+    <span class="n">R6</span><b>A finding that lands on another task's surface is a handover, not a note.</b>
+    <p>Added after review: R3 said <em>inform</em>, and informing is not handover. When session A
+    finds during research that something could be improved, and that improvement belongs to issue
+    B's surface, <strong>responsibility must be explicitly assigned</strong> — to A, to B, or to
+    neither. One of three outcomes, chosen out loud, never left implicit.</p>
+    <div class="have"><span class="lab mid">new rule</span></div>
+  </div>
+</div>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Outcome</th><th>What it means</th><th>What has to happen</th></tr>
+  <tr><td><b>The finder keeps it</b></td>
+      <td>Issue A's scope grows to cover the improvement</td>
+      <td>A scope change discovered mid-task — already escalates to you under the existing rule.
+      B is told, because B's surface just changed underneath it</td></tr>
+  <tr><td><b>The owner takes it</b></td>
+      <td>Folded into issue B, which is already there</td>
+      <td>B's requirements gain a criterion; B's session receives the <em>full finding</em>, not a
+      summary; <b>A is told it was accepted</b>, so A stops building around the old behaviour</td></tr>
+  <tr><td><b>Neither</b></td>
+      <td>It becomes its own issue, sequenced after both</td>
+      <td>The five-field issue draft, as today — but recorded as deferred <em>by decision</em>,
+      not by omission</td></tr>
+</table>
+</div>
+
+<div class="verdict bad">
+  <b>The two failure modes this closes</b>
+  <p><b>Silent absorption</b> — B just fixes it, A never hears, and A keeps building on behaviour
+  that no longer exists. <b>Mutual drop</b> — both assume the other has it and neither does; the
+  finding evaporates and resurfaces months later as a bug. Both come from the same cause: a
+  handover that was mentioned but never assigned.</p>
+  <p>So the rule is that <strong>the decision is recorded where it outlives both sessions</strong>
+  — in the checklist, against both issues. A handover that lives only in two chat transcripts has
+  not happened.</p>
+</div>
+
+<p class="note">Who decides is the one part that needs your call — see the open questions. The
+default reading of the existing rules says you do, since this is a scope change and every scope
+change discovered mid-task, however small, already escalates.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>What already exists vs. what needs building</span><span class="tag">less than it looks</span></div>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Capability</th><th>Status</th><th>Note</th></tr>
+  <tr><td>List other sessions — title, branch, folder, running or not</td>
+      <td><span class="lab ok">exists</span></td><td>harness-maintained; nothing to keep in sync</td></tr>
+  <tr><td>Send a message to another session</td>
+      <td><span class="lab ok">exists</span></td><td>arrives as a labelled turn, visible to you</td></tr>
+  <tr><td>See which files each worktree has touched</td>
+      <td><span class="lab ok">exists</span></td><td><code>git status</code> per worktree — nobody runs it</td></tr>
+  <tr><td>Cross-reference the three into an overlap report</td>
+      <td><span class="lab mid">to build</span></td><td>the whole of <code>whoelse</code>; a small script</td></tr>
+  <tr><td>A step in the workflow that requires it</td>
+      <td><span class="lab hot">missing</span></td><td>the actual gap — the data was always there</td></tr>
+</table>
+</div>
+
+<div class="verdict">
+  <b>Why this is cheaper than it sounds</b>
+  <p>Three of the four capabilities already exist and cost nothing to use. Nobody has ever run
+  them. This proposal is mostly a rule that says <em>look</em>, plus one small script that looks
+  in all three places at once — not a new coordination system.</p>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>What it costs, and what it won't fix</span><span class="tag">stated, not buried</span></div>
+
+<ul>
+  <li><b>R2 will sometimes block work you wanted done.</b> That is the trade: a blocked task you
+  can sequence beats two divergent rewrites you discover at merge. But it will feel slower on the
+  days nothing would have collided.</li>
+  <li><b>R5 needs you at issue-picking time</b>, which is a step you don't do today. It is a
+  minute of sequencing to avoid an afternoon of conflict resolution — but it is a minute.</li>
+  <li><b>None of it forces anything.</b> Same honest gap as <code>apprun start</code> and
+  <code>rulecheck</code>: a session that doesn't run the check proceeds blind. A
+  <code>SessionStart</code> hook would close it, same as for <code>rulecheck</code>.</li>
+  <li><b>It cannot detect divergent conclusions that haven't touched a file yet</b> — only the
+  surfaces they will land on. R5 is a structural guard, not a mind-reader.</li>
+</ul>
+
+<div class="verdict warn">
+  <b>Separately, and urgently</b>
+  <p>Whatever you decide here, the 43 uncommitted files are a live risk right now. They are not
+  protected by anything, and the sessions holding them are mostly stopped. Committing each
+  worktree's work to its own branch — WIP, no review, no merge — costs minutes and is reversible.
+  I have not touched any of them: that work belongs to those sessions, and taking it over from
+  here is the same mistake this proposal exists to prevent.</p>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>Open questions</span><span class="tag">yours</span></div>
+
+<div class="qgrid">
+  <div class="q"><b>Should overlap block, or just warn?</b>
+    <span>R2 as written stops the session. The softer version reports and proceeds, which is
+    less annoying and much less effective.</span></div>
+  <div class="q"><b>Who sends the message — the session, or you?</b>
+    <span>R3 could be automatic on overlap, or something the session proposes and you approve.
+    Automatic is faster; approved means you always know what was said in your name.</span></div>
+  <div class="q"><b>Does R5 apply to the whole batch, or per session?</b>
+    <span>Comparing surfaces before opening a batch of sessions is the strong version. The weak
+    one checks only at the moment each session starts, by which time you've already picked.</span></div>
+  <div class="q"><b>Who assigns an R6 handover?</b>
+    <span>You, since it is a scope change and those already escalate — or the two sessions
+    between themselves, with you only told the outcome. The second is faster and puts a scope
+    decision somewhere the rules have never allowed one.</span></div>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>Decided</span><span class="tag">2026-08-04 · aashish</span></div>
+<p><b>Accepted, all six rules.</b> Now in <code>CLAUDE-workflow.md</code> under "Working
+alongside other sessions", with <code>bin/whoelse</code> built and exercised against the very
+contention described above.</p>
+
+<p>The four open questions were not answered separately, so the document's own stated positions
+were applied — listed here so any of them can be changed by saying so:</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Question</th><th>Applied</th></tr>
+  <tr><td>Block or warn?</td><td><b>Block.</b> Overlap stops the session, as R2 is written.</td></tr>
+  <tr><td>Who sends the handover message?</td><td><b>The session drafts, you approve.</b> It
+  arrives in your name in another conversation; you should know what was said.</td></tr>
+  <tr><td>R5 per batch or per session?</td><td><b>Per batch</b> — surfaces compared before a set
+  of sessions is opened, which is the strong version and the only one that helps at picking time.</td></tr>
+  <tr><td>Who assigns an R6 handover?</td><td><b>You</b>, per the document's default reading: it
+  is a scope change, and those already escalate.</td></tr>
+</table>
+</div>
+
+<p class="note">Separately: the 43 uncommitted files were left untouched on your instruction. The
+risk described above stands unchanged — <code>whoelse --contested</code> now reports it on demand
+rather than requiring someone to go looking.</p>
+</section>
+
+</div>
