@@ -115,6 +115,20 @@ design." Pointed at issue #31 as the reference case. A correction of a rule
 merged hours earlier that had allowed the upstream roles to be skipped when a
 brief looked complete.
 
+## 2026-08-04 · Check the rules version automatically, so he doesn't have to say it
+Said in: common-rules
+
+"so I don't have to tell it again to check common rules." Note the shape of the
+ask: not "follow the rules" but "stop making me be the mechanism".
+
+## 2026-08-04 · Show the proposal as an HTML artifact, then ask with buttons
+Said in: pockets → common-rules
+
+"in pocket management, I was having a really bad experience where I had to tell
+it every time." Named finance-tracker as the project that does this well. Third
+clear instance of the show-don't-describe pattern below, and the first where he
+named the *cost* of its absence.
+
 ---
 
 # Patterns
