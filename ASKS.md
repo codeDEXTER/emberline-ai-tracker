@@ -107,6 +107,14 @@ Said in: common-rules
 
 The ask that created this file.
 
+## 2026-08-04 · After a proposal is approved, requirements then design, then an L2 approval
+Said in: common-rules
+
+"this should not be skipped as the code agent will not properly expand req and
+design." Pointed at issue #31 as the reference case. A correction of a rule
+merged hours earlier that had allowed the upstream roles to be skipped when a
+brief looked complete.
+
 ---
 
 # Patterns

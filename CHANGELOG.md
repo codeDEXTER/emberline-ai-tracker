@@ -33,6 +33,89 @@ is the thing to read first.
   above demotes. An agent reading only its own file would otherwise have kept
   the framing this change exists to replace.
 
+- **`proposal-auditor`, an eighth agent — so L2 isn't the project manager's own
+  opinion.** aashish's question, and it went straight at the weakness flagged in
+  the L2 rule below: the project manager would be approving output from a
+  pipeline it commissioned itself. So the comparison is done by someone else.
+
+  The auditor reads the accepted proposal, `REQUIREMENTS.md` and the design spec,
+  and classifies **every** divergence: `faithful`, `elaboration` (detail the
+  proposal implied — what this work is *for*, and L2's to approve), `drift`
+  (something the proposal decided, now changed — the sponsor's), `silent
+  decision` (a decision the proposal never made — also the sponsor's), and `gap`
+  (a proposal decision the requirements don't cover — back to requirements, and
+  not ready for L2 at all). Two of those map onto two of the four escalation
+  triggers below, which turns L2 from a judgment call into something acted on
+  evidence.
+
+  **Deliberately not the quality manager**, which was the tempting answer. That
+  agent would approve the criteria at L2 and then gate the built work against
+  those same criteria — marking its own homework where independence matters most.
+  The principle already written for agent definitions carries over: an agent that
+  approved the specs it reviews against is no longer an independent check. The
+  two questions also differ in kind — the gate runs the thing and checks the
+  outcome; this compares two documents against a third and judges fidelity of
+  intent.
+
+  Read-only (`Read`, `Grep`, `Glob` — no `Bash`, no `Write`), decides nothing,
+  approves nothing. Its definition names the three quiet ways it fails:
+  summarising instead of quoting both sides, looking only at what was *added*
+  rather than what was silently dropped, and inventing a reading where the
+  proposal was ambiguous — when the ambiguity is itself the finding.
+
+  Costs, stated: an eighth agent against this file's own warning that
+  full-ceremony pipelines can reduce correctness — mitigated by scoping it to
+  post-acceptance work only, so a small fix pays nothing. And it cannot catch a
+  proposal that was vague to begin with; it can only report that it was.
+
+- **After acceptance: requirements, then design, then L2 — never straight to
+  code.** aashish's rule, and it **corrects the paragraph merged a few hours
+  earlier** which said a complete brief meant the upstream roles could be skipped
+  and the tier was small-fix. Wrong, and the correction is stated in place rather
+  than quietly edited: **an accepted proposal is not settled requirements.** It
+  is a decision about direction, argued in prose — the input to requirements
+  work, not a replacement for it.
+
+  So acceptance now starts a fixed sequence: `requirements-engineer` →
+  `design-engineer` → **L2** → code, test, gate. **L1 is aashish accepting the
+  proposal; L2 is the project manager accepting the requirements and design
+  produced from it** — two decisions about two artifacts. Collapsed, the second
+  is never made by anyone; it gets inferred one file at a time by whoever writes
+  the code.
+
+  His reasoning, and it is the right one: the code agent will not expand
+  requirements and design properly. Not a flaw in that agent — it is being asked
+  to do two jobs whose instincts conflict, so given a gap it fills it in passing,
+  in whatever shape is easiest to build. The decision then exists only as code,
+  with nothing written down for the test engineer to check or the gate to hold it
+  to. **An inferred requirement is an invisible one.**
+
+  Four things escalate past L2 to him, and none are judgment calls: the work
+  contradicts what the proposal decided; scope moves; a decision surfaces the
+  proposal never made; or it turns out materially larger than implied. Skipping
+  design for work with no visible surface is allowed and must be **said out loud
+  and recorded in `AGENT-LOG.md`**, like a skipped gate — silence is what makes a
+  skip indistinguishable from an oversight.
+
+  He pointed at **issue #31** and it is worth keeping, because the cost was
+  total. Its brief went from proposal 07 straight to "Implement" for the most
+  design-dependent task in the batch — a rail, a seam and a dock whose entire
+  point was that the boundary between confirming a write and asking a question be
+  obvious at a glance. No `REQUIREMENTS.md`, no screen spec, a layout problem
+  handed over as prose. The session built all of it itself over 256 messages;
+  aashish intervened; the session replied *"You're right, I broke the rule that
+  matters most here"* and **reverted all seven of its changes**. A whole session
+  discarded. And the rework still ran only `code-engineer` — being told to use
+  the agents did not produce requirements or design work, because nobody had said
+  the proposal wasn't already the requirements.
+
+  Enforced where it bites rather than only in prose: `code-engineer` now refuses
+  to start from a proposal and must say what is missing; `requirements-engineer`
+  states when its output is post-acceptance and that L2 is still owed;
+  `design-engineer` must name anything belonging to the sponsor rather than to
+  L2. The brief template was rewritten — it previously said "Tier: small fix" and
+  named only the code engineer and gate, which would have reproduced #31 exactly.
+
 - **Named the dispatch mechanism, and fixed the briefs that bypassed it.**
   aashish asked why finance-tracker's issue sessions weren't using the agents.
   They weren't: **#30, #31, #32, #35, #36 and #37 made zero agent calls** and
