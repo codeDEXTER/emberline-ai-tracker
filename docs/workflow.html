@@ -102,7 +102,7 @@
 
 <div class="brand">
   <span>common-rules · reference</span>
-  <span>derived from CLAUDE-workflow.md · rules version 40-800c38b · 2026-08-04</span>
+  <span>derived from CLAUDE-workflow.md · rules version 42 · 2026-08-04</span>
 </div>
 
 <h1>The whole workflow, on one page</h1>
@@ -124,6 +124,18 @@ kept in step with it.</p>
       times a day; a session working from what it read this morning is following a version
       that no longer exists. It prints <em>what changed</em>, not merely that something did.</p>
       <div class="out"><span class="pill mono">rulecheck</span><span class="pill mono">rulecheck --align</span><span class="pill doc">.common-rules-version</span></div>
+    </div>
+  </div>
+
+  <div class="stage gate">
+    <div class="who">any session<b>whoelse</b></div>
+    <div>
+      <h3>Check who else is working here</h3>
+      <p>Before the first edit. Overlap is a <strong>stop</strong>, not a warning — a file another
+      session holds is not yours to edit, for the same reason a port you didn't start is not yours
+      to reclaim. Inform them rather than duplicating; the message is drafted for you and sent
+      once you say so.</p>
+      <div class="out"><span class="pill mono">whoelse</span><span class="pill mono">whoelse --contested</span><span class="pill stop">overlap → do not proceed</span></div>
     </div>
   </div>
 
@@ -390,10 +402,13 @@ an agent that can rewrite the specs it reviews against is no longer an independe
 </section>
 
 <section>
-<div class="eyebrow"><span>The two tools</span><span class="tag">rules nobody has to remember</span></div>
+<div class="eyebrow"><span>The three tools</span><span class="tag">rules nobody has to remember</span></div>
 
 <pre>rulecheck                    # am I on the current rules? prints what changed
 rulecheck --align            # record this version — only after actually reading
+
+whoelse                      # who else is in this project, and do we overlap?
+whoelse --contested          # every file held by more than one worktree
 
 apprun start --project P --phase stable|test|proto --port N --pid N [--demo]
 apprun list                  # what you still owe
@@ -415,6 +430,7 @@ honest remaining gap in both.</p>
   <li><b>One proposal per topic</b>, however many agents ran, and it survives across sessions until decided.</li>
   <li><b>Show, don't summarise.</b> Artifact over prose; demo before approval; the render, not a description of it.</li>
   <li><b>Stop only what you started</b> — and stop the window too.</li>
+  <li><b>Look before you start, and commit before you pause</b> — uncommitted work is invisible to everyone, including the next check.</li>
   <li><b>Nothing about issues, merges, promotions or these rules happens without you.</b></li>
 </ul>
 
