@@ -8,6 +8,30 @@ is the thing to read first.
 
 ## 2026-08-04
 
+- **`docs/workflow.html` — the whole workflow on one page, and a rule that keeps
+  it true.** aashish asked for a bird's-eye view. `CLAUDE-workflow.md` is now
+  long and reads in the order it was *written*, not the order work *happens* —
+  which is fine as an authority and useless as a map. The page walks idea →
+  merged in actual sequence, colour-coded by who acts (you / project manager /
+  gate), then: who decides what, the eight agents with their real tool grants,
+  the ceremony tiers, the run-identity ports, where every record gets written and
+  by whom, and the two tools' commands. A full-page PNG sits beside it, per the
+  existing report rule.
+
+  The maintenance half is the part that matters, and it is now a rule rather than
+  an intention: **the page is derived from `CLAUDE-workflow.md`** — where they
+  disagree that file wins — and **any PR that changes the shared rules updates
+  this page and its version stamp in the same PR.** Not as a follow-up. A
+  bird's-eye view that has quietly drifted is worse than none, because it is
+  trusted at a glance and read without suspicion; a stale map is the version that
+  gets believed.
+
+  Every tool-grant row was checked against the agent files' frontmatter rather
+  than written from memory. PNG: headless Chrome at 2× into a 20000px-tall
+  window, then a PIL crop that scans upward for the last row differing from the
+  page background — the window height is a ceiling, not a measurement, so
+  cropping is what makes it a page rather than a page plus a mile of empty.
+
 - **How a proposal is delivered — artifact, then buttons** (proposal 01,
   accepted same day; `docs/proposals/` starts here). aashish's report: in pockets
   he had to ask for the rendered view and the decision buttons **every single
