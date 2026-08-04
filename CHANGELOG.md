@@ -33,6 +33,50 @@ is the thing to read first.
   above demotes. An agent reading only its own file would otherwise have kept
   the framing this change exists to replace.
 
+- **Named the dispatch mechanism, and fixed the briefs that bypassed it.**
+  aashish asked why finance-tracker's issue sessions weren't using the agents.
+  They weren't: **#30, #31, #32, #35, #36 and #37 made zero agent calls** and
+  implemented everything with `Edit` and `Bash` — which means **six merged
+  features never saw a pre-merge gate.** The same project's open-ended session
+  (`issue-27-person-dossier`) made eighteen calls across all six roles, so the
+  definitions, the symlink and registration were never the problem. All six read
+  this file first. They read the rule and did not follow it.
+
+  Three causes, and the first is embarrassing: **this file named the roles and
+  never named the mechanism.** Exact commands for `EnterWorktree` and `apprun`,
+  and for the one behaviour the whole structure depends on, a table. `Agent` and
+  `subagent_type` appeared zero times. Now they appear, with the invocation
+  written out and a behavioural test that can be applied mid-task: *if this
+  session is calling `Edit`, it is no longer the project manager.*
+
+  Second, **the brief is the trap.** "Implement issue #36 … acceptance criteria:
+  …" *is* a code-engineer task brief, and a session handed one executes it,
+  because the live instruction beats a file it was told to go read. The fix is at
+  the source: a session brief now opens "Project-manage", states the tier and
+  names the agent set before any task detail. A complete brief is a reason the
+  *upstream* roles can be skipped, never a reason to skip the gate — settled
+  requirements make the work more checkable, not less.
+
+  Third, **the step existed here and not in the artifact that starts the work.**
+  The rules already said the PM names which agents run; none of the six briefs
+  did. A rule that only lives in a file nobody consults at the deciding moment
+  is not in force.
+
+  Also fixed: those briefs pointed at `../common-rules/CLAUDE-workflow.md`, which
+  **does not resolve from a worktree** — and a worktree is the first action on
+  any project repo. The sessions recovered by hunting for the absolute path,
+  which is luck. Absolute paths now, and it is logged as a gotcha alongside a
+  second one this investigation produced: `~/.claude/projects/` directories start
+  with `-`, so a glob'd `grep` reads them as flags, finds nothing, and does not
+  error — it briefly produced a confident and completely wrong conclusion about
+  which sessions had read this file.
+
+  **Not fixed here, because it isn't this repo's file**: finance-tracker's own
+  `CLAUDE.md` says "aashish is project manager here, **the AI is the developer**"
+  — singular, and it is the file that auto-loads, while this one is read only
+  when a prompt asks. It reads as permission for exactly the behaviour above.
+  Raised separately as an issue draft.
+
 - **`ASKS.md` — track what he asks for, propose the pattern.** His point, and it
   is a fair one: almost every rule in `CLAUDE-workflow.md` started as him asking
   for something in a chat, and most were asked more than once, in different
