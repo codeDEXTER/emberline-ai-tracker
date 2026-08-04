@@ -1,0 +1,278 @@
+<title>common-rules · How a proposal reaches you, and how you answer — Proposal</title>
+<meta name="proposal-id" content="01">
+<meta name="proposal-topic" content="structural-communication">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="accepted">
+<style>
+  :root {
+    --ground: #F4F3F1; --surface: #FBFAF9; --card: #FFFFFF; --ink: #1B1E23; --dim: #6B6660;
+    --border: #DCD8D2; --rule: #1B1E23; --accent: #2E6E8E;
+    --gain: #2E7D5B; --loss: #A8434B; --warn: #B4761E; --chip-ink: #FBFAF9;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --card:#161B24; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --card:#161B24; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --card:#FFFFFF; --ink:#1B1E23; --dim:#6B6660;
+            --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B;
+            --warn:#B4761E; --chip-ink:#FBFAF9; }
+
+  body { background: var(--ground); color: var(--ink); font-family: var(--sans);
+         line-height: 1.55; font-size: 15.5px; margin: 0; }
+  .page { max-width: 960px; margin: 0 auto; padding: 52px 28px 90px; }
+  .brand { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+           color: var(--dim); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 34px; font-weight: 650; letter-spacing: -.015em; line-height: 1.15;
+       margin: 18px 0 10px; text-wrap: balance; }
+  .standfirst { font-size: 17px; color: var(--dim); max-width: 66ch; margin: 0 0 8px; text-wrap: pretty; }
+  .eyebrow { font-family: var(--mono); font-size: 11.5px; font-weight: 700; letter-spacing: .12em;
+             text-transform: uppercase; margin: 54px 0 0; padding-bottom: 9px;
+             border-bottom: 2px solid var(--rule); display: flex; justify-content: space-between;
+             align-items: baseline; gap: 12px; }
+  .eyebrow .tag { font-weight: 400; letter-spacing: .06em; color: var(--dim); text-transform: none; }
+  section > p { max-width: 70ch; }
+  p.note { color: var(--dim); font-size: 13.5px; max-width: 70ch; }
+  a { color: var(--accent); }
+  code, .mono { font-family: var(--mono); font-size: 12.8px; }
+
+  .chip { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+          padding: 3px 9px; border-radius: 4px; background: var(--warn); color: var(--chip-ink); }
+  .chip.accepted { background: var(--gain); }
+
+  .verdict { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+             border-radius: 0 10px 10px 0; padding: 16px 20px; margin: 22px 0; max-width: 74ch; }
+  .verdict b { font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+               display: block; margin-bottom: 6px; }
+  .verdict.good { border-left-color: var(--gain); }
+  .verdict.warn { border-left-color: var(--warn); }
+  .verdict.bad  { border-left-color: var(--loss); }
+  .verdict p:last-child { margin-bottom: 0; }
+
+  .tablewrap { overflow-x: auto; margin-top: 18px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 620px; }
+  th { font-family: var(--mono); font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase;
+       color: var(--dim); text-align: left; font-weight: 600; padding: 8px 14px 8px 0;
+       border-bottom: 1px solid var(--border); }
+  td { padding: 9px 14px 9px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+
+  .lab { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+         display: inline-block; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+  .lab.have { background: var(--gain); color: var(--chip-ink); }
+  .lab.new { background: var(--loss); color: var(--chip-ink); }
+  .lab.partial { background: var(--warn); color: var(--chip-ink); }
+
+  .rules { display: grid; gap: 14px; margin-top: 20px; }
+  .r { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+       padding: 15px 18px; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: baseline; }
+  .r .n { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--accent);
+          letter-spacing: .06em; }
+  .r b { font-size: 15px; }
+  .r p { grid-column: 2; margin: 4px 0 0; color: var(--dim); font-size: 13.8px; max-width: 66ch; }
+
+  .qgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin-top: 20px; }
+  .q { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .q b { display: block; font-size: 14px; margin-bottom: 5px; }
+  .q span { color: var(--dim); font-size: 12.8px; }
+  ul { max-width: 70ch; } li { margin-bottom: 8px; }
+  ol { max-width: 70ch; } ol li { margin-bottom: 10px; }
+  @media (max-width: 620px) { .page { padding: 34px 18px 60px; } h1 { font-size: 27px; } }
+</style>
+
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · Proposal 01</span>
+  <span><span class="chip accepted">accepted</span> &nbsp; 2026-08-04</span>
+</div>
+
+<h1>How a proposal reaches you, and how you answer</h1>
+
+<p class="standfirst">In pockets you had to ask for the artifact view and the buttons every
+time. In finance-tracker you didn't. The difference isn't care or effort — one project has a
+convention for this and the other has none, so in pockets you became the convention.</p>
+
+<section>
+<div class="eyebrow"><span>What's actually different</span><span class="tag">checked, not assumed</span></div>
+
+<p>Both projects adopted the shared rules on the same day. Only one of them ever built a place
+for proposals to live.</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>&nbsp;</th><th>finance-tracker</th><th>pockets</th></tr>
+  <tr>
+    <td><b>Where proposals live</b></td>
+    <td><code>docs/proposals/</code> — 13 numbered HTML files, committed</td>
+    <td>Three <code>claude.ai</code> artifact URLs pasted into <code>CLAUDE.md</code></td>
+  </tr>
+  <tr>
+    <td><b>In the repo?</b></td>
+    <td><span class="lab have">yes</span></td>
+    <td><span class="lab new">no</span> — only the links are</td>
+  </tr>
+  <tr>
+    <td><b>Numbered</b></td>
+    <td><span class="lab have">01–13</span></td>
+    <td><span class="lab new">none</span></td>
+  </tr>
+  <tr>
+    <td><b>Status on the document</b></td>
+    <td><span class="lab have">yes</span> — meta tag + visible chip</td>
+    <td><span class="lab new">none</span></td>
+  </tr>
+  <tr>
+    <td><b>Index</b></td>
+    <td><span class="lab have">README</span></td>
+    <td><span class="lab new">none</span></td>
+  </tr>
+  <tr>
+    <td><b>Shareable render</b></td>
+    <td><span class="lab partial">some</span> — PNG alongside the HTML</td>
+    <td><span class="lab new">none</span></td>
+  </tr>
+</table>
+</div>
+
+<div class="verdict bad">
+  <b>The part that isn't just untidiness</b>
+  <p>Pockets' entire product direction — the rev-3 product proposal, the locked eleven-screen
+  UI set, the v2 sync addendum — exists as three artifact links in a markdown file. One of them
+  has a local copy. The other two don't. If an artifact is deleted or a link rots, the thinking
+  behind this app is gone, and the repo will not notice.</p>
+</div>
+
+<p>So the bad experience you felt was the visible symptom of that. With no convention, delivery
+had to be negotiated each time; and negotiating it each time is what made it feel like work.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>The proposal</span><span class="tag">four rules, every adopting project</span></div>
+
+<div class="rules">
+  <div class="r">
+    <span class="n">R1</span><b>A proposal is delivered as a rendered HTML artifact — never as chat prose.</b>
+    <p>Not "here's a summary, want me to write it up?" The document is the delivery. You should
+    be reading the thing you're deciding on, not a description of it.</p>
+  </div>
+  <div class="r">
+    <span class="n">R2</span><b>The committed copy exists before the artifact is shown.</b>
+    <p><code>docs/proposals/NN-&lt;type&gt;-&lt;topic&gt;.html</code>, in the project's repo.
+    <b>The artifact is the view; the repo is the record.</b> This is the rule pockets is missing,
+    and R1 without it just makes prettier things that still vanish.</p>
+  </div>
+  <div class="r">
+    <span class="n">R3</span><b>Delivery is immediately followed by a decision prompt with buttons.</b>
+    <p>Never "let me know what you think". The session that shows you a proposal asks the
+    question in the same breath, with the options as buttons you can press.</p>
+  </div>
+  <div class="r">
+    <span class="n">R4</span><b>One decision per prompt, in sequence.</b>
+    <p>Your existing preference, made general: a proposal with four open questions asks four
+    times, not once with everything bundled. A bundled question gets a bundled answer, and the
+    detail you actually meant is lost.</p>
+  </div>
+</div>
+
+<p class="note">R1 and R2 are what finance-tracker already does — this writes it down so pockets
+and every later project inherit it instead of rediscovering it. R3 and R4 are new as rules,
+though they're what you've been asking for by hand.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>What the buttons say</span><span class="tag">a fixed set, so they aren't invented each time</span></div>
+
+<p>Vague options are how a decision prompt becomes another round of conversation. The default
+set, for a proposal awaiting a verdict:</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Button</th><th>What it means</th><th>What happens next</th></tr>
+  <tr><td><b>Accept</b></td><td>The direction is right</td>
+      <td>Status → <code>accepted</code>; draft issue written; session offered; requirements
+      and design begin</td></tr>
+  <tr><td><b>Reject</b></td><td>Not doing this</td>
+      <td>Status → <code>rejected</code>, with your reason recorded in the document</td></tr>
+  <tr><td><b>Amend</b></td><td>Right idea, wrong specifics</td>
+      <td>You say what changes; the same proposal is revised — not a second one</td></tr>
+  <tr><td><b>Show me first</b></td><td>You want to look before deciding</td>
+      <td>The demo, with click-by-click navigation, on the clean copy</td></tr>
+</table>
+</div>
+
+<p class="note">Recommendation goes first in the list, per the existing convention. "Show me
+first" is the demo rule already in the shared file — this just makes it a button instead of
+something you have to think to ask for.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>What it costs</span><span class="tag">stated, not buried</span></div>
+
+<p>Every proposal becomes a file, a render, and a prompt. For a two-paragraph idea that is
+heavier than the idea. Two things keep that honest:</p>
+
+<ul>
+  <li><b>Not everything is a proposal.</b> Findings, gate results and status updates have their
+  own rules and are not covered here. This applies to work that needs a decision from you.</li>
+  <li><b>The research/proposal ceremony tier already exists</b> — nothing merges from it, so the
+  weight is one document and one question, not a pipeline.</li>
+</ul>
+
+<div class="verdict warn">
+  <b>What this does not fix</b>
+  <p>It is a convention, not a mechanism. Nothing in the tooling forces a session to render an
+  artifact or ask with buttons — the same honest gap as <code>apprun start</code> depending on an
+  agent calling it. What changed today is that <code>rulecheck</code> makes "I didn't know this
+  rule existed" checkable, which is the nearest thing to enforcement a written rule gets.</p>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>Open questions</span><span class="tag">yours, not mine</span></div>
+
+<div class="qgrid">
+  <div class="q"><b>Backfill pockets, or start from now?</b>
+    <span>Its three artifact proposals could be pulled down into <code>docs/proposals/</code>
+    and numbered, or left as links with the convention applying only to new work. Backfilling
+    is the only thing that protects what's already there.</span></div>
+  <div class="q"><b>Do reports get the same treatment?</b>
+    <span>Pockets already writes <code>docs/reports/*.html</code>. Same artifact-and-buttons
+    rule, or does that only apply where a decision is being asked for?</span></div>
+  <div class="q"><b>Buttons every time?</b>
+    <span>Including when the proposal is plainly informational and there is nothing to decide
+    yet — or only when a verdict is actually wanted.</span></div>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>Decided</span><span class="tag">2026-08-04 · the-sponsor</span></div>
+
+<p><b>Accepted.</b> The four rules apply to every project referencing the shared rules. The
+three open questions above were answered in the same sitting:</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Question</th><th>Decision</th></tr>
+  <tr><td>Backfill pockets?</td>
+      <td><b>All three.</b> The product proposal, the eleven-screen UI set and the v2 sync
+      addendum come down into <code>pockets/docs/proposals/</code>, numbered, with statuses.</td></tr>
+  <tr><td>Reports and findings too?</td>
+      <td><b>Artifact yes, buttons no.</b> Only work that wants a decision ends with a prompt,
+      which is what keeps the buttons meaningful.</td></tr>
+  <tr><td>Buttons on a proposal with nothing to decide?</td>
+      <td><b>Always</b> — even when the only option is "noted". Overrides the recommendation
+      here: there should never be ambiguity about whether a question is being asked.</td></tr>
+</table>
+</div>
+
+<p class="note">Conclusions above this line are unchanged from what was accepted. Per the
+proposal framework, a status moves and decisions get recorded; the argument does not get
+rewritten after the fact.</p>
+</section>
+
+</div>
