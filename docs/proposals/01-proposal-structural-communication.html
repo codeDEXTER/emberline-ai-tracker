@@ -2,7 +2,7 @@
 <meta name="proposal-id" content="01">
 <meta name="proposal-topic" content="structural-communication">
 <meta name="proposal-type" content="proposal">
-<meta name="proposal-status" content="proposed">
+<meta name="proposal-status" content="accepted">
 <style>
   :root {
     --ground: #F4F3F1; --surface: #FBFAF9; --card: #FFFFFF; --ink: #1B1E23; --dim: #6B6660;
@@ -43,6 +43,7 @@
 
   .chip { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
           padding: 3px 9px; border-radius: 4px; background: var(--warn); color: var(--chip-ink); }
+  .chip.accepted { background: var(--gain); }
 
   .verdict { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
              border-radius: 0 10px 10px 0; padding: 16px 20px; margin: 22px 0; max-width: 74ch; }
@@ -87,7 +88,7 @@
 
 <div class="brand">
   <span>common-rules · Proposal 01</span>
-  <span><span class="chip">proposed</span> &nbsp; 2026-08-04</span>
+  <span><span class="chip accepted">accepted</span> &nbsp; 2026-08-04</span>
 </div>
 
 <h1>How a proposal reaches you, and how you answer</h1>
@@ -249,10 +250,29 @@ heavier than the idea. Two things keep that honest:</p>
 </section>
 
 <section>
-<div class="eyebrow"><span>Status</span><span class="tag">proposal 01</span></div>
-<p>This document is <code>proposed</code>. It is a section of one proposal on this topic, and
-has not been approved. Accepting it changes the shared rules for every adopting project, which
-is why the decision is yours and the questions above come one at a time.</p>
+<div class="eyebrow"><span>Decided</span><span class="tag">2026-08-04 · the-sponsor</span></div>
+
+<p><b>Accepted.</b> The four rules apply to every project referencing the shared rules. The
+three open questions above were answered in the same sitting:</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Question</th><th>Decision</th></tr>
+  <tr><td>Backfill pockets?</td>
+      <td><b>All three.</b> The product proposal, the eleven-screen UI set and the v2 sync
+      addendum come down into <code>pockets/docs/proposals/</code>, numbered, with statuses.</td></tr>
+  <tr><td>Reports and findings too?</td>
+      <td><b>Artifact yes, buttons no.</b> Only work that wants a decision ends with a prompt,
+      which is what keeps the buttons meaningful.</td></tr>
+  <tr><td>Buttons on a proposal with nothing to decide?</td>
+      <td><b>Always</b> — even when the only option is "noted". Overrides the recommendation
+      here: there should never be ambiguity about whether a question is being asked.</td></tr>
+</table>
+</div>
+
+<p class="note">Conclusions above this line are unchanged from what was accepted. Per the
+proposal framework, a status moves and decisions get recorded; the argument does not get
+rewritten after the fact.</p>
 </section>
 
 </div>

@@ -8,6 +8,37 @@ is the thing to read first.
 
 ## 2026-08-04
 
+- **How a proposal is delivered — artifact, then buttons** (proposal 01,
+  accepted same day; `docs/proposals/` starts here). the-sponsor's report: in pockets
+  he had to ask for the rendered view and the decision buttons **every single
+  time**; in finance-tracker he never did. Checking the two explained it, and it
+  wasn't care or effort — finance-tracker has `docs/proposals/`, 13 numbered
+  committed HTML files with statuses and an index. **Pockets has none.** Its
+  three key proposals are `claude.ai` artifact URLs pasted into `CLAUDE.md`, and
+  **two of the three have no local copy at all** — so the app's entire product
+  direction depends on links that can rot, and the repo would not notice. With no
+  convention, delivery had to be negotiated each time, and being the convention
+  himself is what made it feel like work.
+
+  Four rules now: a proposal is a rendered HTML artifact, never chat prose; the
+  **committed copy exists before the artifact is shown** (the artifact is the
+  view, the repo is the record — rule 1 without this just makes prettier things
+  that still vanish); delivery is followed immediately by a decision prompt with
+  buttons; and one decision per prompt, since a bundled question gets a bundled
+  answer. A default button set is fixed — Accept / Amend / Reject / Show me
+  first — so the options aren't reinvented vague each time.
+
+  Two of his three answers refined or overrode the recommendation. **Buttons
+  appear even when there is nothing to decide yet**, option "noted" if need be —
+  and his reasoning is better than mine was: an absent prompt is ambiguous, and
+  he should never have to work out whether he is being asked something.
+  **Reports, findings and gate results get the artifact but not the prompt** —
+  that restraint is what keeps buttons meaningful rather than something to click
+  past. And **pockets backfills all three** existing proposals rather than
+  applying the convention only to new work, which is the only thing that protects
+  what is already there. That backfill is pockets' work, raised as a draft issue,
+  not done from here.
+
 - **Cleanup is now scoped by ownership**, in `CLAUDE-workflow.md`'s "Leave
   nothing running" section (retitled "— and stop only what you started").
   Two halves. The first restates the existing rule at **session** scope rather
