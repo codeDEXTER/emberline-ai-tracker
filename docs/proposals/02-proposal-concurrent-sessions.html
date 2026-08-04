@@ -176,7 +176,7 @@ which is the workflow change in R5.</p>
 </section>
 
 <section>
-<div class="eyebrow"><span>The proposal</span><span class="tag">five rules · two need building</span></div>
+<div class="eyebrow"><span>The proposal</span><span class="tag">six rules · two need building</span></div>
 
 <div class="rules">
   <div class="r">
@@ -221,7 +221,49 @@ which is the workflow change in R5.</p>
     that is the point of keeping this per-surface rather than throttling everything.</p>
     <div class="have"><span class="lab mid">needs the tool + a step at issue-picking</span></div>
   </div>
+
+  <div class="r">
+    <span class="n">R6</span><b>A finding that lands on another task's surface is a handover, not a note.</b>
+    <p>Added after review: R3 said <em>inform</em>, and informing is not handover. When session A
+    finds during research that something could be improved, and that improvement belongs to issue
+    B's surface, <strong>responsibility must be explicitly assigned</strong> — to A, to B, or to
+    neither. One of three outcomes, chosen out loud, never left implicit.</p>
+    <div class="have"><span class="lab mid">new rule</span></div>
+  </div>
 </div>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Outcome</th><th>What it means</th><th>What has to happen</th></tr>
+  <tr><td><b>The finder keeps it</b></td>
+      <td>Issue A's scope grows to cover the improvement</td>
+      <td>A scope change discovered mid-task — already escalates to you under the existing rule.
+      B is told, because B's surface just changed underneath it</td></tr>
+  <tr><td><b>The owner takes it</b></td>
+      <td>Folded into issue B, which is already there</td>
+      <td>B's requirements gain a criterion; B's session receives the <em>full finding</em>, not a
+      summary; <b>A is told it was accepted</b>, so A stops building around the old behaviour</td></tr>
+  <tr><td><b>Neither</b></td>
+      <td>It becomes its own issue, sequenced after both</td>
+      <td>The five-field issue draft, as today — but recorded as deferred <em>by decision</em>,
+      not by omission</td></tr>
+</table>
+</div>
+
+<div class="verdict bad">
+  <b>The two failure modes this closes</b>
+  <p><b>Silent absorption</b> — B just fixes it, A never hears, and A keeps building on behaviour
+  that no longer exists. <b>Mutual drop</b> — both assume the other has it and neither does; the
+  finding evaporates and resurfaces months later as a bug. Both come from the same cause: a
+  handover that was mentioned but never assigned.</p>
+  <p>So the rule is that <strong>the decision is recorded where it outlives both sessions</strong>
+  — in the checklist, against both issues. A handover that lives only in two chat transcripts has
+  not happened.</p>
+</div>
+
+<p class="note">Who decides is the one part that needs your call — see the open questions. The
+default reading of the existing rules says you do, since this is a scope change and every scope
+change discovered mid-task, however small, already escalates.</p>
 </section>
 
 <section>
@@ -290,6 +332,10 @@ which is the workflow change in R5.</p>
   <div class="q"><b>Does R5 apply to the whole batch, or per session?</b>
     <span>Comparing surfaces before opening a batch of sessions is the strong version. The weak
     one checks only at the moment each session starts, by which time you've already picked.</span></div>
+  <div class="q"><b>Who assigns an R6 handover?</b>
+    <span>You, since it is a scope change and those already escalate — or the two sessions
+    between themselves, with you only told the outcome. The second is faster and puts a scope
+    decision somewhere the rules have never allowed one.</span></div>
 </div>
 </section>
 
