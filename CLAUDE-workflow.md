@@ -503,6 +503,95 @@ In practice that means cleanup is **targeted, never a sweep**:
 **Leaving a stranger's copy running is the correct outcome**, even when it looks
 like the exact mess the section above is about. Ownership decides, not tidiness.
 
+#### The run registry — `bin/apprun`
+
+Added 2026-08-04. The two rules above are unfollowable without one fact no agent
+has: *who started this*. So it gets recorded. `common-rules/bin/apprun` keeps
+`~/.claude/app-runs.jsonl` — one line per instance, carrying project, phase,
+port, pid, url, branch, and the **session id and session pid** of whoever started
+it.
+
+Ownership is then exact rather than guessed: `CLAUDE_CODE_SESSION_ID` says whose
+it is, and `kill -0` on the recorded session pid says whether that owner still
+exists. Three duties, and they are the whole protocol:
+
+```bash
+apprun start --project <p> --phase stable|test|proto --port <n> --pid <n>   # on launch
+apprun list                                                                # what you still owe
+apprun stop --all                                                          # before reporting
+```
+
+- **`start` immediately after launching anything.** An unregistered instance is
+  invisible to every later cleanup — it is exactly how the pile forms.
+- **`stop` refuses what isn't yours.** A live stranger's copy, an orphan, the
+  stable copy: all three are declined with the reason. The rule stops depending
+  on an agent remembering it.
+- **`stop` closes the browser window too** — see below.
+- **`sweep` reports orphans** and never clears them without `--clear`, which is
+  the user's call, because one of those windows may be what they are looking at.
+
+#### Stopping the server is not closing the window
+
+This is the gap that produced the actual complaint. Every rule here talked about
+processes and ports; a NiceGUI or Streamlit launch opens a **browser window**,
+and killing the server leaves that window sitting there, dead, still titled like
+the app. Ten sessions that each cleaned up perfectly still leave ten windows.
+
+So **cleanup closes the window as well as the process.** `apprun stop` does it —
+matching on the exact `http://127.0.0.1:<port>` of the instance being stopped, so
+it can only ever hit that one. If the window can't be closed (browser not
+running, automation not permitted), say so rather than reporting a clean finish.
+
+#### Orphans — the one thing a stranger may close
+
+An instance whose app is up but whose **owning session is gone** is an orphan.
+Nobody will ever come back for it, so the ownership rule alone would keep it
+running forever — which is how "stop only what you started" quietly turns into
+the pile it was meant to prevent.
+
+`apprun sweep` lists them with their age and project. Clearing them needs the
+user's explicit yes; a session never clears orphans on its own initiative, and
+never as a side effect of some other task.
+
+**The stable copy is never an orphan**, however long it outlives whatever started
+it. Outliving sessions is its entire job.
+
+### There is always a clean copy to open
+
+Added 2026-08-04. Protecting the stable copy is not the same as guaranteeing one
+exists, and only the second is any use when the user wants to just open the app.
+
+**The clean copy is refreshed from `main`, after a feature merges.** That is the
+moment it is both safe and meaningful to rebuild: the work is integrated, gated
+and merged, so a rebuild carries the new feature and nothing half-finished. Not
+at session start (which would rebuild for no reason), not mid-task (the rule
+against building over the stable copy still holds everywhere else).
+
+So the post-merge routine ends with: rebuild from `main`, replace the installed
+copy, restart it, and register it as `--phase stable`. A merge that leaves the
+installed app on last week's build has finished the git work and not the task.
+
+`apprun sweep` says plainly when nothing is up — **`NO CLEAN COPY RUNNING`** —
+because the failure that matters is silent: the user goes to open the app and
+there is nothing to open, and no one noticed.
+
+#### The final app gets its own icon
+
+The badges and titles in the table above only help once a window is open and
+being read. The Dock and Cmd-Tab show an **icon**, and if every build shares one,
+the user is back to guessing which of five identical tiles is the real app.
+
+So: **one icon is reserved for the installed stable copy and used by nothing
+else.** Test and prototype builds carry a visibly different mark — different
+enough to tell apart at Dock size, in peripheral vision, without reading a label.
+A tinted or badged variant of the same shape is the usual answer; a bundle name
+suffix is not sufficient on its own, because the icon is what the eye lands on.
+
+Picking the reserved icon is design work and belongs to a project, not to this
+file. Where a project's icon carries **stale branding** — a mark from a name the
+app no longer has — that is a finding worth raising rather than living with,
+since it makes the one tile that should be unmistakable say the wrong thing.
+
 ## Findings become well-formed issue drafts
 
 Added 2026-08-03. Creating an issue stays the user's call (see the issue

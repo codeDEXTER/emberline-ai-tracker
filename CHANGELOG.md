@@ -33,6 +33,56 @@ is the thing to read first.
   above demotes. An agent reading only its own file would otherwise have kept
   the framing this change exists to replace.
 
+- **`bin/apprun`, a run registry — and the reason it exists.** aashish reported
+  still seeing a lot of windows open despite the rule above. Checking the
+  machine explained why: it was *clean* — one server (stable, :8502), one Safari
+  window on it, nothing in the test or proto ranges. The sessions had stopped
+  their servers correctly. **The windows aren't the servers.** Every rule we had
+  talked about processes and ports; a NiceGUI launch opens a browser window, and
+  killing the server leaves it there, dead, still titled like the app. Ten
+  compliant sessions leave ten windows. So cleanup now closes the window too,
+  matched on the exact `127.0.0.1:<port>` of the instance being stopped.
+
+  Two further gaps the same check exposed. **Ownership was unenforceable** —
+  nothing recorded who started what, so an agent could believe it was following
+  "stop only what you started" while the pile grew. And **the ownership rule made
+  orphans permanent**: when a session dies its instances belong to nobody, so
+  under the rule as written nothing could ever stop them. Both are fixed by the
+  registry: entries carry `CLAUDE_CODE_SESSION_ID` and that session's pid, so
+  ownership is a lookup and "is the owner still alive" is a `kill -0` — exact,
+  not a heuristic. An orphan is the one category a stranger may close, and only
+  with aashish's explicit yes, because one of those windows may be the one he is
+  looking at. `stop` declines a live stranger's copy, an orphan, and the stable
+  copy, each with the reason.
+
+  Judgment call worth flagging: this is the first executable in a folder that has
+  only ever held rules. Written because "each agent hand-rolls the bookkeeping"
+  is precisely how the drift returns — but it is a widening of what this repo is,
+  and reversible if aashish would rather it lived in a project.
+
+- **There is always a clean copy to open.** Protecting the stable copy is not the
+  same as guaranteeing one exists, and only the second helps when he just wants
+  to open the app. His call on timing: **refreshed from `main` after a feature
+  merges** — the moment the work is integrated, gated and merged, so a rebuild
+  carries the new feature and nothing half-finished. Not at session start, not
+  mid-task. A merge that leaves the installed app on last week's build has
+  finished the git work and not the task. `apprun sweep` says `NO CLEAN COPY
+  RUNNING` outright, because that failure is otherwise silent until he goes to
+  open the app and finds nothing there.
+
+- **The final app gets its own reserved icon.** Badges and window titles only
+  help once a window is open and being read; the Dock and Cmd-Tab show an icon,
+  and if every build shares one, he is back to guessing which of five identical
+  tiles is real. So one icon is reserved for the installed stable copy and used
+  by nothing else, with test and proto builds visibly different at Dock size. His
+  prompt was that the current one doesn't sit well — and it is worse than a taste
+  problem: finance-tracker's `icon-512.png` is a gold **W**, left over from
+  "Wealth Tracker", a name the app hasn't had since it became Sangam in Jul 2026.
+  The one tile that should be unmistakable currently says the wrong thing.
+  Drawing the replacement is design work belonging to finance-tracker, not here;
+  what this file adds is the rule that the reserved icon exists and that stale
+  branding on it is a finding, not something to live with.
+
 ## 2026-08-03
 
 - **SUPERSEDED, same day, by the proposal framework below.** Kept because the

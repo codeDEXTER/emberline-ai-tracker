@@ -36,7 +36,16 @@ Stop every app instance you started — dev server, built `.app`, anything bindi
 
 A validation that ends with three servers still up recreates the exact confusion that run badges exist to manage, and the next session inherits ports that look occupied for no visible reason. State in your report what you started and confirm you stopped it.
 
-**Stop only what you started.** Anything else running belongs to someone — the sponsor reviewing a build, or another session mid-validation — and killing it takes away what they were looking at without telling them why. Close by the PID and port you recorded; never `pkill -f`, `killall`, or clear a port range on principle. A port in your range you did not start is a collision to report, not to reclaim. Reusing a copy the code engineer started is fine — the task must simply not end with it up. The stable copy needs no special-casing under this: no session started it, so you never stop it, and you never build over it.
+**Stop only what you started.** Anything else running belongs to someone — the sponsor reviewing a build, or another session mid-validation — and killing it takes away what they were looking at without telling them why. Never `pkill -f`, `killall`, or clear a port range on principle. A port in your range you did not start is a collision to report, not to reclaim. Reusing a copy the code engineer started is fine — the task must simply not end with it up.
+
+Register what you launch, and clean up through the registry — it refuses what isn't yours and closes the browser window, which killing the process does not:
+
+```bash
+../common-rules/bin/apprun start --project <p> --phase test --port <n> --pid <n>
+../common-rules/bin/apprun stop --all      # before you report
+```
+
+A dead browser window left behind is the failure the sponsor actually sees, so "the process is gone" is not a finished cleanup.
 
 ## What you never do
 
