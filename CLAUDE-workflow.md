@@ -21,6 +21,59 @@ Adopted so far: **finance-tracker** (2026-08-02), **pockets** (2026-08-02).
 
 ---
 
+## Check you are on the current rules — before doing anything else
+
+Added 2026-08-04. These rules change several times a day. A session working
+from what it read last week is following a version that **no longer exists**,
+and nothing tells it so — which is why the user kept having to say "check
+common rules" again. That instruction should not have to be given.
+
+**First action in any session on an adopting project, before reading code,
+before `EnterWorktree`, before anything:**
+
+```bash
+/Users/aashish/apps/common-rules/bin/rulecheck
+```
+
+It compares the project's recorded version against the current one and prints
+**what changed** — the changelog lines added in between — not merely that
+something did. Exit 0 aligned, 1 behind, 2 cannot tell.
+
+If it reports behind: **read the sections those changes touch, then**
+
+```bash
+/Users/aashish/apps/common-rules/bin/rulecheck --align
+```
+
+Align only after actually reading. `--align` is a claim that this session knows
+the current rules, and a false claim there is worse than no stamp at all — the
+next session inherits it and skips the check.
+
+**Where the version lives.** `<commit-count>-<short-sha>` of this repo; the
+count orders it, the sha identifies it exactly. Each project records the one it
+last aligned with in `.common-rules-version` at its root, **committed** like any
+other record — so a worktree checkout carries it automatically and needs no
+stamp of its own.
+
+**Cannot tell (exit 2) is not "probably fine".** An unreadable rules repo or a
+recorded commit that doesn't exist means re-read the rules in full. The whole
+point is to stop guessing about this.
+
+**Make it automatic per project.** The rule above still relies on a session
+remembering, which is the weakness the rule exists to remove. A project can
+close that with a `SessionStart` hook in its `.claude/settings.json`, so the
+answer is in context before the session's first thought:
+
+```json
+{ "hooks": { "SessionStart": [ { "hooks": [ { "type": "command",
+  "command": "/Users/aashish/apps/common-rules/bin/rulecheck --quiet" } ] } ] } }
+```
+
+`--quiet` says nothing when aligned, so a current project pays no attention cost
+and a stale one cannot be missed.
+
+---
+
 ## Git workflow — every chat gets its own branch and folder, always
 
 **No direct-to-main work, and no two chats sharing a working directory.**

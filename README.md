@@ -34,6 +34,13 @@ happened, the changelog records what it was for.
   truth, GitHub issues as a one-way mirror), and the issue lifecycle (the
   user is project manager and decides creation/scope/priority/picking/
   closing; the AI researches, builds, reviews, and tests within that).
+- **`bin/rulecheck`** — answers "is this project on the current rules?"
+  before any work starts, and prints *what changed* if not. The rules move
+  several times a day, so a session working from what it read last week is
+  following a version that no longer exists. A project records the version
+  it last aligned with in `.common-rules-version` at its root, committed
+  like any other record. Best wired to a `SessionStart` hook per project
+  (`rulecheck --quiet`) so nobody has to remember.
 - **`bin/apprun`** — the run registry. The only executable here, and it
   exists because one rule in `CLAUDE-workflow.md` ("stop only what you
   started") is unfollowable without a fact no agent otherwise has: who

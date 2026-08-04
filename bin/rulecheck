@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+"""rulecheck — is this project working against the current shared rules?
+
+The rules change several times a day. A session that read them last week is
+following a version that no longer exists, and nothing tells it so — the user
+has to notice and say "check common rules" again. This answers that question
+before any work starts, and shows *what* changed rather than only that
+something did.
+
+  rulecheck                 # compare this project against current, list what changed
+  rulecheck --align         # record the current version, after reading the changes
+  rulecheck --version       # print the current rules version and exit
+  rulecheck --quiet         # print nothing when aligned (for hooks)
+
+Exit codes: 0 aligned · 1 behind (or never aligned) · 2 cannot tell.
+
+The version is `<commit-count>-<short-sha>` of common-rules — the count orders
+it, the sha identifies it exactly. A project records the one it last aligned
+with in `.common-rules-version` at its root, committed like any other record.
+"""
+
+import argparse
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+RULES = Path(os.environ.get("COMMON_RULES_DIR", "/Users/aashish/apps/common-rules"))
+STAMP = ".common-rules-version"
+# Command Line Tools git, because a pending Xcode licence breaks plain `git`.
+GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
+                        "/usr/bin/git") if Path(g).exists()), "git")
+
+
+def git(*args, cwd=RULES):
+    r = subprocess.run([GIT, "-C", str(cwd), *args], capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def current_version():
+    count, sha = git("rev-list", "--count", "HEAD"), git("rev-parse", "--short", "HEAD")
+    return f"{count}-{sha}" if count and sha else None
+
+
+def find_project(start):
+    """Nearest ancestor holding a stamp, a CLAUDE.md, or a .git — in that order.
+
+    Worktrees live at <project>/.claude/worktrees/<name>/, so the answer must be
+    the worktree itself (it has its own CLAUDE.md checkout), not the parent repo.
+    """
+    p = Path(start).resolve()
+    for d in (p, *p.parents):
+        if (d / STAMP).exists() or (d / "CLAUDE.md").exists() or (d / ".git").exists():
+            return d
+    return p
+
+
+def changes_since(old_sha):
+    """Lines added to CHANGELOG.md since that commit — the actual delta."""
+    diff = git("diff", f"{old_sha}..HEAD", "--", "CHANGELOG.md")
+    if diff is None:
+        return None
+    out = []
+    for line in diff.splitlines():
+        if line.startswith("+") and not line.startswith("+++"):
+            text = line[1:].rstrip()
+            if text.strip():
+                out.append(text)
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="rulecheck", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--project", default=None, help="default: nearest project above cwd")
+    ap.add_argument("--align", action="store_true", help="record the current version")
+    ap.add_argument("--version", action="store_true", help="print current version, exit")
+    ap.add_argument("--quiet", action="store_true", help="say nothing when aligned")
+    a = ap.parse_args()
+
+    cur = current_version()
+    if not cur:
+        print(f"cannot read the rules repo at {RULES} — not checking, not guessing.",
+              file=sys.stderr)
+        return 2
+    if a.version:
+        print(cur)
+        return 0
+
+    proj = Path(a.project).resolve() if a.project else find_project(os.getcwd())
+    stamp = proj / STAMP
+
+    if a.align:
+        stamp.write_text(cur + "\n")
+        print(f"aligned {proj.name} with common-rules {cur}")
+        return 0
+
+    if not stamp.exists():
+        print(f"{proj.name} has NEVER recorded a rules version (current: {cur}).")
+        print(f"Read {RULES}/CLAUDE-workflow.md, then `rulecheck --align`.")
+        return 1
+
+    was = stamp.read_text().strip()
+    if was == cur:
+        if not a.quiet:
+            print(f"{proj.name} is aligned with common-rules {cur}.")
+        return 0
+
+    print(f"{proj.name} is on common-rules {was}; current is {cur}.")
+    old_sha = was.split("-", 1)[-1]
+    added = changes_since(old_sha)
+    if added is None:
+        print(f"Cannot diff from {old_sha} — that commit is not in this repo. "
+              f"Re-read the rules in full rather than trusting the stamp.")
+        return 2
+    if added:
+        print(f"\nWhat changed since ({len(added)} changelog lines):\n")
+        for line in added:
+            print("  " + line)
+    else:
+        print("\nNo changelog lines added — a change that did not document itself, "
+              "which is itself worth a look.")
+    print(f"\nRead the sections these touch before starting. Then `rulecheck --align`.")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
