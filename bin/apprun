@@ -1,0 +1,342 @@
+#!/usr/bin/env python3
+"""apprun — the run registry behind CLAUDE-workflow.md's "Leave nothing running".
+
+Every app instance an agent starts gets recorded here, owned by the session that
+started it. That makes two rules mechanical instead of aspirational:
+
+  - stop only what your own session started  (`stop` refuses anything else)
+  - nothing is left running when the task ends  (`list` shows what you still own)
+
+Ownership is exact, not heuristic: an entry records the Claude Code session id
+and that session's pid, so "is the owner still alive" is a kill(0), not a guess.
+An entry whose app is up but whose owning session is gone is an *orphan* — the
+only category anyone but the owner may close, and only with the user's yes.
+
+A copy started so the *user* can look at something is marked `--demo`: it is
+theirs, not the task's, so a blanket `stop --all` leaves it up and says so.
+
+  apprun start --project P --phase stable|test|proto --port N --pid PID [--url U] [--branch B] [--demo]
+  apprun list [--all]
+  apprun stop (--port N | --all) [--keep-window] [--include-demo]
+  apprun sweep [--clear]
+
+No dependencies beyond the stdlib. Registry: ~/.agent-data/app-runs.jsonl
+"""
+
+import argparse
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+REGISTRY = Path(os.environ.get("APPRUN_REGISTRY", Path.home() / ".claude" / "app-runs.jsonl"))
+SESSION = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+SESSION_PID = int(os.environ.get("CLAUDE_PID", "0") or 0)
+
+
+def alive(pid):
+    if not pid:
+        return False
+    try:
+        os.kill(int(pid), 0)
+    except (ProcessLookupError, ValueError):
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def load():
+    if not REGISTRY.exists():
+        return []
+    out = []
+    for line in REGISTRY.read_text().splitlines():
+        line = line.strip()
+        if line:
+            try:
+                out.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass  # a torn line is not worth failing a cleanup over
+    return out
+
+
+def save(entries):
+    REGISTRY.parent.mkdir(parents=True, exist_ok=True)
+    tmp = REGISTRY.with_suffix(".jsonl.tmp")
+    tmp.write_text("".join(json.dumps(e) + "\n" for e in entries))
+    tmp.replace(REGISTRY)
+
+
+def open_entries(entries):
+    """Entries still claiming to be running whose process is actually up."""
+    return [e for e in entries if e.get("state") == "open" and alive(e.get("pid"))]
+
+
+def mine(e):
+    return SESSION and e.get("session") == SESSION
+
+
+def orphan(e):
+    """App still up, owning session gone. The only entry a stranger may close.
+
+    The stable copy is never an orphan however long it outlives whatever started
+    it — outliving sessions is its whole job. Without this carve-out the first
+    sweep after a restart would offer to close the one copy that must stay up.
+    """
+    return e.get("phase") != "stable" and not alive(e.get("session_pid"))
+
+
+def describe(e):
+    age = int(time.time() - e.get("started", time.time()))
+    hrs, mins = age // 3600, (age % 3600) // 60
+    ago = f"{hrs}h{mins:02d}m" if hrs else f"{mins}m"
+    if e.get("phase") == "stable":
+        who = "the clean copy — never stopped"
+    elif e.get("demo"):
+        who = "DEMO for the user — leave up until they say done"
+    else:
+        who = "yours" if mine(e) else ("ORPHAN" if orphan(e) else "another session")
+    branch = f" [{e['branch']}]" if e.get("branch") else ""
+    return (f"  {e['project']:<20} {e['phase']:<7} :{e['port']:<6} pid {e['pid']:<7} "
+            f"{ago:>6} ago  {who}{branch}")
+
+
+def close_window(url):
+    """Best-effort: close browser tabs pointing at this instance.
+
+    Stopping the server leaves a dead tab behind, still titled like the app —
+    which is the pile the user actually sees. Matched on the exact URL prefix so
+    it can only ever hit the instance being stopped. Silent when a browser isn't
+    running or automation isn't permitted; never fatal.
+    """
+    if not url:
+        return None
+    base = url.rstrip("/")
+    closed = 0
+    for app, tabs in (("Safari", "every tab of every window"),
+                      ("Google Chrome", "every tab of every window")):
+        script = f'''
+        if application "{app}" is running then
+          tell application "{app}"
+            set n to 0
+            repeat with w in windows
+              repeat with t in (tabs of w)
+                if (URL of t as string) starts with "{base}" then
+                  close t
+                  set n to n + 1
+                end if
+              end repeat
+            end repeat
+            return n
+          end tell
+        else
+          return 0
+        end if'''
+        try:
+            r = subprocess.run(["osascript", "-e", script], capture_output=True,
+                               text=True, timeout=15)
+            if r.returncode == 0 and r.stdout.strip().isdigit():
+                closed += int(r.stdout.strip())
+        except (subprocess.SubprocessError, OSError):
+            pass
+    return closed
+
+
+def terminate(pid, timeout=8):
+    try:
+        os.kill(int(pid), signal.SIGTERM)
+    except (ProcessLookupError, ValueError):
+        return "already gone"
+    except PermissionError:
+        return "not permitted"
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if not alive(pid):
+            return "stopped"
+        time.sleep(0.25)
+    try:
+        os.kill(int(pid), signal.SIGKILL)
+    except OSError:
+        pass
+    return "killed" if not alive(pid) else "still up"
+
+
+def cmd_start(a):
+    if not SESSION:
+        print("refusing to register: CLAUDE_CODE_SESSION_ID is unset, so the entry "
+              "would have no owner and would read as an orphan to every other session.",
+              file=sys.stderr)
+        return 1
+    if not alive(a.pid):
+        print(f"refusing to register pid {a.pid}: not running.", file=sys.stderr)
+        return 1
+    entries = load()
+    clash = [e for e in open_entries(entries) if e["port"] == a.port and e["pid"] != a.pid]
+    if clash:
+        c = clash[0]
+        owner = "yours" if mine(c) else ("an orphan" if orphan(c) else "another session")
+        print(f"note: port {a.port} is already registered to pid {c['pid']} ({owner}). "
+              f"Registering anyway — a collision is yours to report, not to resolve by "
+              f"killing the occupant.", file=sys.stderr)
+    entries.append({
+        "project": a.project, "phase": a.phase, "port": a.port, "pid": a.pid,
+        "url": a.url or f"http://127.0.0.1:{a.port}/", "branch": a.branch or "",
+        "demo": bool(a.demo), "session": SESSION, "session_pid": SESSION_PID,
+        "started": int(time.time()), "state": "open",
+    })
+    save(entries)
+    print(f"registered {a.project} {a.phase} on :{a.port} (pid {a.pid})")
+    return 0
+
+
+def cmd_list(a):
+    entries = load()
+    live = open_entries(entries)
+    if not live:
+        print("nothing registered as running.")
+        return 0
+    shown = live if a.all else [e for e in live if mine(e)]
+    if not shown:
+        print(f"you own none of the {len(live)} running instance(s). "
+              f"Use --all to see them; they are not yours to stop.")
+        return 0
+    print(f"{len(shown)} instance(s):")
+    for e in sorted(shown, key=lambda e: (e["project"], e["port"])):
+        print(describe(e))
+    orphans = [e for e in live if orphan(e)]
+    if orphans and not a.all:
+        print(f"\n{len(orphans)} orphan(s) from dead sessions — `apprun sweep` to see them.")
+    return 0
+
+
+def cmd_stop(a):
+    entries = load()
+    live = open_entries(entries)
+    stable = [e for e in live if e.get("phase") == "stable"
+              and (a.all or e["port"] == a.port)]
+    if stable and not a.all:
+        e = stable[0]
+        print(f"refusing: :{a.port} is the stable copy of {e['project']}. It stays up so "
+              f"there is always a clean version to open — no session stops it.",
+              file=sys.stderr)
+        return 1
+    targets = [e for e in live if mine(e) and e.get("phase") != "stable"
+               and (a.all or e["port"] == a.port)]
+    if a.all and not a.include_demo:
+        # Started for the user to look at. A blanket end-of-task cleanup is
+        # exactly the reflex that closes the window someone is still reading.
+        demos = [e for e in targets if e.get("demo")]
+        targets = [e for e in targets if not e.get("demo")]
+        for e in demos:
+            print(f"left up: {e['project']} :{e['port']} — demo for the user. "
+                  f"Say so in your report; --include-demo once they are done.")
+    if not targets:
+        blocked = [e for e in live if not mine(e) and not a.all and e["port"] == a.port]
+        if blocked:
+            e = blocked[0]
+            why = ("it is an orphan — `apprun sweep --clear`, with the user's yes"
+                   if orphan(e) else "another live session started it, and it is not "
+                   "yours to stop")
+            print(f"refusing: :{a.port} (pid {e['pid']}, {e['project']}) — {why}.",
+                  file=sys.stderr)
+            return 1
+        print("nothing of yours to stop.")
+        return 0
+    for e in targets:
+        result = terminate(e["pid"])
+        windows = None if a.keep_window else close_window(e.get("url"))
+        e["state"] = "closed"
+        e["stopped"] = int(time.time())
+        tail = "" if windows is None else f", {windows} window(s) closed"
+        print(f"{e['project']} :{e['port']} — {result}{tail}")
+    save(entries)
+    return 0
+
+
+def cmd_sweep(a):
+    entries = load()
+    live = open_entries(entries)
+    stable = [e for e in live if e.get("phase") == "stable"]
+    rest = [e for e in live if e.get("phase") != "stable"]
+    orphans = [e for e in rest if orphan(e)]
+    others = [e for e in rest if not orphan(e) and not mine(e)]
+    ours = [e for e in rest if mine(e)]
+
+    for e in stable:
+        print(f"clean copy up: {e['project']} on :{e['port']} — open this one.")
+    if not stable:
+        print("NO CLEAN COPY RUNNING — nothing here is safe to just open and use.")
+    if ours:
+        print(f"\n{len(ours)} instance(s) you own — yours to stop when the task ends:")
+        for e in ours:
+            print(describe(e))
+    if others:
+        print(f"\n{len(others)} owned by other live sessions — leave these alone:")
+        for e in others:
+            print(describe(e))
+    if not orphans:
+        print("\nno orphans." if (ours or others) else "no orphans, nothing running.")
+        return 0
+
+    print(f"\n{len(orphans)} ORPHAN(s) — running, but the session that started them is gone:")
+    for e in orphans:
+        print(describe(e))
+    if not a.clear:
+        print("\nThese are the pile. `apprun sweep --clear` closes them — "
+              "ask the user first; one of them may be the window they are looking at.")
+        return 0
+    for e in orphans:
+        result = terminate(e["pid"])
+        windows = close_window(e.get("url"))
+        e["state"] = "closed"
+        e["stopped"] = int(time.time())
+        e["closed_by"] = "sweep"
+        print(f"cleared {e['project']} :{e['port']} — {result}, {windows} window(s) closed")
+    save(entries)
+    return 0
+
+
+def main():
+    p = argparse.ArgumentParser(prog="apprun", description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("start", help="register an instance this session just started")
+    s.add_argument("--project", required=True)
+    s.add_argument("--phase", required=True, choices=["stable", "test", "proto"])
+    s.add_argument("--port", required=True, type=int)
+    s.add_argument("--pid", required=True, type=int)
+    s.add_argument("--url")
+    s.add_argument("--branch")
+    s.add_argument("--demo", action="store_true",
+                   help="started for the user to look at; survives `stop --all`")
+    s.set_defaults(fn=cmd_start)
+
+    l = sub.add_parser("list", help="what is running (yours by default)")
+    l.add_argument("--all", action="store_true")
+    l.set_defaults(fn=cmd_list)
+
+    t = sub.add_parser("stop", help="stop instances this session started")
+    t.add_argument("--port", type=int)
+    t.add_argument("--all", action="store_true")
+    t.add_argument("--keep-window", action="store_true",
+                   help="leave the browser window open (rarely right)")
+    t.add_argument("--include-demo", action="store_true",
+                   help="also stop demo copies — once the user says they are done")
+    t.set_defaults(fn=cmd_stop)
+
+    w = sub.add_parser("sweep", help="report orphans from dead sessions")
+    w.add_argument("--clear", action="store_true", help="close them (needs the user's yes)")
+    w.set_defaults(fn=cmd_sweep)
+
+    a = p.parse_args()
+    if a.cmd == "stop" and not a.all and a.port is None:
+        p.error("stop needs --port or --all")
+    return a.fn(a)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
