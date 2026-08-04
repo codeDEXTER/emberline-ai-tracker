@@ -452,7 +452,7 @@ confusion this section exists to remove.
 For a packaged app, a distinct bundle name per build keeps test builds separate
 in Cmd-Tab and the Dock instead of masquerading as the installed one.
 
-### Leave nothing running
+### Leave nothing running — and stop only what you started
 
 Badges say which copy is which; they do nothing to stop copies accumulating.
 So: **any agent that starts an app instance stops it before reporting** — dev
@@ -465,9 +465,43 @@ A validation pass that ends with three servers still up has recreated the exact
 confusion this section exists to remove, and leaves the next session with ports
 that look occupied for no visible reason.
 
-**The stable copy is the one exception.** It is meant to stay up so the user
-always has something to review and file issues against — no agent stops it, and
-no agent builds over it.
+The rule scopes to the **session**, not to the individual agent. Several agents
+in one task may hand the same running copy along — the test engineer reusing the
+server the code engineer started is normal and wasteful to forbid. What must not
+happen is the task finishing with it still up. **The session that started an
+instance is the session that closes it, when the task that needed it is done** —
+and the project manager (this session) is the one accountable for that, because
+it is the only role that sees the whole task.
+
+#### Never close an instance you didn't start
+
+Added 2026-08-04. The opposite failure is worse than the one above, because it
+destroys someone else's work rather than merely littering. **An agent stops only
+the instances its own session started.** Anything else that is running belongs to
+somebody — the user reviewing a build, or a parallel session mid-validation — and
+killing it takes away the thing they were looking at, usually without them
+learning why it vanished.
+
+This makes the stable copy a *case* of the rule rather than an exception to it:
+no session started it, so no session stops it, and no session builds over it.
+
+In practice that means cleanup is **targeted, never a sweep**:
+
+- Track what you start — the PID and the port — and close by that. An agent that
+  didn't record what it started cannot clean up correctly and should say so
+  rather than guess.
+- **No blanket kills.** `pkill -f streamlit`, `killall <App>`, or anything that
+  clears a port range on principle will take down copies you never started. If
+  you catch yourself matching on the app's name instead of on your own PID or
+  your own derived port, stop.
+- A port in your own range that you did *not* start is not yours to reclaim.
+  Branch-derived ports collide when the same branch is open twice; that is a
+  conflict to report, not to resolve by killing the occupant.
+- If an instance you started has already been closed by the time you clean up,
+  that is fine — say so and move on.
+
+**Leaving a stranger's copy running is the correct outcome**, even when it looks
+like the exact mess the section above is about. Ownership decides, not tidiness.
 
 ## Findings become well-formed issue drafts
 

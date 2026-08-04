@@ -65,7 +65,9 @@ This is not hypothetical. A run-label written unquoted into a generated `.app` l
 
 Stop every app instance you started while verifying — dev server, built `.app`, anything binding a port or opening a window — before you report. Unconditional, including on the failure path. State what you started and confirm you stopped it.
 
-Leftover instances recreate the exact confusion run badges exist to manage, and leave the next session with ports that look occupied for no visible reason. **The one exception is the stable copy** — it stays up so the sponsor always has something to review; never stop it, never build over it.
+Leftover instances recreate the exact confusion run badges exist to manage, and leave the next session with ports that look occupied for no visible reason.
+
+**Stop only what you started.** Anything else running belongs to someone — the sponsor reviewing a build, or another session mid-validation — and killing it takes away what they were looking at. So close by the PID and port you recorded when you started it; never `pkill -f`, `killall`, or clear a port range on principle. A port in your range you did not start is a collision to report, not to reclaim. The stable copy needs no special-casing under this: no session started it, so you never stop it, and you never build over it.
 
 ## What you never do
 

@@ -6,6 +6,33 @@ just what. This folder is its own git repo (see `README.md`), but `git log`
 only records that something changed; this file records what it was for, and
 is the thing to read first.
 
+## 2026-08-04
+
+- **Cleanup is now scoped by ownership**, in `CLAUDE-workflow.md`'s "Leave
+  nothing running" section (retitled "— and stop only what you started").
+  Two halves. The first restates the existing rule at **session** scope rather
+  than per-agent: agents within a task can share a running copy, but the task
+  does not end with it still up, and the project manager is accountable for
+  that. The second is the new half and the reason the-sponsor asked: **an agent
+  stops only what its own session started.** Anything else running belongs to
+  someone — the user reviewing a build, or a parallel session mid-validation —
+  and killing it takes their work away silently. So cleanup is targeted (by
+  recorded PID and port), never a sweep: no `pkill -f`, no `killall`, no
+  clearing a port range on principle, and a port in your own range that you
+  didn't start is a collision to report rather than to reclaim.
+
+  This also demotes the stable copy from an exception to a *case* of the rule —
+  no session started it, so no session stops it. Behaviour change for adopted
+  projects: previously a tidy-minded agent could have justified killing a stray
+  server it found; now that is explicitly wrong, and leaving a stranger's copy
+  running is the correct outcome.
+
+  The same wording went into the three agent definitions that actually start
+  instances — `code-engineer`, `test-engineer`, `quality-manager` — because all
+  three still carried "the one exception is the stable copy", which the rule
+  above demotes. An agent reading only its own file would otherwise have kept
+  the framing this change exists to replace.
+
 ## 2026-08-03
 
 - **SUPERSEDED, same day, by the proposal framework below.** Kept because the

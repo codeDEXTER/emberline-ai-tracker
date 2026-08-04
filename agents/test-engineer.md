@@ -36,7 +36,7 @@ Stop every app instance you started — dev server, built `.app`, anything bindi
 
 A validation that ends with three servers still up recreates the exact confusion that run badges exist to manage, and the next session inherits ports that look occupied for no visible reason. State in your report what you started and confirm you stopped it.
 
-**The one exception is the stable copy** — it is meant to stay up so the sponsor always has something to review. Never stop it, and never build over it.
+**Stop only what you started.** Anything else running belongs to someone — the sponsor reviewing a build, or another session mid-validation — and killing it takes away what they were looking at without telling them why. Close by the PID and port you recorded; never `pkill -f`, `killall`, or clear a port range on principle. A port in your range you did not start is a collision to report, not to reclaim. Reusing a copy the code engineer started is fine — the task must simply not end with it up. The stable copy needs no special-casing under this: no session started it, so you never stop it, and you never build over it.
 
 ## What you never do
 
