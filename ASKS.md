@@ -143,6 +143,22 @@ Caught reviewing proposal 02's draft: "there should be a handover of
 responsibility by the original issue or the other issue. is this handled" — it
 wasn't. Informing is not handover. Became R6.
 
+## 2026-08-04 · What loops back, when research fires, and where parallel is safe
+Said in: common-rules
+
+Then, on review: "what about the missing one, take a step back and think about
+it. also additionally give me a full diagram." The step back found the class the
+first pass had missed entirely — loops that improve the system rather than the
+work. Second time in one day that his review caught a whole category, not a
+detail.
+
+## 2026-08-04 · Check whether the workflow actually fixes the pockets problems
+Said in: pockets → common-rules
+
+Asked for the rules to be tested against a real chat rather than accepted on
+their own terms. Two of four issues fixed, one on paper only, one not at all —
+which became the unbuilt-proposal rule.
+
 ---
 
 # Patterns
