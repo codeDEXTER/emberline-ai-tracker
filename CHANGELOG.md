@@ -33,6 +33,28 @@ is the thing to read first.
   above demotes. An agent reading only its own file would otherwise have kept
   the framing this change exists to replace.
 
+- **Offer a demo before asking for the yes.** A draft issue is a paragraph of
+  text, and approving it from text alone means deciding about a screen that
+  hasn't been looked at in weeks. So the project manager now offers to *show*
+  the thing first — of a draft issue, and of any proposal about an existing
+  surface. The demo is of what is there now, not of the fix; nothing is built
+  yet, and its job is to put aashish in front of the real screen so he decides
+  against it rather than against a description.
+
+  Deliberately **an offer, not a gate**: "just approve it" is a complete answer,
+  and the rule is satisfied by having given the choice. Two things make an offer
+  worth taking — navigation click by click in the app's own words ("Sidebar →
+  Ledger, Subscriptions tab, the Safeguard row"), and **no new window where the
+  clean copy will do**, since starting a second copy to show what the first one
+  already shows rebuilds the exact pile he complained about an hour earlier.
+
+  This collides with the cleanup rule directly, so the carve-out is explicit and
+  mechanical: a copy started **for the user** is marked `--demo` in the registry,
+  survives a blanket `apprun stop --all`, and prints a line telling the session
+  to say in its report that it left it up and where. Closing the window someone
+  is still reading is precisely the failure the ownership rules exist to prevent,
+  and end-of-task cleanup is the easiest place to commit it by reflex.
+
 - **`bin/apprun`, a run registry — and the reason it exists.** aashish reported
   still seeing a lot of windows open despite the rule above. Checking the
   machine explained why: it was *clean* — one server (stable, :8502), one Safari

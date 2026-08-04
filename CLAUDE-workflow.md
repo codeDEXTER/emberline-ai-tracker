@@ -553,6 +553,10 @@ the pile it was meant to prevent.
 user's explicit yes; a session never clears orphans on its own initiative, and
 never as a side effect of some other task.
 
+**A copy started for the user to look at is not cleaned up on the usual
+schedule** — see "Offer a demo before asking for the yes". It stays until they
+say they are done, and the session reports that it left it up and where.
+
 **The stable copy is never an orphan**, however long it outlives whatever started
 it. Outliving sessions is its entire job.
 
@@ -612,6 +616,39 @@ a hunch, not a finding:
 **Prototype-phase work raises only blocking issues.** Filing polish tickets
 against something that may be discarded next week is how a backlog fills with
 items that were never real.
+
+### Offer a demo before asking for the yes
+
+Added 2026-08-04. A draft issue is a paragraph of text, and approving it from
+text alone means deciding about a screen the user hasn't looked at in weeks.
+So **the project manager offers to show the thing before asking for approval** —
+of a draft issue, and of any proposal about an existing surface.
+
+The demo is of *what is there now*, not of the fix — nothing is built yet. Its
+job is to put the user in front of the actual screen so the decision is made
+against the real thing rather than a description of it.
+
+**An offer, not a gate.** The user says "just approve it" often and that is a
+complete answer; the point is that they were given the choice, not that they
+took it. Don't demo unprompted, and don't hold the question hostage to it.
+
+Two things make an offer worth accepting:
+
+- **Navigation, click by click, in the app's own words.** "Sidebar → Ledger,
+  Subscriptions tab, the row for Safeguard" — not "the subscriptions area".
+  Name what to look at once there, and what looks wrong about it.
+- **No new window where the clean copy will do.** An issue about existing
+  behaviour demos on the stable copy, which is already running and is the one
+  the user trusts. Starting a second copy to show something the first one
+  already shows is how the pile the user complained about gets rebuilt.
+
+A demo that genuinely needs its own instance (a branch, a prototype, a state the
+stable copy can't reach) registers as `test` or `proto` like anything else — but
+**it is not cleaned up on the usual schedule.** It was started *for* the user; it
+stays until they say they're done with it, and the session says plainly that it
+left it up and on which port. Closing the window someone is still reading is the
+failure the ownership rules exist to prevent, and a demo is the easiest place to
+commit it by reflex.
 
 ## Proposals — one per task, tracked to a decision
 
@@ -725,7 +762,9 @@ half that rots.
 
 1. A **draft issue** is written for the user's acceptance — what, where, why it
    matters, what done looks like, proposed labels. Creating the real issue stays
-   the user's call, unchanged.
+   the user's call, unchanged. Where the issue concerns an existing surface,
+   **offer the demo before asking** (see "Offer a demo before asking for the
+   yes") — click-by-click navigation, on the clean copy where it will do.
 2. A **session is offered** for the work, named
    `<app> - <proposal/issue no> - <short description>` — e.g.
    `finance-tracker - proposal 09 - fd closure sign`.

@@ -12,9 +12,12 @@ and that session's pid, so "is the owner still alive" is a kill(0), not a guess.
 An entry whose app is up but whose owning session is gone is an *orphan* — the
 only category anyone but the owner may close, and only with the user's yes.
 
-  apprun start --project P --phase stable|test|proto --port N --pid PID [--url U] [--branch B]
+A copy started so the *user* can look at something is marked `--demo`: it is
+theirs, not the task's, so a blanket `stop --all` leaves it up and says so.
+
+  apprun start --project P --phase stable|test|proto --port N --pid PID [--url U] [--branch B] [--demo]
   apprun list [--all]
-  apprun stop (--port N | --all) [--keep-window]
+  apprun stop (--port N | --all) [--keep-window] [--include-demo]
   apprun sweep [--clear]
 
 No dependencies beyond the stdlib. Registry: ~/.claude/app-runs.jsonl
@@ -92,6 +95,8 @@ def describe(e):
     ago = f"{hrs}h{mins:02d}m" if hrs else f"{mins}m"
     if e.get("phase") == "stable":
         who = "the clean copy — never stopped"
+    elif e.get("demo"):
+        who = "DEMO for the user — leave up until they say done"
     else:
         who = "yours" if mine(e) else ("ORPHAN" if orphan(e) else "another session")
     branch = f" [{e['branch']}]" if e.get("branch") else ""
@@ -179,7 +184,7 @@ def cmd_start(a):
     entries.append({
         "project": a.project, "phase": a.phase, "port": a.port, "pid": a.pid,
         "url": a.url or f"http://127.0.0.1:{a.port}/", "branch": a.branch or "",
-        "session": SESSION, "session_pid": SESSION_PID,
+        "demo": bool(a.demo), "session": SESSION, "session_pid": SESSION_PID,
         "started": int(time.time()), "state": "open",
     })
     save(entries)
@@ -220,6 +225,14 @@ def cmd_stop(a):
         return 1
     targets = [e for e in live if mine(e) and e.get("phase") != "stable"
                and (a.all or e["port"] == a.port)]
+    if a.all and not a.include_demo:
+        # Started for the user to look at. A blanket end-of-task cleanup is
+        # exactly the reflex that closes the window someone is still reading.
+        demos = [e for e in targets if e.get("demo")]
+        targets = [e for e in targets if not e.get("demo")]
+        for e in demos:
+            print(f"left up: {e['project']} :{e['port']} — demo for the user. "
+                  f"Say so in your report; --include-demo once they are done.")
     if not targets:
         blocked = [e for e in live if not mine(e) and not a.all and e["port"] == a.port]
         if blocked:
@@ -298,6 +311,8 @@ def main():
     s.add_argument("--pid", required=True, type=int)
     s.add_argument("--url")
     s.add_argument("--branch")
+    s.add_argument("--demo", action="store_true",
+                   help="started for the user to look at; survives `stop --all`")
     s.set_defaults(fn=cmd_start)
 
     l = sub.add_parser("list", help="what is running (yours by default)")
@@ -309,6 +324,8 @@ def main():
     t.add_argument("--all", action="store_true")
     t.add_argument("--keep-window", action="store_true",
                    help="leave the browser window open (rarely right)")
+    t.add_argument("--include-demo", action="store_true",
+                   help="also stop demo copies — once the user says they are done")
     t.set_defaults(fn=cmd_stop)
 
     w = sub.add_parser("sweep", help="report orphans from dead sessions")
