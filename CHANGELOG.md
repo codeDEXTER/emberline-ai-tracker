@@ -8,6 +8,47 @@ is the thing to read first.
 
 ## 2026-08-04
 
+- **Loops, research triggers, and where parallel is safe** (proposal 03, accepted
+  same day). the-sponsor asked what loops back, when research fires, and where
+  parallel work is possible. Reading the rules for *return* paths rather than
+  forward ones found the workflow documented as almost one-directional: **three
+  loops stated here, four buried in agent definitions the project manager never
+  reads, six that should exist and didn't.**
+
+  The worst: **every failure routed to the code engineer.** "This approach is
+  wrong" and "this line is wrong" were procedurally identical, both landing with
+  the person whose job is to make the code pass — which is how a wrong approach
+  gets patched until it passes. The gate now names its destination (`code`,
+  `design`, `research`), recommends rather than authorises, and every loop is
+  bounded at two returns.
+
+  **Research had no trigger at all** — "optional and run only when the task needs
+  them", with the tier and the agent each citing the other. Four checkable
+  triggers now. But the real finding is structural: **a task session is created
+  *from* an accepted proposal**, so by the time one exists the direction is
+  already chosen and the only honest thing left is writing down what was decided.
+  That is why requirements work is visible and research isn't. Measured:
+  management sessions had made **three specialist agent calls in their entire
+  history, against thirty in task sessions**. Research now belongs to the
+  management session, before a proposal exists.
+
+  **Parallelism needed no new principle** — the tool grants already answered it.
+  Read-only roles fan out freely; writing roles run one per *artifact*, not per
+  task; sequence is set by dependency, not ceremony.
+
+  Stepping back on the-sponsor's review added the class that the first pass missed
+  entirely: **learning loops**, which correct the system rather than the work.
+  A recurring lesson escalates on the third occurrence (the quality manager
+  counts, it cannot fix — agent definitions are his); promotion is a return to
+  requirements, not a checklist; the outermost loop from shipped software to a
+  finding is drawn at last; and — found by checking pockets, whose register held
+  **3 accepted, 11 proposed, 0 built** — an accepted proposal that was never
+  built now resurfaces, because `accepted` looks like *done* and means *owed*.
+
+  Thirteen loops are drawn in `docs/workflow.html`, coloured by class, with a key.
+  The page no longer shows a straight line, which was a picture of a workflow
+  nobody has.
+
 - **Working alongside other sessions** (proposal 02, accepted same day) — plus
   `bin/whoelse`. the-sponsor asked how to stop parallel sessions reaching different
   conclusions and conflicting later. Measuring finance-tracker before answering
