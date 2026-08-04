@@ -254,6 +254,48 @@ independent check. **The signal worth watching**: a lesson that keeps recurring
 in `LESSONS.md` means an agent's *instructions* are wrong, not that the lesson
 needs restating.
 
+### How the project manager actually invokes one
+
+Added 2026-08-04, because the rule above was being read and not followed. Six
+finance-tracker issue sessions (#30, #31, #32, #35, #36, #37) each read this
+file and then implemented the whole feature themselves with `Edit` and `Bash` —
+zero agent calls, and **no pre-merge gate on six merged features**. The same
+project's open-ended session (`issue-27-person-dossier`) ran eighteen agent
+calls across all six roles. The definitions, the symlink and registration were
+never the problem.
+
+Part of what was missing is embarrassingly simple: **this file named the roles
+and never named the mechanism.** It gives exact commands for everything else —
+`EnterWorktree`, `apprun start …` — and for the one behaviour the whole
+structure depends on it gave a table. Delegation was left to be inferred.
+
+It is the **Agent tool**, with `subagent_type` set to the definition's `name`:
+
+```
+Agent(subagent_type: "code-engineer", prompt: "<the task brief, in full>")
+Agent(subagent_type: "quality-manager", prompt: "<branch, criteria, what to verify>")
+```
+
+Independent agents go in one message so they run concurrently. The prompt must
+carry the artifact **in full** — agents cannot read each other's output, and
+summarising the handoff is where the detail goes.
+
+**Reading the role table is not delegation.** The test is behavioural and it is
+easy to apply mid-task: *if this session is the one calling `Edit`, it is no
+longer the project manager.* At that moment there is no independent gate left,
+which is the exact failure this structure exists to prevent — and it will not
+announce itself, because the work still gets done and still looks fine.
+
+**A fully-specified brief is the trap.** An opening message that carries the
+issue number, the requirements file, the accepted proposal and a list of
+acceptance criteria *is* a code-engineer task brief — and a session handed one
+will execute it, because the live instruction beats a file it was told to go
+read. That is what happened in all six. The brief being complete is not a reason
+to skip the pipeline; it is a reason the **upstream** roles can be skipped, and
+the criteria being written down is precisely what makes `test-engineer` and
+`quality-manager` checkable. Requirements and design already settled means the
+tier is small-fix, not no-tier: **code engineer, then quality manager, minimum.**
+
 ### Escalation
 
 - **Always to the user**: anything the issue lifecycle above already reserves;
@@ -772,6 +814,42 @@ half that rots.
 The session is offered, not started. Picking what to work on is the user's
 decision, and a session that starts itself has quietly taken it.
 
+#### The brief that starts it — name the agents, or they won't run
+
+Added 2026-08-04. The rules say the project manager "names which agents will be
+invoked and why" as part of the scope agreement. Six finance-tracker issue
+briefs named none, and none ran. The step existed in this file and not in the
+artifact that actually starts the work, which is the only place it could have
+taken effect.
+
+So a session brief states the tier and the agent set, up front, before the task
+detail — and it is addressed to a project manager, not to a developer:
+
+```markdown
+Project-manage GitHub issue #36 in <repo>: "<title>".
+
+Tier: small fix — requirements and design are settled in <proposal/requirements
+file>. Agents: code-engineer, then quality-manager. You do not write the code.
+
+Read /Users/the-sponsor/apps/common-rules/CLAUDE-workflow.md and CLAUDE.md first.
+EnterWorktree is the first action on this repo.
+
+<context, acceptance criteria, constraints — passed through to the code
+engineer in full, not summarised>
+```
+
+Two details that look cosmetic and are not:
+
+- **"Project-manage", not "Implement".** The verb sets the role, and the whole
+  failure was sessions taking the developer's seat. A brief that opens
+  "Implement …" has already told the session to do it itself, and everything
+  after that is read in that light.
+- **An absolute path to this file.** `../common-rules/CLAUDE-workflow.md` is
+  correct from a project root and **wrong from a worktree**, where it resolves
+  to `<project>/.claude/worktrees/common-rules/` and does not exist. The six
+  briefs all carried the relative form; sessions recovered by hunting for the
+  absolute path, which is luck, not a mechanism.
+
 ## Keep the story — LOW PRIORITY, every project
 
 Added 2026-08-03. **Adopted by every project that references this file.**
@@ -914,6 +992,18 @@ probably want.
 
 ## Known gotchas on this Mac (not any one project)
 
+- **`../common-rules/` does not resolve from a worktree.** Worktrees live at
+  `<project>/.claude/worktrees/<name>/`, so the relative form points at
+  `<project>/.claude/worktrees/common-rules/`. Use the absolute path,
+  `/Users/the-sponsor/apps/common-rules/CLAUDE-workflow.md`, anywhere a session
+  might be running from a worktree — which is everywhere, since a worktree is
+  the first action on any project repo. Found 2026-08-04 in six finance-tracker
+  issue briefs.
+- **Transcript directories under `~/.agent-data/projects/` begin with `-`**, so
+  `grep <pattern> *finance-tracker*/*.jsonl` silently reads the filenames as
+  options and reports nothing found. It does not error. Prefix with `./` or use
+  `--`. Found 2026-08-04, having briefly produced a confident and completely
+  wrong conclusion about which sessions had read this file.
 - **`gh auth login` can complete the actual GitHub OAuth handshake and then
   fail silently-ish on the last step** — `mkdir ~/.config/gh: permission
   denied` — if `~/.config` itself is root-owned (happens if some earlier
