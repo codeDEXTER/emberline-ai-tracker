@@ -18,10 +18,10 @@ happened, the changelog records what it was for.
 
 ## Files
 
-- **`agents/`** — the seven specialist agent definitions
+- **`agents/`** — the eight specialist agent definitions
   (`research-agent`, `design-explorer`, `requirements-engineer`,
-  `design-engineer`, `code-engineer`, `test-engineer`,
-  `quality-manager`). **`~/.agent-data/agents` is a symlink to this
+  `design-engineer`, `proposal-auditor`, `code-engineer`,
+  `test-engineer`, `quality-manager`). **`~/.agent-data/agents` is a symlink to this
   directory**, which is where Claude Code actually loads agent
   definitions from — so editing a file here is editing the live agent,
   and the definitions get the same version history as the rules that

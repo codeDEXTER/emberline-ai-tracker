@@ -33,6 +33,41 @@ is the thing to read first.
   above demotes. An agent reading only its own file would otherwise have kept
   the framing this change exists to replace.
 
+- **`proposal-auditor`, an eighth agent — so L2 isn't the project manager's own
+  opinion.** the-sponsor's question, and it went straight at the weakness flagged in
+  the L2 rule below: the project manager would be approving output from a
+  pipeline it commissioned itself. So the comparison is done by someone else.
+
+  The auditor reads the accepted proposal, `REQUIREMENTS.md` and the design spec,
+  and classifies **every** divergence: `faithful`, `elaboration` (detail the
+  proposal implied — what this work is *for*, and L2's to approve), `drift`
+  (something the proposal decided, now changed — the sponsor's), `silent
+  decision` (a decision the proposal never made — also the sponsor's), and `gap`
+  (a proposal decision the requirements don't cover — back to requirements, and
+  not ready for L2 at all). Two of those map onto two of the four escalation
+  triggers below, which turns L2 from a judgment call into something acted on
+  evidence.
+
+  **Deliberately not the quality manager**, which was the tempting answer. That
+  agent would approve the criteria at L2 and then gate the built work against
+  those same criteria — marking its own homework where independence matters most.
+  The principle already written for agent definitions carries over: an agent that
+  approved the specs it reviews against is no longer an independent check. The
+  two questions also differ in kind — the gate runs the thing and checks the
+  outcome; this compares two documents against a third and judges fidelity of
+  intent.
+
+  Read-only (`Read`, `Grep`, `Glob` — no `Bash`, no `Write`), decides nothing,
+  approves nothing. Its definition names the three quiet ways it fails:
+  summarising instead of quoting both sides, looking only at what was *added*
+  rather than what was silently dropped, and inventing a reading where the
+  proposal was ambiguous — when the ambiguity is itself the finding.
+
+  Costs, stated: an eighth agent against this file's own warning that
+  full-ceremony pipelines can reduce correctness — mitigated by scoping it to
+  post-acceptance work only, so a small fix pays nothing. And it cannot catch a
+  proposal that was vague to begin with; it can only report that it was.
+
 - **After acceptance: requirements, then design, then L2 — never straight to
   code.** the-sponsor's rule, and it **corrects the paragraph merged a few hours
   earlier** which said a complete brief meant the upstream roles could be skipped

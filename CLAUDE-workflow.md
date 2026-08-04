@@ -200,9 +200,10 @@ claiming something renders correctly is not the same as showing it does.
 
 ## The agent roles — and who improves them
 
-Added 2026-08-03. Seven specialist agent definitions live in **`agents/` in this
+Added 2026-08-03. Eight specialist agent definitions live in **`agents/` in this
 folder** (`research-agent`, `design-explorer`, `requirements-engineer`,
-`design-engineer`, `code-engineer`, `test-engineer`, `quality-manager`).
+`design-engineer`, `proposal-auditor`, `code-engineer`, `test-engineer`,
+`quality-manager`).
 `~/.agent-data/agents` is a symlink pointing here, since that's where Claude Code
 loads definitions from — so they carry the same version history as the rules
 that govern them, and are covered by the same reserved-for-the-user rule as
@@ -235,6 +236,7 @@ is the failure this whole structure exists to prevent.
 | `design-engineer` | Buildable specs from a locked direction — every state, tokens, consistency | Writes production code; explores alternatives |
 | `code-engineer` | Implementation in its worktree | Certifies its own work as done; expands scope |
 | `test-engineer` | Validation against criteria; bug reports | Fixes anything it finds |
+| `proposal-auditor` | Distance between the accepted proposal and the requirements/design, classified | Writes or fixes either; decides whether drift is acceptable; approves |
 | `quality-manager` | The pre-merge gate; LESSONS.md curation | Fixes anything; approves the merge |
 
 **Design is deliberately two roles.** Exploration wants provocation and
@@ -876,9 +878,11 @@ sequence is not optional:
    — numbered, testable, explicit about what is out of scope.
 2. **`design-engineer`** turns those requirements into a buildable spec — every
    state, not just the happy one.
-3. **L2 approval** — the project manager reviews both together and approves them
-   before any code-engineer work starts.
-4. Only then the code engineer, the test engineer, and the gate.
+3. **`proposal-auditor`** measures how far the pair has moved from the accepted
+   proposal, and classifies every divergence.
+4. **L2 approval** — the project manager reviews both together, with the audit in
+   hand, and approves before any code-engineer work starts.
+5. Only then the code engineer, the test engineer, and the gate.
 
 **L1 is the user accepting the proposal; L2 is the project manager accepting the
 requirements and design produced from it.** Two different decisions about two
@@ -894,6 +898,39 @@ that is easiest to build, and the decision then exists only as code. Nothing was
 written down, so there is nothing for the test engineer to check against and
 nothing for the gate to hold it to. **An inferred requirement is an invisible
 one.** It fails silently and late, if it ever fails visibly at all.
+
+#### L2 is not the project manager's own opinion — `proposal-auditor` supplies the evidence
+
+Added 2026-08-04. L2 has an obvious weakness: the project manager would be
+approving output from a pipeline it commissioned itself. So the comparison is
+done by someone else. `proposal-auditor` reads the accepted proposal, the
+requirements and the design, and classifies **every** divergence into one of
+five buckets:
+
+| | Meaning | Whose call |
+|---|---|---|
+| `faithful` | says what the proposal decided | — |
+| `elaboration` | detail the proposal implied but didn't spell out | **L2** |
+| `drift` | something the proposal decided, now changed | **the user** |
+| `silent decision` | a decision the proposal never made and can't imply | **the user** |
+| `gap` | a proposal decision the requirements don't cover | back to requirements |
+
+That classification is what L2 acts on. Elaboration is what requirements and
+design work is *for* and the project manager approves it. Drift and silent
+decisions are two of the four escalations below, now detected rather than
+noticed. A gap means the work isn't ready for L2 at all.
+
+**It is deliberately not the quality manager.** That agent would otherwise
+approve the criteria at L2 and later gate the built work against those same
+criteria — marking its own homework at the point independence matters most. The
+same principle already stated for agent definitions applies here: an agent that
+approved the specs it reviews against is no longer an independent check.
+
+The auditor is **read-only and decides nothing.** It measures distance; the
+project manager approves or escalates. It cannot catch a proposal that was vague
+to begin with — but it is required to say when the proposal was silent, which is
+its own useful finding. It runs **only on post-acceptance work**: no proposal, no
+auditor, and a small fix pays nothing for it.
 
 **Escalate to the user when the update is major** — L2 is the project manager's
 call, but four things are the user's, and none of them are judgment calls:
