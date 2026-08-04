@@ -870,6 +870,48 @@ only show what happened and make reverting easy. That trade is deliberate:
 copy-on-merge would gate the change but reintroduce exactly the drift
 between two copies that the symlink exists to eliminate.
 
+### Notice the repeats — `ASKS.md`
+
+Added 2026-08-04. Almost every rule in this file started as the user asking for
+something in a chat. Most of those asks were made more than once, in different
+projects, before anyone noticed they were the same ask — which means the rule
+existed as a pattern in his instructions well before it existed as a rule, and
+in the meantime every session had to be told again.
+
+So **sessions keep a track of what he asks them to do**, in `ASKS.md` in this
+folder. Append-only, one entry per instruction, same shape as `LESSONS.md`. What
+belongs in it is narrow:
+
+- **Log instructions about *how work is done*** — process, sequence, what to
+  show him, what to never do, what to ask before doing.
+- **Not what to build.** "Add an export button" is a requirement and belongs in
+  an issue. "Show me a mockup before you build anything" is an ask.
+- **Log corrections too**, especially ones where he changed a decision he'd
+  already made. A reversal says more about what he actually wants than the
+  original instruction did.
+
+**When entries rhyme, propose the rule.** Not automatically, and not on a count:
+propose when you can state the general form in one sentence and point at two or
+more distinct instances that it covers. If you cannot state it in one sentence,
+you have a coincidence, not a pattern.
+
+It goes through the normal route — a proposal, his decision, a PR. **Amending an
+existing rule is usually the right shape**, not a new section: most patterns turn
+out to be an existing rule that didn't reach far enough, and a second section
+saying almost the same thing is how this file becomes unreadable.
+
+**The obvious failure mode, stated plainly so it can be caught:** this rule
+rewards finding patterns, and a session that wants to look useful can assemble
+one out of any two instructions. Rules invented that way have no felt problem
+behind them, and they are exactly the rules that get followed literally and
+wrongly. **A pattern nobody was actually hurt by is not worth a rule.** If the
+honest summary is "he mentioned two vaguely similar things", log both and say
+nothing.
+
+The log is not a rule change and needs no PR — but it is in this folder, so
+entries are observations of what he said, never inferences about what he'd
+probably want.
+
 ## Known gotchas on this Mac (not any one project)
 
 - **`gh auth login` can complete the actual GitHub OAuth handshake and then

@@ -45,6 +45,11 @@ happened, the changelog records what it was for.
   `apprun sweep` reports orphans from dead sessions and says outright when
   no clean copy is running. A copy started with `--demo` — one the *user*
   is looking at — survives a blanket `stop --all` and says so.
+- **`ASKS.md`** — an append-only log of what the user has asked for about
+  *how work is done* (not what to build), and the patterns found in it.
+  Sessions add to it; when entries rhyme, the pattern is proposed as a rule
+  or, more often, as an amendment to one that didn't reach far enough.
+  Adding an entry is not a rule change and needs no PR.
 - **`CHANGELOG.md`** — every change made to the files in this folder,
   documented in plain language.
 

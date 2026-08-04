@@ -33,6 +33,39 @@ is the thing to read first.
   above demotes. An agent reading only its own file would otherwise have kept
   the framing this change exists to replace.
 
+- **`ASKS.md` — track what he asks for, propose the pattern.** His point, and it
+  is a fair one: almost every rule in `CLAUDE-workflow.md` started as him asking
+  for something in a chat, and most were asked more than once, in different
+  projects, before anyone noticed they were the same ask. The rule existed as a
+  pattern in his instructions long before it existed as a rule, and until then
+  every session had to be told again.
+
+  So sessions log instructions about *how work is done* — not what to build; an
+  export button is a requirement, "show me a mockup first" is an ask — and
+  corrections especially, since a reversal says more about what he wants than
+  the original instruction did. When entries rhyme, propose it: not on a count,
+  but when the general form fits in one sentence and covers two or more distinct
+  entries. **Amending an existing rule is usually the right shape**, because most
+  patterns turn out to be a rule that didn't reach far enough, and a second
+  section saying nearly the same thing is how this file becomes unreadable.
+
+  Written with its own failure mode stated in the text, because it is a real
+  one: the rule rewards finding patterns, and a session wanting to look useful
+  can manufacture one from any two instructions. Those rules have no felt problem
+  behind them and are the ones followed literally and wrongly. A pattern nobody
+  was hurt by is not worth a rule.
+
+  Backfilled with 15 entries from this changelog and the common-rules session,
+  and two patterns fell straight out — both of which the file argues should be
+  *amendments*, not new sections. First: **he wants the state of things visible
+  at a glance** (the diagnostic log, run badges, one stable copy, closing
+  instances, a clean copy, a reserved icon, approving a PR without opening git —
+  seven entries across four surfaces, each ruled individually, the general form
+  never written down, which is exactly why each new surface needed its own ask).
+  Second: **show him the thing, don't describe it** (mockups early, an image of
+  the doc page, a demo before approval, and the surviving half of the deprecated
+  PR #6 rule) — already stated in three places that don't reference each other.
+
 - **Offer a demo before asking for the yes.** A draft issue is a paragraph of
   text, and approving it from text alone means deciding about a screen that
   hasn't been looked at in weeks. So the project manager now offers to *show*
