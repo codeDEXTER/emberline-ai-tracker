@@ -2,7 +2,7 @@
 <meta name="proposal-id" content="03">
 <meta name="proposal-topic" content="loops-research-parallelism">
 <meta name="proposal-type" content="proposal">
-<meta name="proposal-status" content="proposed">
+<meta name="proposal-status" content="accepted">
 <style>
   :root {
     --ground:#F4F3F1; --surface:#FBFAF9; --card:#FFFFFF; --ink:#1B1E23; --dim:#6B6660;
@@ -104,7 +104,7 @@
 
 <div class="brand">
   <span>common-rules · Proposal 03</span>
-  <span><span class="chip">proposed</span> &nbsp; 2026-08-04 · rules 42</span>
+  <span><span class="chip accepted">accepted</span> &nbsp; 2026-08-04 · rules 42</span>
 </div>
 
 <h1>Loops, research triggers, and where parallel is safe</h1>
@@ -520,10 +520,28 @@ ends at you.</p>
 </section>
 
 <section>
-<div class="eyebrow"><span>Status</span><span class="tag">proposal 03</span></div>
-<p>This is <code>proposed</code> and nothing has been built. The loop table and the research-trigger
-finding were read out of the rules, not recalled. Accepting changes the workflow for every project
-referencing the shared rules.</p>
+<div class="eyebrow"><span>Decided</span><span class="tag">2026-08-04 · aashish</span></div>
+<p><b>Accepted, all eleven rules.</b> Now in <code>CLAUDE-workflow.md</code> under "Loops — how
+work comes back", "Where parallel is safe", and "Research has triggers". The diagram above is
+ported into <code>docs/workflow.html</code>, which no longer shows a straight line.</p>
+
+<p>The three open questions were not answered separately, so the document's own positions were
+applied — say the word to change any:</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Question</th><th>Applied</th></tr>
+  <tr><td>How many returns before a loop escalates?</td><td><b>Two</b>, matching test↔code, as the
+  stated default for every loop.</td></tr>
+  <tr><td>May a gate send work to research?</td><td><b>Yes</b> — but it <em>recommends</em> the
+  destination and you decide, exactly as it recommends rather than authorises a merge.</td></tr>
+  <tr><td>Third recurrence the right threshold?</td><td><b>Third</b>, counted by the quality
+  manager as part of the gate it already runs.</td></tr>
+</table>
+</div>
+
+<p class="note">Conclusions above this line are unchanged from what was accepted. A status moves
+and decisions get recorded; the argument does not get rewritten after the fact.</p>
 </section>
 
 </div>
