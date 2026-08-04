@@ -8,6 +8,68 @@ is the thing to read first.
 
 ## 2026-08-04
 
+- **Working alongside other sessions** (proposal 02, accepted same day) — plus
+  `bin/whoelse`. the-sponsor asked how to stop parallel sessions reaching different
+  conclusions and conflicting later. Measuring finance-tracker before answering
+  changed the answer: **43 uncommitted files across seven parallel worktrees,
+  none of them ahead of `main`**, and **seven files held by more than one
+  session** — `nicegui_app/pages/ledger.py` by four. Four different uncommitted
+  rewrites of one screen. The collision is already built; it just hasn't landed.
+
+  Nobody did anything wrong. The worktree rule worked exactly as designed and
+  stopped them overwriting each other live — **it was never designed to stop them
+  diverging**, and no step anywhere asked *who else is working here*.
+
+  Six rules. Look before you start; **overlap is a stop, not a warning** (a file
+  another session holds is not yours to edit, same principle as a port you didn't
+  start); inform the owning session rather than duplicating it; **commit or it
+  doesn't exist**; parallelism granted **per surface, not per issue** — four
+  issues touching `ledger.py` were never four parallel tasks, they were one queue
+  nobody drew; and R6, added when the-sponsor reviewed the draft and caught that
+  *informing is not handover*: a finding landing on another task's surface gets
+  responsibility assigned explicitly — finder keeps it, owner takes it, or
+  neither — recorded against both issues. That closes silent absorption and
+  mutual drop, which were both wide open.
+
+  `bin/whoelse` reads the three places that already knew and nobody consulted:
+  `git worktree list`, a `git status` in each, and whether any of it is ahead of
+  `main`. Three of the four capabilities this needed already existed — listing
+  sessions, messaging a session, per-worktree status — and had never been run.
+  The gap was a step in the workflow that says *look*.
+
+  Four open questions were not answered separately, so the document's stated
+  positions were applied and recorded in it: overlap **blocks**; the handover
+  message is **drafted for him to approve**, since it arrives in his name
+  elsewhere; R5 compares surfaces **per batch**, before sessions are opened; and
+  **he assigns** an R6 handover, since it is a scope change and those escalate.
+
+  The 43 files were left untouched on his instruction. `whoelse --contested` now
+  reports that state on demand rather than requiring someone to go looking.
+
+- **`docs/workflow.html` — the whole workflow on one page, and a rule that keeps
+  it true.** the-sponsor asked for a bird's-eye view. `CLAUDE-workflow.md` is now
+  long and reads in the order it was *written*, not the order work *happens* —
+  which is fine as an authority and useless as a map. The page walks idea →
+  merged in actual sequence, colour-coded by who acts (you / project manager /
+  gate), then: who decides what, the eight agents with their real tool grants,
+  the ceremony tiers, the run-identity ports, where every record gets written and
+  by whom, and the two tools' commands. A full-page PNG sits beside it, per the
+  existing report rule.
+
+  The maintenance half is the part that matters, and it is now a rule rather than
+  an intention: **the page is derived from `CLAUDE-workflow.md`** — where they
+  disagree that file wins — and **any PR that changes the shared rules updates
+  this page and its version stamp in the same PR.** Not as a follow-up. A
+  bird's-eye view that has quietly drifted is worse than none, because it is
+  trusted at a glance and read without suspicion; a stale map is the version that
+  gets believed.
+
+  Every tool-grant row was checked against the agent files' frontmatter rather
+  than written from memory. PNG: headless Chrome at 2× into a 20000px-tall
+  window, then a PIL crop that scans upward for the last row differing from the
+  page background — the window height is a ceiling, not a measurement, so
+  cropping is what makes it a page rather than a page plus a mile of empty.
+
 - **How a proposal is delivered — artifact, then buttons** (proposal 01,
   accepted same day; `docs/proposals/` starts here). the-sponsor's report: in pockets
   he had to ask for the rendered view and the decision buttons **every single

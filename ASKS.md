@@ -129,6 +129,20 @@ it every time." Named finance-tracker as the project that does this well. Third
 clear instance of the show-don't-describe pattern below, and the first where he
 named the *cost* of its absence.
 
+## 2026-08-04 · Parallel sessions must see each other, not just avoid each other
+Said in: common-rules
+
+"different AIs come to different conclusions, and then there are conflict later
+on… maybe have an idea about what other issues are working on and inform them
+instead of working on it themselves." Became proposal 02.
+
+## 2026-08-04 · A finding on another task's surface needs a handover of responsibility
+Said in: common-rules
+
+Caught reviewing proposal 02's draft: "there should be a handover of
+responsibility by the original issue or the other issue. is this handled" — it
+wasn't. Informing is not handover. Became R6.
+
 ---
 
 # Patterns
