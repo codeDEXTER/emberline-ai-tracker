@@ -43,7 +43,8 @@ happened, the changelog records what it was for.
   each with its reason. It also closes the browser window, which stopping
   the process does not. Stdlib Python 3 only, no dependencies.
   `apprun sweep` reports orphans from dead sessions and says outright when
-  no clean copy is running.
+  no clean copy is running. A copy started with `--demo` — one the *user*
+  is looking at — survives a blanket `stop --all` and says so.
 - **`CHANGELOG.md`** — every change made to the files in this folder,
   documented in plain language.
 
