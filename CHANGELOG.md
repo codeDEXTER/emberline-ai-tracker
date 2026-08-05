@@ -6,6 +6,49 @@ just what. This folder is its own git repo (see `README.md`), but `git log`
 only records that something changed; this file records what it was for, and
 is the thing to read first.
 
+## 2026-08-05
+
+- **The user owns features; the AI owns issues** (proposal 05, accepted same
+  day). the-sponsor: "at the end of the day I am worried about the feature, not the
+  issue — issues are there to have parallel task, divide and conquer. It's not to
+  increase my overhead that I have to trigger each and every issue." He also
+  reported refereeing race conditions between finance-tracker's #30 and #31.
+
+  Researched rather than assumed, and the finding is that **the collision was
+  created at decomposition time, months before either session started.** #30 is
+  "Desktop Clerk: Ask **backend**" and #31 is "Desktop Clerk: Ticket Rail + seam
+  + Ask **dock layout**" — the server side and the screen side of one capability,
+  labelled `backend` and `ui`. Four of the 25 open issues are one feature, cut
+  backend/ui/backend/ui. That is **horizontal slicing**, and the literature is
+  unambiguous about it: such slices "can't deliver value without interaction or
+  integration with other layers" and make dependency management intricate by
+  construction. Vertical slices — end to end, screen through to store — stay
+  independent and testable.
+
+  The overhead is also arithmetic, not temperament: coordination paths grow as
+  **n(n−1)/2**, so six issues in flight is fifteen possible collisions, and he
+  was the only node that could see all six. Every one resolved through him. The
+  counter-intuitive half is that limiting work in progress *raises* throughput.
+
+  So: **this narrows the whole 2026-08-02 issue-lifecycle section from issues to
+  features** — a deliberate reversal, flagged rather than slipped in. Creating,
+  sequencing, handing off and closing issues moves to the AI; proposing,
+  approving, seeing and closing *features* stays his. Issues are cut vertically,
+  one in flight per surface, with dependencies recorded at decomposition rather
+  than discovered on collision.
+
+  **He asked whether this needs a ninth agent. It doesn't** — decomposition and
+  sequencing are already the project manager's job by definition; it had no
+  authority because the rules gave every issue decision to him. Adding an agent
+  to do work the project manager is defined to do but forbidden from doing would
+  treat the symptom. What is genuinely missing is a *view*: nothing shows a
+  feature and its issues together, which is why #30 and #31 were invisible.
+
+  Also, separately: **stop labelling rules with codes.** "if you're telling me
+  this d one, d two, some jargons need to be figured out, I cannot figure them
+  out." Proposal 05 is written entirely as sentences; codes belong in the files,
+  not in what reaches him.
+
 ## 2026-08-04
 
 - **Loops, research triggers, and where parallel is safe** (proposal 03, accepted
