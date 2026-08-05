@@ -204,6 +204,13 @@ def project_worktrees(proj):
         p = Path(t["path"])
         if str(p) == proj["path"]:
             continue  # skip the main checkout itself
+        # A worktree outside the project directory is not a session's work.
+        # Tower.app keeps its own pinned checkout (see build_towerapp.sh) so
+        # the installed app never depends on which branch a shared checkout
+        # happens to be parked on; it is registered like any other worktree and
+        # would otherwise draw itself as a node on its own screen.
+        if not str(p).startswith(proj["path"] + os.sep):
+            continue
         files = touched_files(p)
         ahead = run([GIT, "-C", str(p), "rev-list", "--count", "main..HEAD"])
         newest = newest_transcript(p)
