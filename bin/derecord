@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# derecord -- make a project's record files structurally unable to conflict,
+# and install the guards that stop a bad merge reaching main.
+#
+#   derecord [project-dir]     default: current directory
+#
+# Installs three things:
+#   1. .gitattributes union-merge rules for the append-only record files
+#   2. a pre-commit hook that refuses to commit conflict markers
+#   3. a SessionStart hook that runs rulecheck --quiet
+#
+# Idempotent: run it as often as you like.
+set -euo pipefail
+
+RULES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJ="${1:-$PWD}"
+cd "$PROJ"
+
+GIT="git"
+command -v git >/dev/null 2>&1 || GIT=/Library/Developer/CommandLineTools/usr/bin/git
+$GIT rev-parse --git-dir >/dev/null 2>&1 || { echo "not a git repo: $PROJ" >&2; exit 1; }
+
+TOP="$($GIT rev-parse --show-toplevel)"
+cd "$TOP"
+
+# --- 1. union merge for the record files -------------------------------------
+touch .gitattributes
+added=0
+while IFS= read -r line; do
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    pat="${line%% *}"
+    if ! grep -qE "^${pat//./\\.}[[:space:]]" .gitattributes 2>/dev/null; then
+        printf '%s\n' "$line" >> .gitattributes
+        added=$((added+1))
+    fi
+done < "$RULES_DIR/gitattributes-for-projects"
+echo "  .gitattributes: $added record rule(s) added"
+
+# git only honours merge=union if the driver is known; union is built in.
+$GIT config merge.union.name "keep both sides of an append-only file" 2>/dev/null || true
+
+# --- 2. pre-commit: never commit a conflict marker ---------------------------
+HOOKS="$($GIT rev-parse --git-path hooks)"
+mkdir -p "$HOOKS"
+cat > "$HOOKS/pre-commit" <<'HOOK'
+#!/usr/bin/env bash
+# Refuse to commit unresolved conflict markers. On 2026-08-05 a hand-rolled
+# conflict resolver put `<<<<<<< HEAD` into three Python files and main
+# stopped importing at all. This is the cheapest possible guard against it.
+set -euo pipefail
+GIT=git; command -v git >/dev/null 2>&1 || GIT=/Library/Developer/CommandLineTools/usr/bin/git
+bad=$($GIT diff --cached --name-only --diff-filter=ACM | while read -r f; do
+    [ -f "$f" ] || continue
+    if $GIT show ":$f" 2>/dev/null | grep -qE '^(<{7}|={7}|>{7})( |$)'; then echo "$f"; fi
+done)
+if [ -n "$bad" ]; then
+    echo "pre-commit: unresolved conflict markers in:" >&2
+    echo "$bad" | sed 's/^/  /' >&2
+    echo "resolve them, or commit with --no-verify if you truly mean it." >&2
+    exit 1
+fi
+HOOK
+chmod +x "$HOOKS/pre-commit"
+echo "  hooks/pre-commit: conflict-marker guard installed"
+
+# --- 3. SessionStart: rulecheck without being asked --------------------------
+SETTINGS=".claude/settings.json"
+mkdir -p .claude
+python3 - "$SETTINGS" "$RULES_DIR" <<'PY'
+import json, os, sys
+path, rules = sys.argv[1], sys.argv[2]
+try:
+    d = json.load(open(path))
+except Exception:
+    d = {}
+hooks = d.setdefault("hooks", {})
+entries = hooks.setdefault("SessionStart", [])
+cmd = f"{rules}/bin/rulecheck --quiet"
+already = json.dumps(entries).find("rulecheck") >= 0
+if not already:
+    entries.append({"hooks": [{"type": "command", "command": cmd}]})
+    json.dump(d, open(path, "w"), indent=2)
+    print("  .claude/settings.json: SessionStart rulecheck installed")
+else:
+    print("  .claude/settings.json: SessionStart rulecheck already present")
+PY
+
+echo "derecord: $TOP is done."

@@ -1,5 +1,45 @@
 # Changelog — common-rules
 
+## 2026-08-05 · The cut — 1,637 lines to 298, and four rules turned into code
+
+Measured 30 sessions and 29.2M output tokens before changing anything. The
+findings, and what each one changed:
+
+- **Two thirds of all spend (68.6%) went to management chats, not to worktrees
+  writing code.** Ceremony is now opt-in: the research/requirements/design/
+  audit/L2 chain runs only on work the user has flagged as a feature. Everything
+  else goes issue → code-engineer → gate → land.
+- **Every merge conflict on 2026-08-05 was in a file these rules invented**
+  (CHANGELOG, AGENT-LOG, LESSONS, the checklist, the version stamp). Hand-
+  resolving them is what put conflict markers into three Python files and broke
+  finance-tracker's main. `bin/derecord` now union-merges them, so two branches
+  appending both win and neither conflicts.
+- **Branches that live for days collide.** Two branches independently created
+  the same new file and independently rewrote the same renderer. `bin/land`
+  merges a branch as soon as it is green, without waiting to be noticed.
+- **1,637 lines went unread.** Cut to 298. What survived is what measurement
+  showed was load-bearing: worktree-per-task, tool grants, the pre-merge gate,
+  and tests. A rule that can be enforced now lives in `derecord` as a git
+  attribute or a hook, not as a paragraph.
+
+Also, from the same day's asks:
+
+- **AGENT-LOG stays, and now carries cost.** `bin/spend log <task>` writes one
+  entry per task with the agents invoked, the tokens spent and the commits
+  landed; `bin/spend report` and `bin/spend today` total it. The user asked to
+  keep it specifically to see where spend goes.
+- **Verification moves to the Browser pane.** The old pre-merge step 3 said to
+  build and open the `.app` — which opens a real WebKit window and leaves
+  another bundle on disk. That is now reserved for packaging changes only.
+- **One installed app per project.** `bin/appcheck` finds bundles sharing a
+  CFBundleIdentifier; four `Sangam.app` bundles were found claiming
+  `local.wealthtracker`.
+
+New in `bin/`: `derecord`, `land`, `spend`, `appcheck`.
+Deleted from the rules: the record-file ceremony, proposal numbering/
+immutability/traceability, the story section, ceremony tiers as a default,
+the rulecheck prose (now a SessionStart hook installed by `derecord`).
+
 Every change to a file in this folder gets an entry here — same convention
 as a project's own `CHANGELOG.md`: newest first, one or two lines, why not
 just what. This folder is its own git repo (see `README.md`), but `git log`

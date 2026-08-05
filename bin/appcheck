@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""appcheck -- find app bundles that claim to be the same app.
+
+    appcheck [project-dir ...]      default: every project under apps/
+
+macOS LaunchServices keys on CFBundleIdentifier. Two bundles sharing one
+identifier means Spotlight shows both under the same name and which one opens
+is undefined -- it is not "two copies", it is one identity with two bodies.
+
+Found on 2026-08-05: four Sangam.app bundles, all `local.wealthtracker`, three
+of them built inside task worktrees. Only a build that sets a mode suffix got
+its own identity. That is what this checks for.
+
+Exit code 1 if any identifier is claimed by more than one bundle.
+"""
+from __future__ import annotations
+
+import collections
+import os
+import plistlib
+import subprocess
+import sys
+
+APPS = "/Users/the-sponsor/apps"
+INSTALLED = "/Applications"
+
+
+def bundles(root, depth=6):
+    """Every *.app under root, without descending into one."""
+    root = os.path.abspath(root)
+    base_depth = root.rstrip("/").count("/")
+    for dirpath, dirnames, _ in os.walk(root):
+        if dirpath.count("/") - base_depth >= depth:
+            dirnames[:] = []
+            continue
+        for name in list(dirnames):
+            if name.endswith(".app"):
+                yield os.path.join(dirpath, name)
+                dirnames.remove(name)
+
+
+def identity(path):
+    try:
+        with open(os.path.join(path, "Contents", "Info.plist"), "rb") as fh:
+            pl = plistlib.load(fh)
+    except (OSError, plistlib.InvalidFileException):
+        return None
+    return {
+        "path": path,
+        "id": pl.get("CFBundleIdentifier", "?"),
+        "name": pl.get("CFBundleName", os.path.basename(path)[:-4]),
+        "mtime": os.path.getmtime(path),
+    }
+
+
+def is_worktree_build(path):
+    return ".worktrees/" in path or "/worktrees/" in path
+
+
+def main(argv):
+    roots = argv or [APPS, INSTALLED]
+    found = []
+    for root in roots:
+        if os.path.isdir(root):
+            for b in bundles(root):
+                ident = identity(b)
+                if ident:
+                    found.append(ident)
+
+    by_id = collections.defaultdict(list)
+    for b in found:
+        by_id[b["id"]].append(b)
+
+    clashes = {k: v for k, v in by_id.items() if len(v) > 1}
+
+    if not clashes:
+        print(f"appcheck: {len(found)} bundle(s), every identifier unique.")
+        return 0
+
+    print(f"appcheck: {len(clashes)} identifier(s) claimed by more than one bundle.\n")
+    for ident, group in sorted(clashes.items()):
+        print(f"  {ident}")
+        for b in sorted(group, key=lambda x: -x["mtime"]):
+            where = "installed" if b["path"].startswith(INSTALLED) else (
+                "WORKTREE BUILD" if is_worktree_build(b["path"]) else "project dist")
+            when = subprocess.run(
+                ["date", "-r", str(int(b["mtime"])), "+%m-%d %H:%M"],
+                capture_output=True, text=True).stdout.strip()
+            print(f"      [{where:14}] {when}  {b['path']}")
+        print()
+
+    print("A worktree build must carry its own identity -- build with a mode")
+    print("(e.g. RUN_MODE=dev) so CFBundleIdentifier and CFBundleName differ")
+    print("from the installed app's. Stale worktree bundles can be deleted:")
+    print("they are regenerable build output under dist/.")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
