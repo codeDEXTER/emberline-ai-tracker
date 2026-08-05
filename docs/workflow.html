@@ -105,7 +105,7 @@
 
 <div class="brand">
   <span>common-rules · reference</span>
-  <span>derived from CLAUDE-workflow.md · rules version 55 · 2026-08-04</span>
+  <span>derived from CLAUDE-workflow.md · rules version 62 · 2026-08-05</span>
 </div>
 
 <h1>The whole workflow, on one page</h1>
@@ -113,6 +113,114 @@
 <p class="standfirst">Every rule that governs work under <code>apps/</code>, in the order it
 actually happens. The authoritative text is <code>CLAUDE-workflow.md</code>; this is the map,
 kept in step with it.</p>
+
+<section>
+<div class="eyebrow"><span>The shape now — your three looks, and the autopilot</span><span class="tag">purple = yours · the dashed wall is the question test · added 2026-08-05</span></div>
+
+<p>Everything below this diagram is the detail. This is the deal itself: you are involved at
+exactly three looks plus the feature decisions on the left; the autopilot runs everything on the
+right, records what it decides, and reports in digests. A question crosses the wall only if the
+answer would change a look, or the decision is reserved for you.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 960 930" role="img" aria-label="The workflow now: your three looks, and the autopilot lane">
+  <defs>
+    <marker id="arL" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="7" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="context-stroke"/>
+    </marker>
+  </defs>
+  <style>
+    .lanehead { font-family:var(--mono); font-size:11px; letter-spacing:.12em; fill:var(--dim); font-weight:700; }
+    .wall { stroke:var(--border); stroke-width:1.6; stroke-dasharray:5 6; }
+    .walltext { font-family:var(--mono); font-size:9.5px; fill:var(--warn); letter-spacing:.04em; }
+    .nd rect { fill:var(--surface); stroke:var(--border); stroke-width:1.4; }
+    .nd.you rect { stroke:var(--you); stroke-width:2.2; }
+    .nd.look rect { fill:var(--lane); stroke:var(--you); stroke-width:2.4; }
+    .nd.gate rect { stroke:var(--warn); stroke-width:2; }
+    .nd text { font-family:var(--sans); font-size:13px; fill:var(--ink); font-weight:600; }
+    .nd .s { font-family:var(--mono); font-size:9.5px; fill:var(--dim); font-weight:400; letter-spacing:.03em; }
+    .nd.look text.t { fill:var(--you); }
+    .fw { stroke:var(--border); stroke-width:2; fill:none; }
+    .cross { stroke:var(--you); stroke-width:1.8; fill:none; }
+    .dig { stroke:var(--gain); stroke-width:1.6; fill:none; stroke-dasharray:4 5; }
+    .digt { font-family:var(--mono); font-size:9.5px; fill:var(--gain); letter-spacing:.04em; }
+  </style>
+
+  <text class="lanehead" x="60" y="30">YOURS — THREE LOOKS, NOTHING ELSE</text>
+  <text class="lanehead" x="560" y="30">AUTOPILOT — EVERYTHING ELSE, RECORDED</text>
+  <line class="wall" x1="475" y1="44" x2="475" y2="880"/>
+  <text class="walltext" x="484" y="60">a question crosses this line only if the answer</text>
+  <text class="walltext" x="484" y="74">changes a look, or the decision is reserved</text>
+
+  <g class="nd you"><rect x="60" y="90" width="330" height="52" rx="10"/>
+    <text x="76" y="112">You tell the idea, or pick the feature</text>
+    <text class="s" x="76" y="128">one sentence is enough</text></g>
+  <g class="nd"><rect x="540" y="90" width="360" height="52" rx="10"/>
+    <text x="556" y="112">Idea Lab · research grounds it</text>
+    <text class="s" x="556" y="128">variants generated, researched, weak ones killed</text></g>
+  <path class="cross" d="M390,116 L536,116" marker-end="url(#arL)"/>
+
+  <g class="nd look"><rect x="60" y="182" width="330" height="56" rx="10"/>
+    <text class="t" x="76" y="204">LOOK 1 — is this the right change?</text>
+    <text class="s" x="76" y="222">shown on the screens it touches, with rivals</text></g>
+  <path class="cross" d="M720,146 C720,182 420,160 394,196" marker-end="url(#arL)"/>
+
+  <g class="nd"><rect x="540" y="278" width="360" height="52" rx="10"/>
+    <text x="556" y="300">Requirements reasoned out</text>
+    <text class="s" x="556" y="316">ambiguity decided and recorded — never relayed to you</text></g>
+  <path class="cross" d="M390,222 C540,240 640,240 700,274" marker-end="url(#arL)"/>
+
+  <g class="nd gate"><rect x="540" y="352" width="360" height="52" rx="10"/>
+    <text x="556" y="374">Design · auditor · L2</text>
+    <text class="s" x="556" y="390">fidelity measured, approved inside the pipeline</text></g>
+  <path class="fw" d="M720,330 L720,348" marker-end="url(#arL)"/>
+
+  <g class="nd look"><rect x="60" y="352" width="330" height="56" rx="10"/>
+    <text class="t" x="76" y="374">LOOK 2 — is this what I meant?</text>
+    <text class="s" x="76" y="392">the buildable design, changes marked vs today</text></g>
+  <path class="cross" d="M536,378 L394,378" marker-end="url(#arL)"/>
+
+  <g class="nd"><rect x="540" y="448" width="360" height="52" rx="10"/>
+    <text x="556" y="470">Vertical issues, cut and sequenced</text>
+    <text class="s" x="556" y="486">end-to-end slices · one in flight per surface</text></g>
+  <path class="cross" d="M390,408 C540,424 640,420 700,444" marker-end="url(#arL)"/>
+
+  <g class="nd"><rect x="540" y="522" width="360" height="52" rx="10"/>
+    <text x="556" y="544">Sessions run and coordinate directly</text>
+    <text class="s" x="556" y="560">messages sent and logged, no approvals · overlaps queue</text></g>
+  <path class="fw" d="M720,500 L720,518" marker-end="url(#arL)"/>
+
+  <g class="nd gate"><rect x="540" y="596" width="360" height="52" rx="10"/>
+    <text x="556" y="618">Test · gate</text>
+    <text class="s" x="556" y="634">recommends code / design / research · counts questions</text></g>
+  <path class="fw" d="M720,574 L720,592" marker-end="url(#arL)"/>
+
+  <g class="nd"><rect x="540" y="670" width="360" height="52" rx="10"/>
+    <text x="556" y="692">Merge · clean copy rebuilt · issues closed</text>
+    <text class="s" x="556" y="708">silently, as they finish — the feature stays open</text></g>
+  <path class="fw" d="M720,648 L720,666" marker-end="url(#arL)"/>
+
+  <g class="nd you"><rect x="60" y="500" width="330" height="70" rx="10"/>
+    <text x="76" y="522">You watch digests — or dip in</text>
+    <text class="s" x="76" y="538">what happened, what's next; zero questions is success</text>
+    <text class="s" x="76" y="554">pick up an issue by hand only when it interests you</text></g>
+  <path class="dig" d="M536,548 L394,535" marker-end="url(#arL)"/>
+  <path class="dig" d="M536,700 C460,700 430,580 394,562" marker-end="url(#arL)"/>
+  <text class="digt" x="410" y="590">digests, not questions</text>
+
+  <g class="nd look"><rect x="60" y="770" width="330" height="56" rx="10"/>
+    <text class="t" x="76" y="792">LOOK 3 — is this what I got?</text>
+    <text class="s" x="76" y="810">the running thing, walked click-by-click on the clean copy</text></g>
+  <path class="cross" d="M720,722 C720,780 430,760 394,792" marker-end="url(#arL)"/>
+
+  <g class="nd you"><rect x="60" y="860" width="330" height="52" rx="10"/>
+    <text x="76" y="882">You close the feature</text>
+    <text class="s" x="76" y="898">the one closing that is yours — issues closed themselves</text></g>
+  <path class="cross" d="M225,826 L225,856" marker-end="url(#arL)"/>
+</svg>
+
+</div>
+</section>
 
 <section>
 <div class="eyebrow"><span>Idea to merged, end to end</span><span class="tag">purple = you · blue = project manager · amber = a gate</span></div>
@@ -428,6 +536,7 @@ kept in step with it.</p>
   <tr><td>Accept or reject a proposal (L1)</td><td><span class="lab u">you</span></td><td>artifact + buttons, one decision per prompt</td></tr>
   <tr><td>Approve a merge</td><td><span class="lab u">you</span></td><td>the gate recommends; it does not authorise</td></tr>
   <tr><td>Change these shared rules</td><td><span class="lab u">you</span></td><td>PR opened by the AI, merged by you</td></tr>
+  <tr><td>Requirement ambiguities · cross-session coordination · anything not changing a look</td><td><span class="lab pm">project manager</span></td><td>decided, recorded in AGENT-LOG.md, reported in the digest</td></tr>
   <tr><td>Clear an orphaned app instance</td><td><span class="lab u">you</span></td><td>it may be the window you're looking at</td></tr>
   <tr><td>Promote prototype → production</td><td><span class="lab u">you</span></td><td>silent promotion is the documented failure</td></tr>
   <tr><td>Accept requirements + design (L2)</td><td><span class="lab pm">project manager</span></td><td>on the auditor's evidence; four triggers escalate</td></tr>
@@ -550,6 +659,7 @@ honest remaining gap in both.</p>
   <li><b>Show, don't summarise.</b> Artifact over prose; demo before approval; the render, not a description of it.</li>
   <li><b>Stop only what you started</b> — and stop the window too.</li>
   <li><b>Look before you start, and commit before you pause</b> — uncommitted work is invisible to everyone, including the next check.</li>
+  <li><b>A question to the user is a cost.</b> If the answer wouldn't change what he sees at a look and isn't reserved, the AI decides, records one line, and proceeds. Unnecessary questions are counted at the gate.</li>
   <li><b>You own features; the AI owns the issues they decompose into</b> — cut vertically, never backend-for-X plus UI-for-X.</li>
   <li><b>Nothing about features, merges, promotions or these rules happens without you.</b></li>
 </ul>
