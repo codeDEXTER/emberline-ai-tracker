@@ -12,3 +12,8 @@
 
 # bin/ has no .py extension so python3 -m py_compile writes its cache here
 bin/__pycache__/
+
+# build_towerapp.sh stages Tower.app here. Build output, regenerable in a
+# second, and it contains a compiled Swift binary — the source is committed,
+# the binary never is.
+dist/

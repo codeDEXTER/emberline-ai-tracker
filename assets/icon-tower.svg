@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- The Tower's own icon. Reserved for this app and borrowed from nothing:
+       Sangam's mark is a confluence of two rivers, and this must not read as a
+       variant of it at Dock size.
+
+       A first attempt drew the cab, the mast and the beam as three separate
+       shapes; at 128px it read as a figure with outstretched arms, because a
+       square floating above a trapezoid is a head above a body. So the tower
+       is now a SINGLE tapered silhouette from base to top — nothing floats —
+       and the light is a bright band cut across it rather than an object
+       sitting on it.
+
+       No thin strokes and no gradients: the smallest size this is drawn at is
+       16px, where a hairline vanishes and a gradient turns to mud. The
+       silhouette alone carries it — a wide base narrowing to a lit cab, with
+       the beam breaking the outline horizontally.
+
+       Palette is the Tower screen's own (bg #0B0E13, green #5FA985, ink
+       #DFE3EA), so the Dock icon and the window it opens read as one object. -->
+  <rect width="1024" height="1024" rx="228" fill="#0B0E13"/>
+
+  <!-- The beam, behind everything. A full-width bar at low opacity rendered as
+       near-black over this ground and read as a strike-through, so it is two
+       wedges instead: thick where they leave the cab, tapering outward, in the
+       accent rather than a wash of it. Light travels away from the lantern. -->
+  <path d="M150 402 L384 386 L384 474 L150 458 Z" fill="#5FA985" opacity="0.55"/>
+  <path d="M874 402 L640 386 L640 474 L874 458 Z" fill="#5FA985" opacity="0.55"/>
+
+  <!-- one continuous tower: broad base tapering to the cab. No floating parts. -->
+  <path d="M330 856
+           L694 856
+           L640 470
+           L604 470
+           L580 300
+           L444 300
+           L420 470
+           L384 470
+           Z" fill="#5FA985"/>
+
+  <!-- the lit cab: a bright band cut across the silhouette, overhanging it
+       slightly so the tower has a shoulder rather than a smooth cone -->
+  <path d="M366 392 L658 392 L640 468 L384 468 Z" fill="#DFE3EA"/>
+
+  <!-- ground line: gives the base something to stand on, so the shape reads
+       as architecture rather than as an object floating in a rounded square -->
+  <rect x="256" y="856" width="512" height="52" rx="26" fill="#5FA985"/>
+</svg>
