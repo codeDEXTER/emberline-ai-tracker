@@ -1,0 +1,273 @@
+<title>common-rules · Review by looking — design is the surface, not requirements — Proposal</title>
+<meta name="proposal-id" content="04">
+<meta name="proposal-topic" content="review-by-looking">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="proposed">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --card:#FFFFFF; --ink:#1B1E23; --dim:#6B6660;
+    --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E;
+    --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA;
+    --you:#6B4E9E;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --card:#161B24; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --card:#161B24; --ink:#E8E6E1;
+            --dim:#8B93A0; --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985;
+            --loss:#C97A81; --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --card:#FFFFFF; --ink:#1B1E23;
+            --dim:#6B6660; --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B;
+            --loss:#A8434B; --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1000px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:34px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:66ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  section > p { max-width:70ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:72ch; }
+  code, .mono { font-family:var(--mono); font-size:12.6px; }
+  a { color:var(--accent); }
+  .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+          padding:3px 9px; border-radius:4px; background:var(--warn); color:var(--chip-ink); }
+  .chip.accepted { background:var(--gain); }
+
+  .tablewrap { overflow-x:auto; margin-top:18px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:640px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.1px; white-space:nowrap; }
+
+  .lab { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+         display:inline-block; padding:2px 7px; border-radius:4px; white-space:nowrap;
+         color:var(--chip-ink); }
+  .lab.look { background:var(--gain); } .lab.read { background:var(--loss); }
+  .lab.part { background:var(--warn); } .lab.new { background:var(--accent); }
+
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:22px 0; max-width:74ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.bad { border-left-color:var(--loss); }
+  .verdict.warn { border-left-color:var(--warn); }
+  .verdict.good { border-left-color:var(--gain); }
+  .verdict p:last-child { margin-bottom:0; }
+
+  .rules { display:grid; gap:14px; margin-top:20px; }
+  .r { background:var(--surface); border:1px solid var(--border); border-radius:10px;
+       padding:15px 18px; display:grid; grid-template-columns:auto 1fr; gap:4px 14px; align-items:baseline; }
+  .r .n { font-family:var(--mono); font-size:12px; font-weight:700; color:var(--accent); letter-spacing:.06em; }
+  .r b { font-size:15px; }
+  .r p { grid-column:2; margin:4px 0 0; color:var(--dim); font-size:13.8px; max-width:66ch; }
+
+  .swap { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:20px; }
+  .sw { border:1px solid var(--border); border-radius:10px; padding:14px 16px; background:var(--surface); }
+  .sw.before { border-left:3px solid var(--loss); }
+  .sw.after { border-left:3px solid var(--gain); }
+  .sw h4 { margin:0 0 8px; font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+           text-transform:uppercase; color:var(--dim); font-weight:700; }
+  .sw p { margin:0; font-size:13.6px; }
+  .sw .q { font-style:italic; color:var(--dim); }
+
+  .qgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; margin-top:20px; }
+  .q2 { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+  .q2 b { display:block; font-size:14px; margin-bottom:5px; }
+  .q2 span { color:var(--dim); font-size:12.8px; }
+  ul { max-width:72ch; } li { margin-bottom:7px; }
+  @media (max-width:640px){ .page{padding:34px 18px 60px;} h1{font-size:27px;} .swap{grid-template-columns:1fr;} }
+</style>
+
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · Proposal 04</span>
+  <span><span class="chip">proposed</span> &nbsp; 2026-08-04 · rules 53</span>
+</div>
+
+<h1>Review by looking — design is the surface, requirements are not</h1>
+
+<p class="standfirst">You asked for a demo before a ticket closes, and to stop reviewing
+requirements. Stepping back, those are the same request: <strong>every decision you own should be
+made by looking at something, and right now three of the five are made by reading.</strong></p>
+
+<section>
+<div class="eyebrow"><span>Your five decisions, and how each reaches you</span><span class="tag">measured against the current rules</span></div>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Decision</th><th>Reaches you as</th><th>How you review it</th></tr>
+  <tr><td><b>Scope an issue</b> (L0)</td><td>A five-field issue draft, plus a demo of the current state if it exists</td>
+      <td><span class="lab part">mixed</span></td></tr>
+  <tr><td><b>Accept a proposal</b> (L1)</td><td>Rendered artifact, then buttons</td>
+      <td><span class="lab look">by looking</span></td></tr>
+  <tr><td><b>L2 escalations</b></td><td>Prose: drift, silent decisions, requirement conflicts</td>
+      <td><span class="lab read">by reading</span></td></tr>
+  <tr><td><b>Approve a merge</b></td><td>A gate report</td>
+      <td><span class="lab read">by reading</span></td></tr>
+  <tr><td><b>Close a ticket</b></td><td><b>Nothing at all</b></td>
+      <td><span class="lab read">on trust</span></td></tr>
+</table>
+</div>
+
+<div class="verdict bad">
+  <b>The one that should worry us most is the last row</b>
+  <p>Closing a ticket is the moment you declare the thing you asked for actually exists. Right now
+  nothing is shown to you at that moment — not a screen, not a demo, not a diff. The decision with
+  the least evidence behind it is the one that ends the work.</p>
+</div>
+
+<p class="note">This is the fourth time this pattern has come up, and <code>ASKS.md</code> already
+predicted it: "<em>Show him the thing; don't describe the thing… one rule that keeps being
+rediscovered in a new context, which makes it an amendment candidate rather than a fourth
+independent statement of it.</em>" This proposal is that amendment — stated once, for all five
+decisions, instead of a fifth special case.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>Why requirements are the wrong thing to send you</span><span class="tag">not a preference — a role mismatch</span></div>
+
+<p><code>REQUIREMENTS.md</code> is written to be <em>checkable by someone who wasn't in the
+conversation</em> — that is its stated job. Its readers are the test engineer and the gate, and for
+them numbered, exhaustive, unambiguous prose is exactly right.</p>
+
+<p>You are not that reader. You already know what you asked for. What you need to know is whether
+what got built <em>looks like</em> what you meant — a question prose answers badly and a screen
+answers instantly. Sending you the requirements is asking you to simulate a screen in your head
+from a list, which is slow, error-prone, and something the design artifact already does properly.</p>
+
+<div class="verdict good">
+  <b>So: requirements don't go away, they stop being addressed to you</b>
+  <p>They are still written, still numbered, still testable — they are the contract the gate holds
+  the work to, and removing them would remove the only thing that makes "built" checkable. What
+  changes is who reads them. <strong>The design becomes your review surface; requirements become
+  its annotation.</strong></p>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>The proposal</span><span class="tag">five rules</span></div>
+
+<div class="rules">
+  <div class="r">
+    <span class="n">D1</span><b>The design artifact is your review surface. Requirements are never sent to you for review.</b>
+    <p>You review screens, states and flows. <code>REQUIREMENTS.md</code> stays exactly as it is
+    and is read by the test engineer, the gate and the auditor — not by you.</p>
+  </div>
+  <div class="r">
+    <span class="n">D2</span><b>Every requirement binds to something visible, or is marked <code>no-surface</code>.</b>
+    <p>The design engineer makes the binding: each numbered requirement names the screen, state or
+    control where it becomes visible. Reviewing the design then reviews the requirements without
+    reading them. A requirement that binds to nothing is explicitly marked, and those never reach
+    you at all — they are the gate's and the auditor's business.</p>
+  </div>
+  <div class="r">
+    <span class="n">D3</span><b>An escalation is shown, never described.</b>
+    <p>"R7 contradicts proposal decision 3" becomes <em>here is the screen, here are the two
+    versions, pick one</em> — rendered, with buttons. If a conflict cannot be shown as a visible
+    difference, it is not yet a question worth putting to you; it goes back to L2.</p>
+  </div>
+  <div class="r">
+    <span class="n">D4</span><b>A demo before the ticket closes — with navigation.</b>
+    <p>Your ask, and the missing bookend: there is already a demo before a proposal is approved and
+    nothing before a ticket is closed. Before you are asked to close, the session walks you to it —
+    click by click, in the app's own words, on the built copy — showing what changed and what to
+    look at. <strong>Closing without a demo is closing on trust</strong>, and it is the one
+    decision where the evidence is cheapest to produce.</p>
+  </div>
+  <div class="r">
+    <span class="n">D5</span><b>If it can't be shown, the design engineer's job is to find a way to show it — before falling back to words.</b>
+    <p>Rules, calculations and data policies feel invisible, but most of them surface somewhere: a
+    number on a screen, an error state, an empty state, a disabled control. The design engineer
+    looks for that surface first. Only when there genuinely isn't one may a question reach you as
+    text — and then it is <b>one sentence and two options</b>, never a document.</p>
+  </div>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>What changes for you, concretely</span><span class="tag">before → after</span></div>
+
+<div class="swap">
+  <div class="sw before"><h4>Today · L2 escalation</h4>
+    <p class="q">"R7 says the export must preserve holder attribution, but proposal 06 decided
+    holder is a per-country concept. This conflicts. How should we resolve it?"</p></div>
+  <div class="sw after"><h4>Proposed</h4>
+    <p>Two rendered versions of the export screen, side by side — one showing holder, one not —
+    and the buttons <b>Keep holder</b> / <b>Drop holder</b> / <b>Neither, let's talk</b>.</p></div>
+</div>
+
+<div class="swap">
+  <div class="sw before"><h4>Today · closing a ticket</h4>
+    <p class="q">"Issue #36 is merged and the gate passed. Close it?"</p></div>
+  <div class="sw after"><h4>Proposed</h4>
+    <p>"Open the clean copy → Contracts. The FD ladder now shows EPS and EPF under <em>No fixed
+    date</em>, with the rate column blank for NPS. That's the whole change. Close it?"</p></div>
+</div>
+
+<div class="swap">
+  <div class="sw before"><h4>Today · reviewing requirements</h4>
+    <p class="q">Eleven numbered criteria, out-of-scope list, open questions — as prose.</p></div>
+  <div class="sw after"><h4>Proposed</h4>
+    <p>You never see them. The design shows all eleven where they land; the two that bind to
+    nothing visible are marked <code>no-surface</code> and handled by the gate.</p></div>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>What it costs, and what it won't fix</span><span class="tag">stated</span></div>
+
+<ul>
+  <li><b>D2 is real work.</b> Binding every requirement to a visible element is an extra pass for
+  the design engineer, and it will sometimes reveal that a requirement can't be satisfied as
+  specified — which is valuable, and still costs time.</li>
+  <li><b><code>no-surface</code> is abusable.</b> It is the obvious place to hide a decision you
+  would have wanted to make. Two things push back: the proposal auditor already classifies
+  <em>silent decisions</em> as yours, and D5 puts the burden on finding a surface first.</li>
+  <li><b>A demo at close costs a build and a walk-through</b> every ticket. For a one-line fix
+  that is disproportionate — the tier system should govern it, same as everything else.</li>
+  <li><b>It does not make backend work visible.</b> A data-migration rule or an encryption policy
+  has no screen, and pretending otherwise would be worse than admitting it. Those stay with the
+  gate, and the honest consequence is that you are trusting the gate on them.</li>
+</ul>
+</section>
+
+<section>
+<div class="eyebrow"><span>Open questions</span><span class="tag">yours</span></div>
+
+<div class="qgrid">
+  <div class="q2"><b>Does the merge approval become a demo too?</b>
+    <span>It is the fourth row of that table and still prose. One demo could serve both merge and
+    close — or merge stays a technical decision on the gate's evidence, and the demo belongs only
+    at close, where the question is "is this what I wanted".</span></div>
+  <div class="q2"><b>Should a small fix still get a demo?</b>
+    <span>Every ticket, or only feature-tier work? Skipping it for small fixes is cheaper and
+    reintroduces exactly the "optional means skipped" problem we just fixed for research.</span></div>
+  <div class="q2"><b>Who marks <code>no-surface</code>?</b>
+    <span>The design engineer who couldn't find a surface, or the requirements engineer who wrote
+    it. The first knows more; the second has less incentive to use it as an escape hatch.</span></div>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>Status</span><span class="tag">proposal 04</span></div>
+<p>This is <code>proposed</code> and nothing has been built. Accepting changes what reaches you at
+three of your five decision points, and changes the design engineer's job in a way that costs real
+time — which is why the costs are stated above rather than left to be discovered.</p>
+</section>
+
+</div>
