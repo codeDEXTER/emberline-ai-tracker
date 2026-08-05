@@ -144,7 +144,11 @@ def rules_state(path):
     return current, have
 
 
-def render():
+def render(write=True):
+    """Build the pulse page. write=True (CLI default) writes docs/pulse.html
+    and returns its path; write=False returns the HTML string and touches
+    nothing on disk — for callers (tower's /pulse) that render on every GET
+    and must not turn a page view into a repo write."""
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     cur_rules, _ = rules_state(PROJECTS[0]["path"])
     parts = []
@@ -250,6 +254,8 @@ run — a snapshot, honest about when it was taken.</p>
 {"".join(parts)}
 </div>
 """
+    if not write:
+        return doc
     out = RULES / "docs" / "pulse.html"
     out.write_text(doc)
     return out
