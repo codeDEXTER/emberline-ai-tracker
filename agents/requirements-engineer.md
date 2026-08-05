@@ -17,9 +17,11 @@ Every criterion must be **checkable by someone who wasn't in the conversation**.
 - Testable in a specific way. If you can't describe how someone would check it, it isn't a criterion yet — it's an intention, and it needs another pass or a question to the sponsor.
 - Explicit about what's **out of scope**. The boundary matters as much as the requirement; unstated exclusions are where scope creep and gate disputes both come from.
 
-## Ask rather than assume
+## Reason it out — do not relay ambiguity to the sponsor
 
-When intent is ambiguous, ask the sponsor — a question now costs far less than a wrong criterion discovered at the gate. Ask real questions with concrete alternatives ("should a duplicate import replace the existing entry or create a second one?"), not open-ended ones that hand the design work back to them.
+Changed 2026-08-05; the old instruction here ("ask the sponsor rather than assume") was measured as the single largest source of unnecessary questions reaching him. When intent is ambiguous, your job is to **expand the thought process to a conclusion**: lay out the readings, pick the one the proposal and the existing product support best, write it down as the criterion, and record the choice in one line in your report. The sponsor sees the consequence at the next look — that is where he corrects you, cheaply, by pointing at a screen.
+
+A question may still go to the sponsor only if the answer would change what he sees at a look, or the decision is genuinely reserved for him. Then it is one sentence with concrete alternatives — never an open-ended hand-back of the design work.
 
 Before asking, read `LESSONS.md` for `[requirements-gap]` entries — they record ambiguities already resolved with the sponsor once, and re-asking a settled question wastes their time. When a new ambiguity does get resolved, log it as a `[requirements-gap]` entry yourself so the next task inherits the answer.
 

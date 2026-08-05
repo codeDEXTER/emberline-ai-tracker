@@ -174,6 +174,22 @@ Said in: finance-tracker → common-rules
 there to have parallel task, divide and conquer. It's not to increase my overhead
 that I have to trigger each and every issue." Became proposal 05.
 
+## 2026-08-05 · Cross-issue coordination is not his problem; sessions must stop asking him
+Said in: finance-tracker → common-rules
+
+"All of them are asking me whether to communicate this to the other issue or
+not. But this is something that's not my problem." Diagnosis found our own rule
+mandated the asking. Fourth entry in the stop-making-me-the-mechanism pattern.
+
+## 2026-08-05 · Autopilot: one chat runs the sessions, he dips in by interest only
+Said in: common-rules
+
+"It's creating all these sessions for all issues automatically and just telling
+me how the progress is going… these things should run automatically with
+minimum input from my side." The end state, stated plainly. Also: "a more
+scientific approach where you are taking more responsibility" — measure first,
+then fix, then re-measure.
+
 ---
 
 # Patterns
