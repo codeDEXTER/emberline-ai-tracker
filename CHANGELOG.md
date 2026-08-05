@@ -1,5 +1,54 @@
 # Changelog — common-rules
 
+## 2026-08-05 · The Tower opens from the Dock
+
+Issue #27, his Look-3 ask: "easier for me to track and restart". The one window
+he wanted always available was the most fragile thing on his screen — a browser
+tab pointed at a port that only existed while some session happened to be
+running it. `./build_towerapp.sh` now produces `Tower.app`.
+
+It is a wrapper bundle, not a frozen binary, same tradeoff as
+finance-tracker's `build_macapp.sh`: it launches `bin/tower` from this repo, so
+the app can never serve a stale screen sealed in at build time.
+
+**The window is Swift, not pywebview.** The precedent in `build_macapp.sh` is
+pywebview, but it is not installed here and the Tower is deliberately
+stdlib-Python with no dependencies (concept 07). A ~200-line AppKit + WKWebView
+shim compiled from source at build time adds a window without adding a
+dependency — the same compile-from-source, commit-no-binaries philosophy as
+finance-tracker's `docr.swift`.
+
+Each of the issue's guarantees lives in code rather than in a habit:
+
+- **Clean quit** — the shim spawns `bin/tower` as its own child and kills it in
+  `applicationWillTerminate`, plus on SIGINT/SIGTERM. There is no path where
+  the window closes and the server survives. Measured: quit leaves 0 processes
+  and releases the port.
+- **Exactly one copy** — it checks `NSRunningApplication` for its own bundle id
+  at startup and activates the existing window instead of starting a second
+  server. Holds even against `open -n`, which is the case macOS does not
+  handle for you.
+- **Loopback survives the wrapper** — `bin/tower` binds 127.0.0.1
+  unconditionally and takes no host flag; the shim passes only `--port`. The
+  wrapper cannot widen the bind by construction, not by policy. ATS is opened
+  with `NSAllowsLocalNetworking`, never `NSAllowsArbitraryLoads`.
+- **A free port, asked for not guessed** — it binds :0 and reads back what the
+  OS assigned, so opening the Dock app while a session runs a Tower on 8890
+  does not collide. Verified: they ran side by side, untouched.
+- **Its own icon** — `assets/icon-tower.svg`, a tower silhouette in the Tower
+  screen's own palette. Reserved for this app, not borrowed: Sangam's gold
+  confluence and this green tower are not confusable at Dock size. Rasterised
+  by `sips` (macOS 26 reads SVG directly), so no PNG is committed and no
+  third-party renderer is needed.
+
+`--install` is refused from a worktree. The bundle runs `bin/tower` from the
+repo it was built in, and a worktree disappears when its branch merges — which
+would leave a permanently broken app in `/Applications`. Build from the main
+checkout to install.
+
+Measured end to end: quit, click, and the window is showing current data in
+**2.5 seconds**. `bin/appcheck` reports 43 bundles, every identifier unique.
+
 ## 2026-08-05 · The Tower says how much of each app is done
 
 Issue #38, proposal 08 step 1b. The sponsor accepted this step explicitly
