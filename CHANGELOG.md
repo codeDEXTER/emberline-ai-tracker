@@ -8,6 +8,55 @@ is the thing to read first.
 
 ## 2026-08-05
 
+- **`bin/tower`, step 2 of concept 07** (issue #21) — the screen itself, not
+  just `pulse` behind a port. Four regions on one loopback page: a header
+  (rules version, per-project alignment chips, a live "THE WALL" count), a
+  live graph — one node per worktree of finance-tracker and pockets, grid
+  laid out, green/grey by session freshness from transcript mtimes, amber
+  when it holds an uncommitted file another worktree also holds (`whoelse`'s
+  logic, one dashed note per contested pair naming one file), dashed feature
+  hulls grouping nodes whose ahead-of-main commits name the same issue
+  (`git log main..HEAD --pretty=%s`, first `#<digits>` match — no invented
+  mapping, ungrouped stays ungrouped), a pipeline built from `gh issue list`
+  grouped like `pulse`'s feature groups (in flight / queued / merged today /
+  "at the wall — yours"), and an 8-row event ticker merging `git log` across
+  all three repos with one event per `AGENT-LOG.md` (its last `##` heading)
+  across every main checkout and worktree. Wall items are a heuristic — a
+  session's newest transcript tail containing `AskUserQuestion` and stale
+  over 5 minutes — and labelled as one on screen, per the concept's own
+  honesty rule about what a wall item can and can't prove. `/pulse` serves
+  the existing page from memory (`pulse.render(write=False)`, loaded via
+  `importlib.machinery.SourceFileLoader`) — a GET writes nothing, `pulse`'s
+  CLI behaviour is unchanged. Every region collects independently and
+  renders an "unavailable" note in its own place on failure — no region can
+  500 the page. Loopback only, same rule as `pulse --serve`: this reads
+  private transcripts. Self-registers with `apprun` as a `--demo` proto copy
+  when run inside an agent session (`CLAUDE_CODE_SESSION_ID` set), and
+  deregisters on shutdown; a plain-terminal run says registration was
+  skipped, since apprun refuses an ownerless entry by design. Message edges
+  and click-through (step 3) stay out of scope, as the issue says.
+
+  Two real bugs surfaced against live data, both fixed in the same pass that
+  found them. First: `run()`'s `.strip()` (copied from `pulse`'s helper)
+  strips the whole `git status --porcelain` blob rather than each line,
+  eating the leading space off a `" M file"` line and truncating the
+  filename by one character — `AGENT-LOG.md` rendered as `GENT-LOG.md`.
+  `whoelse`'s own `git()` helper already avoids this with `rstrip("\n")`
+  only; `touched_files()` here does the same instead of calling the shared
+  `.strip()`-based `run()`. Second, found writing the apprun
+  self-registration: the SIGTERM handler was reentrant. `apprun stop`'s
+  `terminate()` sends this exact pid a redundant self-targeted SIGTERM as
+  its first move, which re-entered the handler *while still blocked inside
+  the first call*, spawning a second `apprun stop`, which sent a third
+  SIGTERM, recursing without bound — confirmed as an unbounded nested
+  subprocess spawn via a 164KB traceback that never let the registry write
+  land. Fixed by ignoring SIGTERM the moment shutdown starts
+  (`signal.signal(SIGTERM, SIG_IGN)` before the blocking call); apprun's own
+  8s SIGTERM-then-SIGKILL timeout still ends the process deterministically,
+  since SIGKILL can't be ignored — shutdown is correct but takes that long,
+  an artifact of reusing `apprun stop`'s kill-and-close semantics for a
+  process closing its own entry, not a defect at this call site.
+
 - **The Tower** (concept 07, accepted same day — all three steps). His ask: "a
   live app that's feeding off of these sessions and showing me how the autopilot
   is handling things." Concept drawn with the day's real sessions: a live graph
