@@ -1,5 +1,20 @@
 # Changelog — common-rules
 
+## 2026-08-05 · appcheck looks at LaunchServices, not just the disk
+
+The user still saw several Sangam copies after every duplicate bundle had been
+removed, while `appcheck` reported "every identifier unique". Both were true:
+only one bundle existed on disk, and LaunchServices still listed six, pointing
+at worktrees deleted days earlier. Removing a bundle does not unregister it, so
+the entries survive in Spotlight and Launchpad -- which is where a person
+actually experiences "two copies".
+
+The tool was checking the thing that was fine and not the thing he was looking
+at. It now reports GHOST registrations too, scoped to the roots being checked
+so another app's leftovers (Spotify's updater cache) don't bury the real ones,
+and `--clear-ghosts` unregisters them one at a time rather than forcing a full
+`lsregister -kill -r` rebuild of the whole database.
+
 ## 2026-08-05 · Install from main at the end of every feature
 
 The user's rule, and it reverses an earlier one: `build_macapp.sh --install`
