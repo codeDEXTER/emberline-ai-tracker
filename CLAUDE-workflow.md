@@ -270,7 +270,7 @@ closing needs the user's explicit approval regardless.
 
 ## The user owns features. The AI owns issues.
 
-Added 2026-08-04 (proposal 05, accepted same day). **This narrows every rule in
+Added 2026-08-05 (proposal 05, accepted same day). **This narrows every rule in
 the Issue lifecycle section below from issues to features.** Read this first;
 the section that follows applies to *features*, not to the issues a feature is
 decomposed into.
@@ -327,7 +327,7 @@ it feels like faster delivery.
 
 ## Issue lifecycle — the user decides, at the feature level
 
-Added 2026-08-02, working model made explicit. **Amended 2026-08-04**: every
+Added 2026-08-02, working model made explicit. **Amended 2026-08-05**: every
 "issue" below now means **feature**. The AI creates, sequences and closes the
 issues a feature decomposes into; it never decides what feature gets built or
 declares one finished. The user is a project
