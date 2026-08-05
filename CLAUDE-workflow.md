@@ -196,8 +196,18 @@ message arrives there as a labelled turn with a link back, so the user sees both
 sides. State what this task needs, what overlaps, and ask them to commit or hand
 over.
 
-**Draft the message and get the user's yes before sending it.** It arrives in
-their name in another conversation; they should know what was said.
+**Corrected 2026-08-05.** This paragraph used to require the user's yes before
+any cross-session message. That predates "the user owns features, the AI owns
+issues", contradicts it, and produced the exact overhead it was meant to
+prevent: measured across five finance-tracker sessions, **52 questions to the
+user**, most of them "may I coordinate with the other issue?" — his answer:
+"this is something that's not my problem."
+
+So: **coordination between sessions working the same feature is the AI's
+business.** Send the message, log it in `AGENT-LOG.md` (both sides), and get on
+with it. The user is told in the next progress digest, not asked in advance.
+The only cross-session messages that still need his yes first are ones that
+change what he will see at a look, or that touch something reserved for him.
 
 ### Commit, or it doesn't exist
 
@@ -267,6 +277,54 @@ pass. The mirror is one-way: an issue closing on GitHub doesn't un-do a
 checklist item — check it off in the checklist first (that's still the
 record), close the issue to match. See the Issue lifecycle section below:
 closing needs the user's explicit approval regardless.
+
+## A question to the user is a cost, not a safety move
+
+Added 2026-08-05, from measurement. Five finance-tracker sessions asked the user
+**52 questions**; one asked 29. Reading them, most were not questions at all —
+they were the AI handing its own decisions back, because no rule ever priced a
+question and several rules mandated one. Wrong actions had consequences;
+unnecessary questions had none. Sessions over-asked *rationally*. The user's
+verdict: "these things should run automatically with minimum input from my
+side."
+
+**Before asking the user anything, apply one test:** *would his answer change
+what he sees at a look, or is this decision reserved for him* (features, merges,
+promotions, orphan cleanup, these rules)? **If neither: decide it, record the
+decision in one line in `AGENT-LOG.md`, and proceed.** A recorded decision he
+disagrees with later becomes an issue — that is the deal, and it is cheaper than
+being the answer machine for every session.
+
+This applies with full force to requirements ambiguity. "What does
+near-identical mean?" is the requirements engineer's job to *reason to a
+conclusion*, not to relay. The "ask the sponsor rather than assume" instruction
+is retired — it was right when every criterion went to the user anyway, and it
+is the single largest source of the 52.
+
+**Unnecessary questions are counted.** The quality manager, as part of the gate
+it already runs, counts questions the task put to the user and flags any whose
+answer changed nothing he sees — same mechanism as recurring lessons, same
+consequence: three across tasks means an agent's *instructions* are wrong, and
+that is a finding. This is the incentive half; the test above is the rule half.
+Neither works alone.
+
+## Autopilot — the operating mode this all adds up to
+
+Added 2026-08-05. The user described the end state plainly: one management
+session per project runs the work — spawns issue sessions, coordinates them,
+unblocks them, merges what passes the gate — and he watches **progress digests,
+not questions.** He picks up an issue by hand only when it interests him, and
+the system must never depend on him doing so.
+
+What that requires is nothing new — it is the rules above actually composed:
+the AI owns issues; coordination messages flow without approval; questions pass
+the cost test; the gate recommends and the digest reports. The management
+session's report to the user is **what happened and what's next**, with the
+things reserved for him (a look, a feature decision, a merge) clearly separated
+from the things merely narrated.
+
+A digest that ends with zero questions is the normal, successful case — not a
+sign nothing needed deciding, but a sign the deciding was done and recorded.
 
 ## The user owns features. The AI owns issues.
 
