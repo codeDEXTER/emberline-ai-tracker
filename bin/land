@@ -116,11 +116,27 @@ land_one() {
               2>/dev/null || gh pr view "$branch" --json url -q .url 2>/dev/null)
         if [ -n "${url:-}" ]; then
             say "  PR: $url"
-            if gh pr merge "$url" --squash --delete-branch 2>/dev/null; then
+            # Branch deletion is NOT part of "did it merge". `gh pr merge
+            # --delete-branch` exits non-zero when a worktree still holds the
+            # branch -- which is the normal case here, since every task runs in
+            # one. Coupling the two made land report "merge blocked" on a PR
+            # that had merged seconds earlier: a false negative that tells a
+            # session to retry or escalate work that is already done.
+            gh pr merge "$url" --squash >/dev/null 2>&1 || true
+
+            # Ask the remote what actually happened, rather than trusting an
+            # exit code that conflates merging with cleanup.
+            local state
+            state=$(gh pr view "$url" --json state -q .state 2>/dev/null || echo "")
+            if [ "$state" = "MERGED" ]; then
                 say "  LANDED"
+                # Best-effort tidy-up; a branch held by a worktree stays, and
+                # that is fine -- it is deleted when the worktree is removed.
+                gh api -X DELETE "repos/{owner}/{repo}/git/refs/heads/$branch" >/dev/null 2>&1 || true
                 return 0
             fi
-            say "  PR open, merge blocked -- protected branch or a check is pending"
+            say "  PR open, not merged (state: ${state:-unknown}) -- protected"
+            say "  branch, a required check, or a review is pending"
             return 0
         fi
     fi
