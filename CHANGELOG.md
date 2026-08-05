@@ -41,6 +41,28 @@ is the thing to read first.
   never as an invented issue chip; QUEUED is open issues minus the mapped
   in-flight set.
 
+- **Worktree-per-task applies to common-rules too — the old rule said the
+  opposite and was wrong.** It read "No worktree needed for this repo… four
+  markdown files and a directory of agent definitions have no build and no test
+  suite to collide over. A branch is enough." The reasoning mistook *what*
+  worktrees protect: not a build, a **working directory**. A branch is a label;
+  the checkout is the shared thing, and `git checkout` moves it under everyone
+  standing in it.
+
+  Disproven the same day, by this session: the project manager ran
+  `git checkout -b` here while a code engineer was mid-edit on another branch in
+  the same checkout, silently re-attributing its uncommitted work. The engineer
+  recovered — stopped, verified nothing was corrupted, stashed, switched back,
+  popped, re-verified — but it recovered **by noticing**, which is not a
+  mechanism, and git warned neither party. Worth recording that the session which
+  wrote proposal 02 committed the exact collision proposal 02 exists to prevent,
+  in the one repo it had exempted.
+
+  The folder is also no longer "four markdown files": four executables, a docs
+  tree, and routinely two or more sessions at once. `EnterWorktree` first, here
+  as everywhere; read-only exploration stays exempt, because reading cannot move
+  anyone's checkout.
+
 - **`bin/tower`, step 2 of concept 07** (issue #21) — the screen itself, not
   just `pulse` behind a port. Four regions on one loopback page: a header
   (rules version, per-project alignment chips, a live "THE WALL" count), a
