@@ -113,11 +113,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         proc.executableURL = URL(fileURLWithPath: python)
         proc.arguments = [tower, "--port", String(port)]
         proc.currentDirectoryURL = URL(fileURLWithPath: repo)
-        // The child inherits no CLAUDE_CODE_SESSION_ID, so bin/tower skips
-        // apprun registration by its own rule (apprun refuses ownerless
-        // entries). That is correct: this server belongs to a Dock app, not to
-        // an agent session, and registering it would create an entry no session
-        // owns — the exact "orphan" apprun exists to surface.
+        // Whether this child registers with apprun depends on how the app was
+        // launched, and both outcomes are the right one:
+        //
+        //   * Double-clicked from the Dock — the normal case — there is no
+        //     CLAUDE_CODE_SESSION_ID in the environment, so bin/tower skips
+        //     registration by its own rule (apprun refuses ownerless entries).
+        //     Correct: this server belongs to a Dock app, and an entry no
+        //     session owns is the exact "orphan" apprun exists to surface.
+        //
+        //   * Launched from an agent session's shell (`open -a Tower` inside a
+        //     task), macOS propagates that shell's environment to the app, the
+        //     session id comes with it, and the server registers owned by that
+        //     session. Also correct — that session stops what it started, and
+        //     the entry deregisters on quit.
+        //
+        // An earlier version of this comment claimed the first case
+        // unconditionally. It was wrong, and wrong in the direction that
+        // matters: the first real install was launched from a session shell,
+        // registered under it, and would have looked like an orphan once that
+        // session ended. Measured both ways on 2026-08-06 rather than reasoned
+        // about — `ps eww` on the child, and apprun list before and after quit.
         let log = FileHandle(forWritingAtPath: ("~/Library/Logs/Tower.log" as NSString).expandingTildeInPath)
         if let log = log {
             log.seekToEndOfFile()
