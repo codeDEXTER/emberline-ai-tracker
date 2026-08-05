@@ -238,8 +238,9 @@ and L2 escalation prose. LOOK 3 is the demo before close, which today does not e
     <p><b>This supersedes a decision you took earlier today</b> (proposal 01: "buttons appear even
     when there is nothing to decide yet, option 'noted' if need be"). That rule was right about
     ambiguity and wrong about volume — it is part of what produced the pockets experience of being
-    asked about "some random proposal two three one two". A look with nothing to decide ends by
-    saying so, in one line, with no prompt.</p>
+    asked about "some random proposal two three one two". Your words on review: <em>"if there is
+    nothing to say, then don't show me a button. Just do it."</em> So: no prompt, no confirmation,
+    no "noted" — the work proceeds and the session states plainly what it did.</p>
   </div>
 </div>
 </section>
@@ -268,6 +269,70 @@ and L2 escalation prose. LOOK 3 is the demo before close, which today does not e
       <td>Unchanged — the lifecycle rules stand</td></tr>
 </table>
 </div>
+</section>
+
+<section>
+<div class="eyebrow"><span>Two agents or one?</span><span class="tag">asked on review · recommendation: keep two, re-justify the split</span></div>
+
+<p><b>The case for merging is real.</b> <code>requirements-engineer</code> and
+<code>design-engineer</code> have <b>identical tool grants</b> — <code>Read, Write, Grep,
+Glob</code> — so unlike every other boundary in this system, the split enforces nothing
+structurally. It also creates a loop that exists only because of it (design finds undefined
+behaviour, back to requirements), and this file's own research note says full-ceremony pipelines
+reduced correctness for most models tested.</p>
+
+<p><b>Keep two anyway</b>, because the current justification is weak and yours is not. The rules
+justify the split as a handoff of artifacts — "requirements says what must be true, design makes
+it buildable." Your framing is sharper: <strong>it is a split between thinking and rendering.</strong>
+One agent expands the reasoning; the other acts on it without redoing it.</p>
+
+<div class="verdict bad">
+  <b>The failure that earns the split</b>
+  <p><strong>Requirements written after a design are not requirements — they are a caption.</strong>
+  One agent handed both jobs will draw first and back-fill criteria describing what it drew, and
+  then the gate is checking the work against a description of itself. Two agents make that
+  impossible: the criteria exist before anything is drawn, so they can actually constrain it.</p>
+</div>
+
+<p class="note">This is a <em>different</em> argument from the one justifying the
+explorer/engineer split, which is about conflicting instincts — exploration wants provocation,
+specification wants consistency, and one prompt holding both goes timid. Requirements and design
+are not conflicting instincts; they are sequential ones. Both splits are right, for unrelated
+reasons, and the rules should say so rather than implying one pattern.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>What this changes in the agent definitions</span><span class="tag">where D1 actually bites</span></div>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Agent</th><th>Says today</th><th>Must say</th></tr>
+  <tr><td class="k">requirements-engineer</td>
+      <td>"Ask the sponsor rather than assume — a question now costs far less than a wrong
+      criterion discovered at the gate."</td>
+      <td><b>Reason it out.</b> Expand the thinking to a conclusion and record it. Surface it only
+      if the answer would change what he sees at a look.</td></tr>
+  <tr><td class="k">design-engineer</td>
+      <td>"Never decide functional requirements… flag it rather than inventing it. That routes
+      back through the requirements engineer to the sponsor."</td>
+      <td>Routes back to the <b>requirements engineer</b>, full stop. Not onward to the sponsor —
+      that is the chain that made every ambiguity his problem.</td></tr>
+  <tr><td class="k">design-engineer</td>
+      <td>Produces a spec</td>
+      <td>Produces <b>LOOK 2</b>: the spec, with modifications marked against what exists today,
+      and every requirement bound to where it lands.</td></tr>
+  <tr><td class="k">design-explorer</td>
+      <td>Concepts, early</td>
+      <td>Produces <b>LOOK 1</b>: how things would be modified, drawn on the screens it touches.</td></tr>
+  <tr><td class="k">proposal-auditor</td>
+      <td>Every divergence escalates by class</td>
+      <td>Only divergences that <b>change a look</b> escalate. The rest are recorded under D2.</td></tr>
+</table>
+</div>
+
+<p class="note">The requirements engineer's "ask rather than assume" line is the single biggest
+source of the behaviour you are objecting to. It is not a drafting slip — it was deliberate, and
+it was right before D1. It is wrong now.</p>
 </section>
 
 <section>
