@@ -1475,10 +1475,32 @@ the one approval gate this whole structure is built around; "convenient" and
 offering**, or "merge it" becomes a rubber stamp on something unread, which is
 the same failure as an implementer signing off its own work.
 
-**No worktree needed** for this repo, unlike the projects. Worktrees exist
+**Worktree-per-task applies here too. Corrected 2026-08-05 — this rule used to
+say the opposite, and it was wrong.**
+
+It read: *"No worktree needed for this repo, unlike the projects. Worktrees exist
 so parallel sessions don't collide over a build; four markdown files and a
-directory of agent definitions have no build and no test suite to collide
-over. A branch is enough.
+directory of agent definitions have no build and no test suite to collide over.
+A branch is enough."*
+
+The reasoning was wrong about **what** worktrees protect. They do not protect a
+build — they protect a **working directory**. A branch is a label; the checkout
+is the shared thing, and `git checkout` in a shared checkout moves it under
+everyone standing in it, build or no build.
+
+**How it was disproven**, on the day this was written: the project-manager session
+ran `git checkout -b` here while a code engineer was mid-edit on another branch
+in the same checkout. The engineer's uncommitted work was silently re-attributed
+to the wrong branch. It recovered — stopped, verified nothing was corrupted,
+stashed, switched back, popped, re-verified — but it recovered by noticing, which
+is not a mechanism. Nothing in git warned either party.
+
+This folder is also no longer "four markdown files": it holds four executables
+and a docs tree, and it now routinely has two or more sessions working it at once.
+
+So: **`EnterWorktree` first, here as everywhere.** The single exception is
+unchanged and unchanged for a reason — read-only exploration needs no worktree,
+because reading cannot move anyone's checkout.
 
 **Know what the PR does and does not gate.** `~/.claude/agents` is a
 symlink into `agents/` here, so **editing an agent definition changes the
