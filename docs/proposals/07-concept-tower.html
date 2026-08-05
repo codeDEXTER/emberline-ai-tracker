@@ -1,0 +1,300 @@
+<title>common-rules · The Tower — a live window on the autopilot — Concept</title>
+<meta name="proposal-id" content="07">
+<meta name="proposal-topic" content="tower-live-view">
+<meta name="proposal-type" content="design-concept">
+<meta name="proposal-status" content="accepted">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
+    --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E;
+    --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; --screen:#0B0E13; --scrink:#DFE3EA;
+    --scrdim:#7C8594; --scrline:#222B38;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0; --border:#26303C;
+            --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81; --warn:#D2A05A;
+            --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660;
+            --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B;
+            --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1030px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:34px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  h3 { font-size:17px; font-weight:640; margin:26px 0 4px; letter-spacing:-.01em; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:66ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  section > p { max-width:70ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:72ch; }
+  code, .mono { font-family:var(--mono); font-size:12.6px; }
+  a { color:var(--accent); }
+  .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+          padding:3px 9px; border-radius:4px; background:var(--warn); color:var(--chip-ink); }
+
+  .tablewrap { overflow-x:auto; margin-top:18px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:640px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.1px; white-space:nowrap; }
+  .lab { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+         display:inline-block; padding:2px 7px; border-radius:4px; white-space:nowrap; color:var(--chip-ink); }
+  .lab.ok { background:var(--gain); } .lab.mid { background:var(--warn); } .lab.no { background:var(--loss); }
+
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:22px 0; max-width:74ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.warn { border-left-color:var(--warn); }
+  .verdict.good { border-left-color:var(--gain); }
+  .verdict p:last-child { margin-bottom:0; }
+
+  .mock { margin-top:22px; overflow-x:auto; border-radius:14px; }
+  .mock svg { width:100%; min-width:760px; height:auto; display:block; }
+  ul { max-width:72ch; } li { margin-bottom:7px; }
+  .steps { display:grid; gap:14px; margin-top:20px; }
+  .st { background:var(--surface); border:1px solid var(--border); border-radius:10px;
+        padding:15px 18px; }
+  .st b { font-size:15px; } .st p { margin:5px 0 0; color:var(--dim); font-size:13.7px; max-width:68ch; }
+  @media (max-width:640px){ .page{padding:34px 18px 60px;} h1{font-size:27px;} }
+</style>
+
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · Proposal 07 · design concept</span>
+  <span><span class="chip" style="background:var(--gain)">accepted</span> &nbsp; 2026-08-05 · rules 71</span>
+</div>
+
+<h1>The Tower — a live window on the autopilot</h1>
+
+<p class="standfirst">Your ask: a running app showing all the sessions, how they talk to each
+other, where the blocking points are, which tickets are in the pipeline — live, fed by the
+sessions themselves. The autopilot flies; you sit in the tower. This is the concept, with the
+screen drawn, the data sources verified, and a build path with honest costs.</p>
+
+<section>
+<div class="eyebrow"><span>The screen</span><span class="tag">one window, four regions — drawn with today's real data</span></div>
+
+<div class="mock">
+<svg viewBox="0 0 1060 700" role="img" aria-label="Tower concept screen">
+  <style>
+    .scr { fill:var(--screen); }
+    .pane { fill:none; stroke:var(--scrline); stroke-width:1.2; }
+    .ht { font-family:var(--mono); font-size:11px; fill:var(--scrdim); letter-spacing:.12em; font-weight:700; }
+    .tt { font-family:var(--sans); font-size:12.5px; fill:var(--scrink); font-weight:600; }
+    .sub { font-family:var(--mono); font-size:9px; fill:var(--scrdim); letter-spacing:.03em; }
+    .tick { font-family:var(--mono); font-size:10.5px; fill:var(--scrdim); }
+    
+    .node { fill:#141B26; stroke:#5FA985; stroke-width:1.6; }
+    .node.idle { stroke:#39434F; }
+    .node.block { stroke:#D2A05A; }
+    .ring { fill:none; stroke:#5FA985; stroke-width:1.2; opacity:.5; }
+    .hull { fill:none; stroke:#39434F; stroke-width:1.2; stroke-dasharray:4 5; }
+    .edge { fill:none; stroke:#5FA985; stroke-width:1.5; stroke-dasharray:5 4; }
+    .edge.q { stroke:#D2A05A; }
+    .edge.you { stroke:#A98FD6; }
+    .wall { stroke:#A98FD6; stroke-width:1.6; stroke-dasharray:5 6; }
+    .chipq { fill:#1A2230; stroke:#39434F; stroke-width:1; }
+    .chipf { stroke:#5FA985; }
+    .chipg { stroke:#D2A05A; }
+    .chipd { stroke:#39434F; }
+    .ct { font-family:var(--mono); font-size:10px; fill:var(--scrink); }
+    .ctd { font-family:var(--mono); font-size:10px; fill:var(--scrdim); }
+    .pulse { animation:pw 2.2s ease-out infinite; transform-origin:center; }
+    @keyframes pw { 0%{opacity:.6} 70%{opacity:0} 100%{opacity:0} }
+  </style>
+
+  <rect class="scr" x="0" y="0" width="1060" height="700" rx="16"/>
+
+  <!-- header -->
+  <text class="ht" x="28" y="38">TOWER · APPS AUTOPILOT</text>
+  <text class="sub" x="28" y="54">live · updates every 5s</text>
+  <text class="tick" x="700" y="38"><tspan fill="#5FA985">●</tspan> rules 71 · finance-tracker aligned</text>
+  <text class="tick" x="700" y="56"><tspan fill="#A98FD6">THE WALL</tspan> · 2 items waiting on you · 0 questions today</text>
+  <line class="pane" x1="20" y1="72" x2="1040" y2="72"/>
+
+  <!-- left: live graph -->
+  <text class="ht" x="28" y="100">LIVE GRAPH · SESSIONS &amp; MESSAGES</text>
+  <line class="wall" x1="60" y1="120" x2="60" y2="480"/>
+  <text class="sub" x="34" y="500" fill="#A98FD6">YOU</text>
+
+  <!-- feature hull: desktop clerk -->
+  <rect class="hull" x="150" y="130" width="330" height="220" rx="16"/>
+  <text class="sub" x="166" y="150">FEATURE · DESKTOP CLERK · 3 TICKETS</text>
+
+  <circle class="ring pulse" cx="240" cy="215" r="34"/>
+  <circle class="node" cx="240" cy="215" r="26"/>
+  <text class="tt" x="240" y="212" text-anchor="middle">#41</text>
+  <text class="sub" x="240" y="226" text-anchor="middle">rail+ask</text>
+  <text class="sub" x="240" y="262" text-anchor="middle">adoring-euler · now</text>
+
+  <circle class="node" cx="392" cy="215" r="26"/>
+  <text class="tt" x="392" y="212" text-anchor="middle">#32</text>
+  <text class="sub" x="392" y="226" text-anchor="middle">dedup</text>
+  <text class="sub" x="392" y="262" text-anchor="middle">zealous · 4m</text>
+
+  <path class="edge" d="M268,205 C300,190 330,190 364,205"/>
+  <text class="sub" x="316" y="184" text-anchor="middle" fill="#5FA985">handover · 3m</text>
+
+  <!-- other sessions -->
+  <circle class="ring pulse" cx="590" cy="170" r="34"/>
+  <circle class="node" cx="590" cy="170" r="26"/>
+  <text class="tt" x="590" y="167" text-anchor="middle">#37</text>
+  <text class="sub" x="590" y="181" text-anchor="middle">feed</text>
+  <text class="sub" x="590" y="216" text-anchor="middle">dazzling · now</text>
+
+  <circle class="node block" cx="590" cy="300" r="26"/>
+  <text class="tt" x="590" y="297" text-anchor="middle">#35</text>
+  <text class="sub" x="590" y="311" text-anchor="middle">accounts</text>
+  <text class="sub" x="590" y="346" text-anchor="middle">elastic · at the gate</text>
+
+  <circle class="node idle" cx="240" cy="420" r="26"/>
+  <text class="tt" x="240" y="417" text-anchor="middle">#36</text>
+  <text class="sub" x="240" y="431" text-anchor="middle">contracts</text>
+  <text class="sub" x="240" y="466" text-anchor="middle">happy-benz · 3m</text>
+
+  <circle class="node idle" cx="420" cy="420" r="26"/>
+  <text class="tt" x="420" y="417" text-anchor="middle">#29</text>
+  <text class="sub" x="420" y="431" text-anchor="middle">worklist</text>
+  <text class="sub" x="420" y="466" text-anchor="middle">festive · 10m</text>
+
+  <!-- contested-surface holding pattern -->
+  <path class="edge q" d="M446,408 C500,380 540,340 566,316"/>
+  <text class="sub" x="522" y="378" fill="#D2A05A">ledger.py · queued behind #35</text>
+
+  <!-- waiting on you -->
+  <path class="edge you" d="M214,203 C140,195 100,220 66,250"/>
+  <text class="sub" x="84" y="238" fill="#A98FD6">LOOK 2 waiting · 41m</text>
+  <path class="edge you" d="M564,310 C300,390 140,360 66,330"/>
+  <text class="sub" x="150" y="376" fill="#A98FD6">merge decision · gate passed</text>
+
+  <!-- right: pipeline -->
+  <line class="pane" x1="680" y1="86" x2="680" y2="520"/>
+  <text class="ht" x="700" y="100">PIPELINE</text>
+
+  <text class="sub" x="700" y="128">QUEUED · PER SURFACE</text>
+  <rect class="chipq chipd" x="700" y="138" width="92" height="24" rx="6"/><text class="ct" x="710" y="154">#33 keys</text>
+  <rect class="chipq chipd" x="800" y="138" width="92" height="24" rx="6"/><text class="ct" x="810" y="154">#38 registry</text>
+  <rect class="chipq chipd" x="900" y="138" width="112" height="24" rx="6"/><text class="ct" x="910" y="154">#27 dossier</text>
+
+  <text class="sub" x="700" y="196">IN FLIGHT · 4</text>
+  <rect class="chipq chipf" x="700" y="206" width="92" height="24" rx="6"/><text class="ct" x="710" y="222">#41 rail+ask</text>
+  <rect class="chipq chipf" x="800" y="206" width="92" height="24" rx="6"/><text class="ct" x="810" y="222">#37 feed</text>
+  <rect class="chipq chipf" x="900" y="206" width="112" height="24" rx="6"/><text class="ct" x="910" y="222">#36 contracts</text>
+  <rect class="chipq chipf" x="700" y="238" width="92" height="24" rx="6"/><text class="ct" x="710" y="254">#32 dedup</text>
+
+  <text class="sub" x="700" y="296">AT THE GATE · 1</text>
+  <rect class="chipq chipg" x="700" y="306" width="132" height="24" rx="6"/><text class="ct" x="710" y="322">#35 · recommends merge</text>
+
+  <text class="sub" x="700" y="364">MERGED TODAY · 2</text>
+  <rect class="chipq chipd" x="700" y="374" width="150" height="24" rx="6"/><text class="ctd" x="710" y="390">#30 + #31 → #41</text>
+
+  <text class="sub" x="700" y="432">AT THE WALL · YOURS</text>
+  <rect class="chipq" x="700" y="442" width="150" height="24" rx="6" stroke="#A98FD6"/><text class="ct" x="710" y="458">LOOK 2 · #41 design</text>
+  <rect class="chipq" x="860" y="442" width="150" height="24" rx="6" stroke="#A98FD6"/><text class="ct" x="870" y="458">merge · #35</text>
+
+  <!-- bottom: ticker -->
+  <line class="pane" x1="20" y1="520" x2="1040" y2="520"/>
+  <text class="ht" x="28" y="546">EVENT TICKER</text>
+  <text class="tick" x="28" y="574">15:57 &#160; <tspan fill="#DFE3EA" font-weight="700">dazzling</tspan> committed 3 → feed branch · tests green</text>
+  <text class="tick" x="28" y="596">15:54 &#160; <tspan fill="#DFE3EA" font-weight="700">adoring → zealous</tspan> · handover logged: fingerprint check moves with #41's compose panel</text>
+  <text class="tick" x="28" y="618">15:51 &#160; <tspan fill="#DFE3EA" font-weight="700">gate</tspan> passed #35 · recommends merge · 0 questions asked</text>
+  <text class="tick" x="28" y="640">15:44 &#160; <tspan fill="#DFE3EA" font-weight="700">#30 + #31</tspan> closed into <tspan fill="#DFE3EA" font-weight="700">#41</tspan> · decided by session, recorded</text>
+  <text class="tick" x="28" y="662">15:38 &#160; <tspan fill="#DFE3EA" font-weight="700">happy-benz</tspan> resolved requirement gap itself · logged in AGENT-LOG</text>
+</svg>
+</div>
+
+<ul>
+  <li><b>Live graph (left).</b> Every session is a node — <span style="color:var(--gain)">pulsing
+  when active this minute</span>, amber when blocked, grey when idle. Feature hulls group the
+  tickets of one feature. <b>Green dashed edges are real messages between sessions</b> — verified
+  observable in transcripts today. Amber edges are holding patterns: a contested surface, queued
+  behind whoever holds it. <b>Purple edges run to the wall</b> — the only things waiting on you,
+  with how long they've waited.</li>
+  <li><b>Pipeline (right).</b> Tickets by state: queued per surface, in flight, at the gate,
+  merged today — and a separate <b>"at the wall"</b> row that is exactly your to-do list and
+  nothing else's.</li>
+  <li><b>The ticker (bottom).</b> The digest, live: commits, handovers, gate verdicts, decisions
+  taken-and-recorded. Reading it for a minute answers "how is the autopilot handling things."</li>
+  <li><b>The header.</b> Rules version and alignment, plus the day's wall count — the autonomy
+  metric, permanently on screen.</li>
+</ul>
+</section>
+
+<section>
+<div class="eyebrow"><span>What feeds it</span><span class="tag">verified against ground truth, not hoped</span></div>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Signal on screen</th><th>Source</th><th>Today</th></tr>
+  <tr><td>Session nodes + activity pulse</td><td class="k">~/.agent-data/projects transcript mtimes</td><td><span class="lab ok">exists — pulse uses it</span></td></tr>
+  <tr><td>Message edges between sessions</td><td class="k">"From {session}" turns in transcripts</td><td><span class="lab ok">verified observable</span></td></tr>
+  <tr><td>Holding patterns (contested surfaces)</td><td class="k">whoelse logic</td><td><span class="lab ok">exists</span></td></tr>
+  <tr><td>Waiting-on-you items + age</td><td class="k">pending question at a transcript's tail</td><td><span class="lab mid">derivable — needs a parser</span></td></tr>
+  <tr><td>Pipeline columns</td><td class="k">gh issues + worktree ahead/dirty + gate reports</td><td><span class="lab ok">mostly pulse already</span></td></tr>
+  <tr><td>Ticker events</td><td class="k">git log + AGENT-LOG.md appends + issue events</td><td><span class="lab mid">derivable — needs a watcher</span></td></tr>
+  <tr><td>Live push to the browser</td><td class="k">small local server, SSE, poll every 5s</td><td><span class="lab no">to build</span></td></tr>
+</table>
+</div>
+
+<div class="verdict good">
+  <b>Why this is smaller than it looks</b>
+  <p>Every hard question is already answered by an existing tool — Tower is <code>pulse</code> +
+  <code>whoelse</code> + <code>apprun</code> with a watcher loop and a browser push. Stdlib
+  Python, no dependencies, one process. It registers itself through <code>apprun</code> like any
+  other running app, gets a port and a badge, and obeys leave-nothing-running. The autopilot's
+  window is itself flown by the autopilot's rules.</p>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>Build path</span><span class="tag">three steps, each usable on its own</span></div>
+
+<div class="steps">
+  <div class="st"><b>Step 1 — pulse, but live.</b>
+    <p><code>pulse --serve</code>: the existing page, re-rendered every 10 seconds behind a local
+    port, auto-refreshing. An afternoon of work; you get "live" immediately while the real screen
+    is built.</p></div>
+  <div class="st"><b>Step 2 — the Tower screen.</b>
+    <p>The window above, minus message edges: graph from transcript freshness, pipeline from
+    issues + worktrees, ticker from git log and AGENT-LOG appends, wall items from pending
+    questions. This is the version that answers your ask.</p></div>
+  <div class="st"><b>Step 3 — the conversation layer.</b>
+    <p>Message edges parsed from transcripts, handover provenance ("who gave what to whom, when"),
+    and click-through: click a node, read that session's last digest; click a wall item, land in
+    the conversation that's waiting.</p></div>
+</div>
+
+<div class="verdict warn">
+  <b>Honest limits</b>
+  <p>It reads transcripts, which are private session logs — the Tower must stay a local app,
+  never published as an artifact with real transcript content. Polling means "live within ~5
+  seconds", not streaming. And a wall item only disappears when you actually answer in that
+  session — the Tower shows the queue; it cannot clear it.</p>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>Decided</span><span class="tag">2026-08-05 · the-sponsor</span></div>
+<p><b>Accepted — all three steps.</b> Step 1 (<code>pulse --serve</code>) built the same hour;
+steps 2 and 3 cut as vertical issues for the autopilot, sequenced behind it. Look 3 for the
+feature is the Tower itself running.</p>
+</section>
+
+</div>

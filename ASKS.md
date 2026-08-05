@@ -206,6 +206,14 @@ Said right after the Lab's first run produced Pip. The Lab's intake model was
 management sessions generally) should hunt for idea seeds proactively and keep
 a shelf he can pick from.
 
+## 2026-08-05 · A live app showing sessions, their communication, blocks, and the pipeline
+Said in: common-rules
+
+"a live app that's feeding off of these sessions and showing me how the
+autopilot is handling things." Fifth entry in the state-visible-at-a-glance
+pattern — and the first asking for *live* rather than on-demand. Became
+concept 07, the Tower.
+
 ---
 
 # Patterns
