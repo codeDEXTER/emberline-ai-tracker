@@ -20,6 +20,7 @@ import datetime
 import html
 import json
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -27,13 +28,10 @@ from pathlib import Path
 RULES = Path(__file__).resolve().parent.parent
 GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
                         "/usr/bin/git") if Path(g).exists()), "git")
-PROJECTS = [
-    {"name": "finance-tracker", "path": "/Users/the-sponsor/apps/finance-tracker",
-     "repo": "github-owner/ai-sangam"},
-    {"name": "pockets", "path": "/Users/the-sponsor/apps/pockets", "repo": None},
-]
+APPS = Path("/Users/the-sponsor/apps")
 TRANSCRIPTS = Path.home() / ".claude" / "projects"
 REGISTRY = Path.home() / ".claude" / "app-runs.jsonl"
+PROJECT_TTL = 60
 
 
 def run(cmd, cwd=None):
@@ -54,6 +52,49 @@ def ago(ts):
     h = m // 60
     if h < 48: return f"{h}h ago"
     return f"{h // 24}d ago"
+
+
+_projects_cache = {"ts": 0.0, "rows": None}
+
+
+def repo_slug(path):
+    """owner/name from a checkout's own `origin` remote, or None if it has no
+    remote. Read from git rather than written down, so no entry can drift."""
+    url = run([GIT, "-C", str(path), "remote", "get-url", "origin"])
+    if not url:
+        return None
+    m = re.search(r"github\.com[:/](.+?)(?:\.git)?$", url.strip())
+    return m.group(1) if m else None
+
+
+def discover_projects():
+    """Every git checkout directly under ~/apps, newest-neutral, sorted by name.
+
+    Derived, never hardcoded. The previous two-entry literal list is issue #35:
+    it named finance-tracker and pockets, and pockets carried `repo: None`, so
+    exactly one project's issues ever reached the Tower's pipeline — 13 of 38
+    open issues invisible, including common-rules' four, which are the Tower's
+    own tickets. A project with no remote still appears (its worktrees and
+    rules alignment are real ground truth); it simply contributes no issues.
+    """
+    if not APPS.is_dir():
+        return []
+    rows = []
+    for d in sorted(APPS.iterdir()):
+        if not d.is_dir() or not (d / ".git").exists():
+            continue
+        rows.append({"name": d.name, "path": str(d), "repo": repo_slug(d)})
+    return rows
+
+
+def projects():
+    """discover_projects() behind a TTL — tower calls this on every 5s collect
+    and discovery costs one subprocess per checkout."""
+    now = time.time()
+    if _projects_cache["rows"] is None or now - _projects_cache["ts"] > PROJECT_TTL:
+        _projects_cache["rows"] = discover_projects()
+        _projects_cache["ts"] = now
+    return _projects_cache["rows"]
 
 
 def issues_for(repo):
@@ -150,11 +191,14 @@ def render(write=True):
     nothing on disk — for callers (tower's /pulse) that render on every GET
     and must not turn a page view into a repo write."""
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    cur_rules, _ = rules_state(PROJECTS[0]["path"])
+    # rules_state()[0] reads RULES, not the argument — so the current version is
+    # asked for directly rather than via an arbitrary project, which also means
+    # an empty project list can no longer IndexError here.
+    cur_rules, _ = rules_state(RULES)
     parts = []
     e = html.escape
 
-    for proj in PROJECTS:
+    for proj in projects():
         rows = issues_for(proj["repo"])
         groups, singles = feature_groups(rows)
         wts = [w for w in worktrees_for(proj["path"]) if w["name"] != proj["name"]]

@@ -1,5 +1,41 @@
 # Changelog — common-rules
 
+## 2026-08-05 · The Tower's pipeline sees every app, not one
+
+The user asked the Tower's own question -- "what's pending in the pipeline" --
+and the honest answer was that it could not tell him. `pulse`'s `PROJECTS` was
+a hardcoded two-entry list, and the second entry carried `repo: None`, so
+exactly one project's issues ever reached the screen: 25 of 38 open issues
+shown, 13 invisible across pockets, mac-explorer and common-rules. The four
+missing from common-rules were the Tower's own open tickets -- the window on
+the autopilot could not see the work being done on itself.
+
+The live graph and the event ticker were already machine-wide, which made the
+screen internally inconsistent: a session node for a worktree whose issue the
+pipeline beside it did not list.
+
+`PROJECTS` is gone. Projects are discovered from `~/apps` at collect time,
+each repo slug read from that checkout's own `origin` remote, so no entry can
+drift to `None` again and an eighth app needs no code change. Six projects
+found, 39 open issues on screen, common-rules #22/#24/#25/#27 among them.
+
+Three things that fell out of doing it:
+
+- **Issue numbers are only unique within a repo.** `common #27` (launch the
+  Tower from the Dock) and `finance #27` (person dossier) were both on screen
+  the first time it ran. Everything downstream is keyed on `(project, number)`
+  now, never the bare number -- the in-flight match, the node labels, the
+  feature hulls -- and every chip carries a project tag. Same class of bug as
+  issue #24, one level up: a number that means nothing without its scope.
+- **Six projects serially would have overrun the 5s collect.** The per-project
+  `gh` calls are independent, so they fan out across a thread pool; collection
+  measures 1.2s against all six.
+- **common-rules was reporting itself "never aligned"** -- it carries no
+  `.common-rules-version` stamp because it *is* the rules. A false alarm the
+  old two-project list never got close enough to surface. It is excluded from
+  the alignment chips, and the header names at most three behind projects
+  before collapsing to a count, since six names overran the line.
+
 ## 2026-08-05 · appcheck looks at LaunchServices, not just the disk
 
 The user still saw several Sangam copies after every duplicate bundle had been

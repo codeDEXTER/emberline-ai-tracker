@@ -28,6 +28,7 @@ scope here — see the concept doc.
 """
 
 import atexit
+import concurrent.futures
 import datetime
 import html
 import importlib.machinery
@@ -62,7 +63,23 @@ def load_pulse():
 
 
 PULSE = load_pulse()
-PROJECTS = PULSE.PROJECTS
+
+
+def projects():
+    """Every app checkout, discovered by pulse from ~/apps rather than listed.
+    A function, not a module constant: a project added while the Tower is up
+    appears within pulse's discovery TTL, with no restart."""
+    return PULSE.projects()
+
+
+def fan_out(fn, items, workers=8):
+    """Map fn over items concurrently. The per-project collectors below are
+    each a handful of `gh` round-trips; run serially across six projects they
+    would overrun the 5s collect cadence, and they are independent."""
+    if not items:
+        return []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
+        return list(ex.map(fn, items))
 
 
 def run(cmd, cwd=None):
@@ -246,68 +263,130 @@ def wall_items(worktrees):
 
 # --- pipeline (gh issues + worktree state) ---
 
-def pipeline_data(worktrees):
-    proj = next((p for p in PROJECTS if p.get("repo")), None)
-    if not proj:
-        return {"groups": [], "in_flight": [], "in_flight_worktrees": [],
-                "queued": [], "queued_more": 0, "merged": []}
-    rows = PULSE.issues_for(proj["repo"])
-    groups, singles = PULSE.feature_groups(rows)
-    all_issues = []
-    for _, members in groups:
-        all_issues.extend(members)
-    all_issues.extend(singles)
-    all_issues.sort(key=lambda r: r["number"])
+def project_tag(name):
+    """A short, stable label for a project on a 44-character chip: the first
+    hyphen-separated segment ("finance-tracker" -> "finance"), which is
+    distinct across every app on this machine today."""
+    return name.split("-", 1)[0]
 
-    numbers = {r["number"] for r in all_issues}
-    # worktree_issue() (first "#<digits>" in ahead-of-main commit subjects) is
-    # the single mapping — shared with compute_hulls. No branch-name digit
-    # matching: "stage2"/"v5"/hex worktree suffixes read as #2/#5/etc under
-    # that approach, a false-match bug found on the live screen (issue #24).
-    in_flight_numbers = {w["issue"] for w in worktrees if w.get("issue") in numbers}
 
-    in_flight = [r for r in all_issues if r["number"] in in_flight_numbers]
-    # A worktree genuinely ahead of main but with no mapped issue is still
-    # in-flight work — shown as its own dim, worktree-named row, never
-    # invented as an issue chip it doesn't actually correspond to.
-    in_flight_worktrees = [w for w in worktrees
-                            if w["ahead"] > 0 and w.get("issue") not in numbers]
+def issue_key(project, number):
+    """Issue numbers are unique within a repo, not across the machine:
+    common-rules #22 and finance-tracker #22 are different tickets. Every
+    lookup below is keyed on the pair, never on the bare number."""
+    return (project, number)
 
-    queued = [r for r in all_issues if r["number"] not in in_flight_numbers]
-    queued_shown, queued_more = queued[:8], max(0, len(queued) - 8)
+
+def project_pipeline(proj):
+    """One project's open issues and today's closures. Runs in a worker thread
+    (see fan_out), so it touches no shared state and swallows its own errors —
+    a project whose `gh` call fails contributes nothing rather than taking the
+    whole region down."""
+    try:
+        rows = PULSE.issues_for(proj["repo"])
+    except Exception:
+        rows = []
+    for r in rows:
+        r["project"] = proj["name"]
+    groups, _singles = PULSE.feature_groups(rows)
 
     today = datetime.date.today().isoformat()
     out = run(["gh", "issue", "list", "-R", proj["repo"], "--state", "closed",
                "--search", f"closed:>={today}", "--json", "number,title", "--limit", "20"])
-    merged = json.loads(out)[:4] if out else []
+    try:
+        closed = json.loads(out) if out else []
+    except json.JSONDecodeError:
+        closed = []
+    for r in closed:
+        r["project"] = proj["name"]
+    return {"project": proj["name"], "rows": rows, "groups": groups, "merged": closed}
+
+
+def pipeline_data(worktrees):
+    """The pipeline across every discovered project with a remote (issue #35).
+
+    Was: the first project carrying a repo, full stop — one project's issues on
+    screen and five apps' silently absent, the Tower's own four included.
+    """
+    projs = [p for p in projects() if p.get("repo")]
+    if not projs:
+        return {"groups": [], "in_flight": [], "in_flight_worktrees": [],
+                "queued": [], "queued_more": 0, "merged": [],
+                "issues_by_key": {}, "issue_to_prefix": {}, "prefix_total": {}}
+
+    all_issues, groups, prefix_total, issue_to_prefix, merged = [], [], {}, {}, []
+    for res in fan_out(project_pipeline, projs):
+        name = res["project"]
+        all_issues.extend(res["rows"])
+        merged.extend(res["merged"])
+        for prefix, members in res["groups"]:
+            groups.append((prefix, members))
+            prefix_total[(name, prefix)] = len(members)
+            for m in members:
+                issue_to_prefix[issue_key(name, m["number"])] = prefix
+    all_issues.sort(key=lambda r: (r["project"], r["number"]))
+    merged.sort(key=lambda r: (r["project"], r["number"]))
+
+    keys = {issue_key(r["project"], r["number"]) for r in all_issues}
+    # worktree_issue() (first "#<digits>" in ahead-of-main commit subjects) is
+    # the single mapping — shared with compute_hulls. No branch-name digit
+    # matching: "stage2"/"v5"/hex worktree suffixes read as #2/#5/etc under
+    # that approach, a false-match bug found on the live screen (issue #24).
+    # The worktree's own project now scopes that match too, so a worktree in
+    # one repo cannot claim a same-numbered issue belonging to another.
+    in_flight_keys = {issue_key(w["project"], w["issue"]) for w in worktrees
+                      if issue_key(w["project"], w.get("issue")) in keys}
+
+    in_flight = [r for r in all_issues
+                 if issue_key(r["project"], r["number"]) in in_flight_keys]
+    # A worktree genuinely ahead of main but with no mapped issue is still
+    # in-flight work — shown as its own dim, worktree-named row, never
+    # invented as an issue chip it doesn't actually correspond to.
+    in_flight_worktrees = [w for w in worktrees
+                           if w["ahead"] > 0
+                           and issue_key(w["project"], w.get("issue")) not in keys]
+
+    queued = [r for r in all_issues
+              if issue_key(r["project"], r["number"]) not in in_flight_keys]
+    queued_shown, queued_more = queued[:8], max(0, len(queued) - 8)
 
     # Shared with the live graph: issue titles (for node labels) and each
     # issue's feature prefix (for stripping "Prefix: " already shown by the
     # node's hull, and for compute_hulls itself) — one lookup, built once.
-    issues_by_number = {r["number"]: r for r in all_issues}
-    issue_to_prefix = {m["number"]: prefix for prefix, members in groups for m in members}
+    issues_by_key = {issue_key(r["project"], r["number"]): r for r in all_issues}
 
     return {"groups": groups, "in_flight": in_flight,
             "in_flight_worktrees": in_flight_worktrees,
-            "queued": queued_shown, "queued_more": queued_more, "merged": merged,
-            "issues_by_number": issues_by_number, "issue_to_prefix": issue_to_prefix}
+            "queued": queued_shown, "queued_more": queued_more,
+            "merged": merged[:4],
+            "issues_by_key": issues_by_key, "issue_to_prefix": issue_to_prefix,
+            "prefix_total": prefix_total}
 
 
-def open_gate_branches(repo):
-    """Branches with an open, non-draft PR — awaiting a human merge decision
-    by definition of what an open PR is. No separate "at the gate" state is
-    invented beyond that; a draft PR is explicitly not yet asking for one."""
-    if not repo:
-        return set()
-    out = run(["gh", "pr", "list", "-R", repo, "--state", "open",
-               "--json", "number,headRefName,isDraft", "--limit", "50"])
-    if not out:
-        return set()
-    try:
-        rows = json.loads(out)
-    except json.JSONDecodeError:
-        return set()
-    return {r["headRefName"] for r in rows if not r.get("isDraft")}
+def open_gate_branches(projs):
+    """(project, branch) pairs with an open, non-draft PR — awaiting a human
+    merge decision by definition of what an open PR is. No separate "at the
+    gate" state is invented beyond that; a draft PR is explicitly not yet
+    asking for one.
+
+    Paired with the project, not a bare branch name: two repos routinely carry
+    a branch of the same name, and an unpaired set would mark the wrong
+    worktree as needing input."""
+    def for_project(proj):
+        out = run(["gh", "pr", "list", "-R", proj["repo"], "--state", "open",
+                   "--json", "number,headRefName,isDraft", "--limit", "50"])
+        if not out:
+            return set()
+        try:
+            rows = json.loads(out)
+        except json.JSONDecodeError:
+            return set()
+        return {(proj["name"], r["headRefName"]) for r in rows if not r.get("isDraft")}
+
+    pairs = set()
+    for s in fan_out(for_project, [p for p in projs if p.get("repo")]):
+        pairs |= s
+    return pairs
 
 
 # --- event ticker ---
@@ -331,7 +410,7 @@ def agent_log_events(worktrees):
     """One ticker event per AGENT-LOG.md — main checkouts and every worktree —
     scope item, silently dropped in the first pass: this is a live signal of
     recorded decisions, not just commits."""
-    checkouts = [(p["name"], Path(p["path"])) for p in PROJECTS]
+    checkouts = [(p["name"], Path(p["path"])) for p in projects()]
     checkouts += [(w["short"], w["path"]) for w in worktrees]
     events = []
     for name, path in checkouts:
@@ -350,7 +429,10 @@ def agent_log_events(worktrees):
 
 
 def ticker_data(worktrees):
-    repos = [(p["name"], p["path"]) for p in PROJECTS] + [("common-rules", str(RULES))]
+    # common-rules used to be appended by hand here because it was absent from
+    # the hardcoded PROJECTS list; discovery finds it like any other app, so
+    # appending it again would double every one of its commits in the ticker.
+    repos = [(p["name"], p["path"]) for p in projects()]
     events = []
     for name, path in repos:
         out = run([GIT, "-C", path, "log", "-4", "--pretty=%ct|%h|%s"])
@@ -379,16 +461,18 @@ def compute_hulls(worktrees, pipeline):
     if not pipeline or not pipeline.get("groups"):
         return []
     issue_to_prefix = pipeline.get("issue_to_prefix", {})
-    prefix_total = {prefix: len(members) for prefix, members in pipeline["groups"]}
+    # Keyed (project, prefix): the same feature prefix in two repos is two
+    # features, and merging them would draw one hull around unrelated work.
+    prefix_total = pipeline.get("prefix_total", {})
     by_prefix = {}
     for w in worktrees:
-        prefix = issue_to_prefix.get(w.get("issue"))
+        prefix = issue_to_prefix.get(issue_key(w["project"], w.get("issue")))
         if prefix is None:
             continue
-        by_prefix.setdefault(prefix, []).append(w["name"])
+        by_prefix.setdefault((w["project"], prefix), []).append(w["name"])
     hulls = []
-    for prefix, names in by_prefix.items():
-        total = prefix_total.get(prefix, len(names))
+    for (proj, prefix), names in by_prefix.items():
+        total = prefix_total.get((proj, prefix), len(names))
         if len(names) >= 2:
             hulls.append({"prefix": prefix, "total": total, "members": names, "single": False})
         elif total > 1:
@@ -413,38 +497,53 @@ def collect():
         except Exception as e:
             return None, str(e)
 
-    worktrees, wt_err = safe(lambda: [w for proj in PROJECTS for w in project_worktrees(proj)])
-    worktrees = worktrees or []
+    projs, projs_err = safe(projects)
+    projs = projs or []
 
-    header, header_err = safe(lambda: {
-        "now": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "rules": PULSE.rules_state(PROJECTS[0]["path"])[0],
-        "chips": [
-            {"name": p["name"],
-             "state": ("aligned" if PULSE.rules_state(p["path"])[1] == PULSE.rules_state(PROJECTS[0]["path"])[0]
-                       else ("behind" if PULSE.rules_state(p["path"])[1] else "never aligned"))}
-            for p in PROJECTS],
-    })
+    worktrees, wt_err = safe(lambda: [w for proj in projs for w in project_worktrees(proj)])
+    worktrees = worktrees or []
+    wt_err = wt_err or projs_err
+
+    def build_header():
+        # rules_state()[0] ignores its argument (it reads RULES), so the
+        # current version is asked for once instead of re-derived per project —
+        # the old expression called it twice inside a per-project loop.
+        current = PULSE.rules_state(RULES)[0]
+        chips = []
+        for p in projs:
+            # The rules repo carries no .common-rules-version stamp because it
+            # is the rules; measuring it against itself reported it "never
+            # aligned", a false alarm the old two-project list never reached.
+            if (Path(p["path"]) / "CLAUDE-workflow.md").exists():
+                continue
+            stamped = PULSE.rules_state(p["path"])[1]
+            chips.append({"name": p["name"],
+                          "state": ("aligned" if stamped == current
+                                    else ("behind" if stamped else "never aligned"))})
+        return {"now": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "rules": current, "chips": chips}
+
+    header, header_err = safe(build_header)
 
     contested, contested_err = safe(contested_pairs, worktrees)
     wall, wall_err = safe(wall_items, worktrees)
     pipeline, pipeline_err = safe(pipeline_data, worktrees)
     ticker, ticker_err = safe(ticker_data, worktrees)
     hulls, hulls_err = safe(compute_hulls, worktrees, pipeline)
-    repo = next((p["repo"] for p in PROJECTS if p.get("repo")), None)
-    gate_branches, gate_err = safe(open_gate_branches, repo)
+    gate_branches, gate_err = safe(open_gate_branches, projs)
 
     # Node labels (issue title, prefix stripped) — shared lookup from the
     # pipeline, attached once here rather than re-derived at render time.
-    issues_by_number = (pipeline or {}).get("issues_by_number", {})
+    issues_by_key = (pipeline or {}).get("issues_by_key", {})
     issue_to_prefix = (pipeline or {}).get("issue_to_prefix", {})
     for w in worktrees:
-        issue = issues_by_number.get(w.get("issue"))
+        key = issue_key(w["project"], w.get("issue"))
+        issue = issues_by_key.get(key)
         if not issue:
             w["issue_title"] = None
             continue
         title = issue["title"]
-        prefix = issue_to_prefix.get(w["issue"])
+        prefix = issue_to_prefix.get(key)
         if prefix and ":" in title and title.split(":", 1)[0].strip() == prefix:
             title = title.split(":", 1)[1].strip()
         w["issue_title"] = truncate_words(title)
@@ -455,7 +554,8 @@ def collect():
     wall_worktrees = {item["worktree"] for item in (wall or [])}
     gate_set = gate_branches or set()
     needs_input = {w["name"] for w in worktrees
-                   if w["short"] in wall_worktrees or w["branch"] in gate_set}
+                   if w["short"] in wall_worktrees
+                   or (w["project"], w["branch"]) in gate_set}
 
     data = {
         "worktrees": worktrees, "worktrees_err": wt_err,
@@ -554,7 +654,7 @@ def render_graph(worktrees, contested, hulls, needs_input, x0, y0, width):
             els.append(f'<text class="tt" x="{cx}" y="{cy - 4}" text-anchor="middle" '
                         f'font-size="10">{e(w["issue_title"])}</text>')
             els.append(f'<text class="sub" x="{cx}" y="{cy + 10}" text-anchor="middle">'
-                        f'#{w["issue"]}</text>')
+                        f'{e(project_tag(w["project"]))} #{w["issue"]}</text>')
             els.append(f'<text class="sub" x="{cx}" y="{cy + 42}" text-anchor="middle">'
                         f'{e(w["short"][:20])}</text>')
         else:
@@ -586,6 +686,13 @@ def render_graph(worktrees, contested, hulls, needs_input, x0, y0, width):
     return "\n".join(els), bottom + 20
 
 
+def issue_label(row, title):
+    """`finance #41 the Ticket Rail` — the project tag is not decoration: with
+    six repos on one screen a bare "#22" names two different tickets."""
+    tag = project_tag(row.get("project", "")) if row.get("project") else ""
+    return f'{tag} #{row["number"]} {title}'.strip()
+
+
 def chip_row(x, y, w, label, cls="chipd"):
     return (f'<rect class="chipq {cls}" x="{x}" y="{y - 15}" width="{w}" height="22" rx="5"/>'
             f'<text class="ct" x="{x + 8}" y="{y}">{e(label[:44])}</text>')
@@ -609,7 +716,7 @@ def render_pipeline(pipeline, wall, x0, y0, width):
         if pipeline["in_flight"] or pipeline["in_flight_worktrees"]:
             for r in pipeline["in_flight"]:
                 title = r["title"].split(":", 1)[-1].strip() if ":" in r["title"] else r["title"]
-                els.append(chip_row(x0, y, width, f'#{r["number"]} {title}', "chipf"))
+                els.append(chip_row(x0, y, width, issue_label(r, title), "chipf"))
                 y += 28
             # Ahead-of-main worktrees with no mapped issue — dim, worktree-named,
             # never an invented issue chip.
@@ -624,7 +731,7 @@ def render_pipeline(pipeline, wall, x0, y0, width):
         section("QUEUED", len(pipeline["queued"]) + pipeline["queued_more"])
         for r in pipeline["queued"]:
             title = r["title"].split(":", 1)[-1].strip() if ":" in r["title"] else r["title"]
-            els.append(chip_row(x0, y, width, f'#{r["number"]} {title}'))
+            els.append(chip_row(x0, y, width, issue_label(r, title)))
             y += 28
         if pipeline["queued_more"]:
             els.append(f'<text class="sub" x="{x0}" y="{y}">+{pipeline["queued_more"]} more</text>')
@@ -634,7 +741,7 @@ def render_pipeline(pipeline, wall, x0, y0, width):
         section("MERGED TODAY", len(pipeline["merged"]))
         if pipeline["merged"]:
             for r in pipeline["merged"]:
-                els.append(chip_row(x0, y, width, f'#{r["number"]} {r["title"]}', "chipd"))
+                els.append(chip_row(x0, y, width, issue_label(r, r["title"]), "chipd"))
                 y += 28
         else:
             els.append(f'<text class="sub" x="{x0}" y="{y}">none yet</text>')
@@ -680,11 +787,20 @@ def render_page():
     header = data["header"]
     if header:
         rules = header["rules"]
-        chips = "".join(
-            f' <tspan fill="{PALETTE["green"] if c["state"] == "aligned" else PALETTE["amber"]}">'
-            f'{"●" if c["state"] == "aligned" else "△"}</tspan> '
-            f'{e(c["name"])} {e(c["state"])}'
-            for c in header["chips"])
+        # Every project named inline overran the header once discovery found
+        # six of them. The signal is which ones are *not* aligned, so those
+        # keep their names (up to three) and everything else is a count.
+        behind = [c for c in header["chips"] if c["state"] != "aligned"]
+        aligned = len(header["chips"]) - len(behind)
+        chips = ""
+        if aligned:
+            chips += f' <tspan fill="{PALETTE["green"]}">●</tspan> {aligned} aligned'
+        if behind:
+            named = ", ".join(c["name"] for c in behind[:3])
+            rest = len(behind) - 3
+            chips += (f' <tspan fill="{PALETTE["amber"]}">△</tspan> '
+                      f'{len(behind)} behind: {e(named)}'
+                      f'{f" +{rest}" if rest > 0 else ""}')
         header_line1 = f'rules {e(rules)}{chips}'
     else:
         header_line1 = "rules unavailable"
