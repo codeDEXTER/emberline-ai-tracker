@@ -8,6 +8,34 @@ is the thing to read first.
 
 ## 2026-08-05
 
+- **The Idea Lab** (research 06, accepted same day; direction: the funnel with a
+  tournament heart). the-sponsor's ask: "I can just tell the idea. It should run
+  multiple iterations to make the idea finer and finer, and then let me know" —
+  a v2, kept deliberately separate from these rules. Deep research first, per
+  the research-in-management-sessions rule.
+
+  The finding that shapes the design: **an idea polishing itself gets worse, not
+  finer.** Models cannot reliably detect their own mistakes without external
+  signals (they can correct a flagged one — a different skill); refinement
+  plateaus in 3–5 rounds; iteration anchors on the first framing; and generated
+  ideas grow more similar over generations, not more diverse. So the design
+  question is where the external signal enters each round. Surveyed: critic
+  loops (the floor), persona panels (diversity bounded by who is in the room),
+  Google's Co-Scientist tournament (pairwise Elo + evolution, Nature-validated —
+  the strongest published pattern), and Sakana's AI Scientist as the cautionary
+  tale (42% failure rate, novelty checks fooled by keyword search).
+
+  Accepted shape: expand the idea into 8–12 genuinely different interpretations;
+  ground each with real fetched-and-read research (the one unskippable stage);
+  select pairwise, keeping an archive of interesting losers; evolve winners
+  until two rounds change nothing; then one document back — the refined idea,
+  its two strongest rivals, and what was killed and why.
+
+  Built the same day as `../idea-lab/` — its own folder and repo, LAB-RULES.md
+  as the whole rulebook, no remote yet. One touchpoint with v1: the Lab's
+  output is proposal-shaped and enters at L1. It replaces the blank page, not
+  the pipeline. First trial waits for a real idea, which is his to bring.
+
 - **The user owns features; the AI owns issues** (proposal 05, accepted same
   day). the-sponsor: "at the end of the day I am worried about the feature, not the
   issue — issues are there to have parallel task, divide and conquer. It's not to
