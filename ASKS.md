@@ -198,6 +198,14 @@ finer and finer, and then let me know." Explicitly a separate system from the
 current rules for now. Asked for deep research on architectures first. Became
 research proposal 06.
 
+## 2026-08-05 · Keep looking for ideas — don't wait to be handed one
+Said in: common-rules / idea-lab
+
+Said right after the Lab's first run produced Pip. The Lab's intake model was
+"he supplies an idea"; this makes scouting a standing job — the Lab (and
+management sessions generally) should hunt for idea seeds proactively and keep
+a shelf he can pick from.
+
 ---
 
 # Patterns
