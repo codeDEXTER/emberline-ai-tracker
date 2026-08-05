@@ -869,6 +869,45 @@ confusion this section exists to remove.
 For a packaged app, a distinct bundle name per build keeps test builds separate
 in Cmd-Tab and the Dock instead of masquerading as the installed one.
 
+### A finished session doesn't linger — it offers to close
+
+Added 2026-08-05, at the user's request. "Leave nothing running" covers app
+instances. Nothing covered the **sessions themselves**, and they accumulate the
+same way for the same reason: the work ends, nobody says so, and the session sits
+there looking indistinguishable from one still thinking.
+
+Measured the day this was written, across ten worktrees: `issue-27-person-dossier`
+holding a finished commit with an idle session for **50 hours**;
+`proposals-status-refactor` clean, nothing ahead, idle **29 hours**;
+`m0-stage2-v5-decomposed` idle **51 hours**; `proposal-register` sitting on
+**20 finished commits** with no live session at all. None of them were abandoned —
+they were *done*, and nothing ever said so out loud.
+
+**When a session's work is finished, it says so plainly and offers to close.**
+Finished means: its issue is merged and closed, its worktree holds nothing
+uncommitted, and there is no next step it owns. The closing offer is the last
+thing in its final report — not buried mid-summary.
+
+**Closing is the user's call**, in the same class as clearing an orphan: the AI
+never archives a session on its own initiative, because the one it judges
+finished may be the one the user was about to reopen. What is mandatory is the
+**offer** — silence is how ten sessions became indistinguishable from each other.
+
+This is a deliberate carve-out from "a question to the user is a cost". It is
+allowed because he asked for it, and because it is a *closing* decision, which
+the issue lifecycle already reserves. One line at the end of a finished session
+is not the decision spam that rule exists to stop.
+
+**On the way out**, a session that is closing also: exits its worktree
+(`ExitWorktree` with `remove` once merged, `keep` if paused rather than done),
+stops anything it started, and leaves its `AGENT-LOG.md` entry complete. A
+session offering to close while still holding uncommitted work has mistaken
+"stopped" for "finished" — commit first, then offer.
+
+**Paused is not finished.** A session waiting on the user, blocked behind another
+session's surface, or mid-review says so and stays open. Only work with nothing
+left to do gets the offer.
+
 ### Leave nothing running — and stop only what you started
 
 Badges say which copy is which; they do nothing to stop copies accumulating.
@@ -1475,10 +1514,32 @@ the one approval gate this whole structure is built around; "convenient" and
 offering**, or "merge it" becomes a rubber stamp on something unread, which is
 the same failure as an implementer signing off its own work.
 
-**No worktree needed** for this repo, unlike the projects. Worktrees exist
+**Worktree-per-task applies here too. Corrected 2026-08-05 — this rule used to
+say the opposite, and it was wrong.**
+
+It read: *"No worktree needed for this repo, unlike the projects. Worktrees exist
 so parallel sessions don't collide over a build; four markdown files and a
-directory of agent definitions have no build and no test suite to collide
-over. A branch is enough.
+directory of agent definitions have no build and no test suite to collide over.
+A branch is enough."*
+
+The reasoning was wrong about **what** worktrees protect. They do not protect a
+build — they protect a **working directory**. A branch is a label; the checkout
+is the shared thing, and `git checkout` in a shared checkout moves it under
+everyone standing in it, build or no build.
+
+**How it was disproven**, on the day this was written: the project-manager session
+ran `git checkout -b` here while a code engineer was mid-edit on another branch
+in the same checkout. The engineer's uncommitted work was silently re-attributed
+to the wrong branch. It recovered — stopped, verified nothing was corrupted,
+stashed, switched back, popped, re-verified — but it recovered by noticing, which
+is not a mechanism. Nothing in git warned either party.
+
+This folder is also no longer "four markdown files": it holds four executables
+and a docs tree, and it now routinely has two or more sessions working it at once.
+
+So: **`EnterWorktree` first, here as everywhere.** The single exception is
+unchanged and unchanged for a reason — read-only exploration needs no worktree,
+because reading cannot move anyone's checkout.
 
 **Know what the PR does and does not gate.** `~/.agent-data/agents` is a
 symlink into `agents/` here, so **editing an agent definition changes the
