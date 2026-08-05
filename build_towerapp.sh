@@ -46,22 +46,26 @@ if ! command -v swiftc >/dev/null 2>&1; then
   exit 1
 fi
 
-# --- --install is main-checkout-only ---------------------------------------
-# The bundle is a wrapper: it cd's to $REPO and runs bin/tower from there. A
-# worktree is deleted when its branch merges, so installing from one puts a
-# permanently broken app in /Applications that fails at launch with "bin/tower
-# not found" -- exactly the trap finance-tracker's build_macapp.sh refuses for
-# its own test builds. Checked before any build work so a refusal wastes
-# nothing, and a plain build from a worktree (the normal way to try a
-# packaging change) is unaffected.
-if [[ "${1:-}" == "--install" && "$REPO" == *"/.worktrees/"* ]]; then
-  echo "error: --install refused -- this is a worktree:" >&2
-  echo "         $REPO" >&2
-  echo "       The bundle runs bin/tower from the repo it was built in, and a" >&2
-  echo "       worktree disappears when its branch merges. Build from the main" >&2
-  echo "       checkout on main, then --install from there." >&2
-  exit 1
-fi
+# --- where an INSTALLED app reads its code from ----------------------------
+# Not the directory it was built in. The first real install found the shared
+# checkout parked on another session's branch, three commits behind main and
+# missing the work-packages region entirely -- so an app pointed at it would
+# have silently served an old screen, and would break outright on any branch
+# where bin/tower does not exist.
+#
+# An installed app therefore gets its OWN checkout, detached at origin/main and
+# refreshed on every install. Detached, not on the `main` branch, so it can
+# never collide with `main` being checked out somewhere else. It lives outside
+# the repo so no session's worktree cleanup can remove it, and bin/tower skips
+# worktrees outside the project directory so the app does not draw its own
+# backing checkout as a session node.
+#
+# This is also why there is no longer a "refused, you are in a worktree" check:
+# that guard existed because the installed app used to point at the build
+# directory. It no longer does, so building from a worktree and installing is
+# safe -- the bundle's compiled shim and icon come from wherever you built,
+# and the code it runs always comes from the pinned checkout.
+PINNED="$HOME/Library/Application Support/Tower/repo"
 
 echo "Building $APP_NAME.app"
 echo "  repo:   $REPO"
@@ -98,6 +102,10 @@ chmod +x "$APP/Contents/MacOS/tower"
 
 # Paths the shim reads at launch. Written as resources rather than compiled in,
 # so a built bundle can be inspected to see which checkout it drives.
+#
+# A plain build drives the repo you built from -- that is the point of building
+# from a worktree to try a change. --install below repoints this at the pinned
+# checkout, so the installed app is never tied to a working directory.
 printf '%s' "$REPO" > "$APP/Contents/Resources/repo_path"
 printf '%s' "$PYTHON_BIN" > "$APP/Contents/Resources/python_path"
 
@@ -134,9 +142,31 @@ touch "$APP"   # nudge Finder/Dock to pick up the new icon
 echo "Built: $APP"
 
 if [[ "${1:-}" == "--install" ]]; then
+  # --- the pinned checkout the installed app will read ---------------------
+  GIT_BIN="$(command -v git || echo /Library/Developer/CommandLineTools/usr/bin/git)"
+  MAIN_REPO="$("$GIT_BIN" -C "$REPO" rev-parse --path-format=absolute --git-common-dir)"
+  MAIN_REPO="$(dirname "$MAIN_REPO")"          # .../common-rules/.git -> .../common-rules
+  "$GIT_BIN" -C "$MAIN_REPO" fetch origin --quiet
+
+  if [[ -d "$PINNED/.git" || -f "$PINNED/.git" ]]; then
+    echo "  pinned: refreshing $PINNED"
+    "$GIT_BIN" -C "$PINNED" fetch origin --quiet
+    "$GIT_BIN" -C "$PINNED" checkout --detach origin/main --quiet
+  else
+    echo "  pinned: creating $PINNED"
+    mkdir -p "$(dirname "$PINNED")"
+    "$GIT_BIN" -C "$MAIN_REPO" worktree add --detach "$PINNED" origin/main >/dev/null
+  fi
+  PINNED_HEAD="$("$GIT_BIN" -C "$PINNED" rev-parse --short HEAD)"
+  [[ -x "$PINNED/bin/tower" ]] || { echo "error: $PINNED/bin/tower missing after checkout" >&2; exit 1; }
+  echo "  pinned: origin/main @ $PINNED_HEAD"
+
+  # The installed bundle reads the pinned checkout, never the build directory.
+  printf '%s' "$PINNED" > "$APP/Contents/Resources/repo_path"
+
   rm -rf "/Applications/$APP_NAME.app"
   cp -R "$APP" "/Applications/"
-  echo "Installed: /Applications/$APP_NAME.app"
+  echo "Installed: /Applications/$APP_NAME.app -> $PINNED"
   # Two bundles carrying one CFBundleIdentifier is one identity with two
   # bodies, and which one opens is undefined -- the condition bin/appcheck
   # exists to catch. The staged copy goes once the install has succeeded.

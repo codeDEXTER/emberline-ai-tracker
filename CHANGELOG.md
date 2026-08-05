@@ -1,5 +1,33 @@
 # Changelog — common-rules
 
+## 2026-08-05 · An installed Tower reads its own checkout, not whichever branch is parked
+
+Found by installing for the first time, minutes after #27 merged. The bundle is
+a wrapper: it `cd`s to a repo and runs `bin/tower` from there. Pointed at the
+shared checkout, that repo was on another session's experiment branch — three
+commits behind main, with no work-packages region and no `build_towerapp.sh` at
+all. The app would have silently served an old screen, and would break outright
+on any branch where `bin/tower` does not exist. Nothing was wrong with the
+build; the design tied a Dock app to a working directory that sessions
+legitimately repoint.
+
+An installed app now gets **its own checkout**, at
+`~/Library/Application Support/Tower/repo`, detached at `origin/main` and
+refreshed on every `--install`. Detached rather than on the `main` branch, so it
+can never collide with `main` being checked out somewhere else. Outside the repo,
+so no session's worktree cleanup can remove it.
+
+`bin/tower` skips worktrees outside the project directory, because the pinned
+checkout is registered like any other worktree and was drawing itself as a
+session node on the very screen it serves — visible as `repo · 1 ahead` in the
+first installed run.
+
+The "refused, you are in a worktree" guard added with #27 is gone, and its
+reason with it: it existed because the installed app pointed at the build
+directory. It no longer does. Building from a worktree and installing is now
+safe — the bundle's compiled shim and icon come from wherever you built, and the
+code it runs always comes from the pinned checkout.
+
 ## 2026-08-05 · The Tower opens from the Dock
 
 Issue #27, his Look-3 ask: "easier for me to track and restart". The one window
