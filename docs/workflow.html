@@ -105,7 +105,7 @@
 
 <div class="brand">
   <span>common-rules · reference</span>
-  <span>derived from CLAUDE-workflow.md · rules version 55 · 2026-08-04</span>
+  <span>derived from CLAUDE-workflow.md · rules version 62 · 2026-08-05</span>
 </div>
 
 <h1>The whole workflow, on one page</h1>
@@ -428,6 +428,7 @@ kept in step with it.</p>
   <tr><td>Accept or reject a proposal (L1)</td><td><span class="lab u">you</span></td><td>artifact + buttons, one decision per prompt</td></tr>
   <tr><td>Approve a merge</td><td><span class="lab u">you</span></td><td>the gate recommends; it does not authorise</td></tr>
   <tr><td>Change these shared rules</td><td><span class="lab u">you</span></td><td>PR opened by the AI, merged by you</td></tr>
+  <tr><td>Requirement ambiguities · cross-session coordination · anything not changing a look</td><td><span class="lab pm">project manager</span></td><td>decided, recorded in AGENT-LOG.md, reported in the digest</td></tr>
   <tr><td>Clear an orphaned app instance</td><td><span class="lab u">you</span></td><td>it may be the window you're looking at</td></tr>
   <tr><td>Promote prototype → production</td><td><span class="lab u">you</span></td><td>silent promotion is the documented failure</td></tr>
   <tr><td>Accept requirements + design (L2)</td><td><span class="lab pm">project manager</span></td><td>on the auditor's evidence; four triggers escalate</td></tr>
@@ -550,6 +551,7 @@ honest remaining gap in both.</p>
   <li><b>Show, don't summarise.</b> Artifact over prose; demo before approval; the render, not a description of it.</li>
   <li><b>Stop only what you started</b> — and stop the window too.</li>
   <li><b>Look before you start, and commit before you pause</b> — uncommitted work is invisible to everyone, including the next check.</li>
+  <li><b>A question to the user is a cost.</b> If the answer wouldn't change what he sees at a look and isn't reserved, the AI decides, records one line, and proceeds. Unnecessary questions are counted at the gate.</li>
   <li><b>You own features; the AI owns the issues they decompose into</b> — cut vertically, never backend-for-X plus UI-for-X.</li>
   <li><b>Nothing about features, merges, promotions or these rules happens without you.</b></li>
 </ul>
