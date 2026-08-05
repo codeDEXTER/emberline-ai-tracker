@@ -1,0 +1,11 @@
+# Append-only record files: union merge, so two branches that both appended
+# never conflict -- git keeps both sides. Every merge conflict on 2026-08-05
+# was in one of these files, and resolving them by hand is what put conflict
+# markers into three Python files and broke main.
+#
+# Install into a project with:  common-rules/bin/derecord
+CHANGELOG.md      merge=union
+AGENT-LOG.md      merge=union
+LESSONS.md        merge=union
+CLAUDE-checklist.md merge=union
+.common-rules-version merge=ours
