@@ -8,6 +8,36 @@ is the thing to read first.
 
 ## 2026-08-05
 
+- **`bin/tower`, step 2 of concept 07** (issue #21) — the screen itself, not
+  just `pulse` behind a port. Four regions on one loopback page: a header
+  (rules version, per-project alignment chips, a live "THE WALL" count), a
+  live graph — one node per worktree of finance-tracker and pockets, grid
+  laid out, green/grey by session freshness from transcript mtimes, amber
+  when it holds an uncommitted file another worktree also holds (`whoelse`'s
+  logic, one dashed note per contested pair naming one file), a pipeline
+  built from `gh issue list` grouped like `pulse`'s feature groups (in
+  flight / queued / merged today / "at the wall — yours"), and an 8-row
+  event ticker merged from `git log` across all three repos. Wall items are
+  a heuristic — a session's newest transcript tail containing
+  `AskUserQuestion` and stale over 5 minutes — and labelled as one on
+  screen, per the concept's own honesty rule about what a wall item can and
+  can't prove. `/pulse` still serves the existing page, loaded via
+  `importlib.machinery.SourceFileLoader` and reusing `pulse`'s collectors
+  rather than re-deriving the same ground truth. Every region collects
+  independently and renders an "unavailable" note in its own place on
+  failure — no region can 500 the page. Loopback only, same rule as `pulse
+  --serve`: this reads private transcripts.
+
+  One real bug surfaced while testing against live worktree data: `run()`'s
+  `.strip()` (copied from `pulse`'s helper) strips the whole `git status
+  --porcelain` blob rather than each line, which eats the leading space off
+  a `" M file"` line and truncates the filename by one character —
+  `AGENT-LOG.md` rendered as `GENT-LOG.md`. `whoelse`'s own `git()` helper
+  already avoids this with `rstrip("\n")` only; `touched_files()` here now
+  does the same rather than calling the shared `.strip()`-based `run()`.
+  Message edges and click-through (step 3) stay out of scope, as the issue
+  says.
+
 - **The Tower** (concept 07, accepted same day — all three steps). His ask: "a
   live app that's feeding off of these sessions and showing me how the autopilot
   is handling things." Concept drawn with the day's real sessions: a live graph
