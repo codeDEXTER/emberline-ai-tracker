@@ -6,7 +6,7 @@ just what. This folder is its own git repo (see `README.md`), but `git log`
 only records that something changed; this file records what it was for, and
 is the thing to read first.
 
-## 2026-08-04
+## 2026-08-05
 
 - **The user owns features; the AI owns issues** (proposal 05, accepted same
   day). aashish: "at the end of the day I am worried about the feature, not the
@@ -48,6 +48,8 @@ is the thing to read first.
   this d one, d two, some jargons need to be figured out, I cannot figure them
   out." Proposal 05 is written entirely as sentences; codes belong in the files,
   not in what reaches him.
+
+## 2026-08-04
 
 - **Loops, research triggers, and where parallel is safe** (proposal 03, accepted
   same day). aashish asked what loops back, when research fires, and where
