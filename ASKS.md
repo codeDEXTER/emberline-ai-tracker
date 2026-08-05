@@ -214,6 +214,22 @@ autopilot is handling things." Fifth entry in the state-visible-at-a-glance
 pattern — and the first asking for *live* rather than on-demand. Became
 concept 07, the Tower.
 
+## 2026-08-05 · A finished session should ask to be closed
+Said in: common-rules
+
+"once the session is done. It should ask me to close the session." The session
+analogue of leave-nothing-running — and an explicit exception he asked for to
+the question-is-a-cost rule.
+
+## 2026-08-05 · Show the work, not the address — features and issue names, not branches
+Said in: common-rules (Tower)
+
+"it's showing branch names, it doesn't mean anything to me… I'm tracking
+features and what features are working, which requires my input. And then I can
+look at, okay, which issue number, which chat I need to go to." Became issue #25.
+Sixth entry in the show-the-state pattern, and the sharpest statement yet of the
+hierarchy he works in: feature → needs-input → issue → chat.
+
 ---
 
 # Patterns
