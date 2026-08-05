@@ -1,0 +1,336 @@
+<title>common-rules · You own features, the AI owns issues — Proposal</title>
+<meta name="proposal-id" content="05">
+<meta name="proposal-topic" content="features-not-issues">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="proposed">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --card:#FFFFFF; --ink:#1B1E23; --dim:#6B6660;
+    --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E;
+    --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA;
+    --you:#6B4E9E;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --card:#161B24; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --card:#161B24; --ink:#E8E6E1;
+            --dim:#8B93A0; --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985;
+            --loss:#C97A81; --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --card:#FFFFFF; --ink:#1B1E23;
+            --dim:#6B6660; --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B;
+            --loss:#A8434B; --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1000px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:34px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  h3 { font-size:17px; font-weight:640; margin:26px 0 4px; letter-spacing:-.01em; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:66ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  section > p { max-width:70ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:72ch; }
+  code, .mono { font-family:var(--mono); font-size:12.6px; }
+  a { color:var(--accent); }
+  .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+          padding:3px 9px; border-radius:4px; background:var(--warn); color:var(--chip-ink); }
+
+  .stat { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin:24px 0 6px; }
+  .s { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:15px 16px; }
+  .s b { display:block; font-size:29px; font-weight:640; letter-spacing:-.02em;
+         font-variant-numeric:tabular-nums; line-height:1.1; }
+  .s span { color:var(--dim); font-size:12.6px; display:block; margin-top:5px; }
+  .s.bad b { color:var(--loss); } .s.warn b { color:var(--warn); }
+
+  .tablewrap { overflow-x:auto; margin-top:18px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:640px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.1px; white-space:nowrap; }
+
+  .lab { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+         display:inline-block; padding:2px 7px; border-radius:4px; white-space:nowrap;
+         color:var(--chip-ink); }
+  .lab.you { background:var(--you); } .lab.ai { background:var(--gain); }
+  .lab.bad { background:var(--loss); } .lab.warn { background:var(--warn); }
+
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:22px 0; max-width:74ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.bad { border-left-color:var(--loss); }
+  .verdict.warn { border-left-color:var(--warn); }
+  .verdict.good { border-left-color:var(--gain); }
+  .verdict p:last-child { margin-bottom:0; }
+
+  .diagram { margin-top:22px; overflow-x:auto; }
+  .diagram svg { width:100%; min-width:640px; height:auto; display:block; }
+
+  ul { max-width:72ch; } li { margin-bottom:7px; }
+  ol { max-width:72ch; } ol li { margin-bottom:9px; }
+  .qgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; margin-top:20px; }
+  .q2 { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+  .q2 b { display:block; font-size:14px; margin-bottom:5px; }
+  .q2 span { color:var(--dim); font-size:12.8px; }
+  @media (max-width:640px){ .page{padding:34px 18px 60px;} h1{font-size:27px;} }
+</style>
+
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · Proposal 05</span>
+  <span><span class="chip">proposed</span> &nbsp; 2026-08-04 · rules 53</span>
+</div>
+
+<h1>You own features. The AI owns issues.</h1>
+
+<p class="standfirst">You said it plainly: "at the end of the day I am worried about the feature,
+not the issue — issues are there to have parallel tasks, divide and conquer, not to increase my
+overhead." The evidence says the overhead isn't bad luck. It comes from <strong>how the issues
+were cut</strong>, and the way they were cut made you the only thing holding them together.</p>
+
+<p class="note">Written without rule codes, because you said the D1/D2 labels were unusable. Every
+rule below is a sentence you can read once and act on.</p>
+
+<section>
+<div class="eyebrow"><span>What is actually on the board</span><span class="tag">finance-tracker, 2026-08-04</span></div>
+
+<div class="stat">
+  <div class="s bad"><b>25</b><span>open issues</span></div>
+  <div class="s bad"><b>4</b><span>of them are one feature: "Desktop Clerk"</span></div>
+  <div class="s warn"><b>15</b><span>pairs to coordinate across 6 in-flight issues</span></div>
+  <div class="s"><b>1</b><span>person who can see all of them — you</span></div>
+</div>
+
+<p>The four Desktop Clerk issues, with their own labels:</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>#</th><th>Title</th><th>Label</th></tr>
+  <tr><td class="k">30</td><td>Desktop Clerk: Ask backend — query-log store + QUERY_SPECS whitelist</td><td><span class="lab bad">backend</span></td></tr>
+  <tr><td class="k">31</td><td>Desktop Clerk: Ticket Rail + seam + Ask dock layout</td><td><span class="lab warn">ui</span></td></tr>
+  <tr><td class="k">32</td><td>Desktop Clerk: file-fingerprint dedup at capture time</td><td><span class="lab bad">backend</span></td></tr>
+  <tr><td class="k">33</td><td>Desktop Clerk: keyboard-driven rail triage</td><td><span class="lab warn">ui</span></td></tr>
+</table>
+</div>
+
+<div class="verdict bad">
+  <b>#30 and #31 are the same capability, cut in half</b>
+  <p>"Ask <em>backend</em>" and "Ask <em>dock layout</em>" are the server side and the screen side
+  of one thing a person does. They were never independent work — so of course both sessions think
+  in the same direction, and of course you end up refereeing. <strong>The race condition was
+  created at decomposition time, months before either session started.</strong></p>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>This has a name, and the literature is unambiguous</span><span class="tag">researched, not asserted</span></div>
+
+<h3>Horizontal slicing</h3>
+
+<p>Splitting one capability along technical layers — backend, UI, data — instead of along what a
+person can actually do. The consequences named in the literature are the ones you are living:
+horizontal slices <em>"can't deliver value without interaction or integration with other layers"</em>,
+they produce <em>"integration issues and delayed feedback"</em>, and
+<em>"managing dependencies between horizontally sliced features can be intricate, as teams need to
+coordinate the delivery of different slices."</em></p>
+
+<p>The alternative, vertical slicing, cuts end-to-end — UI through to the data store — so each
+piece stands alone and is independently testable. Teams prefer it consistently, for exactly this
+reason.</p>
+
+<div class="diagram">
+<svg viewBox="0 0 900 300" role="img" aria-label="Horizontal versus vertical slicing of one feature">
+  <style>
+    .lyr rect { fill:var(--lane); stroke:var(--border); stroke-width:1; }
+    .lyr text { font-family:var(--mono); font-size:10.5px; fill:var(--dim); letter-spacing:.06em; }
+    .cap { font-family:var(--sans); font-size:13px; fill:var(--ink); font-weight:600; }
+    .sub { font-family:var(--mono); font-size:10px; fill:var(--dim); letter-spacing:.05em; }
+    .bad { fill:none; stroke:var(--loss); stroke-width:2.2; }
+    .good { fill:none; stroke:var(--gain); stroke-width:2.2; }
+    .badf { fill:var(--loss); opacity:.13; } .goodf { fill:var(--gain); opacity:.13; }
+  </style>
+
+  <text class="cap" x="20" y="24">Horizontal — how #30 and #31 were cut</text>
+  <text class="sub" x="20" y="42">two issues, one capability, guaranteed to collide</text>
+  <g class="lyr">
+    <rect x="20" y="58" width="390" height="46" rx="6"/><text x="32" y="86">UI LAYER</text>
+    <rect x="20" y="110" width="390" height="46" rx="6"/><text x="32" y="138">SERVICES</text>
+    <rect x="20" y="162" width="390" height="46" rx="6"/><text x="32" y="190">STORE</text>
+  </g>
+  <rect class="badf" x="150" y="52" width="256" height="58" rx="6"/>
+  <rect class="bad" x="150" y="52" width="256" height="58" rx="6"/>
+  <text class="sub" x="264" y="46" text-anchor="middle" fill="var(--loss)">#31 · ui</text>
+  <rect class="badf" x="150" y="104" width="256" height="110" rx="6"/>
+  <rect class="bad" x="150" y="104" width="256" height="110" rx="6"/>
+  <text class="sub" x="264" y="232" text-anchor="middle" fill="var(--loss)">#30 · backend</text>
+  <text class="sub" x="20" y="258" fill="var(--loss)">neither works alone · both edit the seam between them</text>
+  <text class="sub" x="20" y="276" fill="var(--loss)">you are the integration point</text>
+
+  <text class="cap" x="490" y="24">Vertical — how they should have been cut</text>
+  <text class="sub" x="490" y="42">two capabilities, each end to end, independent</text>
+  <g class="lyr">
+    <rect x="490" y="58" width="390" height="46" rx="6"/><text x="502" y="86">UI LAYER</text>
+    <rect x="490" y="110" width="390" height="46" rx="6"/><text x="502" y="138">SERVICES</text>
+    <rect x="490" y="162" width="390" height="46" rx="6"/><text x="502" y="190">STORE</text>
+  </g>
+  <rect class="goodf" x="600" y="52" width="120" height="162" rx="6"/>
+  <rect class="good" x="600" y="52" width="120" height="162" rx="6"/>
+  <text class="sub" x="660" y="232" text-anchor="middle" fill="var(--gain)">ask a question</text>
+  <rect class="goodf" x="736" y="52" width="120" height="162" rx="6"/>
+  <rect class="good" x="736" y="52" width="120" height="162" rx="6"/>
+  <text class="sub" x="796" y="232" text-anchor="middle" fill="var(--gain)">confirm a capture</text>
+  <text class="sub" x="490" y="258" fill="var(--gain)">each ships on its own · disjoint files</text>
+  <text class="sub" x="490" y="276" fill="var(--gain)">no integration point, so nobody has to be it</text>
+</svg>
+</div>
+
+<h3>And the coordination cost is arithmetic, not vibes</h3>
+
+<p>Brooks's law puts communication paths at <b>n(n−1)/2</b>. Six issues in flight is
+<b>fifteen pairs</b> that might collide — and you are the only node that sees all six, so every
+one of those fifteen resolves through you. That is not you being a bottleneck by temperament. It
+is the shape of the graph.</p>
+
+<p>The counter-intuitive finding on WIP limits is the useful one: limiting how much runs in
+parallel <em>increases</em> throughput, because <em>"smaller work items improve feedback timing,
+reduce coordination overhead, and help maintain steady flow"</em>, and fewer simultaneous items
+means less context switching and fewer handoffs stalling between roles.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>The proposal</span><span class="tag">five sentences</span></div>
+
+<h3>1 · The feature is yours. The issues are the AI's.</h3>
+<p>You approve a feature and see it at the three looks. The AI decides how many issues it takes,
+creates them, sequences them, hands off between them, and closes them. You never trigger an issue
+and never referee one.</p>
+
+<h3>2 · Issues are cut vertically — never "backend for X" and "UI for X".</h3>
+<p>Every issue is something a person can do end to end, from screen to store. If two proposed
+issues cannot ship independently, they are one issue. This is the rule that would have prevented
+#30 and #31 entirely, and it costs nothing to apply at decomposition time.</p>
+
+<h3>3 · One issue in flight per surface. The rest queue.</h3>
+<p>Extending the per-surface rule already agreed. Four issues touching <code>ledger.py</code> were
+never four parallel tasks. The AI sequences them; you see a feature progressing, not a queue.</p>
+
+<h3>4 · Dependencies are recorded when the issues are created, not discovered when they collide.</h3>
+<p>If issue B needs issue A's work, that is written down at decomposition. The handoff is then a
+planned event the AI executes, not an accident you referee.</p>
+
+<h3>5 · The AI closes issues. You close features.</h3>
+<p>A feature closes when you have seen it working. Its issues close as they finish, silently.
+<b>This is the one that reverses an existing rule</b> — see below.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>Does this need a new agent?</span><span class="tag">recommendation: no</span></div>
+
+<p><b>No — and the reason is worth stating, because the opposite is tempting.</b> Decomposition,
+sequencing and cross-issue handoff are already the project manager's job by definition: it owns
+ceremony tier, relaying between roles, and escalation. It hasn't been doing this job because
+<strong>the rules gave every issue decision to you</strong>, so it had no authority to decompose
+anything. Adding a ninth agent to perform work the project manager is defined to do but forbidden
+from doing would treat the symptom and leave the cause.</p>
+
+<p>The standard practice points the same way, once translated: the literature puts <em>epic</em>
+decomposition with the product owner and <em>story</em> refinement with the team. Your feature is
+the epic and it stays yours. The issues are the stories and they move to the team — which here is
+the project manager and its agents.</p>
+
+<div class="verdict good">
+  <b>What is genuinely missing is not an agent — it is a view</b>
+  <p>Nothing today shows a <em>feature</em> and its issues together. <code>whoelse</code> shows
+  file contention; the checklist shows items; GitHub shows issues. None of them shows "Desktop
+  Clerk: four issues, two done, one blocked on the other, here is the surface it touches." That
+  view is what would have made #30 and #31 obvious at a glance, and it is a small piece of tooling,
+  not a new role.</p>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>What this reverses</span><span class="tag">flagged, not buried</span></div>
+
+<p>The issue lifecycle rule, in force since 2026-08-02, says:</p>
+
+<div class="verdict bad">
+  <b>Current rule</b>
+  <p>"aashish is project manager here, the AI is the developer — creating an issue, agreeing its
+  scope and priority before work starts, picking what's next, and closing it are all his call,
+  never assumed."</p>
+</div>
+
+<p>This proposal reverses all four of those for issues, and keeps all four for <b>features</b>.
+That is a deliberate trade and worth being explicit about what you give up: you stop seeing work
+arrive in units you approved individually, and you start trusting a decomposition you did not
+review. The protection is that the feature is still yours at three looks, and a bad decomposition
+shows up there as a feature that does not work.</p>
+
+<p class="note">It also interacts with the accepted rule that an accepted-but-unbuilt proposal
+resurfaces: under this proposal the AI creates its issues immediately on acceptance, so the gap
+that rule was written to catch mostly stops occurring.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>What it costs</span><span class="tag">stated</span></div>
+
+<ul>
+  <li><b>A bad decomposition is now invisible to you until a look.</b> That is the whole trade.
+  Vertical slicing is the mitigation and it is a rule, not a guarantee.</li>
+  <li><b>Fewer issues in flight means slower apparent progress.</b> The board will look less busy.
+  The research says throughput improves anyway; it will not feel that way at first.</li>
+  <li><b>25 open issues do not re-cut themselves.</b> The existing board was sliced horizontally
+  and this proposal does not fix it retroactively — that is separate work, and the Desktop Clerk
+  four are the obvious first candidate.</li>
+  <li><b>Closing issues without you means the audit trail matters more</b>, and that trail is the
+  same one proposal 04 depends on and which does not exist yet.</li>
+</ul>
+</section>
+
+<section>
+<div class="eyebrow"><span>Open questions</span><span class="tag">yours</span></div>
+
+<div class="qgrid">
+  <div class="q2"><b>Re-cut the existing board, or only apply this going forward?</b>
+    <span>The four Desktop Clerk issues are the clearest case — two of them are one capability.
+    Re-cutting means closing and reopening issues, which is churn.</span></div>
+  <div class="q2"><b>Do you want the feature view built?</b>
+    <span>A small tool showing a feature, its issues, their state and the surfaces they touch.
+    It is the thing that would have made this visible without you noticing it.</span></div>
+  <div class="q2"><b>One in flight per surface — or per feature?</b>
+    <span>Per surface is stricter and safer. Per feature allows two issues on one screen if the
+    AI is confident they are disjoint, which is exactly the confidence that failed here.</span></div>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>Status</span><span class="tag">proposal 05</span></div>
+<p>This is <code>proposed</code> and nothing has been built. The board figures were read from the
+live issue list; the slicing evidence is the issue titles themselves.</p>
+
+<p class="note"><b>Sources:</b>
+<a href="https://www.techagilist.com/agile/product-owner/vertical-slice-vs-horizontal-slice-user-story/">Vertical Slice vs Horizontal Slice — Tech Agilist</a> ·
+<a href="https://www.visual-paradigm.com/scrum/user-story-splitting-vertical-slice-vs-horizontal-slice/">User Story Splitting — Visual Paradigm</a> ·
+<a href="https://agile.appliedframeworks.com/applied-frameworks-agile-blog/user-stories-making-the-vertical-slice">Making the Vertical Slice — Applied Frameworks</a> ·
+<a href="https://effectiviology.com/brooks-law/">Brooks's Law — Effectiviology</a> ·
+<a href="https://medium.com/agile-outside-the-box/mathematical-combination-brookss-law-and-the-implications-for-team-communication-fba1a717e8ed">Brooks's Law and team communication — Philip Rogers</a> ·
+<a href="https://agility-at-scale.com/principles/wip-limits/">Optimizing Flow with WIP Limits — Agility at Scale</a> ·
+<a href="https://www.atlassian.com/agile/kanban/wip-limits">WIP limits for kanban — Atlassian</a> ·
+<a href="https://premieragile.com/splitting-epics-and-user-stories/">Splitting Epics and User Stories — Premier Agile</a>
+</p>
+</section>
+
+</div>
