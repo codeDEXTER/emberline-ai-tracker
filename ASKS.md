@@ -174,6 +174,14 @@ Said in: finance-tracker → common-rules
 there to have parallel task, divide and conquer. It's not to increase my overhead
 that I have to trigger each and every issue." Became proposal 05.
 
+## 2026-08-05 · Tell an idea, let iterations refine it, then come back — a v2, kept separate
+Said in: common-rules
+
+"I can just tell the idea. It should run multiple iterations to make the idea
+finer and finer, and then let me know." Explicitly a separate system from the
+current rules for now. Asked for deep research on architectures first. Became
+research proposal 06.
+
 ---
 
 # Patterns

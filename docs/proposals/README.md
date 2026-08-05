@@ -14,6 +14,7 @@ table reflects them. If they disagree, the document wins.
 | [03](03-proposal-loops-research-parallelism.html) | Loops, research triggers, and where parallel is safe | proposal | **accepted** | 2026-08-04 |
 | [04](04-proposal-review-by-looking.html) | Review by looking — design is the surface, not requirements | proposal | **proposed** | — |
 | [05](05-proposal-features-not-issues.html) | You own features, the AI owns issues | proposal | **accepted** | 2026-08-05 |
+| [06](06-research-idea-lab-v2.html) | The Idea Lab — architectures for refining an idea (v2, kept separate) | research | **proposed** | — |
 
 Statuses: `draft` · `proposed` · `accepted` · `rejected` · `superseded-by NN` /
 `amends NN` · `built`. There is deliberately no `deferred` and no
