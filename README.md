@@ -41,6 +41,11 @@ happened, the changelog records what it was for.
   it last aligned with in `.common-rules-version` at its root, committed
   like any other record. Best wired to a `SessionStart` hook per project
   (`rulecheck --quiet`) so nobody has to remember.
+- **`bin/pulse`** — where you see the autopilot running: one page with every
+  project's features and their open issues (grouped by title prefix), each
+  worktree with its ahead/uncommitted state and how fresh its session is,
+  running app instances, and rules alignment. A derived snapshot, honest about
+  when it was taken; re-run to refresh. `docs/pulse.html`.
 - **`bin/whoelse`** — who else is working in this project, and do we collide?
   Reads `git worktree list`, a `git status` in each, and whether any of it is
   ahead of `main` — the three places that already knew and nobody consulted.
