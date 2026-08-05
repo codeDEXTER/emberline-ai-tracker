@@ -8,6 +8,27 @@ is the thing to read first.
 
 ## 2026-08-05
 
+- **A finished session doesn't linger — it offers to close** (his ask). "Leave
+  nothing running" covered app instances; nothing covered the sessions
+  themselves, and they pile up for the same reason — the work ends, nobody says
+  so, and a done session looks exactly like a thinking one. Measured across ten
+  worktrees the same day: `issue-27-person-dossier` holding a finished commit,
+  idle **50 hours**; `proposals-status-refactor` clean and idle **29 hours**;
+  `m0-stage2-v5-decomposed` idle **51 hours**; `proposal-register` on **20
+  finished commits** with no live session at all. None abandoned — all *done*,
+  none of them saying so.
+
+  So a finished session states it plainly and offers to close, as the last line
+  of its final report. **Closing stays his call** (same class as clearing an
+  orphan — the session judged finished may be the one he was about to reopen);
+  what is mandatory is the offer. A deliberate carve-out from "a question is a
+  cost", allowed because he asked and because closing is already reserved to him;
+  one line at the end of finished work is not decision spam. On the way out the
+  session also exits its worktree, stops what it started, and completes its
+  `AGENT-LOG.md` entry. **Paused is not finished** — waiting, blocked or
+  mid-review stays open, and a session still holding uncommitted work has
+  mistaken "stopped" for "finished".
+
 - **`bin/tower`: live-graph nodes show what he's tracking, not git mechanics**
   (issue #25, from aashish at Look 3: "it's showing branch names, it doesn't
   mean anything to me… I'm tracking features and what features are working,
@@ -53,6 +74,28 @@ is the thing to read first.
   no mapped issue renders as its own dim, worktree-named row in IN FLIGHT,
   never as an invented issue chip; QUEUED is open issues minus the mapped
   in-flight set.
+
+- **Worktree-per-task applies to common-rules too — the old rule said the
+  opposite and was wrong.** It read "No worktree needed for this repo… four
+  markdown files and a directory of agent definitions have no build and no test
+  suite to collide over. A branch is enough." The reasoning mistook *what*
+  worktrees protect: not a build, a **working directory**. A branch is a label;
+  the checkout is the shared thing, and `git checkout` moves it under everyone
+  standing in it.
+
+  Disproven the same day, by this session: the project manager ran
+  `git checkout -b` here while a code engineer was mid-edit on another branch in
+  the same checkout, silently re-attributing its uncommitted work. The engineer
+  recovered — stopped, verified nothing was corrupted, stashed, switched back,
+  popped, re-verified — but it recovered **by noticing**, which is not a
+  mechanism, and git warned neither party. Worth recording that the session which
+  wrote proposal 02 committed the exact collision proposal 02 exists to prevent,
+  in the one repo it had exempted.
+
+  The folder is also no longer "four markdown files": four executables, a docs
+  tree, and routinely two or more sessions at once. `EnterWorktree` first, here
+  as everywhere; read-only exploration stays exempt, because reading cannot move
+  anyone's checkout.
 
 - **`bin/tower`, step 2 of concept 07** (issue #21) — the screen itself, not
   just `pulse` behind a port. Four regions on one loopback page: a header
