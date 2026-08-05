@@ -268,9 +268,69 @@ checklist item — check it off in the checklist first (that's still the
 record), close the issue to match. See the Issue lifecycle section below:
 closing needs the user's explicit approval regardless.
 
-## Issue lifecycle — the user is project manager, the AI is the developer
+## The user owns features. The AI owns issues.
 
-Added 2026-08-02, working model made explicit. The user is a project
+Added 2026-08-04 (proposal 05, accepted same day). **This narrows every rule in
+the Issue lifecycle section below from issues to features.** Read this first;
+the section that follows applies to *features*, not to the issues a feature is
+decomposed into.
+
+The user's words: "at the end of the day I am worried about the feature, not the
+issue — issues are there to have parallel tasks, divide and conquer, not to
+increase my overhead that I have to trigger each and every issue."
+
+**What the AI now owns:** how many issues a feature takes, creating them,
+sequencing them, handing off between them, and closing them. **What stays the
+user's:** the feature — proposed, approved, seen working, and closed by them.
+
+### Cut issues vertically. Never "backend for X" and "UI for X".
+
+Every issue is something a person can do end to end, screen through to store. If
+two proposed issues cannot ship independently of each other, **they are one
+issue.**
+
+This is not style. finance-tracker's `#30` ("Desktop Clerk: Ask **backend**") and
+`#31` ("Desktop Clerk: Ticket Rail + seam + Ask **dock layout**") are the server
+side and the screen side of one capability, and both sessions inevitably worked
+the same seam — with the user as the only person who could see it happening. The
+collision was created at decomposition time, months before either session
+started. Published practice is unambiguous: horizontally sliced work "can't
+deliver value without interaction or integration with other layers" and makes
+dependency management intricate by construction.
+
+### One issue in flight per surface. The rest queue.
+
+Extends the per-surface rule in "Working alongside other sessions" from sessions
+to planning. Four issues touching `nicegui_app/pages/ledger.py` were never four
+parallel tasks. The AI sequences them and the user sees a feature progressing,
+not a queue.
+
+The arithmetic behind this: coordination paths grow as **n(n−1)/2**, so six
+issues in flight is fifteen possible collisions — and if only the user can see
+all six, all fifteen resolve through them. Limiting work in progress raises
+throughput rather than lowering it; that is the consistent finding, and it is
+counter-intuitive enough to be worth stating.
+
+### Dependencies are recorded when issues are created, not when they collide.
+
+If one issue needs another's work, that is written down at decomposition. The
+handoff is then a planned event the AI executes — not an accident the user
+referees. Findings that arrive mid-task still follow the handover rule in
+"Working alongside other sessions".
+
+### What this costs, stated plainly
+
+A bad decomposition is now invisible to the user until they see the feature.
+Vertical slicing is the mitigation, and it is a rule rather than a guarantee.
+The board will also look less busy, which will feel like slower progress before
+it feels like faster delivery.
+
+## Issue lifecycle — the user decides, at the feature level
+
+Added 2026-08-02, working model made explicit. **Amended 2026-08-04**: every
+"issue" below now means **feature**. The AI creates, sequences and closes the
+issues a feature decomposes into; it never decides what feature gets built or
+declares one finished. The user is a project
 manager and stakeholder here, not expected to track implementation
 detail — they set priority, agree scope, and decide what's done. The AI
 is the senior developer and domain expert: it researches, writes code,
@@ -281,7 +341,7 @@ the user's interface into this: the one place they can see, without
 reading code, what the current problems are and how they're being fixed.
 Every rule below exists to keep that interface trustworthy.
 
-### Creating an issue — reserved for the user
+### Creating a feature — reserved for the user
 
 The AI does not create issues on its own initiative. An issue gets
 created only when the user explicitly specifies that it should be — a new
@@ -297,7 +357,7 @@ to be agreed with the user in the same conversation (what exactly counts
 as done, what's explicitly out of scope) and it needs a priority set — not
 inferred or assumed by the AI from where it happens to sit in a list.
 
-### Picking an issue — only the user decides what's next
+### Picking a feature — only the user decides what's next
 
 Only the user accepts an issue into active work. If the user asks "what
 should I work on next" or "which issue should we pick," the AI's job is
@@ -306,7 +366,7 @@ could reasonably come next, with tradeoffs — not silently pick one and
 start `EnterWorktree`. Even an "obvious" choice (highest priority, the one
 just discussed) still needs the user's explicit yes before work begins.
 
-### One issue at a time — no exceptions without alignment first
+### One feature at a time — no exceptions without alignment first
 
 The AI works on one issue at a time. The one exception: a single piece of
 work that genuinely requires or resolves more than one issue together
@@ -316,13 +376,16 @@ starts, not discovered and announced afterward — say plainly "this will
 touch issues X and Y, is that the right scope?" and wait for a yes.
 
 
-### Closing an issue — reserved for the user
+### Closing a feature — reserved for the user
 
-Only the user marks an issue complete or closes it. This is a separate,
-additional gate on top of checking the item off in the project's
-checklist file — checking off the checklist does not by itself authorize
-closing the matching issue, and the AI does not run `gh issue close`
-without the user's explicit approval in that conversation.
+Only the user closes a **feature**, and only after seeing it working. This is a
+separate, additional gate on top of checking the item off in the project's
+checklist file — checking off the checklist does not by itself authorize closing.
+
+**The AI closes the issues a feature decomposes into**, as each finishes, without
+asking. That is the point of the split: the user should not be signing off
+fifteen units of bookkeeping to approve one thing that works. `gh issue close`
+on a *feature* still needs their explicit approval in that conversation.
 
 ### Document plainly, and show the result, not just describe it
 
