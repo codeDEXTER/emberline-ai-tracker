@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
 """appcheck -- find app bundles that claim to be the same app.
 
-    appcheck [project-dir ...]      default: every project under apps/
+    appcheck [project-dir ...] [--clear-ghosts]   default: every project under apps/
 
 macOS LaunchServices keys on CFBundleIdentifier. Two bundles sharing one
 identifier means Spotlight shows both under the same name and which one opens
 is undefined -- it is not "two copies", it is one identity with two bodies.
 
-Found on 2026-08-05: four Sangam.app bundles, all `local.wealthtracker`, three
-of them built inside task worktrees. Only a build that sets a mode suffix got
-its own identity. That is what this checks for.
+Two distinct faults, and the second is the one a person actually sees:
 
-Exit code 1 if any identifier is claimed by more than one bundle.
+  * two bundles on disk sharing one identifier -- found 2026-08-05, four
+    Sangam.app bundles all claiming `local.wealthtracker`, three of them built
+    inside task worktrees;
+  * a GHOST -- LaunchServices still listing a bundle that has been deleted.
+    Removing a bundle does not unregister it, so a worktree cleaned up days ago
+    keeps its entry in Spotlight and Launchpad. Checking only the disk reported
+    a clean machine while the user was looking at several Sangam entries.
+
+Exit code 1 if either is found.
 """
 from __future__ import annotations
 
@@ -57,7 +63,87 @@ def is_worktree_build(path):
     return ".worktrees/" in path or "/worktrees/" in path
 
 
+LSREGISTER = ("/System/Library/Frameworks/CoreServices.framework/Frameworks/"
+              "LaunchServices.framework/Support/lsregister")
+
+
+def registered_paths():
+    """Every app path LaunchServices currently believes in.
+
+    Checking the disk is not enough, and on 2026-08-05 that gap is exactly what
+    this tool got wrong: it reported "every identifier unique" while the user
+    was looking at several Sangam entries. Only one bundle existed. Six stale
+    registrations pointed at worktrees deleted days earlier -- LaunchServices
+    does not notice a bundle being `rm`ed, so the ghosts stayed in Spotlight
+    and Launchpad, which is where a person actually experiences "two copies".
+    """
+    try:
+        r = subprocess.run([LSREGISTER, "-dump"], capture_output=True,
+                           text=True, timeout=120)
+    except (subprocess.SubprocessError, OSError, FileNotFoundError):
+        return None  # not macOS, or lsregister moved: skip rather than fail
+    out = set()
+    for line in r.stdout.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("path:"):
+            path = stripped[len("path:"):].strip()
+            # trailing "(0x27c0)" record id
+            if path.endswith(")") and " (0x" in path:
+                path = path[:path.rindex(" (0x")]
+            if path.endswith(".app"):
+                out.add(path)
+    return out
+
+
+def clear_ghosts(ghosts):
+    """Unregister deleted bundles, one at a time.
+
+    Targeted rather than `lsregister -kill -r`, which rebuilds the whole
+    database: a full rebuild also re-scans every app on the machine and is a
+    heavier thing to do to someone's Mac than this problem warrants.
+    """
+    for p in ghosts:
+        subprocess.run([LSREGISTER, "-u", p], capture_output=True, timeout=30)
+        print(f"      unregistered {p}")
+
+
+def find_ghosts(roots):
+    paths = registered_paths()
+    if paths is None:
+        return []
+    prefixes = tuple(os.path.abspath(r).rstrip("/") + "/" for r in roots)
+    return sorted(p for p in paths
+                  if p.startswith(prefixes) and not os.path.isdir(p))
+
+
+def report_ghosts(roots, clear=False):
+    """Registrations whose bundle no longer exists. Returns the count.
+
+    Scoped to the roots being checked. Other applications leave ghosts of their
+    own -- Spotify's updater cache is one -- and those are not this user's to
+    clean; reporting them would bury the ones that are.
+    """
+    ghosts = find_ghosts(roots)
+    if not ghosts:
+        return 0
+    print(f"appcheck: {len(ghosts)} GHOST registration(s) -- LaunchServices still "
+          f"lists these, but the bundle is gone:\n")
+    for p in ghosts:
+        print(f"      {p}")
+    print("\nThis is what makes Spotlight and Launchpad show copies that do not")
+    if clear:
+        print("exist. Clearing them:\n")
+        clear_ghosts(ghosts)
+        print()
+        return 0
+    print("exist. Re-run with --clear-ghosts to unregister them.")
+    print()
+    return len(ghosts)
+
+
 def main(argv):
+    clear = "--clear-ghosts" in argv
+    argv = [a for a in argv if a != "--clear-ghosts"]
     roots = argv or [APPS, INSTALLED]
     found = []
     for root in roots:
@@ -73,9 +159,11 @@ def main(argv):
 
     clashes = {k: v for k, v in by_id.items() if len(v) > 1}
 
+    ghosts = report_ghosts(roots, clear)
+
     if not clashes:
         print(f"appcheck: {len(found)} bundle(s), every identifier unique.")
-        return 0
+        return 1 if ghosts else 0
 
     print(f"appcheck: {len(clashes)} identifier(s) claimed by more than one bundle.\n")
     for ident, group in sorted(clashes.items()):
