@@ -8,6 +8,18 @@ is the thing to read first.
 
 ## 2026-08-05
 
+- **`bin/tower`: fixed false IN FLIGHT matches** (issue #24, found by aashish
+  on the live screen — #2, #5, #7, #8, #9 shown as in flight when only #27
+  actually was). Root cause was matching issue numbers as bare digit
+  substrings of branch names: `"stage2"` matched `#2`, `"v5"` matched `#5`,
+  hex worktree-name suffixes matched the rest. Deleted that matching
+  entirely; `worktree_issue()` (first `"#<digits>"` in
+  `git log main..HEAD --pretty=%s`, already used by the feature hulls) is
+  now the single mapping for both. A worktree genuinely ahead of main with
+  no mapped issue renders as its own dim, worktree-named row in IN FLIGHT,
+  never as an invented issue chip; QUEUED is open issues minus the mapped
+  in-flight set.
+
 - **`bin/tower`, step 2 of concept 07** (issue #21) — the screen itself, not
   just `pulse` behind a port. Four regions on one loopback page: a header
   (rules version, per-project alignment chips, a live "THE WALL" count), a
