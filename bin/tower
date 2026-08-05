@@ -248,16 +248,18 @@ def pipeline_data(worktrees):
     all_issues.sort(key=lambda r: r["number"])
 
     numbers = {r["number"] for r in all_issues}
-    in_flight_numbers = set()
-    for w in worktrees:
-        for n in numbers:
-            if re.search(rf"(?<!\d){n}(?!\d)", w["branch"]):
-                in_flight_numbers.add(n)
+    # worktree_issue() (first "#<digits>" in ahead-of-main commit subjects) is
+    # the single mapping — shared with compute_hulls. No branch-name digit
+    # matching: "stage2"/"v5"/hex worktree suffixes read as #2/#5/etc under
+    # that approach, a false-match bug found on the live screen (issue #24).
+    in_flight_numbers = {w["issue"] for w in worktrees if w.get("issue") in numbers}
 
     in_flight = [r for r in all_issues if r["number"] in in_flight_numbers]
-    in_flight_worktrees = []
-    if not in_flight:
-        in_flight_worktrees = [w for w in worktrees if w["ahead"] > 0]
+    # A worktree genuinely ahead of main but with no mapped issue is still
+    # in-flight work — shown as its own dim, worktree-named row, never
+    # invented as an issue chip it doesn't actually correspond to.
+    in_flight_worktrees = [w for w in worktrees
+                            if w["ahead"] > 0 and w.get("issue") not in numbers]
 
     queued = [r for r in all_issues if r["number"] not in in_flight_numbers]
     queued_shown, queued_more = queued[:8], max(0, len(queued) - 8)
@@ -509,15 +511,16 @@ def render_pipeline(pipeline, wall, x0, y0, width):
                         f'{" · " + str(count) if count is not None else ""}</text>')
             y += 24
 
-        section("IN FLIGHT", len(pipeline["in_flight"]) or len(pipeline["in_flight_worktrees"]))
-        if pipeline["in_flight"]:
+        section("IN FLIGHT", len(pipeline["in_flight"]) + len(pipeline["in_flight_worktrees"]))
+        if pipeline["in_flight"] or pipeline["in_flight_worktrees"]:
             for r in pipeline["in_flight"]:
                 title = r["title"].split(":", 1)[-1].strip() if ":" in r["title"] else r["title"]
                 els.append(chip_row(x0, y, width, f'#{r["number"]} {title}', "chipf"))
                 y += 28
-        elif pipeline["in_flight_worktrees"]:
+            # Ahead-of-main worktrees with no mapped issue — dim, worktree-named,
+            # never an invented issue chip.
             for w in pipeline["in_flight_worktrees"]:
-                els.append(chip_row(x0, y, width, f'{w["short"]} · {w["ahead"]} ahead', "chipf"))
+                els.append(chip_row(x0, y, width, f'{w["short"]} · {w["ahead"]} ahead', "chipd"))
                 y += 28
         else:
             els.append(f'<text class="sub" x="{x0}" y="{y}">none</text>')
