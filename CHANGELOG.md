@@ -8,6 +8,19 @@ is the thing to read first.
 
 ## 2026-08-05
 
+- **The Tower** (concept 07, accepted same day — all three steps). His ask: "a
+  live app that's feeding off of these sessions and showing me how the autopilot
+  is handling things." Concept drawn with the day's real sessions: a live graph
+  whose message edges are real (cross-session messages verified observable in
+  transcripts), holding patterns from contested surfaces, purple edges to the
+  wall with wait ages, a per-surface pipeline with an "at the wall" row that is
+  exactly his to-do list, an event ticker, and the day's question count in the
+  header. Local-only by rule — it reads private transcripts.
+
+  Step 1 built the same hour: `pulse --serve` — the pulse page on a loopback
+  port, re-rendered every 10s, auto-refreshing. Steps 2 (the Tower screen) and
+  3 (message edges + click-through) cut as vertical issues for the autopilot.
+
 - **A question to the user is a cost — and Autopilot** (enacts proposal 04,
   decided by instruction). aashish: sessions were all asking him whether to
   message the other issue — "this is something that's not my problem"; and:
