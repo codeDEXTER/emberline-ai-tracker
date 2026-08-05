@@ -8,6 +8,27 @@ is the thing to read first.
 
 ## 2026-08-05
 
+- **A finished session doesn't linger — it offers to close** (his ask). "Leave
+  nothing running" covered app instances; nothing covered the sessions
+  themselves, and they pile up for the same reason — the work ends, nobody says
+  so, and a done session looks exactly like a thinking one. Measured across ten
+  worktrees the same day: `issue-27-person-dossier` holding a finished commit,
+  idle **50 hours**; `proposals-status-refactor` clean and idle **29 hours**;
+  `m0-stage2-v5-decomposed` idle **51 hours**; `proposal-register` on **20
+  finished commits** with no live session at all. None abandoned — all *done*,
+  none of them saying so.
+
+  So a finished session states it plainly and offers to close, as the last line
+  of its final report. **Closing stays his call** (same class as clearing an
+  orphan — the session judged finished may be the one he was about to reopen);
+  what is mandatory is the offer. A deliberate carve-out from "a question is a
+  cost", allowed because he asked and because closing is already reserved to him;
+  one line at the end of finished work is not decision spam. On the way out the
+  session also exits its worktree, stops what it started, and completes its
+  `AGENT-LOG.md` entry. **Paused is not finished** — waiting, blocked or
+  mid-review stays open, and a session still holding uncommitted work has
+  mistaken "stopped" for "finished".
+
 - **`bin/tower`: fixed false IN FLIGHT matches** (issue #24, found by aashish
   on the live screen — #2, #5, #7, #8, #9 shown as in flight when only #27
   actually was). Root cause was matching issue numbers as bare digit
