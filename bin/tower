@@ -17,16 +17,25 @@ region is collected independently: one collector failing renders an empty
 region with a small "unavailable" note in place of that region, never a
 500 for the whole page.
 
+Registers itself with `apprun` on start (a `--demo` proto copy, so
+`stop --all` leaves it up until said done) and deregisters on shutdown,
+when run inside an agent session; a plain-terminal run prints one line
+saying registration was skipped, since apprun refuses an ownerless entry
+by design.
+
 Message edges between sessions and click-through (step 3) are out of
 scope here — see the concept doc.
 """
 
+import atexit
 import datetime
 import html
 import importlib.machinery
 import importlib.util
 import json
+import os
 import re
+import signal
 import subprocess
 import sys
 import threading
@@ -132,6 +141,16 @@ def newest_transcript(worktree_path):
     return max(files, key=lambda f: f.stat().st_mtime)
 
 
+def worktree_issue(path):
+    """First "#<digits>" found in this worktree's ahead-of-main commit
+    subjects — the honest mapping: no match means ungrouped, not guessed."""
+    out = run([GIT, "-C", str(path), "log", "main..HEAD", "--pretty=%s"])
+    if not out:
+        return None
+    m = re.search(r"#(\d+)", out)
+    return int(m.group(1)) if m else None
+
+
 # --- worktree graph (nodes, contested surfaces) ---
 
 def project_worktrees(proj):
@@ -165,6 +184,7 @@ def project_worktrees(proj):
             "short": short_name(p.name), "branch": t.get("branch", "?"),
             "files": files, "ahead": int(ahead) if (ahead or "").isdigit() else 0,
             "session": session, "newest_transcript": newest,
+            "issue": worktree_issue(p),
         })
     return result
 
@@ -254,7 +274,44 @@ def pipeline_data(worktrees):
 
 # --- event ticker ---
 
-def ticker_data():
+def last_heading(path, max_len=70):
+    """The last "## ..." markdown heading line in a file, truncated."""
+    try:
+        text = path.read_text(errors="replace")
+    except OSError:
+        return None
+    heading = None
+    for line in text.splitlines():
+        if line.startswith("## "):
+            heading = line.rstrip()
+    if heading is None:
+        return None
+    return heading if len(heading) <= max_len else heading[:max_len - 1] + "…"
+
+
+def agent_log_events(worktrees):
+    """One ticker event per AGENT-LOG.md — main checkouts and every worktree —
+    scope item, silently dropped in the first pass: this is a live signal of
+    recorded decisions, not just commits."""
+    checkouts = [(p["name"], Path(p["path"])) for p in PROJECTS]
+    checkouts += [(w["short"], w["path"]) for w in worktrees]
+    events = []
+    for name, path in checkouts:
+        f = path / "AGENT-LOG.md"
+        if not f.exists():
+            continue
+        heading = last_heading(f)
+        if heading is None:
+            continue
+        try:
+            mtime = f.stat().st_mtime
+        except OSError:
+            continue
+        events.append((mtime, f"agent-log · {name}", "", heading))
+    return events
+
+
+def ticker_data(worktrees):
     repos = [(p["name"], p["path"]) for p in PROJECTS] + [("common-rules", str(RULES))]
     events = []
     for name, path in repos:
@@ -265,8 +322,32 @@ def ticker_data():
             parts = line.split("|", 2)
             if len(parts) == 3 and parts[0].isdigit():
                 events.append((int(parts[0]), name, parts[1], parts[2]))
+    events += agent_log_events(worktrees)
     events.sort(key=lambda e: -e[0])
     return events[:8]
+
+
+# --- feature hulls (locked concept: group graph nodes by feature) ---
+
+def compute_hulls(worktrees, pipeline):
+    """Worktrees grouped by the same title-prefix feature groups the
+    pipeline uses — mapped only via worktree_issue()'s real match, never
+    invented. A group renders only with >=2 mapped nodes in it."""
+    if not pipeline or not pipeline.get("groups"):
+        return []
+    issue_to_prefix, prefix_total = {}, {}
+    for prefix, members in pipeline["groups"]:
+        prefix_total[prefix] = len(members)
+        for m in members:
+            issue_to_prefix[m["number"]] = prefix
+    by_prefix = {}
+    for w in worktrees:
+        prefix = issue_to_prefix.get(w.get("issue"))
+        if prefix is None:
+            continue
+        by_prefix.setdefault(prefix, []).append(w["name"])
+    return [{"prefix": prefix, "total": prefix_total[prefix], "members": names}
+            for prefix, names in by_prefix.items() if len(names) >= 2]
 
 
 # --- collect everything, cached ---
@@ -302,7 +383,8 @@ def collect():
     contested, contested_err = safe(contested_pairs, worktrees)
     wall, wall_err = safe(wall_items, worktrees)
     pipeline, pipeline_err = safe(pipeline_data, worktrees)
-    ticker, ticker_err = safe(ticker_data)
+    ticker, ticker_err = safe(ticker_data, worktrees)
+    hulls, hulls_err = safe(compute_hulls, worktrees, pipeline)
 
     data = {
         "worktrees": worktrees, "worktrees_err": wt_err,
@@ -311,6 +393,7 @@ def collect():
         "wall": wall or [], "wall_err": wall_err,
         "pipeline": pipeline, "pipeline_err": pipeline_err,
         "ticker": ticker or [], "ticker_err": ticker_err,
+        "hulls": hulls or [], "hulls_err": hulls_err,
     }
     with _cache_lock:
         _cache["ts"] = time.time()
@@ -333,7 +416,7 @@ def unavailable(x, y, label):
             f'{e(label)} · unavailable</text>')
 
 
-def render_graph(worktrees, contested, x0, y0, width):
+def render_graph(worktrees, contested, hulls, x0, y0, width):
     els = [f'<text class="ht" x="{x0}" y="{y0}">LIVE GRAPH · SESSIONS</text>']
     if not worktrees:
         els.append(unavailable(x0, y0 + 24, "no worktrees found"))
@@ -342,12 +425,25 @@ def render_graph(worktrees, contested, x0, y0, width):
     cols = 4 if width > 620 else 3
     cell_w = (width - 40) // cols
     cell_h = 118
-    positions = {}
+
+    # positions first — hulls need every node's (cx, cy) to size a bounding box
+    positions = {w["name"]: (x0 + 50 + (i % cols) * cell_w, y0 + 60 + (i // cols) * cell_h)
+                 for i, w in enumerate(worktrees)}
+
+    for hull in hulls:
+        pts = [positions[n] for n in hull["members"] if n in positions]
+        if len(pts) < 2:
+            continue
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        hx0, hy0 = min(xs) - 46, min(ys) - 46
+        hx1, hy1 = max(xs) + 46, max(ys) + 46
+        els.append(f'<rect class="hull" x="{hx0}" y="{hy0}" width="{hx1 - hx0}" '
+                    f'height="{hy1 - hy0}" rx="16"/>')
+        els.append(f'<text class="sub" x="{hx0 + 12}" y="{hy0 + 16}">'
+                    f'FEATURE · {e(hull["prefix"].upper()[:28])} · {hull["total"]} TICKETS</text>')
+
     for i, w in enumerate(worktrees):
-        col, row = i % cols, i // cols
-        cx = x0 + 50 + col * cell_w
-        cy = y0 + 60 + row * cell_h
-        positions[w["name"]] = (cx, cy)
+        cx, cy = positions[w["name"]]
 
         age_s = (time.time() - w["session"]) if w["session"] else None
         is_contested = any(w["name"] in (a, b) for a, b, _ in contested)
@@ -366,11 +462,12 @@ def render_graph(worktrees, contested, x0, y0, width):
         els.append(f'<circle class="node" cx="{cx}" cy="{cy}" r="25" stroke="{stroke}"/>')
         els.append(f'<text class="tt" x="{cx}" y="{cy - 2}" text-anchor="middle">'
                     f'{e(w["short"][:11])}</text>')
-        session_lbl = ago(w["session"]) if w["session"] else "no session"
+        session_age = ago(w["session"])
+        session_lbl = f"session {session_age}" if session_age else "no session"
         els.append(f'<text class="sub" x="{cx}" y="{cy + 42}" text-anchor="middle">'
                     f'{e(w["branch"][:20])}</text>')
         els.append(f'<text class="sub" x="{cx}" y="{cy + 54}" text-anchor="middle">'
-                    f'session {e(session_lbl)}</text>')
+                    f'{e(session_lbl)}</text>')
 
     rows = (len(worktrees) + cols - 1) // cols
     bottom = y0 + 60 + rows * cell_h
@@ -503,9 +600,9 @@ def render_page():
     pipe_x0 = graph_x0 + graph_w + 40
     pipe_w = WIDTH - pipe_x0 - 24
 
-    graph_svg, graph_bottom = render_graph(data["worktrees"], data["contested"],
+    graph_svg, graph_bottom = render_graph(data["worktrees"], data["contested"], data["hulls"],
                                            graph_x0, 116, graph_w)
-    if data["worktrees_err"] or data["contested_err"]:
+    if data["worktrees_err"] or data["contested_err"] or data["hulls_err"]:
         graph_svg += unavailable(graph_x0, graph_bottom, "live graph")
         graph_bottom += 20
 
@@ -535,6 +632,7 @@ def render_page():
   .node {{ fill:#141B26; stroke-width:1.6; }}
   .ring {{ fill:none; stroke-width:1.2; opacity:.5; }}
   .edge.q {{ fill:none; stroke:{PALETTE["amber"]}; stroke-width:1.3; stroke-dasharray:5 4; }}
+  .hull {{ fill:none; stroke:#39434F; stroke-width:1.2; stroke-dasharray:4 5; }}
   .chipq {{ fill:#1A2230; stroke:#39434F; stroke-width:1; }}
   .chipf {{ stroke:{PALETTE["green"]}; }}
   .chipd {{ stroke:#39434F; }}
@@ -582,16 +680,103 @@ def render_page():
 
 
 def render_pulse_page():
-    PULSE.render()
-    body = (RULES / "docs" / "pulse.html").read_text()
+    # write=False: a GET here must not write the repo — pulse builds and
+    # returns the HTML string, docs/pulse.html is untouched.
+    body = PULSE.render(write=False)
     body = body.replace("<title>", '<meta http-equiv="refresh" content="10"><title>', 1)
     return body
+
+
+# --- apprun self-registration (best-effort; never fatal) ---
+
+def register_apprun(port):
+    """Register this instance so 'leave nothing running' has something to
+    check — a --demo proto copy, since it's started for the user to look
+    at, not owned by any one task. Registration needs an owning session
+    (apprun refuses ownerless entries by design); a plain-terminal run has
+    none, so it's skipped, said out loud, and nothing else changes."""
+    if not os.environ.get("CLAUDE_CODE_SESSION_ID"):
+        print("apprun: registration skipped — CLAUDE_CODE_SESSION_ID is unset "
+              "(not running inside an agent session), and apprun refuses to "
+              "register an entry with no owner, by design.")
+        return
+    apprun = RULES / "bin" / "apprun"
+    try:
+        r = subprocess.run(
+            [str(apprun), "start", "--project", "tower", "--phase", "proto",
+             "--port", str(port), "--pid", str(os.getpid()),
+             "--url", f"http://127.0.0.1:{port}/", "--demo"],
+            capture_output=True, text=True, timeout=15)
+        if r.returncode == 0:
+            print(f"apprun: {r.stdout.strip()}")
+        else:
+            print(f"apprun: registration failed (non-fatal): {r.stderr.strip()}")
+    except Exception as exc:
+        print(f"apprun: registration failed (non-fatal): {exc}")
+
+
+_deregistering = False  # reentrancy guard — see deregister_apprun
+
+
+def deregister_apprun(port):
+    # subprocess.run(), not Popen — deliberately blocking. `apprun stop`'s
+    # own open_entries() drops any pid that's already dead *before it ever
+    # calls terminate()*, so a fire-and-forget spawn races this process's
+    # own exit: if we return control and the interpreter tears down before
+    # the child's first registry read, the entry is skipped as already-gone
+    # and left permanently "open" — worse than slow, silently wrong. Blocking
+    # keeps this process alive (mid-call) until apprun's terminate() sees it,
+    # so the close is guaranteed. The cost is apprun's own terminate() sending
+    # *this* pid a redundant self-targeted SIGTERM as its first action.
+    #
+    # That redundant SIGTERM is exactly what makes the guard below load-
+    # bearing, not defensive dressing: a signal handler in Python is not
+    # blocked during its own execution, so that self-inflicted SIGTERM
+    # re-enters _on_sigterm *while still blocked inside this very call*,
+    # which spawns a second `apprun stop`, whose terminate() sends a third
+    # SIGTERM, which spawns a third — found empirically as an unbounded
+    # recursive subprocess spawn (confirmed via a 164KB traceback of nested
+    # `_on_sigterm -> deregister_apprun -> subprocess.run -> _on_sigterm`
+    # frames) that never let the registry write happen at all. One flag,
+    # checked and set before the blocking call, makes every self-inflicted
+    # repeat a no-op instead of a new spawn.
+    global _deregistering
+    if _deregistering:
+        return
+    _deregistering = True
+    apprun = RULES / "bin" / "apprun"
+    try:
+        subprocess.run([str(apprun), "stop", "--port", str(port), "--include-demo"],
+                       capture_output=True, text=True, timeout=15)
+    except Exception:
+        pass  # best-effort on the way out; never block shutdown forever on this
 
 
 # --- server ---
 
 def serve(port):
     import http.server
+
+    register_apprun(port)
+    atexit.register(deregister_apprun, port)
+
+    def _on_sigterm(signum, frame):
+        # Ignore SIGTERM from here on, *before* doing anything blocking:
+        # deregister_apprun's own spawned `apprun stop` sends this exact pid
+        # a redundant self-targeted SIGTERM as its first move. Left handled,
+        # that re-enters this function while it's still blocked inside the
+        # first call, which spawns a second `apprun stop`, which sends a
+        # third SIGTERM, recursing without bound — confirmed empirically as
+        # runaway nested subprocess spawns that never let the registry write
+        # land. Ignoring means that redundant signal is silently dropped at
+        # the OS level; apprun's terminate() still ends this process via
+        # SIGKILL at its own 8s timeout if we haven't exited by then, and
+        # SIGKILL cannot be ignored, so shutdown is still guaranteed.
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        deregister_apprun(port)
+        sys.exit(0)  # triggers the atexit handler above too; deregister is idempotent
+
+    signal.signal(signal.SIGTERM, _on_sigterm)
 
     class H(http.server.BaseHTTPRequestHandler):
         def _send(self, body, ctype="text/html; charset=utf-8"):
