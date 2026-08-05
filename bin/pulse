@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+"""pulse — where you see the autopilot running.
+
+One page per run: every project's features and their issues, every worktree and
+how fresh its session is, every registered app instance, and whether each
+project is on the current rules. Derived entirely from ground truth — GitHub,
+git, the run registry, transcript timestamps — so it cannot drift from reality;
+it can only be stale, and it says when it was taken.
+
+  pulse                # render docs/pulse.html and print a one-line summary
+  pulse --quiet        # render only
+
+Grouping: open issues sharing a title prefix before ":" form a feature group —
+the nearest thing to a feature view until features are first-class objects.
+"""
+
+import datetime
+import html
+import json
+import os
+import subprocess
+import time
+from pathlib import Path
+
+RULES = Path(__file__).resolve().parent.parent
+GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
+                        "/usr/bin/git") if Path(g).exists()), "git")
+PROJECTS = [
+    {"name": "finance-tracker", "path": "/Users/aashish/apps/finance-tracker",
+     "repo": "codeDEXTER/ai-sangam"},
+    {"name": "pockets", "path": "/Users/aashish/apps/pockets", "repo": None},
+]
+TRANSCRIPTS = Path.home() / ".claude" / "projects"
+REGISTRY = Path.home() / ".claude" / "app-runs.jsonl"
+
+
+def run(cmd, cwd=None):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, timeout=30)
+        return r.stdout.strip() if r.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def ago(ts):
+    if not ts:
+        return "?"
+    s = int(time.time() - ts)
+    if s < 90: return "now"
+    m = s // 60
+    if m < 60: return f"{m}m ago"
+    h = m // 60
+    if h < 48: return f"{h}h ago"
+    return f"{h // 24}d ago"
+
+
+def issues_for(repo):
+    if not repo:
+        return []
+    out = run(["gh", "issue", "list", "-R", repo, "--state", "open", "--limit", "60",
+               "--json", "number,title,labels"])
+    if not out:
+        return []
+    rows = json.loads(out)
+    for r in rows:
+        r["labels"] = [l["name"] for l in r.get("labels", [])]
+    return rows
+
+
+def feature_groups(rows):
+    by_prefix = {}
+    for r in rows:
+        prefix = r["title"].split(":")[0].strip() if ":" in r["title"] else None
+        by_prefix.setdefault(prefix, []).append(r)
+    groups, singles = [], []
+    for prefix, members in by_prefix.items():
+        if prefix and len(members) > 1:
+            groups.append((prefix, sorted(members, key=lambda r: r["number"])))
+        else:
+            singles.extend(members)
+    groups.sort(key=lambda g: -len(g[1]))
+    return groups, sorted(singles, key=lambda r: r["number"])
+
+
+def worktrees_for(path):
+    out = run([GIT, "-C", path, "worktree", "list", "--porcelain"])
+    if not out:
+        return []
+    trees, cur = [], {}
+    for line in out.splitlines():
+        if line.startswith("worktree "):
+            if cur: trees.append(cur)
+            cur = {"path": line[9:]}
+        elif line.startswith("branch "):
+            cur["branch"] = line[7:].replace("refs/heads/", "")
+    if cur: trees.append(cur)
+    result = []
+    for t in trees:
+        p = Path(t["path"])
+        dirty = run([GIT, "-C", str(p), "status", "--porcelain"]) or ""
+        ahead = run([GIT, "-C", str(p), "rev-list", "--count", "main..HEAD"])
+        # session freshness = newest transcript mtime in the matching project dir
+        slug = str(p).replace("/", "-").replace(".", "-")
+        tdir = TRANSCRIPTS / slug
+        mtimes = [f.stat().st_mtime for f in tdir.glob("*.jsonl")] if tdir.exists() else []
+        result.append({
+            "name": p.name, "branch": t.get("branch", "?"),
+            "dirty": len([l for l in dirty.splitlines() if l.strip()]),
+            "ahead": int(ahead) if (ahead or "").isdigit() else 0,
+            "session": max(mtimes) if mtimes else None,
+        })
+    return result
+
+
+def instances():
+    if not REGISTRY.exists():
+        return []
+    rows = []
+    for line in REGISTRY.read_text().splitlines():
+        try:
+            e = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if e.get("state") != "open":
+            continue
+        try:
+            os.kill(int(e.get("pid", 0)), 0)
+        except (ProcessLookupError, ValueError):
+            continue
+        except PermissionError:
+            pass
+        rows.append(e)
+    return rows
+
+
+def rules_state(path):
+    cur = run([GIT, "-C", str(RULES), "rev-list", "--count", "HEAD"])
+    sha = run([GIT, "-C", str(RULES), "rev-parse", "--short", "HEAD"])
+    current = f"{cur}-{sha}" if cur and sha else "?"
+    stamp = Path(path) / ".common-rules-version"
+    have = stamp.read_text().strip() if stamp.exists() else None
+    return current, have
+
+
+def render():
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    cur_rules, _ = rules_state(PROJECTS[0]["path"])
+    parts = []
+    e = html.escape
+
+    for proj in PROJECTS:
+        rows = issues_for(proj["repo"])
+        groups, singles = feature_groups(rows)
+        wts = [w for w in worktrees_for(proj["path"]) if w["name"] != proj["name"]]
+        _, stamped = rules_state(proj["path"])
+        aligned = ("aligned" if stamped == cur_rules else
+                   f"on {stamped}" if stamped else "never aligned")
+        chip_cls = "ok" if stamped == cur_rules else "warn"
+
+        body = []
+        for prefix, members in groups:
+            lis = "".join(
+                f'<tr><td class="k">#{m["number"]}</td><td>{e(m["title"].split(":",1)[1].strip() if ":" in m["title"] else m["title"])}</td>'
+                f'<td>{" ".join(f"<span class=lab>{e(l)}</span>" for l in m["labels"] if l.startswith("priority"))}</td></tr>'
+                for m in members)
+            body.append(f'<h4>{e(prefix)} <span class="dim">· {len(members)} open issues — one feature</span></h4>'
+                        f'<div class="tablewrap"><table>{lis}</table></div>')
+        if singles:
+            lis = "".join(
+                f'<tr><td class="k">#{m["number"]}</td><td>{e(m["title"][:78])}</td>'
+                f'<td>{" ".join(f"<span class=lab>{e(l)}</span>" for l in m["labels"] if l.startswith("priority"))}</td></tr>'
+                for m in singles)
+            body.append(f'<h4>Standalone <span class="dim">· {len(singles)} open</span></h4>'
+                        f'<div class="tablewrap"><table>{lis}</table></div>')
+        if not rows:
+            body.append('<p class="dim">no GitHub issues (no remote, or none open)</p>')
+
+        if wts:
+            lis = "".join(
+                f'<tr><td class="k">{e(w["name"])}</td>'
+                f'<td>{"<span class=lab ok>" + str(w["ahead"]) + " ahead</span>" if w["ahead"] else ""}'
+                f'{"<span class=lab warn>" + str(w["dirty"]) + " uncommitted</span>" if w["dirty"] else ""}'
+                f'{"<span class=lab ok>clean</span>" if not w["dirty"] and not w["ahead"] else ""}</td>'
+                f'<td class="dim">session {ago(w["session"])}</td></tr>'
+                for w in sorted(wts, key=lambda w: -(w["session"] or 0)))
+            body.append(f'<h4>Worktrees & sessions <span class="dim">· {len(wts)}</span></h4>'
+                        f'<div class="tablewrap"><table>{lis}</table></div>')
+
+        parts.append(
+            f'<section><div class="eyebrow"><span>{e(proj["name"])}</span>'
+            f'<span class="tag"><span class="lab {chip_cls}">{aligned}</span></span></div>'
+            + "".join(body) + "</section>")
+
+    inst = instances()
+    if inst:
+        lis = "".join(
+            f'<tr><td class="k">{e(i["project"])}</td><td>{e(i["phase"])}</td>'
+            f'<td class="k">:{i["port"]}</td><td class="dim">{"demo — leave up" if i.get("demo") else ("the clean copy" if i["phase"]=="stable" else "")}</td></tr>'
+            for i in inst)
+        parts.append('<section><div class="eyebrow"><span>Running app instances</span>'
+                     f'<span class="tag">apprun registry</span></div>'
+                     f'<div class="tablewrap"><table>{lis}</table></div></section>')
+
+    doc = f"""<title>apps · pulse — the autopilot, at a glance</title>
+<meta name="doc-type" content="derived-snapshot">
+<style>
+  :root {{ --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
+    --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E;
+    --chip-ink:#FBFAF9;
+    --mono:ui-monospace,"SF Mono",Menlo,monospace; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }}
+  @media (prefers-color-scheme: dark) {{ :root {{ --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1;
+    --dim:#8B93A0; --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985;
+    --loss:#C97A81; --warn:#D2A05A; --chip-ink:#0C0F14; }} }}
+  :root[data-theme="dark"] {{ --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0;
+    --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+    --warn:#D2A05A; --chip-ink:#0C0F14; }}
+  :root[data-theme="light"] {{ --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660;
+    --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B;
+    --warn:#B4761E; --chip-ink:#FBFAF9; }}
+  body {{ background:var(--ground); color:var(--ink); font-family:var(--sans); font-size:15px;
+    line-height:1.5; margin:0; }}
+  .page {{ max-width:900px; margin:0 auto; padding:44px 26px 80px; }}
+  .brand {{ font-family:var(--mono); font-size:11px; letter-spacing:.13em; text-transform:uppercase;
+    color:var(--dim); display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }}
+  h1 {{ font-size:29px; font-weight:650; letter-spacing:-.015em; margin:14px 0 6px; }}
+  .standfirst {{ color:var(--dim); max-width:64ch; margin:0; }}
+  .eyebrow {{ font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; margin:44px 0 0; padding-bottom:8px; border-bottom:2px solid var(--rule);
+    display:flex; justify-content:space-between; align-items:baseline; }}
+  .eyebrow .tag {{ font-weight:400; text-transform:none; }}
+  h4 {{ font-size:14.5px; margin:20px 0 2px; }}
+  .dim {{ color:var(--dim); font-weight:400; font-size:12.5px; }}
+  .tablewrap {{ overflow-x:auto; }}
+  table {{ border-collapse:collapse; width:100%; font-size:13px; }}
+  td {{ padding:6px 12px 6px 0; border-bottom:1px solid var(--border); vertical-align:top; }}
+  td.k {{ font-family:var(--mono); font-size:12px; white-space:nowrap; }}
+  .lab {{ font-family:var(--mono); font-size:9.5px; letter-spacing:.06em; text-transform:uppercase;
+    padding:2px 6px; border-radius:4px; background:var(--accent); color:var(--chip-ink);
+    display:inline-block; margin-right:4px; white-space:nowrap; }}
+  .lab.ok {{ background:var(--gain); }} .lab.warn {{ background:var(--warn); }}
+</style>
+<div class="page">
+<div class="brand"><span>apps · pulse</span><span>taken {now} · rules {cur_rules} · re-run: common-rules/bin/pulse</span></div>
+<h1>The autopilot, at a glance</h1>
+<p class="standfirst">Features and their issues, worktrees and how fresh each session is, running
+app instances, and whether each project is on the current rules. Derived from ground truth every
+run — a snapshot, honest about when it was taken.</p>
+{"".join(parts)}
+</div>
+"""
+    out = RULES / "docs" / "pulse.html"
+    out.write_text(doc)
+    return out
+
+
+if __name__ == "__main__":
+    import sys
+    out = render()
+    if "--quiet" not in sys.argv:
+        print(f"pulse written: {out}")
