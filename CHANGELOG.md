@@ -8,6 +8,40 @@ is the thing to read first.
 
 ## 2026-08-05
 
+- **`bin/tower`: live-graph nodes show what he's tracking, not git mechanics**
+  (issue #25, from aashish at Look 3: "it's showing branch names, it doesn't
+  mean anything to me… I'm tracking features and what features are working,
+  which requires my input. And then I can look at, okay, which issue number,
+  which chat I need to go to."). Node label order inverted: primary is now
+  the issue title (prefix stripped when the node sits inside that feature's
+  hull, truncated ~22 chars on a word boundary), secondary is `#<number>`,
+  and the worktree name — how he actually finds the chat — moves to a small
+  dim third line rather than being replaced. A worktree with no mapped issue
+  still shows only its own name, the same honest mapping as #24 rather than
+  a guess.
+
+  Feature hulls widened: previously required >=2 mapped nodes, which is why
+  none rendered at all despite Desktop Clerk having #41 active alongside
+  #32/#33 open. A single mapped node now also draws a hull, labelled
+  `FEATURE · <NAME> · <n> tickets, 1 active`, when its feature has other open
+  issues not currently in flight — a feature with exactly one ticket and
+  nothing else open still renders hull-less, since there's nothing else on
+  it to show.
+
+  Added the marking he's actually scanning for: a node gets the purple
+  accent stroke (`#A98FD6`) plus a small "needs you" tag when it's a wall
+  item, or its mapped issue's branch has an open, non-draft PR (a new
+  `open_gate_branches()` collector — "awaiting a merge decision" read
+  literally as what an open PR already means, nothing invented beyond that).
+  A legend line now sits under the graph heading: green active · grey idle ·
+  amber contested · purple needs you.
+
+  Verified on spare port 8895 against live ground truth: all ten node
+  primary labels are issue titles or worktree names, zero branch-name
+  strings anywhere in the page; the Desktop Clerk hull rendered as `3
+  tickets, 1 active`; the one wall item (`proposals-status-refactor`) is the
+  one purple-marked, "needs you"-tagged node.
+
 - **`bin/tower`: fixed false IN FLIGHT matches** (issue #24, found by aashish
   on the live screen — #2, #5, #7, #8, #9 shown as in flight when only #27
   actually was). Root cause was matching issue numbers as bare digit
