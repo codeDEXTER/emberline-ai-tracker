@@ -190,6 +190,14 @@ minimum input from my side." The end state, stated plainly. Also: "a more
 scientific approach where you are taking more responsibility" — measure first,
 then fix, then re-measure.
 
+## 2026-08-05 · Tell an idea, let iterations refine it, then come back — a v2, kept separate
+Said in: common-rules
+
+"I can just tell the idea. It should run multiple iterations to make the idea
+finer and finer, and then let me know." Explicitly a separate system from the
+current rules for now. Asked for deep research on architectures first. Became
+research proposal 06.
+
 ---
 
 # Patterns
