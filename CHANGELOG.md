@@ -1,5 +1,31 @@
 # Changelog — common-rules
 
+## 2026-08-05 · Install from main at the end of every feature
+
+The user's rule, and it reverses an earlier one: `build_macapp.sh --install`
+was previously forbidden outright. The installed app is what he actually
+opens, so a feature that is merged but not installed is a feature he cannot
+see -- today's app was four days old while three PRs sat merged on main.
+
+Installing is now the closing step of a feature: check out main, pull, run
+the suite, install. Never install a red build; an old working app beats a new
+broken one.
+
+Two things fixed alongside it, both found by doing it:
+
+- `--install` staged into `dist/` and left the copy there, so every install
+  produced two bundles carrying `local.wealthtracker`. With installing now a
+  standing step, that duplicate would recur every time rather than once.
+  Fixed in finance-tracker (PR #52): the staged copy is removed after a
+  successful install. Non-install builds keep `dist/` untouched.
+- `bin/land` reported "merge blocked" on a PR that had merged seconds
+  earlier. `gh pr merge --delete-branch` exits non-zero when a worktree still
+  holds the branch -- the normal case, since every task runs in one -- and
+  land treated that as the merge failing. It now asks the remote for the PR's
+  actual state instead of trusting an exit code that conflates merging with
+  cleanup. A false "not merged" is the worst kind of wrong here: it tells a
+  session to retry work that is already done.
+
 ## 2026-08-05 · apprun looks, instead of only remembering
 
 The user found two app servers running that `apprun list` could not see: the

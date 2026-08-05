@@ -260,13 +260,30 @@ to stop when your task ends. Starting a server directly is not the problem;
 leaving it unclaimed is. Before this, `list` reported a clean machine while two
 copies were up, because the registry only knew what it had been told.
 
-**One installed app per project, ever.** There is exactly one bundle in
-`/Applications` for a project, built from `main` and refreshed after a feature
-merges. A worktree build is a *development* copy: it carries a distinct name and
-icon, never installs itself, and never overwrites the installed one. Two bundles
-claiming to be the same app is a bug — `bin/appcheck` finds them.
+**Install from `main` at the end of every feature.** When a feature is done —
+not each issue, the feature — check out `main`, pull, run the suite, and install:
 
-Never run `build_macapp.sh --install`; never touch `/Applications` directly.
+```
+git checkout main && git pull
+python3 -m unittest discover -s tests -q     # or the project's own command
+./build_macapp.sh --install
+```
+
+The installed app is what the user actually opens, so a feature that is merged
+but not installed is a feature they cannot see. Never install a red build: if
+the suite fails, an old working app beats a new broken one — say so and stop.
+
+**One installed app per project, ever.** There is exactly one bundle in
+`/Applications` for a project, and it is built from `main`. A worktree build is
+a *development* copy: it carries a distinct name and identifier, and
+`--install` is refused from anywhere but a stable build. Two bundles claiming
+one identifier is a bug — macOS keys on `CFBundleIdentifier`, so that is not two
+copies but one identity with two bodies, and which one opens is undefined.
+`bin/appcheck` finds them; it should always report every identifier unique.
+
+Never touch `/Applications` by hand — `--install` is the only path in, and it
+removes its own staged copy from `dist/` so the install cannot leave a duplicate
+behind.
 
 ---
 
