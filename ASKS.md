@@ -159,6 +159,21 @@ Asked for the rules to be tested against a real chat rather than accepted on
 their own terms. Two of four issues fixed, one on paper only, one not at all —
 which became the unbuilt-proposal rule.
 
+## 2026-08-04 · Don't label rules with codes he has to decode
+Said in: common-rules
+
+"if you're telling me this d one, d two, some jargons need to be figured out, I
+cannot figure them out." Feedback on how proposals are written, not on their
+content. Rules are sentences he can read once and act on; codes are for the
+files, not for him.
+
+## 2026-08-04 · He owns features; issues exist for parallelism, not for his attention
+Said in: finance-tracker → common-rules
+
+"at the end of the day I am worried about the feature, not the issue… issues are
+there to have parallel task, divide and conquer. It's not to increase my overhead
+that I have to trigger each and every issue." Became proposal 05.
+
 ---
 
 # Patterns
