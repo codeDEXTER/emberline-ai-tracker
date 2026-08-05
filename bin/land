@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# land -- take a finished task branch to main without waiting for a human.
+#
+#   land            land the current branch
+#   land --check    say what would happen, change nothing
+#   land --all      land every branch in this project that is ready
+#
+# Branches that are green and past the gate merge themselves. Nothing sits in
+# a queue waiting to be noticed. On 2026-08-05 five finished branches sat for
+# hours and two of them collided on the same file while they waited -- the
+# collision existed only because the branches lived long enough to collide.
+#
+# It refuses to land, and says why, when:
+#   - the working tree is dirty
+#   - the test suite is not green
+#   - the branch has no commits main doesn't have
+#   - the merge into main would conflict
+#   - the branch touches a path the user reserved (see RESERVED below)
+#
+# main is protected on some remotes, so it lands through a PR when one is
+# needed and by fast-forward when it is not.
+set -euo pipefail
+
+GIT=git; command -v git >/dev/null 2>&1 || GIT=/Library/Developer/CommandLineTools/usr/bin/git
+CHECK_ONLY=0; ALL=0
+for a in "$@"; do
+    case "$a" in
+        --check) CHECK_ONLY=1 ;;
+        --all)   ALL=1 ;;
+        *) echo "unknown flag: $a" >&2; exit 2 ;;
+    esac
+done
+
+# Paths the user reserved for themselves. A branch touching one of these is
+# never landed automatically -- it is reported and left alone.
+RESERVED='^(common-rules/|CLAUDE\.md|\.github/|finance_data/|auth\.json|\.env)'
+
+TOP="$($GIT rev-parse --show-toplevel)"
+cd "$TOP"
+
+# The shared rules are the user's to merge, always. Landing them automatically
+# would let the AI change the rules it operates under without anyone saying yes.
+# --git-common-dir, not --show-toplevel: inside a worktree the toplevel is the
+# worktree path, which does not end in the repo's name.
+REPO_ROOT="$(cd "$($GIT rev-parse --git-common-dir)/.." && pwd)"
+case "$REPO_ROOT" in
+    */common-rules)
+        echo "land: this is common-rules -- merging a rule change is reserved" >&2
+        echo "      for the user. Push the branch and open a PR instead." >&2
+        exit 3 ;;
+esac
+
+say() { printf '%s\n' "$*"; }
+refuse() { say "  not landing: $*"; return 1; }
+
+test_cmd() {
+    if [ -d tests ] && ls tests/*.py >/dev/null 2>&1; then
+        echo "python3 -m unittest discover -s tests -q"
+    elif [ -f package.json ] && grep -q '"test"' package.json; then
+        echo "npm test --silent"
+    else
+        echo ""
+    fi
+}
+
+land_one() {
+    local branch="$1"
+    say "── $branch"
+
+    [ -z "$($GIT status --porcelain)" ] || { refuse "working tree is dirty"; return 1; }
+
+    local ahead
+    ahead=$($GIT rev-list --count "main..$branch")
+    [ "$ahead" -gt 0 ] || { refuse "nothing main doesn't already have"; return 1; }
+
+    local touched
+    touched=$($GIT diff --name-only "main...$branch" | grep -E "$RESERVED" || true)
+    if [ -n "$touched" ]; then
+        refuse "touches paths reserved for the user:"
+        printf '%s\n' "$touched" | sed 's/^/      /'
+        return 1
+    fi
+
+    # Would the merge conflict? Ask git without touching the working tree.
+    local base
+    base=$($GIT merge-base main "$branch")
+    if ! $GIT merge-tree --write-tree main "$branch" >/dev/null 2>&1; then
+        if $GIT merge-tree "$base" main "$branch" 2>/dev/null | grep -q '^<<<<<<<'; then
+            refuse "would conflict with main -- merge main in and resolve first"
+            return 1
+        fi
+    fi
+
+    local tc; tc="$(test_cmd)"
+    if [ -n "$tc" ]; then
+        say "  running: $tc"
+        if ! eval "$tc" >/tmp/land-tests.$$ 2>&1; then
+            refuse "tests are not green"
+            tail -15 /tmp/land-tests.$$ | sed 's/^/      /'
+            rm -f /tmp/land-tests.$$
+            return 1
+        fi
+        say "  tests green ($(grep -oE 'Ran [0-9]+ tests?' /tmp/land-tests.$$ | tail -1))"
+        rm -f /tmp/land-tests.$$
+    else
+        say "  no test suite found -- landing on the gate alone"
+    fi
+
+    if [ "$CHECK_ONLY" = 1 ]; then say "  READY (check only, nothing done)"; return 0; fi
+
+    if $GIT push -q origin "$branch" 2>/dev/null && command -v gh >/dev/null 2>&1; then
+        local url
+        url=$(gh pr create --base main --head "$branch" \
+              --title "$($GIT log -1 --format=%s "$branch")" \
+              --body "Landed by \`common-rules/bin/land\`: $ahead commit(s), tests green, no reserved paths touched." \
+              2>/dev/null || gh pr view "$branch" --json url -q .url 2>/dev/null)
+        if [ -n "${url:-}" ]; then
+            say "  PR: $url"
+            if gh pr merge "$url" --squash --delete-branch 2>/dev/null; then
+                say "  LANDED"
+                return 0
+            fi
+            say "  PR open, merge blocked -- protected branch or a check is pending"
+            return 0
+        fi
+    fi
+
+    say "  no remote path available; leaving the branch pushed"
+    return 0
+}
+
+if [ "$ALL" = 1 ]; then
+    for w in $($GIT worktree list --porcelain | awk '/^branch /{print $2}' | sed 's#refs/heads/##'); do
+        [ "$w" = "main" ] && continue
+        ( cd "$($GIT worktree list --porcelain | grep -B2 "refs/heads/$w\$" | awk '/^worktree /{print $2}' | tail -1)" \
+          && land_one "$w" ) || true
+    done
+else
+    land_one "$($GIT rev-parse --abbrev-ref HEAD)"
+fi

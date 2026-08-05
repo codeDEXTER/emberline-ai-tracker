@@ -1,0 +1,208 @@
+#!/usr/bin/env python3
+"""spend -- what a task cost, and where the money goes.
+
+    spend log <task>          append one AGENT-LOG entry for this session
+    spend report              totals per task for this project
+    spend report --by-agent   which roles are expensive
+    spend today               everything spent today, across all projects
+
+The numbers come from the session transcripts under ~/.claude/projects, which
+record token usage per request. Output tokens are the effort proxy throughout:
+transcript wall-clock spans include idle time and would be misleading.
+
+Written 2026-08-05, when measuring four days of sessions showed two thirds of
+all spend went to management chats rather than to worktrees doing the work.
+"""
+from __future__ import annotations
+
+import collections
+import datetime
+import glob
+import json
+import os
+import subprocess
+import sys
+
+PROJECTS = os.path.expanduser("~/.claude/projects")
+LOG = "AGENT-LOG.md"
+
+
+def _sessions():
+    """Yield (project_dir_name, path) for every transcript on this machine."""
+    for path in glob.glob(os.path.join(PROJECTS, "*", "*.jsonl")):
+        yield os.path.basename(os.path.dirname(path)), path
+
+
+def _read(path):
+    """Output tokens, agent calls and day-buckets for one transcript."""
+    out = 0
+    agents = collections.Counter()
+    days = collections.Counter()
+    for line in open(path, errors="replace"):
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        msg = rec.get("message") or {}
+        tokens = (msg.get("usage") or {}).get("output_tokens", 0)
+        out += tokens
+        if tokens and rec.get("timestamp"):
+            days[rec["timestamp"][:10]] += tokens
+        content = msg.get("content")
+        if isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "tool_use" \
+                        and block.get("name") == "Agent":
+                    agents[(block.get("input") or {}).get("subagent_type", "?")] += 1
+    return out, agents, days
+
+
+def _this_session():
+    """The transcript for the session calling this, if it can be identified."""
+    sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if not sid:
+        return None
+    for _, path in _sessions():
+        if os.path.basename(path).startswith(sid[:8]):
+            return path
+    return None
+
+
+def _git(*args):
+    git = "/Library/Developer/CommandLineTools/usr/bin/git"
+    if not os.path.exists(git):
+        git = "git"
+    try:
+        return subprocess.run([git, *args], capture_output=True, text=True,
+                              check=False).stdout.strip()
+    except OSError:
+        return ""
+
+
+def cmd_log(task):
+    """Append exactly one entry for this task. One per task, never per step."""
+    path = _this_session()
+    if not path:
+        print("spend: CLAUDE_CODE_SESSION_ID not set -- cannot measure this "
+              "session; writing the entry without token figures.",
+              file=sys.stderr)
+        out, agents = 0, collections.Counter()
+    else:
+        out, agents, _ = _read(path)
+
+    branch = _git("rev-parse", "--abbrev-ref", "HEAD") or "?"
+    landed = _git("rev-list", "--count", "main..HEAD") or "0"
+    today = datetime.date.today().isoformat()
+
+    roles = ", ".join(f"{k}×{v}" for k, v in agents.most_common()) or "none"
+    entry = (
+        f"\n## {today} · {task}\n"
+        f"- branch: `{branch}` · commits landed: {landed}\n"
+        f"- agents invoked: {roles}\n"
+        f"- session output tokens: {out:,}\n"
+    )
+    with open(LOG, "a") as fh:
+        fh.write(entry)
+    print(f"AGENT-LOG.md: entry for {task} ({out:,} output tokens, {landed} commits)")
+
+
+def _parse_log():
+    """Entries already recorded in this project's AGENT-LOG.md."""
+    if not os.path.exists(LOG):
+        return []
+    entries, cur = [], None
+    for line in open(LOG, errors="replace"):
+        if line.startswith("## "):
+            head = line[3:].strip()
+            date, _, task = head.partition(" · ")
+            cur = {"date": date, "task": task or head, "tokens": 0, "commits": 0,
+                   "agents": ""}
+            entries.append(cur)
+        elif cur is not None:
+            if "output tokens:" in line:
+                cur["tokens"] = int(line.split(":")[-1].strip().replace(",", "") or 0)
+            elif "commits landed:" in line:
+                tail = line.rsplit(":", 1)[-1].strip()
+                cur["commits"] = int(tail) if tail.isdigit() else 0
+            elif "agents invoked:" in line:
+                cur["agents"] = line.split(":", 1)[-1].strip()
+    return entries
+
+
+def cmd_report(by_agent=False):
+    entries = _parse_log()
+    if not entries:
+        print(f"no {LOG} entries here yet -- run `spend log <task>` when a task lands.")
+        return
+
+    if by_agent:
+        roles = collections.Counter()
+        for e in entries:
+            for part in e["agents"].split(","):
+                part = part.strip()
+                if "×" in part:
+                    name, _, n = part.partition("×")
+                    roles[name.strip()] += int(n) if n.strip().isdigit() else 0
+        print(f"{'role':24} {'calls':>6}")
+        for name, n in roles.most_common():
+            print(f"{name:24} {n:>6}")
+        return
+
+    total_t = total_c = 0
+    print(f"{'date':11} {'task':38} {'tokens':>10} {'commits':>8} {'per commit':>11}")
+    for e in entries:
+        per = f"{e['tokens'] // e['commits']:,}" if e["commits"] else "—"
+        print(f"{e['date']:11} {e['task'][:38]:38} {e['tokens']:>10,} "
+              f"{e['commits']:>8} {per:>11}")
+        total_t += e["tokens"]
+        total_c += e["commits"]
+    per = f"{total_t // total_c:,}" if total_c else "—"
+    print(f"{'':11} {'TOTAL':38} {total_t:>10,} {total_c:>8} {per:>11}")
+
+
+def cmd_today():
+    day = datetime.date.today().isoformat()
+    buckets = collections.Counter()
+    for proj, path in _sessions():
+        if "common-rules" in proj:
+            b = "common-rules"
+        elif "worktrees" in proj:
+            b = "worktrees (doing the work)"
+        elif "pockets" in proj:
+            b = "pockets"
+        else:
+            b = "management chats"
+        _, _, days = _read(path)
+        buckets[b] += days.get(day, 0)
+
+    total = sum(buckets.values())
+    print(f"output tokens spent today ({day})")
+    for name, n in buckets.most_common():
+        share = 100 * n / total if total else 0
+        bar = "█" * int(share / 2.5)
+        print(f"  {name:28} {n:>9,}  {share:5.1f}%  {bar}")
+    print(f"  {'TOTAL':28} {total:>9,}")
+
+
+def main(argv):
+    if not argv or argv[0] in ("-h", "--help"):
+        print(__doc__)
+        return 0
+    cmd, rest = argv[0], argv[1:]
+    if cmd == "log":
+        if not rest:
+            print("spend log <task-name>", file=sys.stderr)
+            return 2
+        cmd_log(" ".join(rest))
+    elif cmd == "report":
+        cmd_report(by_agent="--by-agent" in rest)
+    elif cmd == "today":
+        cmd_today()
+    else:
+        print(f"unknown command: {cmd}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
