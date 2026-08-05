@@ -1,0 +1,819 @@
+#!/usr/bin/env python3
+"""tower — the autopilot, live on one screen.
+
+Step 2 of concept 07 (`docs/proposals/07-concept-tower.html`, accepted
+2026-08-05): the drawn screen, not just pulse re-rendered behind a port.
+One window, four regions — header, live graph, pipeline, event ticker —
+built from the same ground truth `pulse` already reads, plus worktree
+file lists (for contested surfaces) and transcript tails (for the wall).
+
+  tower                # serve on 127.0.0.1:8890
+  tower --port N       # serve on a different port
+
+Loopback only, always — the page renders private session data, same rule
+as `pulse --serve`. Data is recollected at most every 5 seconds and cached
+between requests; the page itself auto-refreshes every 10 seconds. Every
+region is collected independently: one collector failing renders an empty
+region with a small "unavailable" note in place of that region, never a
+500 for the whole page.
+
+Registers itself with `apprun` on start (a `--demo` proto copy, so
+`stop --all` leaves it up until said done) and deregisters on shutdown,
+when run inside an agent session; a plain-terminal run prints one line
+saying registration was skipped, since apprun refuses an ownerless entry
+by design.
+
+Message edges between sessions and click-through (step 3) are out of
+scope here — see the concept doc.
+"""
+
+import atexit
+import datetime
+import html
+import importlib.machinery
+import importlib.util
+import json
+import os
+import re
+import signal
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+RULES = Path(__file__).resolve().parent.parent
+GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
+                        "/usr/bin/git") if Path(g).exists()), "git")
+TRANSCRIPTS = Path.home() / ".claude" / "projects"
+CACHE_TTL = 5
+DEFAULT_PORT = 8890
+
+# --- reuse pulse's collectors rather than re-deriving the same ground truth ---
+
+
+def load_pulse():
+    path = RULES / "bin" / "pulse"
+    loader = importlib.machinery.SourceFileLoader("tower_pulse", str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+PULSE = load_pulse()
+PROJECTS = PULSE.PROJECTS
+
+
+def run(cmd, cwd=None):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, timeout=30)
+        return r.stdout.strip() if r.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def ago(ts):
+    if not ts:
+        return None
+    s = int(time.time() - ts)
+    if s < 90:
+        return "now"
+    m = s // 60
+    if m < 60:
+        return f"{m}m"
+    h = m // 60
+    if h < 48:
+        return f"{h}h"
+    return f"{h // 24}d"
+
+
+def short_name(name):
+    """adoring-euler-ba942f -> adoring-euler; strips a trailing hash suffix."""
+    m = re.match(r"^(.+)-[0-9a-f]{4,8}$", name)
+    return m.group(1) if m else name
+
+
+def touched_files(path):
+    # NOT run(): that helper .strip()s the whole blob, which eats the leading
+    # space off " M file" porcelain lines and truncates the filename by one
+    # character. whoelse's git() avoids exactly this with rstrip("\n") only.
+    try:
+        r = subprocess.run([GIT, "-C", str(path), "status", "--porcelain"],
+                           capture_output=True, text=True, timeout=30)
+        out = r.stdout.rstrip("\n") if r.returncode == 0 else ""
+    except Exception:
+        out = ""
+    files = []
+    for line in out.splitlines():
+        f = line[3:].strip()
+        if " -> " in f:
+            f = f.split(" -> ", 1)[1]
+        if f:
+            files.append(f.strip('"'))
+    return files
+
+
+def tail_lines(path, n):
+    """Last n lines of a (possibly large) file, without reading it whole."""
+    with open(path, "rb") as f:
+        f.seek(0, 2)
+        size = f.tell()
+        block = 8192
+        data = b""
+        pos = size
+        while pos > 0 and data.count(b"\n") <= n:
+            step = min(block, pos)
+            pos -= step
+            f.seek(pos)
+            data = f.read(step) + data
+        return data.decode("utf-8", errors="replace").splitlines()[-n:]
+
+
+def newest_transcript(worktree_path):
+    slug = str(worktree_path).replace("/", "-").replace(".", "-")
+    tdir = TRANSCRIPTS / slug
+    if not tdir.exists():
+        return None
+    files = list(tdir.glob("*.jsonl"))
+    if not files:
+        return None
+    return max(files, key=lambda f: f.stat().st_mtime)
+
+
+def worktree_issue(path):
+    """First "#<digits>" found in this worktree's ahead-of-main commit
+    subjects — the honest mapping: no match means ungrouped, not guessed."""
+    out = run([GIT, "-C", str(path), "log", "main..HEAD", "--pretty=%s"])
+    if not out:
+        return None
+    m = re.search(r"#(\d+)", out)
+    return int(m.group(1)) if m else None
+
+
+# --- worktree graph (nodes, contested surfaces) ---
+
+def project_worktrees(proj):
+    """Every worktree of proj except the main checkout, with everything the
+    graph and pipeline need: branch, ahead, uncommitted files, session mtime."""
+    out = run([GIT, "-C", proj["path"], "worktree", "list", "--porcelain"])
+    if not out:
+        return []
+    trees, cur = [], {}
+    for line in out.splitlines():
+        if line.startswith("worktree "):
+            if cur:
+                trees.append(cur)
+            cur = {"path": line[9:]}
+        elif line.startswith("branch "):
+            cur["branch"] = line[7:].replace("refs/heads/", "")
+    if cur:
+        trees.append(cur)
+
+    result = []
+    for t in trees:
+        p = Path(t["path"])
+        if str(p) == proj["path"]:
+            continue  # skip the main checkout itself
+        files = touched_files(p)
+        ahead = run([GIT, "-C", str(p), "rev-list", "--count", "main..HEAD"])
+        newest = newest_transcript(p)
+        session = newest.stat().st_mtime if newest else None
+        result.append({
+            "project": proj["name"], "path": p, "name": p.name,
+            "short": short_name(p.name), "branch": t.get("branch", "?"),
+            "files": files, "ahead": int(ahead) if (ahead or "").isdigit() else 0,
+            "session": session, "newest_transcript": newest,
+            "issue": worktree_issue(p),
+        })
+    return result
+
+
+def contested_pairs(worktrees):
+    """Pairs of worktrees (same project) holding an overlapping uncommitted
+    file — bin/whoelse's logic, scoped per project since paths are repo-relative."""
+    by_project = {}
+    for w in worktrees:
+        by_project.setdefault(w["project"], []).append(w)
+    pairs = []
+    for _, group in by_project.items():
+        owners = {}
+        for w in group:
+            for f in w["files"]:
+                owners.setdefault(f, []).append(w["name"])
+        for f, names in owners.items():
+            if len(names) > 1:
+                for i in range(len(names)):
+                    for j in range(i + 1, len(names)):
+                        pairs.append((names[i], names[j], f))
+    return pairs
+
+
+def wall_items(worktrees):
+    """Sessions whose newest transcript's tail looks like a pending question,
+    stale enough (>5m) that it's plausibly still waiting on the user. A
+    heuristic, not a certainty — labelled as one everywhere it's shown."""
+    items = []
+    for w in worktrees:
+        nt = w["newest_transcript"]
+        if not nt:
+            continue
+        try:
+            mtime = nt.stat().st_mtime
+            age_s = time.time() - mtime
+            if age_s < 300:
+                continue
+            lines = tail_lines(nt, 30)
+        except OSError:
+            continue
+        if any('"name":"AskUserQuestion"' in line for line in lines):
+            items.append({"worktree": w["short"], "project": w["project"],
+                          "age": ago(mtime) or "?"})
+    return items
+
+
+# --- pipeline (gh issues + worktree state) ---
+
+def pipeline_data(worktrees):
+    proj = next((p for p in PROJECTS if p.get("repo")), None)
+    if not proj:
+        return {"groups": [], "in_flight": [], "in_flight_worktrees": [],
+                "queued": [], "queued_more": 0, "merged": []}
+    rows = PULSE.issues_for(proj["repo"])
+    groups, singles = PULSE.feature_groups(rows)
+    all_issues = []
+    for _, members in groups:
+        all_issues.extend(members)
+    all_issues.extend(singles)
+    all_issues.sort(key=lambda r: r["number"])
+
+    numbers = {r["number"] for r in all_issues}
+    in_flight_numbers = set()
+    for w in worktrees:
+        for n in numbers:
+            if re.search(rf"(?<!\d){n}(?!\d)", w["branch"]):
+                in_flight_numbers.add(n)
+
+    in_flight = [r for r in all_issues if r["number"] in in_flight_numbers]
+    in_flight_worktrees = []
+    if not in_flight:
+        in_flight_worktrees = [w for w in worktrees if w["ahead"] > 0]
+
+    queued = [r for r in all_issues if r["number"] not in in_flight_numbers]
+    queued_shown, queued_more = queued[:8], max(0, len(queued) - 8)
+
+    today = datetime.date.today().isoformat()
+    out = run(["gh", "issue", "list", "-R", proj["repo"], "--state", "closed",
+               "--search", f"closed:>={today}", "--json", "number,title", "--limit", "20"])
+    merged = json.loads(out)[:4] if out else []
+
+    return {"groups": groups, "in_flight": in_flight,
+            "in_flight_worktrees": in_flight_worktrees,
+            "queued": queued_shown, "queued_more": queued_more, "merged": merged}
+
+
+# --- event ticker ---
+
+def last_heading(path, max_len=70):
+    """The last "## ..." markdown heading line in a file, truncated."""
+    try:
+        text = path.read_text(errors="replace")
+    except OSError:
+        return None
+    heading = None
+    for line in text.splitlines():
+        if line.startswith("## "):
+            heading = line.rstrip()
+    if heading is None:
+        return None
+    return heading if len(heading) <= max_len else heading[:max_len - 1] + "…"
+
+
+def agent_log_events(worktrees):
+    """One ticker event per AGENT-LOG.md — main checkouts and every worktree —
+    scope item, silently dropped in the first pass: this is a live signal of
+    recorded decisions, not just commits."""
+    checkouts = [(p["name"], Path(p["path"])) for p in PROJECTS]
+    checkouts += [(w["short"], w["path"]) for w in worktrees]
+    events = []
+    for name, path in checkouts:
+        f = path / "AGENT-LOG.md"
+        if not f.exists():
+            continue
+        heading = last_heading(f)
+        if heading is None:
+            continue
+        try:
+            mtime = f.stat().st_mtime
+        except OSError:
+            continue
+        events.append((mtime, f"agent-log · {name}", "", heading))
+    return events
+
+
+def ticker_data(worktrees):
+    repos = [(p["name"], p["path"]) for p in PROJECTS] + [("common-rules", str(RULES))]
+    events = []
+    for name, path in repos:
+        out = run([GIT, "-C", path, "log", "-4", "--pretty=%ct|%h|%s"])
+        if not out:
+            continue
+        for line in out.splitlines():
+            parts = line.split("|", 2)
+            if len(parts) == 3 and parts[0].isdigit():
+                events.append((int(parts[0]), name, parts[1], parts[2]))
+    events += agent_log_events(worktrees)
+    events.sort(key=lambda e: -e[0])
+    return events[:8]
+
+
+# --- feature hulls (locked concept: group graph nodes by feature) ---
+
+def compute_hulls(worktrees, pipeline):
+    """Worktrees grouped by the same title-prefix feature groups the
+    pipeline uses — mapped only via worktree_issue()'s real match, never
+    invented. A group renders only with >=2 mapped nodes in it."""
+    if not pipeline or not pipeline.get("groups"):
+        return []
+    issue_to_prefix, prefix_total = {}, {}
+    for prefix, members in pipeline["groups"]:
+        prefix_total[prefix] = len(members)
+        for m in members:
+            issue_to_prefix[m["number"]] = prefix
+    by_prefix = {}
+    for w in worktrees:
+        prefix = issue_to_prefix.get(w.get("issue"))
+        if prefix is None:
+            continue
+        by_prefix.setdefault(prefix, []).append(w["name"])
+    return [{"prefix": prefix, "total": prefix_total[prefix], "members": names}
+            for prefix, names in by_prefix.items() if len(names) >= 2]
+
+
+# --- collect everything, cached ---
+
+_cache_lock = threading.Lock()
+_cache = {"ts": 0, "data": None}
+
+
+def collect():
+    with _cache_lock:
+        if _cache["data"] is not None and time.time() - _cache["ts"] < CACHE_TTL:
+            return _cache["data"]
+
+    def safe(fn, *a):
+        try:
+            return fn(*a), None
+        except Exception as e:
+            return None, str(e)
+
+    worktrees, wt_err = safe(lambda: [w for proj in PROJECTS for w in project_worktrees(proj)])
+    worktrees = worktrees or []
+
+    header, header_err = safe(lambda: {
+        "now": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "rules": PULSE.rules_state(PROJECTS[0]["path"])[0],
+        "chips": [
+            {"name": p["name"],
+             "state": ("aligned" if PULSE.rules_state(p["path"])[1] == PULSE.rules_state(PROJECTS[0]["path"])[0]
+                       else ("behind" if PULSE.rules_state(p["path"])[1] else "never aligned"))}
+            for p in PROJECTS],
+    })
+
+    contested, contested_err = safe(contested_pairs, worktrees)
+    wall, wall_err = safe(wall_items, worktrees)
+    pipeline, pipeline_err = safe(pipeline_data, worktrees)
+    ticker, ticker_err = safe(ticker_data, worktrees)
+    hulls, hulls_err = safe(compute_hulls, worktrees, pipeline)
+
+    data = {
+        "worktrees": worktrees, "worktrees_err": wt_err,
+        "header": header, "header_err": header_err,
+        "contested": contested or [], "contested_err": contested_err,
+        "wall": wall or [], "wall_err": wall_err,
+        "pipeline": pipeline, "pipeline_err": pipeline_err,
+        "ticker": ticker or [], "ticker_err": ticker_err,
+        "hulls": hulls or [], "hulls_err": hulls_err,
+    }
+    with _cache_lock:
+        _cache["ts"] = time.time()
+        _cache["data"] = data
+    return data
+
+
+# --- rendering ---
+
+PALETTE = dict(bg="#0B0E13", ink="#DFE3EA", dim="#7C8594", line="#222B38",
+               green="#5FA985", amber="#D2A05A", purple="#A98FD6")
+
+
+def e(s):
+    return html.escape(str(s))
+
+
+def unavailable(x, y, label):
+    return (f'<text x="{x}" y="{y}" class="dim" font-size="11">'
+            f'{e(label)} · unavailable</text>')
+
+
+def render_graph(worktrees, contested, hulls, x0, y0, width):
+    els = [f'<text class="ht" x="{x0}" y="{y0}">LIVE GRAPH · SESSIONS</text>']
+    if not worktrees:
+        els.append(unavailable(x0, y0 + 24, "no worktrees found"))
+        return "\n".join(els), y0 + 50
+
+    cols = 4 if width > 620 else 3
+    cell_w = (width - 40) // cols
+    cell_h = 118
+
+    # positions first — hulls need every node's (cx, cy) to size a bounding box
+    positions = {w["name"]: (x0 + 50 + (i % cols) * cell_w, y0 + 60 + (i // cols) * cell_h)
+                 for i, w in enumerate(worktrees)}
+
+    for hull in hulls:
+        pts = [positions[n] for n in hull["members"] if n in positions]
+        if len(pts) < 2:
+            continue
+        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+        hx0, hy0 = min(xs) - 46, min(ys) - 46
+        hx1, hy1 = max(xs) + 46, max(ys) + 46
+        els.append(f'<rect class="hull" x="{hx0}" y="{hy0}" width="{hx1 - hx0}" '
+                    f'height="{hy1 - hy0}" rx="16"/>')
+        els.append(f'<text class="sub" x="{hx0 + 12}" y="{hy0 + 16}">'
+                    f'FEATURE · {e(hull["prefix"].upper()[:28])} · {hull["total"]} TICKETS</text>')
+
+    for i, w in enumerate(worktrees):
+        cx, cy = positions[w["name"]]
+
+        age_s = (time.time() - w["session"]) if w["session"] else None
+        is_contested = any(w["name"] in (a, b) for a, b, _ in contested)
+        if is_contested:
+            stroke, extra_ring = PALETTE["amber"], False
+        elif age_s is not None and age_s < 180:
+            stroke, extra_ring = PALETTE["green"], True
+        elif age_s is not None and age_s < 1800:
+            stroke, extra_ring = PALETTE["green"], False
+        else:
+            stroke, extra_ring = "#39434F", False
+
+        if extra_ring:
+            els.append(f'<circle class="ring" cx="{cx}" cy="{cy}" r="33" '
+                        f'stroke="{stroke}"/>')
+        els.append(f'<circle class="node" cx="{cx}" cy="{cy}" r="25" stroke="{stroke}"/>')
+        els.append(f'<text class="tt" x="{cx}" y="{cy - 2}" text-anchor="middle">'
+                    f'{e(w["short"][:11])}</text>')
+        session_age = ago(w["session"])
+        session_lbl = f"session {session_age}" if session_age else "no session"
+        els.append(f'<text class="sub" x="{cx}" y="{cy + 42}" text-anchor="middle">'
+                    f'{e(w["branch"][:20])}</text>')
+        els.append(f'<text class="sub" x="{cx}" y="{cy + 54}" text-anchor="middle">'
+                    f'{e(session_lbl)}</text>')
+
+    rows = (len(worktrees) + cols - 1) // cols
+    bottom = y0 + 60 + rows * cell_h
+
+    seen_pairs = set()
+    for a, b, f in contested:
+        pair_key = frozenset((a, b))
+        if pair_key in seen_pairs:
+            continue  # one note per contested pair, naming one file, per the concept
+        seen_pairs.add(pair_key)
+        if a in positions and b in positions:
+            ax, ay = positions[a]
+            bx, by = positions[b]
+            mx, my = (ax + bx) / 2, (ay + by) / 2 - 20
+            els.append(f'<path class="edge q" d="M{ax},{ay} Q{mx},{my} {bx},{by}"/>')
+            els.append(f'<text class="sub" x="{mx}" y="{my}" text-anchor="middle" '
+                        f'fill="{PALETTE["amber"]}">{e(f[:28])} contested</text>')
+            bottom = max(bottom, int(my) + 16)
+
+    return "\n".join(els), bottom + 20
+
+
+def chip_row(x, y, w, label, cls="chipd"):
+    return (f'<rect class="chipq {cls}" x="{x}" y="{y - 15}" width="{w}" height="22" rx="5"/>'
+            f'<text class="ct" x="{x + 8}" y="{y}">{e(label[:44])}</text>')
+
+
+def render_pipeline(pipeline, wall, x0, y0, width):
+    els = [f'<text class="ht" x="{x0}" y="{y0}">PIPELINE</text>']
+    if pipeline is None:
+        els.append(unavailable(x0, y0 + 24, "pipeline"))
+        y = y0 + 50
+    else:
+        y = y0 + 26
+
+        def section(title, count):
+            nonlocal y
+            els.append(f'<text class="sub" x="{x0}" y="{y}">{e(title)}'
+                        f'{" · " + str(count) if count is not None else ""}</text>')
+            y += 24
+
+        section("IN FLIGHT", len(pipeline["in_flight"]) or len(pipeline["in_flight_worktrees"]))
+        if pipeline["in_flight"]:
+            for r in pipeline["in_flight"]:
+                title = r["title"].split(":", 1)[-1].strip() if ":" in r["title"] else r["title"]
+                els.append(chip_row(x0, y, width, f'#{r["number"]} {title}', "chipf"))
+                y += 28
+        elif pipeline["in_flight_worktrees"]:
+            for w in pipeline["in_flight_worktrees"]:
+                els.append(chip_row(x0, y, width, f'{w["short"]} · {w["ahead"]} ahead', "chipf"))
+                y += 28
+        else:
+            els.append(f'<text class="sub" x="{x0}" y="{y}">none</text>')
+            y += 24
+        y += 10
+
+        section("QUEUED", len(pipeline["queued"]) + pipeline["queued_more"])
+        for r in pipeline["queued"]:
+            title = r["title"].split(":", 1)[-1].strip() if ":" in r["title"] else r["title"]
+            els.append(chip_row(x0, y, width, f'#{r["number"]} {title}'))
+            y += 28
+        if pipeline["queued_more"]:
+            els.append(f'<text class="sub" x="{x0}" y="{y}">+{pipeline["queued_more"]} more</text>')
+            y += 24
+        y += 10
+
+        section("MERGED TODAY", len(pipeline["merged"]))
+        if pipeline["merged"]:
+            for r in pipeline["merged"]:
+                els.append(chip_row(x0, y, width, f'#{r["number"]} {r["title"]}', "chipd"))
+                y += 28
+        else:
+            els.append(f'<text class="sub" x="{x0}" y="{y}">none yet</text>')
+            y += 24
+        y += 10
+
+    els.append(f'<text class="sub" x="{x0}" y="{y}" fill="{PALETTE["purple"]}">'
+                f'AT THE WALL · YOURS · likely waiting (heuristic)</text>')
+    y += 24
+    if wall:
+        for item in wall:
+            els.append(f'<rect class="chipq" x="{x0}" y="{y - 15}" width="{width}" height="22" '
+                        f'rx="5" stroke="{PALETTE["purple"]}"/>')
+            els.append(f'<text class="ct" x="{x0 + 8}" y="{y}">'
+                        f'{e(item["worktree"])} · waiting ~{e(item["age"])}</text>')
+            y += 28
+    else:
+        els.append(f'<text class="sub" x="{x0}" y="{y}">nothing waiting</text>')
+        y += 24
+
+    return "\n".join(els), y + 10
+
+
+def render_ticker(ticker, x0, y0, width):
+    els = [f'<text class="ht" x="{x0}" y="{y0}">EVENT TICKER</text>']
+    if not ticker:
+        els.append(unavailable(x0, y0 + 24, "ticker"))
+        return "\n".join(els), y0 + 50
+    y = y0 + 26
+    for ts, repo, sha, subj in ticker:
+        t = datetime.datetime.fromtimestamp(ts).strftime("%H:%M")
+        els.append(f'<text class="tick" x="{x0}" y="{y}">{e(t)} &#160; '
+                    f'<tspan fill="{PALETTE["ink"]}" font-weight="700">{e(repo)}</tspan>'
+                    f' · {e(subj[:90])}</text>')
+        y += 22
+    return "\n".join(els), y + 10
+
+
+def render_page():
+    data = collect()
+    now = datetime.datetime.now()
+
+    header = data["header"]
+    if header:
+        rules = header["rules"]
+        chips = "".join(
+            f' <tspan fill="{PALETTE["green"] if c["state"] == "aligned" else PALETTE["amber"]}">'
+            f'{"●" if c["state"] == "aligned" else "△"}</tspan> '
+            f'{e(c["name"])} {e(c["state"])}'
+            for c in header["chips"])
+        header_line1 = f'rules {e(rules)}{chips}'
+    else:
+        header_line1 = "rules unavailable"
+    wall_count = len(data["wall"])
+    header_line2 = (f'<tspan fill="{PALETTE["purple"]}">THE WALL</tspan> '
+                     f'· {wall_count} item(s) waiting')
+
+    WIDTH = 1200
+    graph_x0, graph_w = 24, int(WIDTH * 0.6) - 40
+    pipe_x0 = graph_x0 + graph_w + 40
+    pipe_w = WIDTH - pipe_x0 - 24
+
+    graph_svg, graph_bottom = render_graph(data["worktrees"], data["contested"], data["hulls"],
+                                           graph_x0, 116, graph_w)
+    if data["worktrees_err"] or data["contested_err"] or data["hulls_err"]:
+        graph_svg += unavailable(graph_x0, graph_bottom, "live graph")
+        graph_bottom += 20
+
+    pipe_svg, pipe_bottom = render_pipeline(data["pipeline"], data["wall"], pipe_x0, 116, pipe_w)
+    if data["pipeline_err"] or data["wall_err"]:
+        pipe_svg += unavailable(pipe_x0, pipe_bottom, "pipeline")
+        pipe_bottom += 20
+
+    main_bottom = max(graph_bottom, pipe_bottom) + 10
+    ticker_svg, ticker_bottom = render_ticker(data["ticker"], 24, main_bottom + 30, WIDTH - 48)
+    if data["ticker_err"]:
+        ticker_svg += unavailable(24, ticker_bottom, "ticker")
+        ticker_bottom += 20
+
+    HEIGHT = ticker_bottom + 20
+
+    svg = f'''<svg viewBox="0 0 {WIDTH} {HEIGHT}" width="{WIDTH}" height="{HEIGHT}"
+    role="img" aria-label="Tower — live autopilot screen">
+<style>
+  .scr {{ fill:{PALETTE["bg"]}; }}
+  .pane {{ fill:none; stroke:{PALETTE["line"]}; stroke-width:1.2; }}
+  .ht {{ font-family:ui-monospace,monospace; font-size:11px; fill:{PALETTE["dim"]};
+         letter-spacing:.12em; font-weight:700; }}
+  .tt {{ font-family:-apple-system,sans-serif; font-size:12px; fill:{PALETTE["ink"]}; font-weight:600; }}
+  .sub {{ font-family:ui-monospace,monospace; font-size:9.5px; fill:{PALETTE["dim"]}; }}
+  .tick {{ font-family:ui-monospace,monospace; font-size:11px; fill:{PALETTE["dim"]}; }}
+  .node {{ fill:#141B26; stroke-width:1.6; }}
+  .ring {{ fill:none; stroke-width:1.2; opacity:.5; }}
+  .edge.q {{ fill:none; stroke:{PALETTE["amber"]}; stroke-width:1.3; stroke-dasharray:5 4; }}
+  .hull {{ fill:none; stroke:#39434F; stroke-width:1.2; stroke-dasharray:4 5; }}
+  .chipq {{ fill:#1A2230; stroke:#39434F; stroke-width:1; }}
+  .chipf {{ stroke:{PALETTE["green"]}; }}
+  .chipd {{ stroke:#39434F; }}
+  .ct {{ font-family:ui-monospace,monospace; font-size:10px; fill:{PALETTE["ink"]}; }}
+  .dim {{ fill:{PALETTE["dim"]}; }}
+</style>
+<rect class="scr" x="0" y="0" width="{WIDTH}" height="{HEIGHT}" rx="16"/>
+<text class="ht" x="24" y="38" font-size="14">TOWER · APPS AUTOPILOT · live</text>
+<text class="sub" x="24" y="56">{e(now.strftime("%Y-%m-%d %H:%M:%S"))} · updates every 5s</text>
+<text class="tick" x="640" y="42">{header_line1}</text>
+<text class="tick" x="640" y="60">{header_line2}</text>
+<line class="pane" x1="20" y1="76" x2="{WIDTH - 20}" y2="76"/>
+<line class="pane" x1="{graph_x0 + graph_w + 20}" y1="86" x2="{graph_x0 + graph_w + 20}" y2="{main_bottom}"/>
+{graph_svg}
+{pipe_svg}
+<line class="pane" x1="20" y1="{main_bottom + 10}" x2="{WIDTH - 20}" y2="{main_bottom + 10}"/>
+{ticker_svg}
+</svg>'''
+
+    doc = f"""<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="10">
+<title>TOWER · apps autopilot, live</title>
+<style>
+  body {{ background:{PALETTE["bg"]}; color:{PALETTE["ink"]}; margin:0; padding:24px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }}
+  .page {{ max-width:{WIDTH + 40}px; margin:0 auto; }}
+  .foot {{ font-family:ui-monospace,monospace; font-size:11px; color:{PALETTE["dim"]};
+    margin-top:10px; }}
+  a {{ color:{PALETTE["purple"]}; }}
+</style>
+</head>
+<body>
+<div class="page">
+{svg}
+<p class="foot">tower · loopback only · recollects every {CACHE_TTL}s ·
+  <a href="/pulse">/pulse</a> for the plain-page view</p>
+</div>
+</body>
+</html>
+"""
+    return doc
+
+
+def render_pulse_page():
+    # write=False: a GET here must not write the repo — pulse builds and
+    # returns the HTML string, docs/pulse.html is untouched.
+    body = PULSE.render(write=False)
+    body = body.replace("<title>", '<meta http-equiv="refresh" content="10"><title>', 1)
+    return body
+
+
+# --- apprun self-registration (best-effort; never fatal) ---
+
+def register_apprun(port):
+    """Register this instance so 'leave nothing running' has something to
+    check — a --demo proto copy, since it's started for the user to look
+    at, not owned by any one task. Registration needs an owning session
+    (apprun refuses ownerless entries by design); a plain-terminal run has
+    none, so it's skipped, said out loud, and nothing else changes."""
+    if not os.environ.get("CLAUDE_CODE_SESSION_ID"):
+        print("apprun: registration skipped — CLAUDE_CODE_SESSION_ID is unset "
+              "(not running inside an agent session), and apprun refuses to "
+              "register an entry with no owner, by design.")
+        return
+    apprun = RULES / "bin" / "apprun"
+    try:
+        r = subprocess.run(
+            [str(apprun), "start", "--project", "tower", "--phase", "proto",
+             "--port", str(port), "--pid", str(os.getpid()),
+             "--url", f"http://127.0.0.1:{port}/", "--demo"],
+            capture_output=True, text=True, timeout=15)
+        if r.returncode == 0:
+            print(f"apprun: {r.stdout.strip()}")
+        else:
+            print(f"apprun: registration failed (non-fatal): {r.stderr.strip()}")
+    except Exception as exc:
+        print(f"apprun: registration failed (non-fatal): {exc}")
+
+
+_deregistering = False  # reentrancy guard — see deregister_apprun
+
+
+def deregister_apprun(port):
+    # subprocess.run(), not Popen — deliberately blocking. `apprun stop`'s
+    # own open_entries() drops any pid that's already dead *before it ever
+    # calls terminate()*, so a fire-and-forget spawn races this process's
+    # own exit: if we return control and the interpreter tears down before
+    # the child's first registry read, the entry is skipped as already-gone
+    # and left permanently "open" — worse than slow, silently wrong. Blocking
+    # keeps this process alive (mid-call) until apprun's terminate() sees it,
+    # so the close is guaranteed. The cost is apprun's own terminate() sending
+    # *this* pid a redundant self-targeted SIGTERM as its first action.
+    #
+    # That redundant SIGTERM is exactly what makes the guard below load-
+    # bearing, not defensive dressing: a signal handler in Python is not
+    # blocked during its own execution, so that self-inflicted SIGTERM
+    # re-enters _on_sigterm *while still blocked inside this very call*,
+    # which spawns a second `apprun stop`, whose terminate() sends a third
+    # SIGTERM, which spawns a third — found empirically as an unbounded
+    # recursive subprocess spawn (confirmed via a 164KB traceback of nested
+    # `_on_sigterm -> deregister_apprun -> subprocess.run -> _on_sigterm`
+    # frames) that never let the registry write happen at all. One flag,
+    # checked and set before the blocking call, makes every self-inflicted
+    # repeat a no-op instead of a new spawn.
+    global _deregistering
+    if _deregistering:
+        return
+    _deregistering = True
+    apprun = RULES / "bin" / "apprun"
+    try:
+        subprocess.run([str(apprun), "stop", "--port", str(port), "--include-demo"],
+                       capture_output=True, text=True, timeout=15)
+    except Exception:
+        pass  # best-effort on the way out; never block shutdown forever on this
+
+
+# --- server ---
+
+def serve(port):
+    import http.server
+
+    register_apprun(port)
+    atexit.register(deregister_apprun, port)
+
+    def _on_sigterm(signum, frame):
+        # Ignore SIGTERM from here on, *before* doing anything blocking:
+        # deregister_apprun's own spawned `apprun stop` sends this exact pid
+        # a redundant self-targeted SIGTERM as its first move. Left handled,
+        # that re-enters this function while it's still blocked inside the
+        # first call, which spawns a second `apprun stop`, which sends a
+        # third SIGTERM, recursing without bound — confirmed empirically as
+        # runaway nested subprocess spawns that never let the registry write
+        # land. Ignoring means that redundant signal is silently dropped at
+        # the OS level; apprun's terminate() still ends this process via
+        # SIGKILL at its own 8s timeout if we haven't exited by then, and
+        # SIGKILL cannot be ignored, so shutdown is still guaranteed.
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        deregister_apprun(port)
+        sys.exit(0)  # triggers the atexit handler above too; deregister is idempotent
+
+    signal.signal(signal.SIGTERM, _on_sigterm)
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def _send(self, body, ctype="text/html; charset=utf-8"):
+            data = body.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def do_GET(self):
+            if self.path.startswith("/pulse"):
+                try:
+                    self._send(render_pulse_page())
+                except Exception as exc:
+                    self._send(f"<pre>pulse unavailable: {html.escape(str(exc))}</pre>")
+                return
+            if self.path == "/" or self.path.startswith("/?"):
+                try:
+                    self._send(render_page())
+                except Exception as exc:
+                    self._send(f"<pre>tower render failed: {html.escape(str(exc))}</pre>")
+                return
+            self.send_response(404)
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+
+    # loopback only: the screen renders private session data, same rule as pulse --serve
+    httpd = http.server.HTTPServer(("127.0.0.1", port), H)
+    print(f"tower: http://127.0.0.1:{port}/  (and /pulse)")
+    httpd.serve_forever()
+
+
+if __name__ == "__main__":
+    port = DEFAULT_PORT
+    if "--port" in sys.argv:
+        port = int(sys.argv[sys.argv.index("--port") + 1])
+    serve(port)

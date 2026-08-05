@@ -9,3 +9,6 @@
 *.swp
 .idea/
 .vscode/
+
+# bin/ has no .py extension so python3 -m py_compile writes its cache here
+bin/__pycache__/
