@@ -99,11 +99,21 @@
   <span><span class="chip">proposed</span> &nbsp; 2026-08-04 · rules 53</span>
 </div>
 
-<h1>Review by looking — design is the surface, requirements are not</h1>
+<h1>Three looks, and the AI decides the rest</h1>
 
-<p class="standfirst">You asked for a demo before a ticket closes, and to stop reviewing
-requirements. Stepping back, those are the same request: <strong>every decision you own should be
-made by looking at something, and right now three of the five are made by reading.</strong></p>
+<p class="standfirst">Amended 2026-08-04 after review. The first draft made your decisions
+<em>visual</em>. You asked for something stronger: make them <strong>fewer</strong>. You review
+three designs per task — after research, after design, after build — and the AI decides everything
+that doesn't change what those three look like.</p>
+
+<div class="verdict bad">
+  <b>What the first draft got wrong</b>
+  <p>It fixed the <em>format</em> of your decisions and left the <em>volume</em> alone. Your words:
+  "majority of the decisions should be taken by the AI — that's why we have created this
+  framework." And on pockets: "it's asking me for some random proposal two three one two and what
+  decisions to be taken… I cannot take all the decisions on the requirements." Everything built
+  today added decision points. This removes them.</p>
+</div>
 
 <section>
 <div class="eyebrow"><span>Your five decisions, and how each reaches you</span><span class="tag">measured against the current rules</span></div>
@@ -160,106 +170,147 @@ from a list, which is slow, error-prone, and something the design artifact alrea
 </section>
 
 <section>
-<div class="eyebrow"><span>The proposal</span><span class="tag">five rules</span></div>
+<div class="eyebrow"><span>The proposal — three looks</span><span class="tag">this is the whole of your involvement in a task</span></div>
+
+<p>One task, three moments where something is shown to you. Nothing else reaches you unless it
+changes what one of these three looks like.</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Look</th><th>When</th><th>What you see</th><th>The question it answers</th></tr>
+  <tr><td class="k">LOOK 1</td><td>After research, before requirements exist</td>
+      <td>A design of <b>how things would be modified</b> — the change drawn on the screens it
+      touches, alternatives where they exist</td>
+      <td><b>Is this the right change?</b></td></tr>
+  <tr><td class="k">LOOK 2</td><td>After requirements and design, before code</td>
+      <td>The buildable design — every state, with the modifications marked against what is
+      there today</td>
+      <td><b>Is this what I meant?</b></td></tr>
+  <tr><td class="k">LOOK 3</td><td>After the build, before the ticket closes</td>
+      <td>The running thing, walked through click by click on the clean copy</td>
+      <td><b>Is this what I got?</b></td></tr>
+</table>
+</div>
+
+<p class="note">LOOK 1 replaces reading a research write-up. LOOK 2 replaces reading requirements
+and L2 escalation prose. LOOK 3 is the demo before close, which today does not exist at all.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>The rules</span><span class="tag">six · the first is the one that matters</span></div>
 
 <div class="rules">
   <div class="r">
-    <span class="n">D1</span><b>The design artifact is your review surface. Requirements are never sent to you for review.</b>
-    <p>You review screens, states and flows. <code>REQUIREMENTS.md</code> stays exactly as it is
-    and is read by the test engineer, the gate and the auditor — not by you.</p>
+    <span class="n">D1</span><b>The AI decides by default. A decision reaches you only if it changes one of the three looks.</b>
+    <p>This is the reversal. Until now every ambiguity, conflict and drift classification was a
+    question for you. Now the test is single and checkable: <em>would answering this differently
+    change what he sees at LOOK 1, 2 or 3?</em> If no, the AI decides it, records it, and moves on.
+    If yes, it becomes part of the next look — shown, not asked.</p>
   </div>
   <div class="r">
-    <span class="n">D2</span><b>Every requirement binds to something visible, or is marked <code>no-surface</code>.</b>
-    <p>The design engineer makes the binding: each numbered requirement names the screen, state or
-    control where it becomes visible. Reviewing the design then reviews the requirements without
-    reading them. A requirement that binds to nothing is explicitly marked, and those never reach
-    you at all — they are the gate's and the auditor's business.</p>
+    <span class="n">D2</span><b>A decision the AI took can be reversed later through the normal issue path.</b>
+    <p>Your words: "take them, move ahead, and then I'll find the issue later." That is the trade
+    D1 depends on, and it only works if reversal is cheap — so every decision the AI takes on your
+    behalf is <b>recorded where you can find it after the fact</b>, against the issue, in one line.
+    Not a document to read; a trail to search when something looks wrong.</p>
   </div>
   <div class="r">
-    <span class="n">D3</span><b>An escalation is shown, never described.</b>
-    <p>"R7 contradicts proposal decision 3" becomes <em>here is the screen, here are the two
-    versions, pick one</em> — rendered, with buttons. If a conflict cannot be shown as a visible
-    difference, it is not yet a question worth putting to you; it goes back to L2.</p>
+    <span class="n">D3</span><b>Design is your review surface. Requirements are never sent to you.</b>
+    <p><code>REQUIREMENTS.md</code> stays exactly as it is — it is the contract the gate holds the
+    work to, and removing it would remove the only thing that makes "built" checkable. It is read
+    by the test engineer, the gate and the auditor. Not by you.</p>
   </div>
   <div class="r">
-    <span class="n">D4</span><b>A demo before the ticket closes — with navigation.</b>
-    <p>Your ask, and the missing bookend: there is already a demo before a proposal is approved and
-    nothing before a ticket is closed. Before you are asked to close, the session walks you to it —
-    click by click, in the app's own words, on the built copy — showing what changed and what to
-    look at. <strong>Closing without a demo is closing on trust</strong>, and it is the one
-    decision where the evidence is cheapest to produce.</p>
+    <span class="n">D4</span><b>Every requirement binds to something visible, or is marked <code>no-surface</code>.</b>
+    <p>The binding is what lets D1 work: the AI can settle a requirement itself and you still see
+    the consequence, because the requirement names the screen or state where it lands. A
+    requirement binding to nothing visible is marked, and never reaches you.</p>
   </div>
   <div class="r">
-    <span class="n">D5</span><b>If it can't be shown, the design engineer's job is to find a way to show it — before falling back to words.</b>
-    <p>Rules, calculations and data policies feel invisible, but most of them surface somewhere: a
-    number on a screen, an error state, an empty state, a disabled control. The design engineer
-    looks for that surface first. Only when there genuinely isn't one may a question reach you as
-    text — and then it is <b>one sentence and two options</b>, never a document.</p>
+    <span class="n">D5</span><b>Richer graphics, not more words — and text only where a picture genuinely cannot carry it.</b>
+    <p>Reports and looks carry real graphics: before-and-after screens, marked-up states, diagrams.
+    Your example of the genuine exception is a good one — evaluating AI models has no screen, and
+    pretending otherwise would be worse than admitting it. There, text is allowed, and it is
+    <b>short</b>.</p>
+  </div>
+  <div class="r">
+    <span class="n">D6</span><b>Buttons only where there is a real decision.</b>
+    <p><b>This supersedes a decision you took earlier today</b> (proposal 01: "buttons appear even
+    when there is nothing to decide yet, option 'noted' if need be"). That rule was right about
+    ambiguity and wrong about volume — it is part of what produced the pockets experience of being
+    asked about "some random proposal two three one two". A look with nothing to decide ends by
+    saying so, in one line, with no prompt.</p>
   </div>
 </div>
 </section>
 
 <section>
-<div class="eyebrow"><span>What changes for you, concretely</span><span class="tag">before → after</span></div>
+<div class="eyebrow"><span>What the AI now decides without asking</span><span class="tag">the concrete list</span></div>
 
-<div class="swap">
-  <div class="sw before"><h4>Today · L2 escalation</h4>
-    <p class="q">"R7 says the export must preserve holder attribution, but proposal 06 decided
-    holder is a per-country concept. This conflicts. How should we resolve it?"</p></div>
-  <div class="sw after"><h4>Proposed</h4>
-    <p>Two rendered versions of the export screen, side by side — one showing holder, one not —
-    and the buttons <b>Keep holder</b> / <b>Drop holder</b> / <b>Neither, let's talk</b>.</p></div>
-</div>
-
-<div class="swap">
-  <div class="sw before"><h4>Today · closing a ticket</h4>
-    <p class="q">"Issue #36 is merged and the gate passed. Close it?"</p></div>
-  <div class="sw after"><h4>Proposed</h4>
-    <p>"Open the clean copy → Contracts. The FD ladder now shows EPS and EPF under <em>No fixed
-    date</em>, with the rate column blank for NPS. That's the whole change. Close it?"</p></div>
-</div>
-
-<div class="swap">
-  <div class="sw before"><h4>Today · reviewing requirements</h4>
-    <p class="q">Eleven numbered criteria, out-of-scope list, open questions — as prose.</p></div>
-  <div class="sw after"><h4>Proposed</h4>
-    <p>You never see them. The design shows all eleven where they land; the two that bind to
-    nothing visible are marked <code>no-surface</code> and handled by the gate.</p></div>
+<div class="tablewrap">
+<table>
+  <tr><th>Was yours</th><th>Now</th><th>Why it is safe</th></tr>
+  <tr><td>Requirement ambiguities</td><td><span class="lab look">AI decides</span></td>
+      <td>The resolution shows up at LOOK 2 as a state on a screen</td></tr>
+  <tr><td>Requirement conflicts</td><td><span class="lab look">AI decides</span></td>
+      <td>Same — you see the winner, not the argument</td></tr>
+  <tr><td>Auditor <code>drift</code> with no visible effect</td><td><span class="lab look">AI decides</span></td>
+      <td>By definition it does not change any look</td></tr>
+  <tr><td>Auditor <code>silent decision</code> with no visible effect</td><td><span class="lab look">AI decides</span></td>
+      <td>Recorded under D2, reversible later</td></tr>
+  <tr><td>Which agents run, ceremony tier</td><td><span class="lab look">AI decides</span></td>
+      <td>Already the project manager's</td></tr>
+  <tr><td>Anything that changes a look</td><td><span class="lab read">still yours</span></td>
+      <td>Shown at the next look — not asked as a question</td></tr>
+  <tr><td>Scope moves, cost blowouts</td><td><span class="lab read">still yours</span></td>
+      <td>These change what gets built, not just how it looks</td></tr>
+  <tr><td>Create / close an issue, approve a merge, change these rules</td><td><span class="lab read">still yours</span></td>
+      <td>Unchanged — the lifecycle rules stand</td></tr>
+</table>
 </div>
 </section>
 
 <section>
-<div class="eyebrow"><span>What it costs, and what it won't fix</span><span class="tag">stated</span></div>
+<div class="eyebrow"><span>What it costs, and what it won't fix</span><span class="tag">stated, because this one has real downside</span></div>
 
 <ul>
-  <li><b>D2 is real work.</b> Binding every requirement to a visible element is an extra pass for
-  the design engineer, and it will sometimes reveal that a requirement can't be satisfied as
-  specified — which is valuable, and still costs time.</li>
-  <li><b><code>no-surface</code> is abusable.</b> It is the obvious place to hide a decision you
-  would have wanted to make. Two things push back: the proposal auditor already classifies
-  <em>silent decisions</em> as yours, and D5 puts the burden on finding a surface first.</li>
-  <li><b>A demo at close costs a build and a walk-through</b> every ticket. For a one-line fix
-  that is disproportionate — the tier system should govern it, same as everything else.</li>
-  <li><b>It does not make backend work visible.</b> A data-migration rule or an encryption policy
-  has no screen, and pretending otherwise would be worse than admitting it. Those stay with the
-  gate, and the honest consequence is that you are trusting the gate on them.</li>
+  <li><b>You will get decisions you disagree with.</b> That is not a risk of this proposal, it is
+  the deal: the AI decides, you find it later, you file an issue. D2 exists to make "later" cheap.
+  If the recorded trail is thin, this becomes worse than what we have now.</li>
+  <li><b>Three looks per task is more artifacts, not fewer.</b> The saving is in your reading, not
+  in the work — LOOK 1 and LOOK 2 are real design passes the design roles have to produce.</li>
+  <li><b>D1's test is only as good as the AI's judgement of "changes a look".</b> A decision
+  quietly reclassified as invisible is exactly how the escape hatch gets used. The proposal auditor
+  is the counterweight and it is not a strong one.</li>
+  <li><b>Backend work stays invisible.</b> An encryption policy, a migration rule, a model choice —
+  no screen exists and none can be invented. You are trusting the gate on those, and D5 admits it
+  rather than dressing it up.</li>
 </ul>
+
+<div class="verdict warn">
+  <b>A conflict you should decide deliberately</b>
+  <p>D6 reverses proposal 01's "buttons even when there is nothing to decide", which you chose this
+  morning against my recommendation — and your reasoning then was good: an absent prompt is
+  ambiguous. The cost showed up later, in pockets. Both cannot be true at once; the amended
+  position is that a look ends with a plain statement when there is nothing to decide, and a prompt
+  only when there is.</p>
+</div>
 </section>
 
 <section>
 <div class="eyebrow"><span>Open questions</span><span class="tag">yours</span></div>
 
 <div class="qgrid">
-  <div class="q2"><b>Does the merge approval become a demo too?</b>
-    <span>It is the fourth row of that table and still prose. One demo could serve both merge and
-    close — or merge stays a technical decision on the gate's evidence, and the demo belongs only
-    at close, where the question is "is this what I wanted".</span></div>
-  <div class="q2"><b>Should a small fix still get a demo?</b>
-    <span>Every ticket, or only feature-tier work? Skipping it for small fixes is cheaper and
-    reintroduces exactly the "optional means skipped" problem we just fixed for research.</span></div>
-  <div class="q2"><b>Who marks <code>no-surface</code>?</b>
-    <span>The design engineer who couldn't find a surface, or the requirements engineer who wrote
-    it. The first knows more; the second has less incentive to use it as an escape hatch.</span></div>
+  <div class="q2"><b>Does every task get all three looks?</b>
+    <span>A one-line fix does not need LOOK 1. Tying the number of looks to the ceremony tier is
+    the obvious answer, and it reintroduces "optional means skipped" — the failure we fixed for
+    research this morning.</span></div>
+  <div class="q2"><b>Where does the AI's decision trail live?</b>
+    <span>Against the issue, in the checklist, or a per-task file. It has to be searchable after
+    the fact without being something you read up front.</span></div>
+  <div class="q2"><b>Does merge approval survive as a separate decision?</b>
+    <span>LOOK 3 happens before close. Merge currently sits between the gate and close as a third
+    thing — it could fold into LOOK 3, leaving you two decisions per task instead of three.</span></div>
 </div>
 </section>
 
