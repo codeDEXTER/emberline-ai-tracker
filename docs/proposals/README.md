@@ -16,6 +16,7 @@ table reflects them. If they disagree, the document wins.
 | [05](05-proposal-features-not-issues.html) | You own features, the AI owns issues | proposal | **accepted** | 2026-08-05 |
 | [06](06-research-idea-lab-v2.html) | The Idea Lab — architectures for refining an idea (v2, kept separate) | research | **accepted** | 2026-08-05 |
 | [07](07-concept-tower.html) | The Tower — a live window on the autopilot | design-concept | **accepted** | 2026-08-05 |
+| [08](08-proposal-work-packages.html) | Work packages — how much of each app is done, and when it will be | proposal | **proposed** | — |
 
 Statuses: `draft` · `proposed` · `accepted` · `rejected` · `superseded-by NN` /
 `amends NN` · `built`. There is deliberately no `deferred` and no

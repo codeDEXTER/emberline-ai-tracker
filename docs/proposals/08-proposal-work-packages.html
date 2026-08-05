@@ -1,0 +1,390 @@
+<meta charset="utf-8">
+<title>common-rules · Work packages — completion and time to done — Proposal</title>
+<meta name="proposal-id" content="08">
+<meta name="proposal-topic" content="work-packages-completion">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="proposed">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
+    --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E;
+    --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; --screen:#0B0E13; --scrink:#DFE3EA;
+    --scrdim:#7C8594; --scrline:#222B38;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0; --border:#26303C;
+            --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81; --warn:#D2A05A;
+            --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660;
+            --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B;
+            --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1030px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:34px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  h3 { font-size:17px; font-weight:640; margin:26px 0 4px; letter-spacing:-.01em; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:66ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  section > p { max-width:70ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:72ch; }
+  code, .mono { font-family:var(--mono); font-size:12.6px; }
+  a { color:var(--accent); }
+  .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+          padding:3px 9px; border-radius:4px; background:var(--warn); color:var(--chip-ink); }
+
+  .tablewrap { overflow-x:auto; margin-top:18px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:640px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.1px; white-space:nowrap; }
+  .lab { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+         display:inline-block; padding:2px 7px; border-radius:4px; white-space:nowrap; color:var(--chip-ink); }
+  .lab.ok { background:var(--gain); } .lab.mid { background:var(--warn); } .lab.no { background:var(--loss); }
+
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:22px 0; max-width:74ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.warn { border-left-color:var(--warn); }
+  .verdict.good { border-left-color:var(--gain); }
+  .verdict p:last-child { margin-bottom:0; }
+
+  .mock { margin-top:22px; overflow-x:auto; border-radius:14px; }
+  .mock svg { width:100%; min-width:760px; height:auto; display:block; }
+  ul { max-width:72ch; } li { margin-bottom:7px; }
+  .steps { display:grid; gap:14px; margin-top:20px; }
+  .st { background:var(--surface); border:1px solid var(--border); border-radius:10px;
+        padding:15px 18px; }
+  .st b { font-size:15px; } .st p { margin:5px 0 0; color:var(--dim); font-size:13.7px; max-width:68ch; }
+  @media (max-width:640px){ .page{padding:34px 18px 60px;} h1{font-size:27px;} }
+</style>
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · Proposal 08 · proposal</span>
+  <span><span class="chip">proposed</span> &nbsp; 2026-08-05 · rules 92</span>
+</div>
+
+<h1>Work packages — how much of each app is done, and when it will be</h1>
+
+<p class="standfirst">Your ask: track work packages as collections of features, with progress
+and time to completion, and say how far along each feature and each app actually is. This
+proposal is mostly a finding: <b>the register you want already exists and is already
+maintained by hand</b> — four apps carry one. It is prose, so nothing reads it. Below is what
+is derivable today, what is genuinely missing, the screen drawn with real numbers, and the
+four rule changes it needs.</p>
+
+<section>
+<div class="eyebrow"><span>What is there today</span><span class="tag">measured 2026-08-05, not estimated</span></div>
+
+<p>The Tower's hierarchy is <span class="mono">session → issue → feature</span>. A "feature" is
+inferred from a title prefix — <span class="mono">"Tower: …"</span>, <span class="mono">"Desktop
+Clerk: …"</span>. That inference is thinner than it looks:</p>
+
+<div class="tablewrap">
+<table>
+<tr><th>Layer</th><th>How it exists today</th><th>Coverage, measured</th></tr>
+<tr><td class="k">app</td><td>a directory under <span class="mono">~/apps</span> with a remote</td><td><span class="lab ok">6 of 6</span> discovered — since PR #36, today</td></tr>
+<tr><td class="k">work package</td><td><span class="mono">##</span> sections of <span class="mono">CLAUDE-checklist.md</span></td><td><span class="lab mid">4 of 6 apps</span> carry one; nothing parses it</td></tr>
+<tr><td class="k">feature</td><td>issue title prefix before <span class="mono">":"</span></td><td><span class="lab no">3 groups exist</span>; 30 of 43 finance-tracker issues have no prefix at all</td></tr>
+<tr><td class="k">issue</td><td>GitHub, per repo</td><td><span class="lab ok">complete</span> — 38 open, 20 closed</td></tr>
+<tr><td class="k">session</td><td>worktree + transcript</td><td><span class="lab ok">complete</span></td></tr>
+</table>
+</div>
+
+<div class="verdict good">
+<b>The finding</b>
+<p><span class="mono">CLAUDE-checklist.md</span> already <i>is</i> a work-package register.
+Its <span class="mono">##</span> headings are packages — "Now — small, ready to pick up",
+"Next — Detail-pages redesign", "Capture &amp; local-AI reevaluation" — and every item is
+already a <span class="mono">- [x]</span> or <span class="mono">- [ ]</span>. That is a
+collection of features with a completion state per item, written down, kept current, in four
+apps. It is not machine-read by anything.</p>
+<p>So this is not a proposal to build a register. It is a proposal to <strong>read the one you
+already keep</strong>, and to close the one join that is missing.</p>
+</div>
+
+<h3>Degree of completion, computed from those files as they stand</h3>
+
+<div class="tablewrap">
+<table>
+<tr><th>App</th><th>Packages</th><th>Done / total</th><th>Complete</th><th>Notes</th></tr>
+<tr><td class="k">finance-tracker</td><td>7</td><td>17 / 44</td><td><b>39%</b></td><td>largest book; 7 sections</td></tr>
+<tr><td class="k">pockets</td><td>3</td><td>5 / 14</td><td><b>36%</b></td><td>Now 4/5, Next 0/5, Later 1/4</td></tr>
+<tr><td class="k">pip</td><td>2</td><td>3 / 13</td><td><b>23%</b></td><td>Now 3/9, Later 0/4</td></tr>
+<tr><td class="k">mac-explorer</td><td>3</td><td>1 / 8</td><td><b>12%</b></td><td>Now 0/1, Later 0/5</td></tr>
+<tr><td class="k">common-rules</td><td>—</td><td>—</td><td>—</td><td>no checklist file</td></tr>
+<tr><td class="k">idea-lab</td><td>—</td><td>—</td><td>—</td><td>no checklist file</td></tr>
+</table>
+</div>
+
+<p class="note">Every figure above was produced by parsing the existing files, with no change to
+any of them. Within finance-tracker the per-package split is already meaningful: "Now" 7/12
+(58%), "Detail-pages redesign" 1/7 (14%), "Clerk phone thread" 1/3 (33%), "Later" 2/6 (33%),
+"Capture &amp; local-AI" 4/10 (40%).</p>
+
+<h3>The one thing that is genuinely missing</h3>
+
+<p>A package can be counted but not <i>followed</i>, because a checklist item rarely names its
+issue — and the issue is what connects to a branch, a session and a merge date.</p>
+
+<div class="tablewrap">
+<table>
+<tr><th>App</th><th>Items naming an issue</th><th>Consequence</th></tr>
+<tr><td class="k">finance-tracker</td><td><span class="lab mid">9 of 44 · 20%</span></td><td>four fifths of the book cannot be traced to the work doing it</td></tr>
+<tr><td class="k">pockets</td><td><span class="lab no">0 of 14 · 0%</span></td><td>no join at all</td></tr>
+<tr><td class="k">pip</td><td><span class="lab no">0 of 13 · 0%</span></td><td>no join at all</td></tr>
+<tr><td class="k">mac-explorer</td><td><span class="lab no">0 of 8 · 0%</span></td><td>no join at all</td></tr>
+</table>
+</div>
+
+<p>This is the whole gap. Counting boxes needs nothing new. Saying <i>"this package is 40% done,
+two of its items are in flight right now, and the last one merged an hour ago"</i> needs the
+item to name its issue.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>The screen</span><span class="tag">a fifth region on the Tower — drawn with today's real figures</span></div>
+
+<div class="mock">
+<svg viewBox="0 0 1060 470" role="img" aria-label="Work packages region, drawn with real data">
+  <style>
+    .s-bg { fill:#0B0E13; } .s-t { fill:#DFE3EA; font-family:ui-monospace,Menlo,monospace; font-size:12px; }
+    .s-h { fill:#DFE3EA; font-family:ui-monospace,Menlo,monospace; font-size:11.5px; letter-spacing:.14em; }
+    .s-d { fill:#7C8594; font-family:ui-monospace,Menlo,monospace; font-size:10.5px; }
+    .s-b { fill:#DFE3EA; font-family:ui-monospace,Menlo,monospace; font-size:13.5px; font-weight:600; }
+    .trk { fill:#222B38; } .bar { fill:#5FA985; } .bar2 { fill:#D2A05A; } .bar3 { fill:#A98FD6; }
+    .ln { stroke:#222B38; stroke-width:1; }
+  </style>
+  <rect class="s-bg" x="0" y="0" width="1060" height="470" rx="12"/>
+
+  <text class="s-h" x="30" y="34">APPS &amp; WORK PACKAGES</text>
+  <text class="s-d" x="30" y="52">degree of completion · declared scope, not guessed size</text>
+  <line class="ln" x1="30" y1="64" x2="1030" y2="64"/>
+
+  <!-- finance-tracker -->
+  <text class="s-b" x="30" y="92">finance-tracker</text>
+  <rect class="trk" x="220" y="82" width="420" height="10" rx="5"/>
+  <rect class="bar" x="220" y="82" width="164" height="10" rx="5"/>
+  <text class="s-t" x="656" y="92">39%</text>
+  <text class="s-d" x="700" y="92">17 / 44 items · 7 packages</text>
+  <text class="s-d" x="920" y="92">~8 active days</text>
+
+  <text class="s-t" x="52" y="118">Now — ready to pick up</text>
+  <rect class="trk" x="252" y="109" width="300" height="7" rx="4"/>
+  <rect class="bar" x="252" y="109" width="175" height="7" rx="4"/>
+  <text class="s-d" x="568" y="118">7/12 · 58%</text>
+  <text class="s-d" x="700" y="118">2 in flight</text>
+
+  <text class="s-t" x="52" y="140">Detail-pages redesign</text>
+  <rect class="trk" x="252" y="131" width="300" height="7" rx="4"/>
+  <rect class="bar2" x="252" y="131" width="43" height="7" rx="4"/>
+  <text class="s-d" x="568" y="140">1/7 · 14%</text>
+  <text class="s-d" x="700" y="140">—</text>
+
+  <text class="s-t" x="52" y="162">Capture &amp; local-AI</text>
+  <rect class="trk" x="252" y="153" width="300" height="7" rx="4"/>
+  <rect class="bar" x="252" y="153" width="120" height="7" rx="4"/>
+  <text class="s-d" x="568" y="162">4/10 · 40%</text>
+  <text class="s-d" x="700" y="162">1 in flight</text>
+
+  <text class="s-t" x="52" y="184">Clerk phone thread</text>
+  <rect class="trk" x="252" y="175" width="300" height="7" rx="4"/>
+  <rect class="bar2" x="252" y="175" width="100" height="7" rx="4"/>
+  <text class="s-d" x="568" y="184">1/3 · 33%</text>
+  <text class="s-d" x="700" y="184">—</text>
+
+  <text class="s-d" x="52" y="206">+ 3 more packages</text>
+  <line class="ln" x1="30" y1="222" x2="1030" y2="222"/>
+
+  <!-- pockets -->
+  <text class="s-b" x="30" y="250">pockets</text>
+  <rect class="trk" x="220" y="240" width="420" height="10" rx="5"/>
+  <rect class="bar" x="220" y="240" width="151" height="10" rx="5"/>
+  <text class="s-t" x="656" y="250">36%</text>
+  <text class="s-d" x="700" y="250">5 / 14 items · 3 packages</text>
+  <text class="s-d" x="920" y="250">no rate yet</text>
+
+  <text class="s-t" x="52" y="276">Now</text>
+  <rect class="trk" x="252" y="267" width="300" height="7" rx="4"/>
+  <rect class="bar" x="252" y="267" width="240" height="7" rx="4"/>
+  <text class="s-d" x="568" y="276">4/5 · 80%</text>
+  <text class="s-d" x="700" y="276">1 in flight</text>
+
+  <text class="s-t" x="52" y="298">Next</text>
+  <rect class="trk" x="252" y="289" width="300" height="7" rx="4"/>
+  <text class="s-d" x="568" y="298">0/5 · 0%</text>
+  <text class="s-d" x="700" y="298">—</text>
+  <line class="ln" x1="30" y1="322" x2="1030" y2="322"/>
+
+  <!-- pip / mac-explorer -->
+  <text class="s-b" x="30" y="350">pip</text>
+  <rect class="trk" x="220" y="340" width="420" height="10" rx="5"/>
+  <rect class="bar2" x="220" y="340" width="97" height="10" rx="5"/>
+  <text class="s-t" x="656" y="350">23%</text>
+  <text class="s-d" x="700" y="350">3 / 13 items · 2 packages</text>
+  <text class="s-d" x="920" y="350">no rate yet</text>
+
+  <text class="s-b" x="30" y="386">mac-explorer</text>
+  <rect class="trk" x="220" y="376" width="420" height="10" rx="5"/>
+  <rect class="bar2" x="220" y="376" width="52" height="10" rx="5"/>
+  <text class="s-t" x="656" y="386">12%</text>
+  <text class="s-d" x="700" y="386">1 / 8 items · 3 packages</text>
+  <text class="s-d" x="920" y="386">no rate yet</text>
+
+  <line class="ln" x1="30" y1="410" x2="1030" y2="410"/>
+  <text class="s-d" x="30" y="436">common-rules · idea-lab — no checklist file, so no declared scope to measure</text>
+  <text class="s-d" x="30" y="454">bars show ticked items over declared items · a package grows when you add to it, and the bar moves back</text>
+</svg>
+</div>
+
+<p class="note">Every number on that screen is real and computed today. The only invented
+element is the "in flight" column, which is what the missing issue link would supply.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>Time to completion</span><span class="tag">what the arithmetic can and cannot honestly say</span></div>
+
+<p>Two clocks exist, and they measure different things. Keeping them apart is the whole design.</p>
+
+<div class="tablewrap">
+<table>
+<tr><th>Source</th><th>Gives</th><th>Does not give</th></tr>
+<tr><td class="k">GitHub issues</td><td>real timestamps — cycle time and throughput</td><td>a stable denominator: scope grows as issues are cut, so "% of issues closed" rises and falls for reasons that are not progress</td></tr>
+<tr><td class="k">the checklist</td><td>the denominator — your own statement of intended scope, including work not yet cut into issues</td><td>any timestamp at all: a ticked box records that something is done, never when</td></tr>
+</table>
+</div>
+
+<p><b>So: the denominator comes from the checklist, the rate comes from issues, and the two are
+never silently mixed.</b> Measured rate, finance-tracker: 18 issues closed across 4 active days
+— 4, 3, 3, 8 — a median of 3.5 per active day, with a median cycle time of 0.76 days from cut to
+closed (n=18). Applied to 27 remaining checklist items, that is roughly <b>8 active days</b>.</p>
+
+<div class="verdict warn">
+<b>Three caveats that belong on the screen, not in a footnote</b>
+<p><strong>An active day is not a calendar day.</strong> Four active days is the entire history. A week
+where you do not work on it is not in the model, and the figure must never render as a date.</p>
+<p><strong>Checklist items are not issues.</strong> 44 items against 43 issues is a coincidence, not a
+mapping — only 20% are linked. Until step 2 below, the rate is borrowed from a different
+population than the denominator, and the screen should say "at the recent pace" rather than
+imply a computed forecast.</p>
+<p><strong>Three apps have no closure history at all.</strong> pockets, pip and mac-explorer have closed
+zero issues, so they get a completion figure and no rate. Showing "no rate yet" is correct;
+inventing one from another app's velocity is not.</p>
+</div>
+
+<h3>What "degree of completion" honestly means</h3>
+
+<ul>
+<li><b>Feature</b> — closed over total issues in the group. Available only where a feature is
+actually declared, which today is three groups across six apps.</li>
+<li><b>Package</b> — ticked over total items in a <span class="mono">##</span> section.
+Available today, for four apps, with no change to anything.</li>
+<li><b>App</b> — the same sum across its packages. Available today, same four apps.</li>
+</ul>
+
+<p>And what it is <i>not</i>: a percentage of the app being finished. It is the fraction of
+<i>declared</i> scope that is done. Adding five items to a package moves its bar backwards
+while nothing got worse — which is honest, and should be visible rather than smoothed away.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>What this needs from the shared rules</span><span class="tag">you asked — four changes, three small</span></div>
+
+<div class="steps">
+<div class="st"><b>1 · The checklist gets a declared shape</b>
+<p>One <span class="mono">##</span> heading per work package, one <span class="mono">- [ ]</span>
+per item, and the issue number in parentheses when an issue exists. This is already the
+convention in finance-tracker; writing it down makes it parseable rather than habitual. Amends
+the checklist paragraph in each project's <span class="mono">CLAUDE.md</span> plus a line in
+<span class="mono">CLAUDE-workflow.md</span>.</p></div>
+
+<div class="st"><b>2 · Every project carries one, or is explicitly exempt</b>
+<p>common-rules and idea-lab have no checklist, so they have no declared scope and cannot report
+completion. Either they get one or the rule states they are exempt and why — an app with no
+answer is fine, an app with a silently missing answer is not.</p></div>
+
+<div class="st"><b>3 · An item names its issue once an issue exists</b>
+<p>The join, and the only genuinely new obligation here. It is 0% in three of four projects
+today. Without it, packages can be counted but never followed, and every "in flight" figure on
+the drawn screen stays empty.</p></div>
+
+<div class="st"><b>4 · Ticking the box moves into code</b>
+<p><span class="mono">bin/land</span> ticks the item when the branch merges, rather than a
+session remembering to. This follows the rule the file already states — "rules that can be
+enforced are not written here, they live in <span class="mono">bin/derecord</span>" — and it
+has a second effect that matters more than the tidiness: a tick written by <span class="mono">land</span>
+carries a <strong>date</strong>. That is the timestamp the checklist does not have, and it is what turns
+the borrowed rate above into a real measured one.</p></div>
+</div>
+
+<p class="note">Changing these files is reserved to you. Nothing here edits a rule; this proposal
+is the surfacing step, and the changes above would come as their own PR after a decision.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>Build path</span><span class="tag">three steps, each worth having alone</span></div>
+
+<div class="steps">
+<div class="st"><b>Step 1 — read what already exists</b>
+<p>Parse the four checklists, add the APPS &amp; WORK PACKAGES region to the Tower. Answers
+"how far along is each app" immediately, needs <strong>no rule change and no new file</strong>, and is
+roughly the size of the change that just landed as #35. Everything on the drawn screen except
+the "in flight" column comes from this step.</p></div>
+
+<div class="st"><b>Step 2 — close the join</b>
+<p>Rule changes 1 and 3, then <span class="mono">land</span> ticking boxes with a date (change
+4). Packages become followable: which item is in flight, in which session, and when the last
+one landed. This is also what starts accumulating honest velocity data.</p></div>
+
+<div class="st"><b>Step 3 — time to completion from measured velocity</b>
+<p>Once ticks carry dates, per-package throughput is real rather than borrowed from issue
+closures, and a range can be quoted per package instead of one number for the whole app.
+Deliberately last: quoting a forecast before step 2 means quoting a rate measured on a
+different population.</p></div>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>Honest limits</span><span class="tag">what this will not do, at any step</span></div>
+
+<ul>
+<li><b>It measures declared scope.</b> An app at 39% is 39% of what has been written down, and
+what gets written down grows as you learn what the app is. This never becomes a percentage of
+"finished".</li>
+<li><b>It cannot see unwritten work.</b> A package that exists only in your head is not on the
+screen, and its absence looks exactly like being done.</li>
+<li><b>Parsing makes a prose file load-bearing.</b> The checklist is currently free to be as
+loose as it likes; the moment the Tower renders figures from it, a malformed heading becomes a
+wrong number on a screen. Step 1 should render what it could not parse, rather than dropping it
+silently.</li>
+<li><b>Four active days is a thin base for any forecast</b>, and three apps have none. The ETA
+column earns its place only after step 2.</li>
+</ul>
+</section>
+
+<section>
+<div class="eyebrow"><span>The decision</span><span class="tag">yours</span></div>
+<p>Step 1 stands on its own, changes no rule, and gives you the completion figures for four
+apps. Steps 2 and 3 need the four rule changes above, which are yours to accept — and step 3 is
+worth nothing without step 2.</p>
+<p class="note">Proposed 2026-08-05 · awaiting your decision</p>
+</section>
+
+</div>
