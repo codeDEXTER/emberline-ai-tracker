@@ -230,6 +230,24 @@ look at, okay, which issue number, which chat I need to go to." Became issue #25
 Sixth entry in the show-the-state pattern, and the sharpest statement yet of the
 hierarchy he works in: feature → needs-input → issue → chat.
 
+## 2026-08-05 · Commercial analysis belongs inside idea generation
+Said in: pip / idea-lab
+
+"Can we do some commercial analysis as part of this idea generation? What is
+commercially more relevant? What do people like?" The Lab's Ground stage checks
+precedent, competitors and feasibility — never market size or willingness to
+pay. He wants the commercial lens applied while ideas are still cheap, not
+after.
+
+## 2026-08-05 · He keeps the clash check himself
+Said in: pip / idea-lab
+
+"I'll still check if it's clashing with some existing ideas." A division of
+labour, not a correction: the Lab reports what exists (fetched and read, per
+its own rule — never novelty-from-search), and *he* judges whether a new idea
+sits too close to something already out there. Agents supply the evidence; the
+resemblance call is taste and stays his.
+
 ---
 
 # Patterns
