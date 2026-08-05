@@ -110,6 +110,60 @@ def issues_for(repo):
     return rows
 
 
+_ITEM = re.compile(r"^\s*-\s\[([ xX])\]\s")
+_ITEMISH = re.compile(r"^\s*[-*]\s*\[")
+_HEADING = re.compile(r"^##(?!#)\s+(.+?)\s*$")
+
+
+def checklist_progress(path):
+    """Work-package completion read from a project's CLAUDE-checklist.md.
+
+    The file already is a work-package register (proposal 08): `##` headings
+    are packages and `- [x]`/`- [ ]` items are their completion state. This
+    reads it exactly as projects already write it — no declared shape is
+    imposed, and nothing is written back.
+
+    Returns None when the project has no checklist. That is *not* 0%: an app
+    with no declared scope has no answer, and rendering it as zero would be a
+    lie. common-rules and idea-lab are that case today.
+
+    `unparsed` counts lines that look like an item but are not one (`- []`,
+    `* [x]`, a stray indent). They are reported rather than dropped, because
+    a silently skipped line lowers a denominator and moves a bar on screen —
+    the load-bearing-prose limit proposal 08 names for exactly this parser.
+    """
+    f = Path(path) / "CLAUDE-checklist.md"
+    try:
+        text = f.read_text(errors="replace")
+    except OSError:
+        return None
+
+    packages, current, unparsed = [], None, 0
+    for line in text.splitlines():
+        h = _HEADING.match(line)
+        if h:
+            current = {"name": h.group(1), "done": 0, "total": 0}
+            packages.append(current)
+            continue
+        m = _ITEM.match(line)
+        if m:
+            if current is None:          # an item before any heading belongs
+                current = {"name": "(unfiled)", "done": 0, "total": 0}
+                packages.append(current)  # to no package, but it is still real
+            current["total"] += 1
+            if m.group(1) in "xX":
+                current["done"] += 1
+        elif _ITEMISH.match(line):
+            unparsed += 1
+
+    packages = [p for p in packages if p["total"]]
+    if not packages:
+        return None
+    done = sum(p["done"] for p in packages)
+    total = sum(p["total"] for p in packages)
+    return {"packages": packages, "done": done, "total": total, "unparsed": unparsed}
+
+
 def feature_groups(rows):
     by_prefix = {}
     for r in rows:

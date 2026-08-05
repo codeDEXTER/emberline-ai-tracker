@@ -480,6 +480,25 @@ def compute_hulls(worktrees, pipeline):
     return hulls
 
 
+def burnup_data(projs):
+    """Per-app completion from each project's own CLAUDE-checklist.md.
+
+    An app without a checklist goes in `undeclared`, never into the figures as
+    a zero — no declared scope is a different statement from none of it done.
+    """
+    apps, undeclared, unparsed = [], [], 0
+    for proj in projs:
+        prog = PULSE.checklist_progress(proj["path"])
+        if not prog:
+            undeclared.append(proj["name"])
+            continue
+        unparsed += prog["unparsed"]
+        apps.append({"name": proj["name"], "done": prog["done"],
+                     "total": prog["total"], "packages": prog["packages"]})
+    apps.sort(key=lambda a: -a["total"])
+    return {"apps": apps, "undeclared": undeclared, "unparsed": unparsed}
+
+
 # --- collect everything, cached ---
 
 _cache_lock = threading.Lock()
@@ -529,6 +548,7 @@ def collect():
     wall, wall_err = safe(wall_items, worktrees)
     pipeline, pipeline_err = safe(pipeline_data, worktrees)
     ticker, ticker_err = safe(ticker_data, worktrees)
+    burnup, burnup_err = safe(burnup_data, projs)
     hulls, hulls_err = safe(compute_hulls, worktrees, pipeline)
     gate_branches, gate_err = safe(open_gate_branches, projs)
 
@@ -564,6 +584,7 @@ def collect():
         "wall": wall or [], "wall_err": wall_err,
         "pipeline": pipeline, "pipeline_err": pipeline_err,
         "ticker": ticker or [], "ticker_err": ticker_err,
+        "burnup": burnup, "burnup_err": burnup_err,
         "hulls": hulls or [], "hulls_err": hulls_err,
         "needs_input": needs_input, "gate_err": gate_err,
     }
@@ -765,6 +786,79 @@ def render_pipeline(pipeline, wall, x0, y0, width):
     return "\n".join(els), y + 10
 
 
+MAX_PACKAGES_SHOWN = 4
+
+
+def render_burnup(burnup, x0, y0, width):
+    """APPS & WORK PACKAGES — how much of each app's declared scope is done
+    (issue #38, proposal 08 step 1b).
+
+    Reads what the projects already write. No ETA column: that needs the
+    logbook, which was proposed and not accepted, and a forecast drawn from
+    four active days would be a slope through noise.
+    """
+    els = [f'<text class="ht" x="{x0}" y="{y0}">APPS &amp; WORK PACKAGES</text>',
+           f'<text class="sub" x="{x0}" y="{y0 + 16}">degree of completion · '
+           f'ticked over declared items, not guessed size</text>']
+    if burnup is None:
+        els.append(unavailable(x0, y0 + 40, "work packages"))
+        return "\n".join(els), y0 + 66
+
+    bar_x = x0 + 210
+    bar_w = min(400, max(160, int(width * 0.34)))
+    fig_x = bar_x + bar_w + 20
+    note_x = fig_x + 60
+
+    def bar(x, y, w, frac, cls):
+        filled = max(0, min(w, int(round(w * frac))))
+        out = f'<rect class="trk" x="{x}" y="{y}" width="{w}" height="{9 if cls == "barA" else 7}" rx="4"/>'
+        if filled:
+            out += (f'<rect class="{cls}" x="{x}" y="{y}" width="{filled}" '
+                    f'height="{9 if cls == "barA" else 7}" rx="4"/>')
+        return out
+
+    y = y0 + 42
+    for row in burnup["apps"]:
+        pct = row["done"] / row["total"]
+        els.append(f'<text class="tt" x="{x0}" y="{y + 4}">{e(row["name"])}</text>')
+        els.append(bar(bar_x, y - 5, bar_w, pct, "barA"))
+        els.append(f'<text class="tt" x="{fig_x}" y="{y + 4}">{round(pct * 100)}%</text>')
+        els.append(f'<text class="sub" x="{note_x}" y="{y + 4}">'
+                   f'{row["done"]} / {row["total"]} items · {len(row["packages"])} packages</text>')
+        y += 24
+
+        shown = sorted(row["packages"], key=lambda p: -p["total"])[:MAX_PACKAGES_SHOWN]
+        for p in shown:
+            frac = p["done"] / p["total"]
+            # amber under a third: the eye should find the stalled package
+            # without reading the numbers, and green-for-everything hides it.
+            cls = "barP" if frac >= 0.34 else "barW"
+            els.append(f'<text class="sub" x="{x0 + 22}" y="{y + 3}">{e(p["name"][:30])}</text>')
+            els.append(bar(bar_x + 30, y - 3, bar_w - 30, frac, cls))
+            els.append(f'<text class="sub" x="{fig_x}" y="{y + 3}">'
+                       f'{p["done"]}/{p["total"]} · {round(frac * 100)}%</text>')
+            y += 19
+        rest = len(row["packages"]) - len(shown)
+        if rest > 0:
+            els.append(f'<text class="sub" x="{x0 + 22}" y="{y + 3}">+ {rest} more package(s)</text>')
+            y += 19
+        y += 8
+
+    if burnup["undeclared"]:
+        els.append(f'<text class="sub" x="{x0}" y="{y + 4}">'
+                   f'{e(" · ".join(burnup["undeclared"]))} — no checklist file, '
+                   f'so no declared scope to measure (not 0%)</text>')
+        y += 22
+    if burnup["unparsed"]:
+        # Never let a line vanish into a lower denominator — see
+        # PULSE.checklist_progress and proposal 08's load-bearing-prose limit.
+        els.append(f'<text class="sub" x="{x0}" y="{y + 4}" fill="{PALETTE["amber"]}">'
+                   f'{burnup["unparsed"]} line(s) look like items but could not be '
+                   f'parsed, and are not counted above</text>')
+        y += 22
+    return "\n".join(els), y + 6
+
+
 def render_ticker(ticker, x0, y0, width):
     els = [f'<text class="ht" x="{x0}" y="{y0}">EVENT TICKER</text>']
     if not ticker:
@@ -825,7 +919,13 @@ def render_page():
         pipe_bottom += 20
 
     main_bottom = max(graph_bottom, pipe_bottom) + 10
-    ticker_svg, ticker_bottom = render_ticker(data["ticker"], 24, main_bottom + 30, WIDTH - 48)
+
+    burnup_svg, burnup_bottom = render_burnup(data["burnup"], 24, main_bottom + 30, WIDTH - 48)
+    if data["burnup_err"]:
+        burnup_svg += unavailable(24, burnup_bottom, "work packages")
+        burnup_bottom += 20
+
+    ticker_svg, ticker_bottom = render_ticker(data["ticker"], 24, burnup_bottom + 30, WIDTH - 48)
     if data["ticker_err"]:
         ticker_svg += unavailable(24, ticker_bottom, "ticker")
         ticker_bottom += 20
@@ -851,6 +951,10 @@ def render_page():
   .chipd {{ stroke:#39434F; }}
   .ct {{ font-family:ui-monospace,monospace; font-size:10px; fill:{PALETTE["ink"]}; }}
   .dim {{ fill:{PALETTE["dim"]}; }}
+  .trk {{ fill:#222B38; }}
+  .barA {{ fill:{PALETTE["green"]}; }}
+  .barP {{ fill:{PALETTE["green"]}; opacity:.8; }}
+  .barW {{ fill:{PALETTE["amber"]}; opacity:.85; }}
 </style>
 <rect class="scr" x="0" y="0" width="{WIDTH}" height="{HEIGHT}" rx="16"/>
 <text class="ht" x="24" y="38" font-size="14">TOWER · APPS AUTOPILOT · live</text>
@@ -862,6 +966,8 @@ def render_page():
 {graph_svg}
 {pipe_svg}
 <line class="pane" x1="20" y1="{main_bottom + 10}" x2="{WIDTH - 20}" y2="{main_bottom + 10}"/>
+{burnup_svg}
+<line class="pane" x1="20" y1="{burnup_bottom + 10}" x2="{WIDTH - 20}" y2="{burnup_bottom + 10}"/>
 {ticker_svg}
 </svg>'''
 

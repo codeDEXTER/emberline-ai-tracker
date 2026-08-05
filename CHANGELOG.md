@@ -1,5 +1,37 @@
 # Changelog — common-rules
 
+## 2026-08-05 · The Tower says how much of each app is done
+
+Issue #38, proposal 08 step 1b. The sponsor accepted this step explicitly
+without the rule changes that came with the rest of that proposal — so this
+adds a region and changes no rule, imposes no checklist shape, and creates no
+standing obligation on any other session.
+
+It reads what the projects already write. `CLAUDE-checklist.md` was already a
+work-package register — `##` headings are packages, `- [x]`/`- [ ]` is the
+completion state — in four of six apps, kept current by hand and read by
+nothing. Parsing it as-is gives finance-tracker 17/44 (39%, 7 packages),
+pockets 5/14 (36%), pip 3/13 (23%), mac-explorer 1/8 (12%), with the package
+split beneath each.
+
+Three things this deliberately does not do:
+
+- **An app with no checklist reports "no declared scope", never 0%.**
+  common-rules and idea-lab are that case. No declared scope and none of it
+  done are different statements, and the second one would be a lie.
+- **A line that looks like an item but does not parse is counted and
+  reported**, not dropped. A silently skipped line lowers a denominator and
+  moves a bar — proposal 08's own limit about making a prose file
+  load-bearing, honoured by the parser that made it load-bearing.
+- **No ETA column.** That needs the logbook, which was proposed and not
+  accepted; a forecast drawn through four active days is a slope through
+  noise.
+
+Also done, and independent of all of the above: `cleanupPeriodDays` is now set
+in `~/.agent-data/settings.json`. It was unset, so the 30-day default applied and
+the 31 July transcripts — the start of the whole experiment — were going to be
+hard-deleted around 30 August.
+
 ## 2026-08-05 · The Tower's pipeline sees every app, not one
 
 The user asked the Tower's own question -- "what's pending in the pipeline" --
