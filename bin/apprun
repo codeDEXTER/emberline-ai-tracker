@@ -15,7 +15,15 @@ only category anyone but the owner may close, and only with the user's yes.
 A copy started so the *user* can look at something is marked `--demo`: it is
 theirs, not the task's, so a blanket `stop --all` leaves it up and says so.
 
+Since 2026-08-05 the registry is no longer the only thing it knows: every
+command also *looks* for app processes running out of the apps root that no
+entry covers. Those show as UNREGISTERED and, having no owning session, are
+orphans — visible to `sweep`, closable only with the user's yes. Before this,
+a session that started a server by hand was invisible, and `list` reported a
+clean machine while two copies were up.
+
   apprun start --project P --phase stable|test|proto --port N --pid PID [--url U] [--branch B] [--demo]
+  apprun adopt --port N [--demo]   take ownership of a copy started outside apprun
   apprun list [--all]
   apprun stop (--port N | --all) [--keep-window] [--include-demo]
   apprun sweep [--clear]
@@ -75,6 +83,122 @@ def open_entries(entries):
     return [e for e in entries if e.get("state") == "open" and alive(e.get("pid"))]
 
 
+# --- discovery -------------------------------------------------------------
+# The registry only ever knew about processes started through `apprun start`.
+# On 2026-08-05 the user found two app servers running that it could not see:
+# both had been launched directly by sessions (`python3 -m nicegui_app.main`),
+# so `stop` and `sweep` were structurally blind to them and reported a clean
+# machine. A registry that is silently incomplete is worse than no registry,
+# because it reads as authoritative. So every command now also *looks*.
+
+APPS_ROOT = Path(os.environ.get("APPRUN_APPS_ROOT", Path.home() / "apps")).resolve()
+
+
+def _listening():
+    """(pid, port) for every process listening on a local TCP socket."""
+    try:
+        r = subprocess.run(["lsof", "-nP", "-iTCP", "-sTCP:LISTEN", "-FpPn"],
+                           capture_output=True, text=True, timeout=15)
+    except (subprocess.SubprocessError, OSError):
+        return []
+    out, pid = [], None
+    for line in r.stdout.splitlines():
+        tag, _, value = line[:1], line[1:2], line[1:]
+        if tag == "p":
+            pid = int(value) if value.isdigit() else None
+        elif tag == "n" and pid:
+            # "127.0.0.1:8502" or "*:8502"
+            host, _, port = value.rpartition(":")
+            if port.isdigit() and host in ("127.0.0.1", "localhost", "*", "[::1]"):
+                out.append((pid, int(port)))
+    return out
+
+
+def _cwd_of(pid):
+    try:
+        r = subprocess.run(["lsof", "-a", "-p", str(pid), "-d", "cwd", "-Fn"],
+                           capture_output=True, text=True, timeout=10)
+    except (subprocess.SubprocessError, OSError):
+        return None
+    for line in r.stdout.splitlines():
+        if line.startswith("n"):
+            return line[1:]
+    return None
+
+
+def _project_of(cwd):
+    """(project name, is_worktree) for a path under the apps root, else None.
+
+    Worktree detection is by path rather than by asking git: this runs against
+    a *process*, which may have been started from a checkout that has since
+    been removed, and a stale path still tells the truth about what it was.
+    """
+    try:
+        rel = Path(cwd).resolve().relative_to(APPS_ROOT)
+    except (ValueError, OSError):
+        return None
+    parts = rel.parts
+    if not parts:
+        return None
+    return parts[0], (".worktrees" in parts or "worktrees" in parts)
+
+
+def discover(known):
+    """Running apps under the apps root that no open registry entry covers.
+
+    Returned as entries in the same shape `describe`/`terminate` expect, with
+    no owning session — which makes them orphans by construction, the one
+    category a stranger may close, and only with the user's yes. Never written
+    to the registry: they are observed each run, so they cannot go stale.
+    """
+    seen_pids = {int(e["pid"]) for e in known if e.get("pid")}
+    found, by_pid = [], {}
+    for pid, port in _listening():
+        if pid in seen_pids or pid in by_pid:
+            continue
+        cwd = _cwd_of(pid)
+        if not cwd:
+            continue
+        proj = _project_of(cwd)
+        if not proj:
+            continue
+        name, is_worktree = proj
+        by_pid[pid] = True
+        found.append({
+            "project": name,
+            # A copy running out of a worktree is never the stable one, whatever
+            # port it landed on. A copy running from the project root is.
+            "phase": "test" if is_worktree else "stable",
+            "port": port, "pid": pid,
+            "url": f"http://127.0.0.1:{port}/",
+            "branch": Path(cwd).name if is_worktree else "",
+            "demo": False, "session": "", "session_pid": 0,
+            "started": _start_time(pid), "state": "open",
+            "discovered": True, "cwd": cwd,
+        })
+    return found
+
+
+def _start_time(pid):
+    """Unix start time of a pid, so a discovered entry ages like a real one."""
+    try:
+        r = subprocess.run(["ps", "-o", "lstart=", "-p", str(pid)],
+                           capture_output=True, text=True, timeout=10)
+        if r.returncode == 0 and r.stdout.strip():
+            parsed = time.strptime(r.stdout.strip(), "%a %b %d %H:%M:%S %Y")
+            return int(time.mktime(parsed))
+    except (subprocess.SubprocessError, OSError, ValueError):
+        pass
+    return int(time.time())
+
+
+def everything():
+    """The registry and reality, merged. Every command reads this, not load()."""
+    entries = load()
+    live = open_entries(entries)
+    return entries, live + discover(live)
+
+
 def mine(e):
     return SESSION and e.get("session") == SESSION
 
@@ -97,6 +221,10 @@ def describe(e):
         who = "the clean copy — never stopped"
     elif e.get("demo"):
         who = "DEMO for the user — leave up until they say done"
+    elif e.get("discovered"):
+        # Not in the registry at all: started outside `apprun start`. It has no
+        # owner, so it is an orphan by construction.
+        who = "UNREGISTERED — started outside apprun, no owner"
     else:
         who = "yours" if mine(e) else ("ORPHAN" if orphan(e) else "another session")
     branch = f" [{e['branch']}]" if e.get("branch") else ""
@@ -192,29 +320,69 @@ def cmd_start(a):
     return 0
 
 
+def cmd_adopt(a):
+    """Claim a running-but-unregistered copy for this session.
+
+    The counterpart to discovery: once a session admits it started something,
+    the thing stops being an ownerless orphan and becomes that session's to
+    stop at the end of its task -- which is the whole point of the registry.
+    Starting a server by hand is not itself wrong; leaving it unclaimed is.
+    """
+    if not SESSION:
+        print("refusing to adopt: CLAUDE_CODE_SESSION_ID is unset, so the entry "
+              "would have no owner and would read as an orphan anyway.",
+              file=sys.stderr)
+        return 1
+    entries, live = everything()
+    match = [e for e in live if e["port"] == a.port]
+    if not match:
+        print(f"nothing running on :{a.port}.", file=sys.stderr)
+        return 1
+    e = match[0]
+    if not e.get("discovered"):
+        owner = "you already" if mine(e) else "another session"
+        print(f":{a.port} is already registered — {owner} owns it.", file=sys.stderr)
+        return 1
+    entries.append({
+        "project": e["project"], "phase": e["phase"], "port": e["port"],
+        "pid": e["pid"], "url": e["url"], "branch": e.get("branch", ""),
+        "demo": bool(a.demo), "session": SESSION, "session_pid": SESSION_PID,
+        "started": e.get("started", int(time.time())), "state": "open",
+        "adopted": True,
+    })
+    save(entries)
+    print(f"adopted {e['project']} :{e['port']} (pid {e['pid']}) — yours to stop now.")
+    return 0
+
+
 def cmd_list(a):
-    entries = load()
-    live = open_entries(entries)
+    entries, live = everything()
     if not live:
         print("nothing registered as running.")
         return 0
     shown = live if a.all else [e for e in live if mine(e)]
+    unregistered = [e for e in live if e.get("discovered")]
     if not shown:
         print(f"you own none of the {len(live)} running instance(s). "
               f"Use --all to see them; they are not yours to stop.")
+        if unregistered:
+            print(f"{len(unregistered)} of them are UNREGISTERED — started outside "
+                  f"apprun. `apprun sweep` lists them.")
         return 0
     print(f"{len(shown)} instance(s):")
     for e in sorted(shown, key=lambda e: (e["project"], e["port"])):
         print(describe(e))
     orphans = [e for e in live if orphan(e)]
     if orphans and not a.all:
-        print(f"\n{len(orphans)} orphan(s) from dead sessions — `apprun sweep` to see them.")
+        extra = (f", {len(unregistered)} of them never registered"
+                 if unregistered else "")
+        print(f"\n{len(orphans)} orphan(s) from dead sessions{extra} — "
+              f"`apprun sweep` to see them.")
     return 0
 
 
 def cmd_stop(a):
-    entries = load()
-    live = open_entries(entries)
+    entries, live = everything()
     stable = [e for e in live if e.get("phase") == "stable"
               and (a.all or e["port"] == a.port)]
     if stable and not a.all:
@@ -257,8 +425,7 @@ def cmd_stop(a):
 
 
 def cmd_sweep(a):
-    entries = load()
-    live = open_entries(entries)
+    entries, live = everything()
     stable = [e for e in live if e.get("phase") == "stable"]
     rest = [e for e in live if e.get("phase") != "stable"]
     orphans = [e for e in rest if orphan(e)]
@@ -314,6 +481,12 @@ def main():
     s.add_argument("--demo", action="store_true",
                    help="started for the user to look at; survives `stop --all`")
     s.set_defaults(fn=cmd_start)
+
+    ad = sub.add_parser("adopt", help="claim a copy started outside apprun")
+    ad.add_argument("--port", required=True, type=int)
+    ad.add_argument("--demo", action="store_true",
+                    help="it is up for the user to look at; survives `stop --all`")
+    ad.set_defaults(fn=cmd_adopt)
 
     l = sub.add_parser("list", help="what is running (yours by default)")
     l.add_argument("--all", action="store_true")

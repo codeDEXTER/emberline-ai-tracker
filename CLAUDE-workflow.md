@@ -252,6 +252,14 @@ apprun start <project>      apprun list      apprun stop      apprun sweep
 
 A session stops only what it started. `apprun sweep` clears dead entries.
 
+**Start servers through `apprun`, or adopt them.** Every command also looks for
+app processes running out of `apps/` that no entry covers, and shows them as
+UNREGISTERED — they have no owner, so they are orphans and only the user may
+clear them. If you started one by hand, `apprun adopt --port N` makes it yours
+to stop when your task ends. Starting a server directly is not the problem;
+leaving it unclaimed is. Before this, `list` reported a clean machine while two
+copies were up, because the registry only knew what it had been told.
+
 **One installed app per project, ever.** There is exactly one bundle in
 `/Applications` for a project, built from `main` and refreshed after a feature
 merges. A worktree build is a *development* copy: it carries a distinct name and

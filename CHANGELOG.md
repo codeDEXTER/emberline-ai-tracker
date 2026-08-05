@@ -1,5 +1,28 @@
 # Changelog — common-rules
 
+## 2026-08-05 · apprun looks, instead of only remembering
+
+The user found two app servers running that `apprun list` could not see: the
+installed copy on :8502 and a worktree copy on :8600, both launched directly by
+sessions (`python3 -m nicegui_app.main`) rather than through `apprun start`.
+The registry only ever knew what it was told, so `stop` and `sweep` were
+structurally blind to them and reported a clean machine. A registry that is
+silently incomplete is worse than none, because it reads as authoritative.
+
+Every command now also *looks*: any process listening on a local port whose
+working directory is under the apps root, and which no open entry covers, is
+reported as UNREGISTERED. Having no owning session, those are orphans by
+construction — visible to `sweep`, refused by `stop`, closable only with the
+user's yes. A copy running from a worktree path is never classified stable,
+whatever port it landed on.
+
+Discovered entries are never written to the registry. They are observed on each
+run, so they cannot go stale the way a written record can.
+
+New: `apprun adopt --port N` claims a copy started outside apprun for the
+current session, making it that session's to stop at the end of its task.
+Starting a server by hand is not the problem; leaving it unclaimed is.
+
 ## 2026-08-05 · The cut — 1,637 lines to 298, and four rules turned into code
 
 Measured 30 sessions and 29.2M output tokens before changing anything. The
