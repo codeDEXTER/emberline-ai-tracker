@@ -8,6 +8,34 @@ is the thing to read first.
 
 ## 2026-08-05
 
+- **A question to the user is a cost — and Autopilot** (enacts proposal 04,
+  decided by instruction). aashish: sessions were all asking him whether to
+  message the other issue — "this is something that's not my problem"; and:
+  "these things should run automatically with minimum input from my side."
+
+  Diagnosed by measurement, not intuition: **52 questions across five
+  finance-tracker sessions** (one asked 29). Every category traced to a rule
+  that mandated asking or to the absence of any rule pricing a question. The
+  worst was our own: proposal 02's resolution required his yes before any
+  cross-session message — written the day *before* proposal 05 made issue
+  coordination the AI's job. The sessions were obeying the rules exactly.
+  **No new agent needed; an agent on top of ask-mandating rules would also ask.**
+
+  Fixes: the approval requirement on cross-session coordination is corrected in
+  place (send, log in AGENT-LOG.md, tell him in the digest); a single test now
+  gates every question (would the answer change what he sees at a look, or is it
+  reserved — else decide, record one line, proceed); the requirements engineer's
+  "ask the sponsor rather than assume" is retired for "reason it out" (it was
+  the largest single source); the design engineer's route-to-sponsor now stops
+  at the requirements engineer; and the quality manager counts unnecessary
+  questions at the gate — three across tasks is an instructions-are-wrong
+  finding, the same mechanism as recurring lessons. Proposal 04 is marked
+  accepted with his words recorded as the decision; the PR carrying this is
+  the correction point if that reading is wrong.
+
+  Baseline recorded for re-measurement: 52 questions / 5 sessions on
+  2026-08-05. The target is not zero — it is zero *unnecessary*.
+
 - **The Idea Lab** (research 06, accepted same day; direction: the funnel with a
   tournament heart). aashish's ask: "I can just tell the idea. It should run
   multiple iterations to make the idea finer and finer, and then let me know" —
