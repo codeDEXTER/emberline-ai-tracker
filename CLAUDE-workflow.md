@@ -869,6 +869,45 @@ confusion this section exists to remove.
 For a packaged app, a distinct bundle name per build keeps test builds separate
 in Cmd-Tab and the Dock instead of masquerading as the installed one.
 
+### A finished session doesn't linger — it offers to close
+
+Added 2026-08-05, at the user's request. "Leave nothing running" covers app
+instances. Nothing covered the **sessions themselves**, and they accumulate the
+same way for the same reason: the work ends, nobody says so, and the session sits
+there looking indistinguishable from one still thinking.
+
+Measured the day this was written, across ten worktrees: `issue-27-person-dossier`
+holding a finished commit with an idle session for **50 hours**;
+`proposals-status-refactor` clean, nothing ahead, idle **29 hours**;
+`m0-stage2-v5-decomposed` idle **51 hours**; `proposal-register` sitting on
+**20 finished commits** with no live session at all. None of them were abandoned —
+they were *done*, and nothing ever said so out loud.
+
+**When a session's work is finished, it says so plainly and offers to close.**
+Finished means: its issue is merged and closed, its worktree holds nothing
+uncommitted, and there is no next step it owns. The closing offer is the last
+thing in its final report — not buried mid-summary.
+
+**Closing is the user's call**, in the same class as clearing an orphan: the AI
+never archives a session on its own initiative, because the one it judges
+finished may be the one the user was about to reopen. What is mandatory is the
+**offer** — silence is how ten sessions became indistinguishable from each other.
+
+This is a deliberate carve-out from "a question to the user is a cost". It is
+allowed because he asked for it, and because it is a *closing* decision, which
+the issue lifecycle already reserves. One line at the end of a finished session
+is not the decision spam that rule exists to stop.
+
+**On the way out**, a session that is closing also: exits its worktree
+(`ExitWorktree` with `remove` once merged, `keep` if paused rather than done),
+stops anything it started, and leaves its `AGENT-LOG.md` entry complete. A
+session offering to close while still holding uncommitted work has mistaken
+"stopped" for "finished" — commit first, then offer.
+
+**Paused is not finished.** A session waiting on the user, blocked behind another
+session's surface, or mid-review says so and stays open. Only work with nothing
+left to do gets the offer.
+
 ### Leave nothing running — and stop only what you started
 
 Badges say which copy is which; they do nothing to stop copies accumulating.
