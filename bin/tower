@@ -94,6 +94,18 @@ def short_name(name):
     return m.group(1) if m else name
 
 
+def truncate_words(text, limit=22):
+    """~limit chars, cut on a word boundary rather than mid-word."""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    sp = cut.rfind(" ")
+    if sp > 0:
+        cut = cut[:sp]
+    return cut.rstrip(",;:.-") + "…"
+
+
 def touched_files(path):
     # NOT run(): that helper .strip()s the whole blob, which eats the leading
     # space off " M file" porcelain lines and truncates the filename by one
@@ -269,9 +281,33 @@ def pipeline_data(worktrees):
                "--search", f"closed:>={today}", "--json", "number,title", "--limit", "20"])
     merged = json.loads(out)[:4] if out else []
 
+    # Shared with the live graph: issue titles (for node labels) and each
+    # issue's feature prefix (for stripping "Prefix: " already shown by the
+    # node's hull, and for compute_hulls itself) — one lookup, built once.
+    issues_by_number = {r["number"]: r for r in all_issues}
+    issue_to_prefix = {m["number"]: prefix for prefix, members in groups for m in members}
+
     return {"groups": groups, "in_flight": in_flight,
             "in_flight_worktrees": in_flight_worktrees,
-            "queued": queued_shown, "queued_more": queued_more, "merged": merged}
+            "queued": queued_shown, "queued_more": queued_more, "merged": merged,
+            "issues_by_number": issues_by_number, "issue_to_prefix": issue_to_prefix}
+
+
+def open_gate_branches(repo):
+    """Branches with an open, non-draft PR — awaiting a human merge decision
+    by definition of what an open PR is. No separate "at the gate" state is
+    invented beyond that; a draft PR is explicitly not yet asking for one."""
+    if not repo:
+        return set()
+    out = run(["gh", "pr", "list", "-R", repo, "--state", "open",
+               "--json", "number,headRefName,isDraft", "--limit", "50"])
+    if not out:
+        return set()
+    try:
+        rows = json.loads(out)
+    except json.JSONDecodeError:
+        return set()
+    return {r["headRefName"] for r in rows if not r.get("isDraft")}
 
 
 # --- event ticker ---
@@ -334,22 +370,30 @@ def ticker_data(worktrees):
 def compute_hulls(worktrees, pipeline):
     """Worktrees grouped by the same title-prefix feature groups the
     pipeline uses — mapped only via worktree_issue()'s real match, never
-    invented. A group renders only with >=2 mapped nodes in it."""
+    invented. Two honest cases render a hull: >=2 mapped nodes sharing a
+    feature (a collision or a team effort), and a single mapped node whose
+    feature has other open issues not currently in flight — a "1 active"
+    hull, so a feature is visible even when only one ticket on it is being
+    worked right now, per issue #25 (a single-mapped feature with no other
+    open issues stays hull-less; there's nothing else on it to show)."""
     if not pipeline or not pipeline.get("groups"):
         return []
-    issue_to_prefix, prefix_total = {}, {}
-    for prefix, members in pipeline["groups"]:
-        prefix_total[prefix] = len(members)
-        for m in members:
-            issue_to_prefix[m["number"]] = prefix
+    issue_to_prefix = pipeline.get("issue_to_prefix", {})
+    prefix_total = {prefix: len(members) for prefix, members in pipeline["groups"]}
     by_prefix = {}
     for w in worktrees:
         prefix = issue_to_prefix.get(w.get("issue"))
         if prefix is None:
             continue
         by_prefix.setdefault(prefix, []).append(w["name"])
-    return [{"prefix": prefix, "total": prefix_total[prefix], "members": names}
-            for prefix, names in by_prefix.items() if len(names) >= 2]
+    hulls = []
+    for prefix, names in by_prefix.items():
+        total = prefix_total.get(prefix, len(names))
+        if len(names) >= 2:
+            hulls.append({"prefix": prefix, "total": total, "members": names, "single": False})
+        elif total > 1:
+            hulls.append({"prefix": prefix, "total": total, "members": names, "single": True})
+    return hulls
 
 
 # --- collect everything, cached ---
@@ -387,6 +431,31 @@ def collect():
     pipeline, pipeline_err = safe(pipeline_data, worktrees)
     ticker, ticker_err = safe(ticker_data, worktrees)
     hulls, hulls_err = safe(compute_hulls, worktrees, pipeline)
+    repo = next((p["repo"] for p in PROJECTS if p.get("repo")), None)
+    gate_branches, gate_err = safe(open_gate_branches, repo)
+
+    # Node labels (issue title, prefix stripped) — shared lookup from the
+    # pipeline, attached once here rather than re-derived at render time.
+    issues_by_number = (pipeline or {}).get("issues_by_number", {})
+    issue_to_prefix = (pipeline or {}).get("issue_to_prefix", {})
+    for w in worktrees:
+        issue = issues_by_number.get(w.get("issue"))
+        if not issue:
+            w["issue_title"] = None
+            continue
+        title = issue["title"]
+        prefix = issue_to_prefix.get(w["issue"])
+        if prefix and ":" in title and title.split(":", 1)[0].strip() == prefix:
+            title = title.split(":", 1)[1].strip()
+        w["issue_title"] = truncate_words(title)
+
+    # "Needs you": a wall item, or its mapped issue's branch has an open,
+    # non-draft PR awaiting a merge decision — the two things issue #25 asks
+    # this screen to surface at a glance.
+    wall_worktrees = {item["worktree"] for item in (wall or [])}
+    gate_set = gate_branches or set()
+    needs_input = {w["name"] for w in worktrees
+                   if w["short"] in wall_worktrees or w["branch"] in gate_set}
 
     data = {
         "worktrees": worktrees, "worktrees_err": wt_err,
@@ -396,6 +465,7 @@ def collect():
         "pipeline": pipeline, "pipeline_err": pipeline_err,
         "ticker": ticker or [], "ticker_err": ticker_err,
         "hulls": hulls or [], "hulls_err": hulls_err,
+        "needs_input": needs_input, "gate_err": gate_err,
     }
     with _cache_lock:
         _cache["ts"] = time.time()
@@ -418,38 +488,51 @@ def unavailable(x, y, label):
             f'{e(label)} · unavailable</text>')
 
 
-def render_graph(worktrees, contested, hulls, x0, y0, width):
+def render_graph(worktrees, contested, hulls, needs_input, x0, y0, width):
     els = [f'<text class="ht" x="{x0}" y="{y0}">LIVE GRAPH · SESSIONS</text>']
+    els.append(f'<text class="sub" x="{x0}" y="{y0 + 14}">'
+               f'<tspan fill="{PALETTE["green"]}">green</tspan> active · '
+               f'<tspan fill="{PALETTE["dim"]}">grey</tspan> idle · '
+               f'<tspan fill="{PALETTE["amber"]}">amber</tspan> contested · '
+               f'<tspan fill="{PALETTE["purple"]}">purple</tspan> needs you</text>')
+    grid_y0 = y0 + 14
     if not worktrees:
-        els.append(unavailable(x0, y0 + 24, "no worktrees found"))
-        return "\n".join(els), y0 + 50
+        els.append(unavailable(x0, grid_y0 + 24, "no worktrees found"))
+        return "\n".join(els), grid_y0 + 50
 
     cols = 4 if width > 620 else 3
     cell_w = (width - 40) // cols
     cell_h = 118
 
     # positions first — hulls need every node's (cx, cy) to size a bounding box
-    positions = {w["name"]: (x0 + 50 + (i % cols) * cell_w, y0 + 60 + (i // cols) * cell_h)
+    positions = {w["name"]: (x0 + 50 + (i % cols) * cell_w, grid_y0 + 60 + (i // cols) * cell_h)
                  for i, w in enumerate(worktrees)}
 
     for hull in hulls:
         pts = [positions[n] for n in hull["members"] if n in positions]
-        if len(pts) < 2:
+        if not pts:
             continue
         xs, ys = [p[0] for p in pts], [p[1] for p in pts]
         hx0, hy0 = min(xs) - 46, min(ys) - 46
         hx1, hy1 = max(xs) + 46, max(ys) + 46
         els.append(f'<rect class="hull" x="{hx0}" y="{hy0}" width="{hx1 - hx0}" '
                     f'height="{hy1 - hy0}" rx="16"/>')
-        els.append(f'<text class="sub" x="{hx0 + 12}" y="{hy0 + 16}">'
-                    f'FEATURE · {e(hull["prefix"].upper()[:28])} · {hull["total"]} TICKETS</text>')
+        name = hull["prefix"].upper()[:28]
+        label = (f'FEATURE · {e(name)} · {hull["total"]} tickets, 1 active' if hull["single"]
+                 else f'FEATURE · {e(name)} · {hull["total"]} TICKETS')
+        els.append(f'<text class="sub" x="{hx0 + 12}" y="{hy0 + 16}">{label}</text>')
 
     for i, w in enumerate(worktrees):
         cx, cy = positions[w["name"]]
 
         age_s = (time.time() - w["session"]) if w["session"] else None
         is_contested = any(w["name"] in (a, b) for a, b, _ in contested)
-        if is_contested:
+        is_needs_input = w["name"] in needs_input
+        # Priority: what he's scanning for (needs you) outranks a queueing
+        # note (contested), which outranks plain freshness.
+        if is_needs_input:
+            stroke, extra_ring = PALETTE["purple"], False
+        elif is_contested:
             stroke, extra_ring = PALETTE["amber"], False
         elif age_s is not None and age_s < 180:
             stroke, extra_ring = PALETTE["green"], True
@@ -462,17 +545,28 @@ def render_graph(worktrees, contested, hulls, x0, y0, width):
             els.append(f'<circle class="ring" cx="{cx}" cy="{cy}" r="33" '
                         f'stroke="{stroke}"/>')
         els.append(f'<circle class="node" cx="{cx}" cy="{cy}" r="25" stroke="{stroke}"/>')
-        els.append(f'<text class="tt" x="{cx}" y="{cy - 2}" text-anchor="middle">'
-                    f'{e(w["short"][:11])}</text>')
-        session_age = ago(w["session"])
-        session_lbl = f"session {session_age}" if session_age else "no session"
-        els.append(f'<text class="sub" x="{cx}" y="{cy + 42}" text-anchor="middle">'
-                    f'{e(w["branch"][:20])}</text>')
-        els.append(f'<text class="sub" x="{cx}" y="{cy + 54}" text-anchor="middle">'
-                    f'{e(session_lbl)}</text>')
+
+        # Primary label = the issue title (what he's tracking), not the
+        # branch — "it's showing branch names, it doesn't mean anything to
+        # me" (issue #25). No mapped issue: falls back to the worktree name,
+        # same honest mapping as #24 rather than guessing one from a branch.
+        if w.get("issue_title"):
+            els.append(f'<text class="tt" x="{cx}" y="{cy - 4}" text-anchor="middle" '
+                        f'font-size="10">{e(w["issue_title"])}</text>')
+            els.append(f'<text class="sub" x="{cx}" y="{cy + 10}" text-anchor="middle">'
+                        f'#{w["issue"]}</text>')
+            els.append(f'<text class="sub" x="{cx}" y="{cy + 42}" text-anchor="middle">'
+                        f'{e(w["short"][:20])}</text>')
+        else:
+            els.append(f'<text class="tt" x="{cx}" y="{cy - 2}" text-anchor="middle">'
+                        f'{e(w["short"][:11])}</text>')
+
+        if is_needs_input:
+            els.append(f'<text class="sub" x="{cx}" y="{cy + 54}" text-anchor="middle" '
+                        f'fill="{PALETTE["purple"]}">needs you</text>')
 
     rows = (len(worktrees) + cols - 1) // cols
-    bottom = y0 + 60 + rows * cell_h
+    bottom = grid_y0 + 60 + rows * cell_h
 
     seen_pairs = set()
     for a, b, f in contested:
@@ -604,8 +698,8 @@ def render_page():
     pipe_w = WIDTH - pipe_x0 - 24
 
     graph_svg, graph_bottom = render_graph(data["worktrees"], data["contested"], data["hulls"],
-                                           graph_x0, 116, graph_w)
-    if data["worktrees_err"] or data["contested_err"] or data["hulls_err"]:
+                                           data["needs_input"], graph_x0, 116, graph_w)
+    if data["worktrees_err"] or data["contested_err"] or data["hulls_err"] or data["gate_err"]:
         graph_svg += unavailable(graph_x0, graph_bottom, "live graph")
         graph_bottom += 20
 
