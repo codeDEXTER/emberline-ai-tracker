@@ -1,0 +1,425 @@
+<meta charset="utf-8">
+<title>common-rules · The Tower keeps the record — Proposal</title>
+<meta name="proposal-id" content="08">
+<meta name="proposal-topic" content="tower-record-completion-autonomy">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="accepted">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
+    --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E;
+    --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; --screen:#0B0E13; --scrink:#DFE3EA;
+    --scrdim:#7C8594; --scrline:#222B38;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0; --border:#26303C;
+            --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81; --warn:#D2A05A;
+            --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660;
+            --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B;
+            --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1030px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:34px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  h3 { font-size:17px; font-weight:640; margin:26px 0 4px; letter-spacing:-.01em; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:66ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  section > p { max-width:70ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:72ch; }
+  code, .mono { font-family:var(--mono); font-size:12.6px; }
+  a { color:var(--accent); }
+  .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+          padding:3px 9px; border-radius:4px; background:var(--warn); color:var(--chip-ink); }
+
+  .tablewrap { overflow-x:auto; margin-top:18px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:640px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.1px; white-space:nowrap; }
+  .lab { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+         display:inline-block; padding:2px 7px; border-radius:4px; white-space:nowrap; color:var(--chip-ink); }
+  .lab.ok { background:var(--gain); } .lab.mid { background:var(--warn); } .lab.no { background:var(--loss); }
+
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:22px 0; max-width:74ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.warn { border-left-color:var(--warn); }
+  .verdict.good { border-left-color:var(--gain); }
+  .verdict p:last-child { margin-bottom:0; }
+
+  .mock { margin-top:22px; overflow-x:auto; border-radius:14px; }
+  .mock svg { width:100%; min-width:760px; height:auto; display:block; }
+  ul { max-width:72ch; } li { margin-bottom:7px; }
+  .steps { display:grid; gap:14px; margin-top:20px; }
+  .st { background:var(--surface); border:1px solid var(--border); border-radius:10px;
+        padding:15px 18px; }
+  .st b { font-size:15px; } .st p { margin:5px 0 0; color:var(--dim); font-size:13.7px; max-width:68ch; }
+  @media (max-width:640px){ .page{padding:34px 18px 60px;} h1{font-size:27px;} }
+</style>
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · Proposal 08 · proposal</span>
+  <span><span class="chip" style="background:var(--gain)">accepted</span> &nbsp; 2026-08-05 · rules 92</span>
+</div>
+
+<h1>The Tower keeps the record — so it can say how done the work is, and whether it still needs you</h1>
+
+<p class="standfirst">Two lines of work arrived at the same gap from opposite directions. One asked
+<i>how complete is each app, and when will it be done</i>. The other — the Idea Lab's funnel on the
+Tower, which you accepted into v1 — asked <i>what else could the Tower be</i>, and answered: it should
+keep the record and report whether the autopilot still needs you. <b>Neither can be built, because
+nothing in the toolchain writes down when anything happened.</b> This is the combined proposal: one
+durable record, three readings of it, and the four rule changes both halves need.</p>
+
+<div class="verdict good">
+<b>Why one document and not two</b>
+<p>Proposal 08 measures <strong>the work</strong> — declared scope, completion per package, time to
+done. The Lab's funnel measures <strong>the collaboration</strong> — how often you were needed, what
+it cost, whether that is falling. Different questions, and both were sound standing alone.</p>
+<p>They meet at exactly one point. 08's step 2 was "have <span class="mono">bin/land</span> tick the
+checklist box so the tick carries a date". The funnel's winner was "append one dated row every time
+the Tower re-renders". <strong>These are the same move — one made for a single file, one made in
+general.</strong> Two independent runs found the same missing thing without knowing about each other,
+which is the strongest evidence either produced. Building them separately would mean writing the
+timestamp machinery twice and then reconciling two records that disagree.</p>
+</div>
+
+<section>
+<div class="eyebrow"><span>The fact that reorganises both</span><span class="tag">verified on your disk, twice, not quoted from a doc</span></div>
+
+<p>Everything the Tower reads is on a delete timer, and your entire history is six days old.</p>
+
+<div class="tablewrap">
+<table>
+<tr><th>What</th><th>Measured</th><th>Consequence</th></tr>
+<tr><td class="k">transcripts on disk</td><td>289 <span class="mono">.jsonl</span> files · 512 MB · 31 Jul → 5 Aug</td><td>six days is the entire record of the experiment</td></tr>
+<tr><td class="k"><span class="mono">cleanupPeriodDays</span></td><td><span class="lab no">not set</span> in <span class="mono">~/.agent-data/settings.json</span></td><td>the default applies — 30 days, deleted at startup, hard unlink, no trash</td></tr>
+<tr><td class="k">first deletions</td><td><b>~30 August 2026</b> — the 31 July sessions go first</td><td>then 1 Aug, then 2 Aug, one day at a time, on every start</td></tr>
+<tr><td class="k">growth</td><td>~85 MB/day · 15 transcripts today alone</td><td>raising the retention keeps a fast-growing private pile, which is not the same as keeping a record</td></tr>
+</table>
+</div>
+
+<p class="note">The Lab's funnel measured 282 files / 536 MB a couple of hours earlier; this run
+measured 289 / 512 MB. Both are right — it is growing and being rewritten while we look at it. The
+figure that matters is not the size, it is the date: <b>~30 August</b>.</p>
+
+<div class="verdict warn">
+<b>The obvious cheap answer, and why it is only half an answer</b>
+<p><strong>Set <span class="mono">cleanupPeriodDays</span> to something large today.</strong> It is one
+line, it is reversible, and it costs nothing — you should do it whatever you decide below, as
+insurance. Do not let this proposal be the reason the 31 July sessions are lost.</p>
+<p>But it is not a substitute. It preserves 512 MB of <i>private conversation</i> that grows ~85 MB a
+day and that concept 07's own limit says must never leave the machine. A derived one-line-per-event
+record is small, greppable, permanent, safe to show a room of managers, and — unlike a transcript —
+something you can actually plot. Keep the raw data by setting the key; build the record because the
+record is the thing you can read.</p>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>The shape</span><span class="tag">one record, three readings</span></div>
+
+<div class="mock">
+<svg viewBox="0 0 1060 300" role="img" aria-label="One durable record feeding three readings">
+  <style>
+    .f-bg{fill:#0B0E13;} .f-t{fill:#DFE3EA;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;}
+    .f-d{fill:#7C8594;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;}
+    .f-h{fill:#DFE3EA;font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.13em;}
+    .bx{fill:#131820;stroke:#26303C;stroke-width:1;}
+    .bx2{fill:#101620;stroke:#39434F;stroke-width:1.2;}
+    .ar{stroke:#5FA985;stroke-width:1.4;fill:none;marker-end:url(#ah);}
+  </style>
+  <defs><marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,1 L7,4 L0,7 z" fill="#5FA985"/></marker></defs>
+  <rect class="f-bg" x="0" y="0" width="1060" height="300" rx="12"/>
+
+  <rect class="bx2" x="250" y="24" width="560" height="74" rx="8"/>
+  <text class="f-h" x="270" y="48">THE LOGBOOK · one dated row per event, appended forever</text>
+  <text class="f-d" x="270" y="68">2026-08-05T16:40  merged  #35 Tower  elastic-hopper  4 sessions · 118k out</text>
+  <text class="f-d" x="270" y="84">2026-08-05T16:32  wall-   #41 Clerk  adoring-euler  answered after 34m</text>
+
+  <path class="ar" d="M420,98 L200,150"/>
+  <path class="ar" d="M530,98 L530,150"/>
+  <path class="ar" d="M640,98 L860,150"/>
+
+  <rect class="bx" x="40" y="152" width="320" height="118" rx="8"/>
+  <text class="f-h" x="60" y="176">BURN-UP</text>
+  <text class="f-t" x="60" y="200">how much is done,</text>
+  <text class="f-t" x="60" y="218">and at what rate</text>
+  <text class="f-d" x="60" y="242">denominator: your checklists</text>
+  <text class="f-d" x="60" y="258">the original proposal 08</text>
+
+  <rect class="bx" x="380" y="152" width="300" height="118" rx="8"/>
+  <text class="f-h" x="400" y="176">THE DAY VIEW</text>
+  <text class="f-t" x="400" y="200">what is waiting on you</text>
+  <text class="f-t" x="400" y="218">right now</text>
+  <text class="f-d" x="400" y="242">the wall, which the Tower</text>
+  <text class="f-d" x="400" y="258">already draws — unchanged</text>
+
+  <rect class="bx" x="700" y="152" width="320" height="118" rx="8"/>
+  <text class="f-h" x="720" y="176">THE REPORT CARD</text>
+  <text class="f-t" x="720" y="200">is it needing you less</text>
+  <text class="f-t" x="720" y="218">than last week</text>
+  <text class="f-d" x="720" y="242">denominator: wall items/day</text>
+  <text class="f-d" x="720" y="258">the Lab funnel's winner</text>
+</svg>
+</div>
+
+<p>The middle box exists today. The two on the outside are the proposals, and both of them are
+downstream of the box on top — which is why the record is the first thing built, not the last.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>Reading one · the burn-up</span><span class="tag">degree of completion, computed today from files you already keep</span></div>
+
+<p><span class="mono">CLAUDE-checklist.md</span> already <i>is</i> a work-package register: its
+<span class="mono">##</span> headings are packages, and every item is already a
+<span class="mono">- [x]</span> or <span class="mono">- [ ]</span>. Four of six apps carry one, kept
+current by hand, read by nothing. Parsed exactly as they stand:</p>
+
+<div class="tablewrap">
+<table>
+<tr><th>App</th><th>Packages</th><th>Done / total</th><th>Complete</th><th>Largest gaps</th></tr>
+<tr><td class="k">finance-tracker</td><td>7</td><td>17 / 44</td><td><b>39%</b></td><td>"Now" 7/12 · "Detail-pages redesign" 1/7 · "Capture &amp; local-AI" 4/10</td></tr>
+<tr><td class="k">pockets</td><td>3</td><td>5 / 14</td><td><b>36%</b></td><td>"Now" 4/5 · "Next" 0/5</td></tr>
+<tr><td class="k">pip</td><td>2</td><td>3 / 13</td><td><b>23%</b></td><td>"Now" 3/9 · "Later" 0/4</td></tr>
+<tr><td class="k">mac-explorer</td><td>3</td><td>1 / 8</td><td><b>12%</b></td><td>"Now" 0/1 · "Later" 0/5</td></tr>
+<tr><td class="k">common-rules · idea-lab</td><td>—</td><td>—</td><td>—</td><td>no checklist file, so no declared scope</td></tr>
+</table>
+</div>
+
+<p><b>This reading needs no rule change and no logbook.</b> It is available the moment something
+parses those four files, and it is the cheapest useful thing in this document.</p>
+
+<p class="note">What it is <i>not</i>: a percentage of the app being finished. It is the fraction of
+<i>declared</i> scope that is done. Add five items to a package and its bar moves backwards while
+nothing got worse — honest, and better shown than smoothed.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>Reading two · the report card</span><span class="tag">the question the four current regions cannot answer</span></div>
+
+<p>The Tower answers "how is it handling things right now" well. It cannot answer "is this needing me
+less than it did last week", because that needs yesterday and yesterday is not kept. Five kinds of row
+— all already computed every five seconds and then discarded — carry it: an issue changed state, a
+session handed work to another, something landed on the wall, you cleared it, work merged. The cost
+figure <span class="mono">bin/spend</span> derives and nothing preserves becomes a column.</p>
+
+<p>Grounding found there is a published way to measure this rather than inventing one: Anthropic's own
+autonomy work uses auto-approve rate, interrupt frequency and turn duration, and found Claude asks for
+clarification more than twice as often as humans interrupt it. That turns your standing complaint —
+"stop making me the mechanism" — into a number that can be plotted.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>Time to completion</span><span class="tag">what the arithmetic can honestly say, and what the record would fix</span></div>
+
+<div class="tablewrap">
+<table>
+<tr><th>Source</th><th>Gives</th><th>Does not give</th></tr>
+<tr><td class="k">GitHub issues</td><td>real timestamps — cycle time and throughput</td><td>a stable denominator: cutting an issue moves the percentage for reasons that are not progress</td></tr>
+<tr><td class="k">the checklist</td><td>the denominator — your own statement of scope, including work not yet cut into issues</td><td>any timestamp at all: a ticked box records that something is done, never when</td></tr>
+<tr><td class="k">the logbook</td><td><strong>both, joined</strong> — a dated row per state change, attributable to a package</td><td>a past. It starts empty, and nothing recovers what is already gone</td></tr>
+</table>
+</div>
+
+<p>Until the logbook has history, the denominator comes from the checklist and the rate from issues,
+and the two are never silently mixed. Measured rate, finance-tracker: 18 issues closed over 4 active
+days — 4, 3, 3, 8 — a median of 3.5 per active day, median cycle time 0.76 days (n=18). Against 27
+remaining checklist items, roughly <b>8 active days</b>.</p>
+
+<div class="verdict warn">
+<b>Three caveats that belong on the screen, not in a footnote</b>
+<p><strong>An active day is not a calendar day.</strong> Four active days is the entire history. The
+figure must never render as a date.</p>
+<p><strong>Checklist items are not issues.</strong> 44 items against 43 issues is a coincidence, not a
+mapping — only 20% are linked in finance-tracker and 0% in the other three. Until the join closes, the
+rate is borrowed from a different population than the denominator, and the screen should say "at the
+recent pace" rather than imply a forecast.</p>
+<p><strong>Three apps have no closure history at all.</strong> pockets, pip and mac-explorer have
+closed zero issues. They get a completion figure and no rate. "No rate yet" is correct; borrowing
+another app's velocity is not.</p>
+</div>
+
+<p>Every one of those caveats is the same shortage: no dated history. The logbook is what retires them
+— not by being clever, but by having been running for a month.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>The join</span><span class="tag">one change, and both readings need it</span></div>
+
+<p>A checklist item rarely names its issue, and the issue is what connects to a branch, a session and
+a merge.</p>
+
+<div class="tablewrap">
+<table>
+<tr><th>App</th><th>Items naming an issue</th><th>What stays impossible without it</th></tr>
+<tr><td class="k">finance-tracker</td><td><span class="lab mid">9 of 44 · 20%</span></td><td rowspan="4">Burn-up cannot say which item is in flight. The report card cannot attribute a wall item or a cost to a feature. Both readings degrade to counting.</td></tr>
+<tr><td class="k">pockets</td><td><span class="lab no">0 of 14 · 0%</span></td></tr>
+<tr><td class="k">pip</td><td><span class="lab no">0 of 13 · 0%</span></td></tr>
+<tr><td class="k">mac-explorer</td><td><span class="lab no">0 of 8 · 0%</span></td></tr>
+</table>
+</div>
+
+<p class="note">For context on why the existing feature layer cannot stand in for this: only 3 feature
+groups exist across all six apps, and 30 of 43 finance-tracker issues carry no title prefix at all.
+The Tower's feature hulls see roughly a third of the work.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>What this needs from the shared rules</span><span class="tag">four changes — the same four serve both readings</span></div>
+
+<div class="steps">
+<div class="st"><b>1 · The checklist gets a declared shape</b>
+<p>One <span class="mono">##</span> per work package, one <span class="mono">- [ ]</span> per item,
+issue number in parentheses when one exists. Already the convention in finance-tracker; writing it
+down makes it parseable rather than habitual.</p></div>
+
+<div class="st"><b>2 · Every project carries one, or is explicitly exempt</b>
+<p>common-rules and idea-lab have none, so they have no declared scope and cannot report completion.
+An app with no answer is fine; an app with a silently missing answer is not.</p></div>
+
+<div class="st"><b>3 · An item names its issue once an issue exists</b>
+<p>The join. The only genuinely new obligation here, and 0% in three of four projects today.</p></div>
+
+<div class="st"><b>4 · Writing the record is a standing obligation, not a habit</b>
+<p><span class="mono">bin/land</span> ticks the box and appends the logbook row on merge, rather than
+a session remembering to. This follows the rule the file already states — enforceable rules live in
+code, not prose. <strong>Be clear-eyed that this is the real cost of the proposal:</strong> something
+must write the record on every render, forever, and it becomes load-bearing the moment a number on a
+screen depends on it.</p></div>
+</div>
+
+<p class="note">Changing these files is reserved to you. Nothing here edits a rule; this document is
+the surfacing step.</p>
+</section>
+
+<section>
+<div class="eyebrow"><span>Build path</span><span class="tag">resequenced — the record is first because it is the only part on a clock</span></div>
+
+<div class="steps">
+<div class="st"><b>Today, before anything · set <span class="mono">cleanupPeriodDays</span></b>
+<p>One line, reversible, no code. Independent of every decision below. The 31 July sessions are
+deleted around 30 August otherwise.</p></div>
+
+<div class="st"><b>Step 1a · start the logbook</b>
+<p>Append the five row kinds on every Tower render. Nothing reads it yet. It is first because a
+logbook started in September has no August — every day of delay is a day permanently absent from
+every trend that follows.</p></div>
+
+<div class="st"><b>Step 1b · the burn-up, in parallel</b>
+<p>Parse the four checklists, add the completion region. Independent of 1a, needs no rule change,
+and gives you the figures in this document on a live screen. Roughly the size of the change that
+landed as #35 today.</p></div>
+
+<div class="st"><b>Step 2 · close the join</b>
+<p>Rule changes 1–3, then <span class="mono">land</span> writing the tick and the row together.
+Packages become followable and logbook rows become attributable. This is the step that makes both
+readings more than counting.</p></div>
+
+<div class="st"><b>Step 3 · the report card, once there is a month to report on</b>
+<p>Deliberately last, and gated on elapsed time rather than on effort. Drawing a confident slope
+through four points is worse than drawing nothing.</p></div>
+</div>
+</section>
+
+<section>
+<div class="eyebrow"><span>What grounding killed</span><span class="tag">from the Lab's funnel — fetched and read, not searched</span></div>
+
+<ul>
+<li><b>"Live cost instrument"</b> — killed. <span class="mono">agents-observe</span>,
+<span class="mono">claude-code-otel</span> and three others already show live events, tool calls,
+tokens and cost, better than we would. None has a queue of things waiting on a human, an edge between
+two sessions, or any link to an issue. The Tower's wall and graph are the genuinely unusual parts.</li>
+<li><b>"Answer sessions from the Tower" and "ship the wall as a phone app"</b> — killed. Remote Control
+is first-party now: drive a local session from your phone, with a push toggle for permission prompts
+and questions. Anthropic ships the delivery; its session list is flat, so the <i>content</i> of the
+wall is still yours.</li>
+<li><b>"Productise the Tower"</b> — killed. Vibe Kanban, Conductor and Nimbalyst own that category, and
+they own the work they launch. The Tower observes work it did not start.</li>
+<li><b>Two rivals kept, not killed.</b> <i>The Tower's reader is the autopilot, not you</i> — make the
+graph an API and the screen a side effect; held back only because a window every session depends on is
+load-bearing infrastructure with a much higher bar than a read-only page. And <i>decision provenance</i>
+— "when did we decide that, and why", across ASKS, CHANGELOG, AGENT-LOG and transcripts; it needs the
+logbook first, so it is worth revisiting after step 1a.</li>
+</ul>
+</section>
+
+<section>
+<div class="eyebrow"><span>Honest limits</span><span class="tag">what this will not do, at any step</span></div>
+
+<ul>
+<li><b>A logbook started today has no yesterday.</b> Everything before 31 July is already gone. The
+trend line starts thin and stays thin for weeks; the first honest report card is a month away.</li>
+<li><b>Six days is not a baseline.</b> Any autonomy or velocity figure computed now is a number, not a
+trend. Both halves of this proposal hit the same wall and both must say "no rate yet" rather than
+draw a slope.</li>
+<li><b>It measures what it can count.</b> A day with no wall items might be good autonomy or a day you
+were out. The record cannot tell those apart.</li>
+<li><b>Completion measures declared scope</b>, and what gets declared grows as you learn what an app
+is. This never becomes a percentage of "finished", and it cannot see work that exists only in your
+head — whose absence looks exactly like being done.</li>
+<li><b>Parsing makes prose load-bearing.</b> The checklist is currently free to be loose; the moment
+figures are rendered from it, a malformed heading is a wrong number on a screen. Step 1b should show
+what it could not parse rather than dropping it silently.</li>
+</ul>
+</section>
+
+<section>
+<div class="eyebrow"><span>Open questions</span><span class="tag">only you can answer these — the Lab is not allowed to</span></div>
+
+<ul>
+<li><b>What counts as an interruption that should not have happened?</b> A permission prompt, a
+clarifying question and a Look are three different things, and the report card is worthless until you
+say which are legitimate.</li>
+<li><b>One surface or two?</b> A live window and a historical record want opposite things from a
+screen. A fifth region is cheaper; a separate quiet surface is more honest.</li>
+<li><b>Is the record worth the standing obligation?</b> Something must write it forever, and it
+becomes load-bearing the moment a number depends on it. The alternative is accepting that this month
+disappears.</li>
+</ul>
+
+<div class="verdict good">
+<b>Decided 2026-08-05 · the-sponsor</b>
+<p><strong>Accepted: the insurance and the burn-up.</strong>
+<span class="mono">cleanupPeriodDays</span> is now set, so the 31 July transcripts survive past
+30 August. Step 1b shipped as issue #38 — the completion region reads the four existing checklists,
+with no rule change, no imposed checklist shape and no standing obligation.</p>
+<p><strong>Not taken, and deliberately not recorded as a second status:</strong> the logbook (step 1a), the
+checklist-item → issue join and its four rule changes (step 2), and the report card (step 3). The
+three open questions below are unanswered, and are what those steps wait on.</p>
+<p>The status vocabulary in <span class="mono">docs/proposals/README.md</span> has no
+<span class="mono">partly-accepted</span> on purpose, so this document is marked plainly
+<b>accepted</b> and the paragraph above is the whole truth of what that covers. If the unaccepted
+half should be tracked as its own item rather than as prose here, it wants to be split into its own
+proposal — <b>that is your call, not one to make silently</b>, and it would partly undo the
+consolidation you asked for.</p>
+</div>
+
+<p class="note">This document is the single proposal for
+the Tower topic: the Idea Lab's funnel output, which you accepted into v1 as "proposal 09", is folded
+in here rather than filed separately — per your own rule that one topic gets one proposal however many
+agents ran on it. The Lab's full funnel record, including the twelve readings and the archive of
+losers, stays at <span class="mono">idea-lab/ideas/tower/</span>.</p>
+</section>
+
+</div>
