@@ -1,5 +1,35 @@
 # Changelog — common-rules
 
+## 2026-08-06 · derecord was breaking the merges it existed to protect
+
+Ran `derecord` across every project, as asked, and testing it first found two
+defects — one inert, one actively harmful.
+
+**`merge.union.name` made record-file merges fail outright.** The script set it
+as a cosmetic label. It is not cosmetic: defining `merge.union.*` declares a
+*custom* driver named `union` that shadows git's built-in one, and a custom
+driver with no `.driver` command makes git abort with `fatal: custom merge
+driver union lacks command line`. So the line meant to help turned every merge
+touching CHANGELOG.md into a hard failure. It was live in **finance-tracker** —
+the only project that had derecord installed — so the one project with this
+"protection" could not merge its own changelog. derecord now unsets it, and
+repairs any repo that already carries it.
+
+**`merge=ours` never worked at all.** Unlike `union`, `ours` is not built in and
+needs a driver. Without one the attribute silently degrades to a normal merge:
+demonstrated on a throwaway repo, two branches each writing
+`.common-rules-version` left `<<<<<<< HEAD` in it — the exact failure these
+rules exist to prevent, in the file that records which rules you are on. Fixed
+with `merge.ours.driver true`.
+
+Both were found by testing the mechanism on a scratch repo rather than trusting
+that installing it had worked. The rule has been written down since 2026-08-05;
+it has never actually held.
+
+common-rules also carries `.gitattributes` now. The repo that ships derecord had
+never run it on itself, which is why its CHANGELOG conflicted during an ordinary
+merge earlier today.
+
 ## 2026-08-06 · The Tower shows who told what to whom
 
 Issue #22, concept 07's step 3 and the last of the Tower feature. A HANDOVERS
