@@ -187,6 +187,12 @@ default, and never applies to every issue.
 
 Everything else goes: issue → `code-engineer` → gate → `land`.
 
+**This is measured, not preference.** Five arms built one frozen spec under five
+process weights. All five scored 22/22; the arm running exactly this default did
+it 2.4×–22.7× cheaper than the rest, and the heaviest arm was the slowest of all.
+Argue for more process against that, not against a taste.
+(`experiments/pockets-core/RESULTS.md`, branch `experiment/results`.)
+
 The chain, when it does run:
 
 1. A proposal, delivered as an HTML artifact, then a decision (below).
@@ -212,6 +218,13 @@ looking. Do not ask them to read requirements prose.
 **Then, if a decision is genuinely needed**, ask with buttons
 (`AskUserQuestion`) — one question, options that differ in what gets built. If
 no decision is needed, skip the buttons entirely.
+
+**Ask before code, in one batch, and do not wait.** Collect what the spec leaves
+undetermined, put it in one message, then pick a default for each and keep
+working — recording what you picked and what it blocks. A question that blocks
+nothing is recorded, not asked. The bake-off arm that did this logged six
+questions, received no answers, and still finished; the control asked two and
+silently resolved nine, which it happened to get right.
 
 **Offer a demo before asking for a yes**, and before closing a feature. Say what
 to open and what to click. The user should see the thing working, not read that

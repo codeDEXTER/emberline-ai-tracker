@@ -26,9 +26,12 @@ happened, the changelog records what it was for.
   definitions from — so editing a file here is editing the live agent,
   and the definitions get the same version history as the rules that
   govern them. Two things to know: they are machine-global (any session
-  on this Mac can invoke them, not just ones under `apps/`), and they
-  **register at session start**, so a definition added or changed
-  mid-session doesn't take effect until a new one.
+  on this Mac can invoke them, not just ones under `apps/`), and a
+  definition dropped into this directory **registers in already-running
+  sessions**, without a restart — measured 2026-08-06, when an agent added
+  mid-session became invokable immediately. What *is* fixed at session start
+  is which directories are searched, so a definition placed in a project's
+  `.claude/agents/` is invisible to a session rooted anywhere else.
 - **`CLAUDE-workflow.md`** — the actual rules: git worktree-per-task, the
   pre-merge checklist shape, issue tracking (checklist file as source of
   truth, GitHub issues as a one-way mirror), and the issue lifecycle (the

@@ -1,5 +1,56 @@
 # Changelog — common-rules
 
+## 2026-08-06 · The bake-off finished, and it mostly says keep the rules as they are
+
+Five arms built one frozen Swift spec — 22 EARS criteria, a fixed public API —
+in isolated worktrees, scored by a sealed suite written before any arm started
+and which none of them saw. **All five scored 22/22.** Cost ranged from 5.4
+minutes to 122.8, and 66,816 output tokens to 209,355.
+
+The cheapest arm was the *control*: read the spec, build it, run the tests, no
+requirements document, no design document, no agent dispatch, no gate. It is
+also, near enough, what "Ceremony is opt-in" already prescribes. So the headline
+change here is a citation rather than a rule — the default was asserted from 30
+sessions of general experience, and now has a controlled result under it.
+
+**The pattern that failed is the one the six-day review proposed**: a driving
+session holding no `Edit`/`Write`, structurally forced to delegate all code to
+`code-engineer`. Two arms ran it. They cost 2.4–3.1× the tokens and 11–23× the
+wall-clock of the control and returned nothing the suite could see. It is not
+adopted. Note the scope carefully: this does **not** touch "tool grants, not
+instructions" as applied to the *roles*, which the bake-off never tested. What
+failed was extending that mechanism to the driving session.
+
+Cost also turned out not to track process weight, which round 1 had concluded
+from three arms. The heavier of the two delegating arms was the *cheaper* one,
+by 47,928 tokens and 62 minutes — its up-front partition let five branches merge
+with zero conflicts, while the lighter arm found its defects late and burned two
+serial fix rounds. Round 1's headline is annotated as superseded rather than
+rewritten.
+
+**One rule is added, and it replaces the question-asking paragraph rather than
+sitting beside it**: ask before code, in one batch, and proceed on documented
+defaults. The evidence is that arms doing this did not stall — one logged six
+questions, received no answers, and still finished — while the control asked two
+and silently resolved nine by judgement. It got all nine right. Whether that
+holds when a silent guess is *wrong* is the question no round tested, because
+the suite catches wrong guesses before they can reach scoring. That is recorded
+as open, and it is the only thing that would overturn any of this.
+
+What the experiment produced that outlasts it: five isolated arms, unable to
+read each other, converged on the same three defects in the spec. When several
+independent readers ask the same question about a specification, the
+specification is wrong — and that costs nothing to exploit.
+
+Full numbers and the proposal are on branch `experiment/results` under
+`experiments/pockets-core/`. Nothing is merged to `pockets/main`.
+
+Also corrects a factual error in `README.md`. It claimed agent definitions
+"register at session start, so a definition added or changed mid-session doesn't
+take effect until a new one." **They register immediately** — measured today,
+when an agent dropped into `agents/` became invokable in a running session with
+no restart. The wrong sentence cost this experiment a planned restart it never
+needed. What *is* fixed at session start is which directories get searched.
 ## 2026-08-06 · derecord says what to do next, instead of leaving a trap
 
 Installing the union rules is not enough to make the next merge work, and the
