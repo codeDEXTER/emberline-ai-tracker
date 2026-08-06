@@ -10,6 +10,19 @@
 #   3. a SessionStart hook that runs rulecheck --quiet
 #
 # Idempotent: run it as often as you like.
+#
+# ONE ORDERING TRAP, and it bites exactly once per branch:
+#
+#   git reads .gitattributes as of the merge's STARTING state. A merge that is
+#   itself delivering .gitattributes therefore runs without it, so the first
+#   merge after installing still conflicts on CHANGELOG.md -- which looks like
+#   the union rules do not work, when in fact they are not in effect yet.
+#
+#   Commit .gitattributes on its own, first, then merge. Hit on 2026-08-06
+#   bringing a long-lived branch up to date: the merge conflicted, and the
+#   identical merge succeeded with zero conflicts once the file had landed in
+#   a commit of its own beforehand. The check at the bottom of this script
+#   prints that reminder whenever it leaves the file uncommitted.
 set -euo pipefail
 
 RULES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -108,3 +121,23 @@ else:
 PY
 
 echo "derecord: $TOP is done."
+
+# --- the ordering trap, surfaced rather than left in a comment ---------------
+# Whoever just ran this is precisely the person about to merge with the rules
+# not yet in effect. Say so, but only when it actually applies: if
+# .gitattributes is already committed and unmodified, there is nothing to warn
+# about and a standing warning would just be noise to scroll past.
+if ! $GIT diff --quiet -- .gitattributes 2>/dev/null \
+   || ! $GIT ls-files --error-unmatch .gitattributes >/dev/null 2>&1; then
+    cat >&2 <<'NOTE'
+
+  NOTE: commit .gitattributes on its own before your next merge.
+  git reads .gitattributes as of the merge's starting state, so a merge that is
+  itself delivering the file runs without it -- your next merge would still
+  conflict on CHANGELOG.md and look like the union rules do not work.
+
+      git add .gitattributes && git commit -m "union-merge the record files"
+
+  Merges after that commit get the union rules for real.
+NOTE
+fi
