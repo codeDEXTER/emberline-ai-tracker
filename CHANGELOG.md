@@ -1,5 +1,28 @@
 # Changelog — common-rules
 
+## 2026-08-06 · derecord says what to do next, instead of leaving a trap
+
+Installing the union rules is not enough to make the next merge work, and the
+failure looks exactly like the rules being broken.
+
+git reads `.gitattributes` **as of the merge's starting state**. A merge that is
+itself delivering `.gitattributes` therefore runs without it, so the first merge
+after installing still conflicts on `CHANGELOG.md`. Hit on 2026-08-06 bringing a
+long-lived branch up to date, immediately after the rules had been fixed and
+installed everywhere — the obvious read was that the fix had not worked.
+
+Measured both ways on a scratch repo: with the file riding the merge, 1 conflict
+and markers left behind; with the file committed first, 0 conflicts and a clean
+union keeping both sides. Same repo, same commits, only the ordering different.
+
+`derecord` now prints the fix when it applies, and only then — if it leaves
+`.gitattributes` uncommitted, it says to commit it on its own before merging and
+gives the command. A repo where the file is already committed and unmodified
+gets nothing, because a standing warning is just something to scroll past.
+
+The trap is one sentence in the script's header too, since the person reading it
+later is not necessarily the person who ran it.
+
 ## 2026-08-06 · derecord was breaking the merges it existed to protect
 
 Ran `derecord` across every project, as asked, and testing it first found two
