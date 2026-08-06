@@ -1,0 +1,5 @@
+CHANGELOG.md      merge=union
+AGENT-LOG.md      merge=union
+LESSONS.md        merge=union
+CLAUDE-checklist.md merge=union
+.common-rules-version merge=ours
