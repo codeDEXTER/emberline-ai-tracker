@@ -1,5 +1,43 @@
 # Changelog — common-rules
 
+## 2026-08-06 · The Tower shows who told what to whom
+
+Issue #22, concept 07's step 3 and the last of the Tower feature. A HANDOVERS
+region lists every cross-session message — sender, receiver, when, and the
+message's opening line — and each row links to `/session/<id>`, which shows
+what that session last said and what was handed to it. A handover can now be
+reconstructed from the screen without opening a chat.
+
+**They are a list, not edges on the graph, and that is a measurement.** Concept
+07 drew green dashed edges between session nodes. Against the real corpus:
+15 messages, every one with a worktree at the *receiving* end, and **not one
+with a drawn node at both ends** — senders were either management sessions
+running at the apps root (not a worktree, so no node) or sessions whose
+transcript is already gone. Edges would have rendered almost never. The drawing
+was right about the information and wrong about the shape.
+
+The same measurement decided how a sender is named: **from the message tag, not
+by resolving its id.** Only 6 of 15 senders still had a transcript on disk, and
+the `name="..."` attribute outlives the session, so a handover stays readable
+after the session that sent it no longer exists. Resolving ids would have lost
+nine of fifteen — and would have gone on losing more, since transcripts are on
+a delete timer.
+
+Two bugs found by looking at real output rather than fixtures:
+
+- The one-line summary stripped `[*_`#>]` everywhere, which ate the characters
+  carrying the meaning: "issue #35" became "issue 35" and "nicegui_app" became
+  "niceguiapp" — the two things a handover is most likely to be about. Only
+  leading markdown markers are stripped now.
+- The session panel reconstructed a cwd by replacing "-" with "/", which turned
+  `idea-lab` into `idea/lab`. The flattening is lossy and cannot be inverted,
+  so the path is matched against directories that actually exist and falls back
+  to the raw slug rather than a confident wrong answer.
+
+`/session/<id>` refuses anything that is not an id shape before touching the
+filesystem, and reads only the transcript named by it — never a glob over the
+corpus.
+
 ## 2026-08-05 · An installed Tower reads its own checkout, not whichever branch is parked
 
 Found by installing for the first time, minutes after #27 merged. The bundle is

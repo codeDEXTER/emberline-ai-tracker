@@ -3,7 +3,8 @@
 
 Step 2 of concept 07 (`docs/proposals/07-concept-tower.html`, accepted
 2026-08-05): the drawn screen, not just pulse re-rendered behind a port.
-One window, four regions — header, live graph, pipeline, event ticker —
+One window, six regions — header, live graph, pipeline, work packages,
+handovers, event ticker —
 built from the same ground truth `pulse` already reads, plus worktree
 file lists (for contested surfaces) and transcript tails (for the wall).
 
@@ -23,8 +24,11 @@ when run inside an agent session; a plain-terminal run prints one line
 saying registration was skipped, since apprun refuses an ownerless entry
 by design.
 
-Message edges between sessions and click-through (step 3) are out of
-scope here — see the concept doc.
+Step 3 (issue #22) is in: cross-session messages are read from the
+transcripts and listed as HANDOVERS, and every row links through to
+`/session/<id>` — what that session last said, and what was handed to it.
+They are a list rather than edges drawn between graph nodes, which is a
+measurement and not a shortcut; see message_edges() for the numbers.
 """
 
 import atexit
@@ -178,6 +182,172 @@ def worktree_issue(path):
         return None
     m = re.search(r"#(\d+)", out)
     return int(m.group(1)) if m else None
+
+
+# --- handovers: who told what to whom (issue #22, concept 07 step 3) ---
+
+_XSM = re.compile(r'<cross-session-message\s+from="([^"]*)"\s+name="([^"]*)"[^>]*>', re.S)
+MAX_HANDOVERS = 6
+
+
+def _first_sentence(body, limit=96):
+    """The first non-empty line of a message, trimmed to one readable clause.
+    Messages open with their point — the rest is detail for the session that
+    received it, not for a screen."""
+    for line in body.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Strip only LEADING markdown markers. Stripping [*_`#>] everywhere
+        # ate the characters that carry the meaning: "issue #35" became
+        # "issue 35" and "nicegui_app" became "niceguiapp" — the two things a
+        # handover is most likely to be about.
+        line = re.sub(r"^\s*(?:[-*+]\s+|#{1,6}\s+|>\s*)+", "", line).strip()
+        line = line.replace("**", "")
+        if not line:
+            continue
+        return line if len(line) <= limit else line[:limit - 1].rstrip(" ,;:.-") + "…"
+    return ""
+
+
+def resolve_cwd(slug):
+    """Recover a real path from a transcript directory name.
+
+    The directory is the session's cwd with "/" and "." flattened to "-", which
+    is lossy: hyphens already in the name are indistinguishable from separators.
+    Naively replacing "-" with "/" produced
+    `~/apps/idea/lab//claude/worktrees/unruffled/chatterjee/b447a6` for a real
+    directory called `idea-lab`. So this matches the slug against paths that
+    actually exist, and when nothing matches it returns the slug verbatim
+    rather than a confident wrong answer.
+    """
+    for proj in projects():
+        base = Path(proj["path"])
+        for cand in [base, *base.glob(".claude/worktrees/*"), *base.glob(".worktrees/*")]:
+            if str(cand).replace("/", "-").replace(".", "-") == slug:
+                return str(cand).replace(str(Path.home()), "~")
+    return slug
+
+
+def session_owner_dirs():
+    """sessionId -> the transcript directory holding it. The directory name is
+    the session's cwd with separators flattened, which is how a message is tied
+    back to the worktree that received it."""
+    out = {}
+    if not TRANSCRIPTS.is_dir():
+        return out
+    for d in TRANSCRIPTS.iterdir():
+        if not d.is_dir():
+            continue
+        for f in d.glob("*.jsonl"):
+            out[f.stem] = d.name
+    return out
+
+
+def message_edges(worktrees):
+    """Cross-session messages, newest first.
+
+    Delivered messages are recorded as a `queue-operation` line whose content
+    opens with a `<cross-session-message from="local_<id>" name="<title>">`
+    tag, so both ends and the sender's human title are on the record itself.
+
+    **The sender's title comes from the tag, never from resolving its id.**
+    Measured across the real corpus on 2026-08-06: 15 messages, and only 6
+    senders still had a transcript on disk — the rest were sessions whose
+    worktree and transcript are gone. The tag outlives them, so a handover
+    stays readable ("who found it, who took it, when") after the session that
+    sent it no longer exists. Resolving ids would have lost nine of fifteen.
+
+    That same measurement is why these are a list and not edges drawn between
+    graph nodes, as concept 07 sketched: every message had a worktree at the
+    *receiving* end, but not one had a drawn node at both ends — senders were
+    either gone or were management sessions running at the apps root, which is
+    not a worktree and has no node. Edges would have rendered almost never.
+    """
+    by_dir = {}
+    for w in worktrees:
+        slug = str(w["path"]).replace("/", "-").replace(".", "-")
+        by_dir[slug] = w
+
+    rows = []
+    if not TRANSCRIPTS.is_dir():
+        return rows
+    for d in TRANSCRIPTS.iterdir():
+        if not d.is_dir():
+            continue
+        for f in d.glob("*.jsonl"):
+            try:
+                text = f.read_text(errors="replace")
+            except OSError:
+                continue
+            if "cross-session-message" not in text:
+                continue
+            for line in text.splitlines():
+                if "cross-session-message" not in line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                content = rec.get("content")
+                if not isinstance(content, str):
+                    continue
+                m = _XSM.search(content)
+                if not m:
+                    continue
+                target = by_dir.get(d.name)
+                rows.append({
+                    "ts": rec.get("timestamp") or "",
+                    "sender": m.group(2) or "(untitled session)",
+                    "sender_id": m.group(1).removeprefix("local_"),
+                    "to_session": rec.get("sessionId") or f.stem,
+                    # The receiving worktree, when it is one this screen draws.
+                    # A message into a checkout with no worktree still shows —
+                    # it happened — it just names the directory instead.
+                    "to_node": target["short"] if target else None,
+                    "to_label": target["short"] if target else d.name.split("--")[0].split("-apps-")[-1],
+                    "summary": _first_sentence(content[m.end():].strip()),
+                })
+    rows.sort(key=lambda r: r["ts"], reverse=True)
+    return rows
+
+
+def session_digest(session_id, max_chars=1400):
+    """The last thing a session said, for the click-through panel. Reads only
+    the transcript named by the id — never the whole corpus."""
+    if not re.fullmatch(r"[0-9a-fA-F-]{8,64}", session_id or ""):
+        return None                      # not an id; refuse rather than glob
+    for d in TRANSCRIPTS.iterdir() if TRANSCRIPTS.is_dir() else []:
+        f = d / f"{session_id}.jsonl"
+        if not f.exists():
+            continue
+        last, received = None, []
+        try:
+            lines = f.read_text(errors="replace").splitlines()
+        except OSError:
+            return None
+        for line in lines:
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if "cross-session-message" in line and isinstance(rec.get("content"), str):
+                m = _XSM.search(rec["content"])
+                if m:
+                    received.append({"ts": rec.get("timestamp") or "",
+                                     "sender": m.group(2) or "(untitled)",
+                                     "summary": _first_sentence(rec["content"][m.end():].strip(), 160)})
+            msg = rec.get("message")
+            if rec.get("type") == "assistant" and isinstance(msg, dict):
+                parts = msg.get("content")
+                if isinstance(parts, list):
+                    text = " ".join(p.get("text", "") for p in parts
+                                    if isinstance(p, dict) and p.get("type") == "text").strip()
+                    if text:
+                        last = text
+        return {"id": session_id, "cwd": d.name, "digest": (last or "")[:max_chars],
+                "received": received[-6:]}
+    return None
 
 
 # --- worktree graph (nodes, contested surfaces) ---
@@ -556,6 +726,7 @@ def collect():
     pipeline, pipeline_err = safe(pipeline_data, worktrees)
     ticker, ticker_err = safe(ticker_data, worktrees)
     burnup, burnup_err = safe(burnup_data, projs)
+    handovers, handovers_err = safe(message_edges, worktrees)
     hulls, hulls_err = safe(compute_hulls, worktrees, pipeline)
     gate_branches, gate_err = safe(open_gate_branches, projs)
 
@@ -592,6 +763,7 @@ def collect():
         "pipeline": pipeline, "pipeline_err": pipeline_err,
         "ticker": ticker or [], "ticker_err": ticker_err,
         "burnup": burnup, "burnup_err": burnup_err,
+        "handovers": handovers, "handovers_err": handovers_err,
         "hulls": hulls or [], "hulls_err": hulls_err,
         "needs_input": needs_input, "gate_err": gate_err,
     }
@@ -866,6 +1038,74 @@ def render_burnup(burnup, x0, y0, width):
     return "\n".join(els), y + 6
 
 
+def render_handovers(rows, x0, y0, width):
+    """HANDOVERS — who told what to whom, and when (issue #22).
+
+    Concept 07 drew these as edges between session nodes. They are a list
+    instead, and that is a finding rather than a shortcut: measured over the
+    real corpus, no message had a drawn node at *both* ends, so edges would
+    have rendered almost never. See message_edges() for the numbers.
+    """
+    els = [f'<text class="ht" x="{x0}" y="{y0}">HANDOVERS · WHO TOLD WHAT TO WHOM</text>']
+    if rows is None:
+        els.append(unavailable(x0, y0 + 24, "handovers"))
+        return "\n".join(els), y0 + 50
+    if not rows:
+        els.append(f'<text class="sub" x="{x0}" y="{y0 + 20}">no messages between sessions yet</text>')
+        return "\n".join(els), y0 + 42
+
+    els.append(f'<text class="sub" x="{x0}" y="{y0 + 16}">'
+               f'{len(rows)} recorded · newest first · click a row to open the receiving session</text>')
+    y = y0 + 42
+    for r in rows[:MAX_HANDOVERS]:
+        when = r["ts"][11:16] if len(r["ts"]) > 15 else ""
+        arrow = f'{r["sender"][:34]}  →  {r["to_label"][:24]}'
+        els.append(f'<a href="/session/{e(r["to_session"])}">')
+        els.append(f'<rect class="chipq" x="{x0}" y="{y - 14}" width="{width}" height="40" rx="5"/>')
+        els.append(f'<text class="ct" x="{x0 + 10}" y="{y}">{e(arrow)}</text>')
+        els.append(f'<text class="sub" x="{x0 + width - 60}" y="{y}">{e(when)}</text>')
+        els.append(f'<text class="sub" x="{x0 + 10}" y="{y + 16}">{e(r["summary"][:110])}</text>')
+        els.append('</a>')
+        y += 48
+    rest = len(rows) - MAX_HANDOVERS
+    if rest > 0:
+        els.append(f'<text class="sub" x="{x0}" y="{y}">+{rest} older</text>')
+        y += 22
+    return "\n".join(els), y + 6
+
+
+def render_session_page(session_id):
+    """The click-through panel: what a session last said, and what was handed
+    to it. A page, not a dialog — the Tower is a served document, and a link
+    is the only interaction an SVG screen gets for free."""
+    d = session_digest(session_id)
+    if not d:
+        return ("<body style='background:#0B0E13;color:#DFE3EA;font-family:ui-monospace,monospace;"
+                "padding:40px'><p>No transcript for that session.</p>"
+                "<p><a style='color:#5FA985' href='/'>&larr; back to the Tower</a></p></body>")
+    cwd = resolve_cwd(d["cwd"])
+    received = "".join(
+        f'<div style="border-left:2px solid #39434F;padding:6px 0 6px 12px;margin:10px 0">'
+        f'<div style="color:#7C8594;font-size:12px">{e(m["ts"][11:16])} · from {e(m["sender"])}</div>'
+        f'<div>{e(m["summary"])}</div></div>'
+        for m in d["received"]) or '<p style="color:#7C8594">nothing was handed to this session</p>'
+    return f"""<body style="background:#0B0E13;color:#DFE3EA;
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
+      line-height:1.6;margin:0;padding:40px;max-width:1000px">
+  <p><a style="color:#5FA985;text-decoration:none" href="/">&larr; back to the Tower</a></p>
+  <h2 style="font-size:15px;letter-spacing:.1em;color:#7C8594;font-weight:600">SESSION</h2>
+  <p style="color:#DFE3EA">{e(session_id)}</p>
+  <p style="color:#7C8594">working in {e(cwd)}</p>
+  <h2 style="font-size:15px;letter-spacing:.1em;color:#7C8594;font-weight:600;margin-top:30px">
+    HANDED TO THIS SESSION</h2>
+  {received}
+  <h2 style="font-size:15px;letter-spacing:.1em;color:#7C8594;font-weight:600;margin-top:30px">
+    LAST DIGEST</h2>
+  <pre style="white-space:pre-wrap;background:#131820;border:1px solid #26303C;
+    border-radius:8px;padding:16px;color:#DFE3EA">{e(d["digest"]) or "(nothing said yet)"}</pre>
+</body>"""
+
+
 def render_ticker(ticker, x0, y0, width):
     els = [f'<text class="ht" x="{x0}" y="{y0}">EVENT TICKER</text>']
     if not ticker:
@@ -932,7 +1172,12 @@ def render_page():
         burnup_svg += unavailable(24, burnup_bottom, "work packages")
         burnup_bottom += 20
 
-    ticker_svg, ticker_bottom = render_ticker(data["ticker"], 24, burnup_bottom + 30, WIDTH - 48)
+    hand_svg, hand_bottom = render_handovers(data["handovers"], 24, burnup_bottom + 30, WIDTH - 48)
+    if data["handovers_err"]:
+        hand_svg += unavailable(24, hand_bottom, "handovers")
+        hand_bottom += 20
+
+    ticker_svg, ticker_bottom = render_ticker(data["ticker"], 24, hand_bottom + 30, WIDTH - 48)
     if data["ticker_err"]:
         ticker_svg += unavailable(24, ticker_bottom, "ticker")
         ticker_bottom += 20
@@ -975,6 +1220,8 @@ def render_page():
 <line class="pane" x1="20" y1="{main_bottom + 10}" x2="{WIDTH - 20}" y2="{main_bottom + 10}"/>
 {burnup_svg}
 <line class="pane" x1="20" y1="{burnup_bottom + 10}" x2="{WIDTH - 20}" y2="{burnup_bottom + 10}"/>
+{hand_svg}
+<line class="pane" x1="20" y1="{hand_bottom + 10}" x2="{WIDTH - 20}" y2="{hand_bottom + 10}"/>
 {ticker_svg}
 </svg>'''
 
@@ -1119,6 +1366,13 @@ def serve(port):
                     self._send(render_pulse_page())
                 except Exception as exc:
                     self._send(f"<pre>pulse unavailable: {html.escape(str(exc))}</pre>")
+                return
+            if self.path.startswith("/session/"):
+                sid = self.path[len("/session/"):].split("?")[0]
+                try:
+                    self._send(render_session_page(sid))
+                except Exception as exc:
+                    self._send(f"<pre>session view failed: {html.escape(str(exc))}</pre>")
                 return
             if self.path == "/" or self.path.startswith("/?"):
                 try:
