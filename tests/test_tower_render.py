@@ -63,12 +63,12 @@ class NothingIsTruncated(unittest.TestCase):
         self.assertIn(LONG_TITLE, out)
         self.assertIn(f'title="{LONG_TITLE}"', out)
 
-    def test_long_pipeline_row_survives(self):
-        pipeline = {"in_flight": [{"project": "finance-tracker", "number": 81,
-                                   "title": LONG_TITLE}],
-                    "in_flight_worktrees": [], "queued": [], "queued_more": 0,
-                    "merged": []}
-        self.assertIn(LONG_TITLE, T.render_pipeline(pipeline, []))
+    def test_long_feature_title_survives_the_board(self):
+        row = {"project": "pockets", "items": None, "unparsed": 0, "closed": {1: False},
+               "features": [{"number": 2, "title": LONG_TITLE, "state": "in flight — issue #1",
+                             "kind": "in flight", "implements": [1], "blocked_by": []}]}
+        self.assertIn(LONG_TITLE, T.render_board([row]))
+        self.assertIn(LONG_TITLE, T.render_ledger([row], None))
 
     def test_no_value_is_sliced_on_its_way_onto_the_page(self):
         """The guard that matters: no `[:n]` inside an f-string interpolation.
@@ -100,8 +100,8 @@ class OneRegionFailsAlone(unittest.TestCase):
 
     def test_each_renderer_degrades_to_a_note(self):
         for label, out in [
-            ("features", T.render_features(None)),
-            ("pipeline", T.render_pipeline(None, [])),
+            ("board", T.render_board(None)),
+            ("ledger", T.render_ledger(None, None)),
         ]:
             with self.subTest(region=label):
                 self.assertIn("unavailable", out)
@@ -119,38 +119,82 @@ class OneRegionFailsAlone(unittest.TestCase):
 def _wt(name, **kw):
     base = {"name": name, "short": name, "project": "finance-tracker",
             "issue": None, "issue_title": None, "session": None,
-            "ahead": 0, "branch": name, "newest_transcript": None}
+            "ahead": 0, "branch": name, "newest_transcript": None,
+            "files": [], "path": Path("/tmp")}
     base.update(kw)
     return base
 
 
-class InFlightMeansWorkInFlight(unittest.TestCase):
-    """Issue #51. The header read `IN FLIGHT · 19` when one of those nineteen
-    was a mapped issue and eighteen were git ahead-counts."""
+class TheBoardIsHonestAboutEmptyColumns(unittest.TestCase):
+    """#70. The board replaces PIPELINE — which was itself a board of work by
+    state, so keeping both would have been two boards of one shape at different
+    altitudes."""
 
-    PIPE = {"in_flight": [{"project": "finance-tracker", "number": 81,
-                           "title": "zero logging calls"}],
-            "in_flight_worktrees": [_wt(f"w{i}", ahead=i + 1) for i in range(18)],
-            "queued": [], "queued_more": 0, "merged": []}
+    ROWS = [{"project": "pockets", "items": None, "unparsed": 0, "closed": {1: False},
+             "features": [
+                 {"number": 2, "title": "Prove the classifier", "state": "in flight — issue #1",
+                  "kind": "in flight", "implements": [1], "blocked_by": []},
+                 {"number": 3, "title": "Capture a document", "state": "blocked by #2",
+                  "kind": "blocked", "implements": [], "blocked_by": [2]}]}]
 
-    def test_count_counts_mapped_issues_only(self):
-        out = T.render_pipeline(self.PIPE, [])
+    def test_features_land_in_their_state_column(self):
+        out = T.render_board(self.ROWS)
         self.assertIn("IN FLIGHT · 1", out)
-        self.assertNotIn("IN FLIGHT · 19", out)
+        self.assertIn("BLOCKED · 1", out)
+        self.assertIn("DONE · 0", out)
 
-    def test_unmapped_worktrees_are_counted_and_never_named(self):
-        """#51 collapsed these behind a <details> that still listed worktree
-        names. #65 removes the names outright: a worktree with no mapped issue
-        has nothing to identify it by except its directory, and a directory is
-        not a fact about the product. The count stays; the names go."""
-        out = T.render_pipeline(self.PIPE, [])
-        self.assertIn("18 session(s) ahead of main", out)
-        for i in range(18):
-            self.assertNotIn(f"w{i}", out)
+    def test_an_empty_done_column_says_why(self):
+        """DONE·0 is true and uncomfortable. Hiding it would be the comfortable
+        lie; proposal 05 means a feature is done when the sponsor closes it."""
+        out = T.render_board(self.ROWS)
+        self.assertIn("a feature is done when you close it", out)
 
-    def test_no_disclosure_when_there_is_nothing_to_disclose(self):
-        pipe = dict(self.PIPE, in_flight_worktrees=[])
-        self.assertNotIn("<details", T.render_pipeline(pipe, []))
+    def test_a_blocked_feature_gets_no_bar_and_no_percentage(self):
+        """An empty track reads as 0%, and 0% is a claim nothing supports."""
+        pct, note = T.feature_pct(self.ROWS[0]["features"][1], {})
+        self.assertIsNone(pct)
+        self.assertIn("blocked by #2", note)
+        self.assertNotIn('<div class="bar">', T.render_board([{
+            "project": "p", "items": None, "unparsed": 0, "closed": {},
+            "features": [self.ROWS[0]["features"][1]]}]))
+
+
+class TheLedgerStatesItsDenominator(unittest.TestCase):
+    """#71. A figure that silently averages over projects which declared
+    nothing is proposal 08's failure mode, and it binds hardest here because
+    this is the number the sponsor asked for by name."""
+
+    ROWS = [{"project": "pockets", "items": None, "unparsed": 0, "closed": {1: True},
+             "features": [{"number": 2, "title": "A feature", "state": "in flight — issue #1",
+                           "kind": "in flight", "implements": [1], "blocked_by": []}]},
+            {"project": "finance-tracker", "items": (18, 54), "unparsed": 0,
+             "features": None, "closed": {}}]
+
+    def test_the_figure_names_how_many_projects_it_covers(self):
+        out = T.render_ledger(self.ROWS, None)
+        self.assertIn("1 of 2 projects", out)
+
+    def test_registerless_projects_are_excluded_not_averaged_in(self):
+        pct, n, with_reg, total = T.whole_product(self.ROWS)
+        self.assertEqual((n, with_reg, total), (1, 1, 2))
+        self.assertEqual(pct, 100)   # the one declared feature is complete
+
+    def test_a_blocked_feature_counts_as_undone_not_as_absent(self):
+        """Dropping unscored features from the denominator would flatter the
+        figure: a blocked feature is undone, not out of scope."""
+        rows = [{"project": "p", "items": None, "unparsed": 0, "closed": {1: True},
+                 "features": [
+                     {"number": 2, "title": "done one", "state": "in flight — issue #1",
+                      "kind": "in flight", "implements": [1], "blocked_by": []},
+                     {"number": 3, "title": "blocked one", "state": "blocked by #2",
+                      "kind": "blocked", "implements": [], "blocked_by": [2]}]}]
+        self.assertEqual(T.whole_product(rows)[0], 50)
+
+    def test_no_registers_anywhere_says_so_rather_than_zero(self):
+        rows = [{"project": "p", "items": (1, 5), "unparsed": 0,
+                 "features": None, "closed": {}}]
+        self.assertIsNone(T.whole_product(rows))
+        self.assertIn("no whole-product figure", T.render_ledger(rows, None))
 
 
 class TheBandGivesItsHeightBack(unittest.TestCase):
@@ -263,10 +307,20 @@ class NoBranchNameReachesTheScreen(unittest.TestCase):
         self.assertNotIn(self.BRANCH, out)
         self.assertNotIn(other, out)
 
-    def test_pipeline_never_names_the_worktree(self):
-        pipe = {"in_flight": [], "in_flight_worktrees": [self._worktree()],
-                "queued": [], "queued_more": 0, "merged": []}
-        self.assertNotIn(self.BRANCH, T.render_pipeline(pipe, []))
+    def test_neither_tab_can_see_a_worktree_at_all(self):
+        """The board and ledger are built from the declared register, and take
+        no worktree argument — so they cannot leak a name, by construction
+        rather than by discipline.
+
+        Deliberately NOT asserting that a branch name typed into the sponsor's
+        own State column is suppressed: that is his prose, and rendering what
+        he wrote is faithful. The defect #65 fixed was the Tower *deriving*
+        labels from directory names, which is a different thing.
+        """
+        import inspect
+        for fn in (T.render_board, T.render_ledger):
+            params = set(inspect.signature(fn).parameters)
+            self.assertNotIn("worktrees", params, f"{fn.__name__} takes worktrees")
 
 
 REGISTER = """# Checklist
@@ -324,20 +378,236 @@ class UndeclaredScopeIsNotZero(unittest.TestCase):
     tempting lie on the screen."""
 
     def test_no_features_says_so_rather_than_showing_a_percentage(self):
-        out = T.render_features([{"project": "finance-tracker", "features": None,
-                                  "items": (18, 54), "unparsed": 0, "closed": {}}])
+        out = T.render_board([{"project": "finance-tracker", "features": None,
+                               "items": (18, 54), "unparsed": 0, "closed": {}}])
         self.assertIn("no features declared", out)
         self.assertNotIn("0%", out)
         self.assertIn("against no product definition", out)
 
-    def test_all_tickets_shut_is_not_the_same_as_done(self):
-        """Proposal 05: the sponsor closes features."""
+    def test_registerless_projects_are_one_line_not_one_each(self):
+        """Five separate apologies shouted over the one project that had real
+        features — the layout defect that prompted proposal 11."""
+        rows = [{"project": n, "features": None, "items": (1, 5), "unparsed": 0,
+                 "closed": {}} for n in ("a", "b", "c", "d", "e")]
+        self.assertEqual(T.render_board(rows).count("no features declared"), 1)
+
+    def test_a_feature_lands_in_the_column_its_register_says(self):
+        """State comes from the sponsor's own State column, never inferred from
+        whether the issues happen to be shut — proposal 05."""
         row = {"project": "p", "items": None, "unparsed": 0,
-               "features": [{"number": 2, "title": "A feature", "state": "in flight",
+               "features": [{"number": 2, "title": "A feature", "state": "in flight — issue #1",
                              "kind": "in flight", "implements": [1], "blocked_by": []}],
                "closed": {1: True}}
-        out = T.render_features([row])
-        self.assertIn("awaiting your close", out)
+        out = T.render_board([row])
+        self.assertIn("IN FLIGHT · 1", out)
+        self.assertIn("DONE · 0", out)
+
+
+class TheScreenSaysWhenItIsStale(unittest.TestCase):
+    """Issue #73. Tower.app runs a pinned checkout refreshed only by
+    `build_towerapp.sh --install`, so it falls behind on every merge — measured
+    two hours after one rebuild, and two days behind before that, serving the
+    pre-proposal-09 screen while every session reported it fixed."""
+
+    HDR = {"rules": "114-abc1234", "chips": []}
+
+    def test_silent_when_current(self):
+        """A staleness line that is always present becomes wallpaper, which is
+        finding 3 of the same proposal. Absent, not 'up to date'."""
+        self.assertNotIn("stale", T.render_header(self.HDR, 0, None))
+        self.assertNotIn("restart", T.render_header(self.HDR, 0, None))
+
+    def test_names_the_gap_and_the_remedy_when_behind(self):
+        out = T.render_header(self.HDR, 0, {"here": "208c789", "behind": 5})
+        self.assertIn("208c789", out)
+        self.assertIn("5 ahead", out)
+        self.assertIn("restart to update", out)
+
+    def test_a_checkout_ahead_of_main_is_not_stale(self):
+        """A worktree ahead of main is a session doing its job. Calling that
+        stale would put the warning on precisely the screens most likely to be
+        read, which is how a signal dies."""
+        import subprocess
+        here = T.run([T.GIT, "-C", str(T.RULES), "rev-parse", "--abbrev-ref", "HEAD"])
+        counts = T.run([T.GIT, "-C", str(T.RULES), "rev-list", "--left-right",
+                        "--count", "HEAD...origin/main"])
+        if not counts:
+            self.skipTest("no origin/main to compare against")
+        ahead, behind = (int(n) for n in counts.split())
+        if behind:
+            self.skipTest(f"this checkout is genuinely {behind} behind")
+        self.assertIsNone(T.staleness(), f"branch {here} is {ahead} ahead, not stale")
+
+
+class OnlyRealCollisionsAreContested(unittest.TestCase):
+    """Issue #74. Before the filter, 3 of 5 contested pairs on the live tree
+    were AGENT-LOG.md, which carries merge=ours — they could not conflict by
+    construction. Three in five teaches a person to ignore amber, which costs
+    the two that are real."""
+
+    def _repo(self, gitattributes=None):
+        import subprocess, tempfile
+        d = tempfile.mkdtemp()
+        subprocess.run(["git", "init", "-q", d], check=True)
+        if gitattributes is not None:
+            (Path(d) / ".gitattributes").write_text(gitattributes)
+        return Path(d)
+
+    def test_a_driver_resolved_file_is_filtered(self):
+        r = self._repo("AGENT-LOG.md merge=ours\nCHANGELOG.md merge=union\n")
+        got = T.driver_resolved(r, {"AGENT-LOG.md", "CHANGELOG.md", "app.py"})
+        self.assertEqual(got, {"AGENT-LOG.md", "CHANGELOG.md"})
+
+    def test_glob_rules_are_honoured_not_just_literal_names(self):
+        """`*.md merge=union` must filter as reliably as a named file — which is
+        why this asks git rather than parsing .gitattributes by hand."""
+        r = self._repo("*.md merge=union\n")
+        self.assertEqual(T.driver_resolved(r, {"anything.md", "code.py"}), {"anything.md"})
+
+    def test_a_project_without_the_rule_still_reports_the_collision(self):
+        """The filter reflects what is *installed*, not what the shared template
+        says. #57 landed because four projects had drifted on exactly this."""
+        r = self._repo("")
+        self.assertEqual(T.driver_resolved(r, {"AGENT-LOG.md"}), set())
+
+    def test_failure_degrades_to_warning_not_to_silence(self):
+        """Over-warning is recoverable; under-warning hides a real collision."""
+        self.assertEqual(T.driver_resolved(Path("/nonexistent-repo-xyz"), {"a.md"}), set())
+
+    def test_contested_pairs_drops_the_resolved_file(self):
+        r = self._repo("AGENT-LOG.md merge=ours\n")
+        wts = [_wt("a", files=["AGENT-LOG.md", "real.py"], path=r),
+               _wt("b", files=["AGENT-LOG.md", "real.py"], path=r)]
+        files = {f for _, _, f in T.contested_pairs(wts)}
+        self.assertEqual(files, {"real.py"})
+
+
+class TheBandCarriesTheDecisionQueue(unittest.TestCase):
+    """#75. Open PRs reached the band only from worktrees with a mapped issue,
+    so a PR from an unmapped branch was invisible — three were open during the
+    session that found this, one from an unrelated session."""
+
+    Q = {"count": 3, "oldest": 0, "projects": ["common-rules"], "numbers": [62, 69, 72]}
+
+    def test_the_queue_appears_and_names_the_prs(self):
+        out = T.render_needs_you([], {}, [], None, self.Q, [])
+        self.assertIn("3 decision(s) waiting", out)
+        self.assertIn("#62", out)
+
+    def test_the_queue_leads_the_band(self):
+        """It is the autopilot's blocking state, so it goes first."""
+        wt = [_wt("w", issue_title="a thing")]
+        out = T.render_needs_you(wt, {"w": {"why": "waiting on you", "age": "1m"}},
+                                 [], None, self.Q, [])
+        self.assertLess(out.index("decision(s) waiting"), out.index("a thing"))
+
+    def test_no_queue_means_no_row(self):
+        self.assertNotIn("decision(s) waiting", T.render_needs_you([], {}, [], None, None, []))
+
+
+class DriftEscalatesInsteadOfSitting(unittest.TestCase):
+    """#75. `5 behind: …` sat unchanged in the header through a whole working
+    day. A permanent warning at constant volume is decoration."""
+
+    def test_a_far_behind_project_earns_a_row(self):
+        out = T.render_needs_you([], {}, [], None, None,
+                                 [{"project": "pip", "behind": 17,
+                                   "stamped": 103, "current": 120}])
+        self.assertIn("17 rules versions behind", out)
+
+    def test_never_stamped_is_its_own_case_not_zero(self):
+        """Reporting a project that has never recorded a version as '0 behind'
+        would be the same lie as reporting undeclared scope as 0% done."""
+        out = T.render_needs_you([], {}, [], None, None,
+                                 [{"project": "idea-lab", "behind": None}])
+        self.assertIn("never recorded a rules version", out)
+        self.assertNotIn("0 rules versions", out)
+
+    def test_the_rows_are_capped_so_the_band_stays_scannable(self):
+        """Measured on the live estate every project was 8-17 versions behind,
+        so escalating all five put five rows in the band and recreated the
+        wallpaper one level up. The worst two get rows; the rest is a count."""
+        drift = [{"project": f"p{i}", "behind": 10 + i, "stamped": 100, "current": 120}
+                 for i in range(5)]
+        out = T.render_needs_you([], {}, [], None, None, drift)
+        self.assertEqual(out.count("rules versions behind"), T.DRIFT_ROWS_SHOWN)
+        self.assertIn("+3 more project(s) behind the rules", out)
+        # and the worst is the one that earns a row
+        self.assertIn("p4 is 14 rules versions behind", out)
+
+    def test_full_project_names_in_prose_not_the_compact_tag(self):
+        """project_tag is built for chips ("finance #41") and reads as a typo in
+        a sentence — "idea has never recorded a rules version"."""
+        out = T.render_needs_you([], {}, [], None, None,
+                                 [{"project": "idea-lab", "behind": None}])
+        self.assertIn("idea-lab has never recorded", out)
+
+    def test_below_the_threshold_nothing_escalates(self):
+        self.assertNotIn("rules versions behind",
+                         T.render_needs_you([], {}, [], None, None, []))
+
+    def test_an_empty_band_still_collapses_to_one_line(self):
+        """#51's rule, and the whole reason this proposal could add to the band
+        at all: reserving empty space is the failure mode proposal 09 fixed."""
+        out = T.render_needs_you([], {}, [], None, None, [])
+        self.assertIn("nothing needs you", out)
+        self.assertNotIn("you-row", out)
+
+
+class ProgressReportsWhatHappened(unittest.TestCase):
+    """#66 and #63. The history is recoverable from each checklist's own git
+    log, so no new record file and no revival of the logbook proposal 08
+    rejected."""
+
+    # the real finance-tracker shape: seven completed while the percentage FELL
+    FT = [("2026-08-03", 9, 25), ("2026-08-05", 16, 41), ("2026-08-07", 16, 51)]
+
+    def test_a_falling_percentage_while_work_completes_is_called_out(self):
+        """The case one number actively hides: 36% -> 31% while seven items
+        were completed, because scope grew by 26."""
+        out = T.render_progress([{"project": "finance-tracker", "points": self.FT}])
+        self.assertIn("36% → 31%", out)
+        self.assertIn("scope grew by 26", out)
+
+    def test_velocity_is_a_measurement_and_names_its_window(self):
+        got = T.velocity(self.FT)
+        self.assertEqual(got[1], 7)
+        out = T.render_progress([{"project": "f", "points": self.FT}])
+        self.assertIn("in the last 7 days", out)
+
+    def test_no_forecast_in_the_data_rows(self):
+        """Proposal 08 refused an ETA on four active days; #63 held the line on
+        six. A rate is a fact about the past, a date is a claim about a future
+        nothing here supports.
+
+        Scoped to the rows, not the whole page: the footnote says the words
+        "no ETA" deliberately, and a naive substring check flags the disclaimer
+        that exists to prevent the very thing it is checking for.
+        """
+        out = T.render_progress([{"project": "f", "points": self.FT}])
+        rows = out[out.index('<div class="prog">'):out.index("</div>", out.index('class="pnote"'))]
+        for word in ("ETA", "projected", "on track", "at this rate", "estimated",
+                     "remaining", "will be"):
+            self.assertNotIn(word, rows, f"forecast language {word!r} in the data")
+
+    def test_a_shrinking_total_is_shown_as_a_re_scope_not_smoothed(self):
+        """mac-explorer's total really went 8 -> 5. A dip is information."""
+        import datetime
+        today = datetime.date.today().isoformat()
+        pts = [("2026-08-05", 1, 8), (today, 1, 5)]
+        self.assertEqual(T.moved(pts), (1, 1, 8, 5))
+        self.assertIn("re-scoped", T.render_progress([{"project": "m", "points": pts}]))
+
+    def test_two_lines_are_drawn_not_one(self):
+        """A burnup, not a burndown: the gap between done and total is the
+        point, so a single line would defeat the whole region."""
+        svg = T.sparkline(self.FT)
+        self.assertEqual(svg.count("<polyline"), 2)
+        self.assertIn("sp-done", svg)
+        self.assertIn("sp-total", svg)
+
+    def test_too_little_history_says_so_rather_than_drawing_nothing(self):
+        self.assertIn("enough checklist history", T.render_progress([]))
 
 
 class StillEscapes(unittest.TestCase):

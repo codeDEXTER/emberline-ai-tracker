@@ -44,6 +44,7 @@ import signal
 import string
 import subprocess
 import sys
+import urllib.parse
 import threading
 import time
 from pathlib import Path
@@ -53,6 +54,7 @@ GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
                         "/usr/bin/git") if Path(g).exists()), "git")
 TRANSCRIPTS = Path.home() / ".claude" / "projects"
 CACHE_TTL = 5
+STALE_TTL = 600      # the staleness check fetches; it must not ride the 5s cadence
 DEFAULT_PORT = 8890
 
 # --- reuse pulse's collectors rather than re-deriving the same ground truth ---
@@ -302,9 +304,53 @@ def project_worktrees(proj):
     return result
 
 
+# Merge drivers that RESOLVE a file rather than conflicting on it. `union`
+# keeps both sides, `ours` keeps one -- either way git produces no conflict, so
+# two sessions holding such a file is not a collision (issue #74).
+RESOLVING_DRIVERS = {"union", "ours"}
+
+
+def driver_resolved(project_path, paths):
+    """Which of `paths` have a merge driver that resolves them, per git itself.
+
+    `git check-attr` rather than reading .gitattributes by hand: the patterns
+    are globs (`*.md merge=union` is as valid as a literal filename), and using
+    git's answer means this agrees with what git will actually do at merge
+    time -- which is the whole point of the check.
+
+    Asks the project's own installed file, never the shared template: #57
+    landed precisely because four projects had drifted on this rule, so
+    assuming the template is what is installed would reintroduce that bug.
+    """
+    if not paths:
+        return set()
+    try:
+        r = subprocess.run([GIT, "-C", str(project_path), "check-attr", "merge", "-z", "--"]
+                           + sorted(paths), capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return set()
+        # -z gives NUL-separated triples: path, attr, value
+        fields = r.stdout.split("\0")
+        out = set()
+        for i in range(0, len(fields) - 2, 3):
+            if fields[i + 2] in RESOLVING_DRIVERS:
+                out.add(fields[i])
+        return out
+    except Exception:
+        # Over-warning is recoverable; under-warning hides a real collision.
+        # So a failure here degrades to the old behaviour, not to silence.
+        return set()
+
+
 def contested_pairs(worktrees):
     """Pairs of worktrees (same project) holding an overlapping uncommitted
-    file — bin/whoelse's logic, scoped per project since paths are repo-relative."""
+    file — bin/whoelse's logic, scoped per project since paths are repo-relative.
+
+    Files whose merge driver resolves them are excluded (#74). Measured on the
+    live tree before this: 3 of 5 pairs were AGENT-LOG.md, which carries
+    merge=ours, so they could not conflict by construction. Three in five is
+    enough to teach a person to ignore amber, which costs the two that are real.
+    """
     by_project = {}
     for w in worktrees:
         by_project.setdefault(w["project"], []).append(w)
@@ -314,11 +360,19 @@ def contested_pairs(worktrees):
         for w in group:
             for f in w["files"]:
                 owners.setdefault(f, []).append(w["name"])
-        for f, names in owners.items():
-            if len(names) > 1:
-                for i in range(len(names)):
-                    for j in range(i + 1, len(names)):
-                        pairs.append((names[i], names[j], f))
+        shared = {f for f, names in owners.items() if len(names) > 1}
+        if not shared:
+            continue
+        # run inside a worktree of the project: it has the same .gitattributes
+        # checked out, and w["path"] is a real working directory
+        resolved = driver_resolved(group[0]["path"], shared)
+        for f in shared:
+            if f in resolved:
+                continue
+            names = owners[f]
+            for i in range(len(names)):
+                for j in range(i + 1, len(names)):
+                    pairs.append((names[i], names[j], f))
     return pairs
 
 
@@ -442,6 +496,88 @@ def pipeline_data(worktrees):
             "queued": queued_shown, "queued_more": queued_more,
             "merged": merged[:4],
             "issues_by_key": issues_by_key, "issue_to_prefix": issue_to_prefix}
+
+
+# A project this far behind has stopped being a header count and become
+# something the sponsor has to act on (#75). Named, not inline: it will need
+# tuning once it has been lived with, and a magic number in a conditional is
+# where tuning goes to die.
+DRIFT_ESCALATES_AT = 7          # rules versions
+DRIFT_ROWS_SHOWN = 2            # the rest is a count -- see render_needs_you
+
+
+def decision_queue(projs):
+    """Every open non-draft PR across every project, with how long the oldest
+    has waited (#75).
+
+    NOT derived from worktree mapping, which is what `open_gate_branches` does
+    and why the band under-reports: a PR opened from a branch with no mapped
+    issue is invisible to it. Three were open during the session that found
+    this, one of them from an unrelated session.
+
+    The age is the point. Four things waiting ten minutes is a working
+    autopilot; four waiting two days is a stalled one, and a bare count cannot
+    tell them apart.
+    """
+    def for_project(proj):
+        out = run(["gh", "pr", "list", "-R", proj["repo"], "--state", "open",
+                   "--json", "number,title,isDraft,createdAt", "--limit", "50"])
+        try:
+            rows = json.loads(out) if out else []
+        except json.JSONDecodeError:
+            return []
+        return [{"project": proj["name"], "number": r["number"], "title": r["title"],
+                 "created": r["createdAt"]}
+                for r in rows if not r.get("isDraft")]
+
+    prs = [r for rows in fan_out(for_project, [p for p in projs if p.get("repo")])
+           for r in rows]
+    if not prs:
+        return None
+    oldest = min(_epoch_iso(r["created"]) for r in prs if r["created"])
+    return {"count": len(prs), "oldest": oldest,
+            "projects": sorted({r["project"] for r in prs}),
+            "numbers": sorted(r["number"] for r in prs)}
+
+
+def _epoch_iso(ts):
+    try:
+        return datetime.datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+    except Exception:
+        return time.time()
+
+
+def rules_drift(projs):
+    """Projects far enough behind the shared rules to need the sponsor.
+
+    The header has carried `5 behind: …` unchanged through a whole working day
+    — a permanent warning at constant volume is indistinguishable from
+    decoration. Eleven versions behind is not the same fact as two, and the
+    screen rendered them identically, so the signal has to be able to escalate
+    or it gets tuned out again within a week.
+    """
+    current = PULSE.rules_state(RULES)[0]
+    try:
+        current_n = int(str(current).split("-")[0])
+    except (ValueError, IndexError):
+        return []
+    out = []
+    for proj in projs:
+        if (Path(proj["path"]) / "CLAUDE-workflow.md").exists():
+            continue                      # the rules repo is not behind itself
+        stamped = PULSE.rules_state(proj["path"])[1]
+        if not stamped:
+            # never stamped is its own case, not "0 behind"
+            out.append({"project": proj["name"], "behind": None})
+            continue
+        try:
+            n = int(str(stamped).split("-")[0])
+        except (ValueError, IndexError):
+            continue
+        if current_n - n >= DRIFT_ESCALATES_AT:
+            out.append({"project": proj["name"], "behind": current_n - n,
+                        "stamped": n, "current": current_n})
+    return out
 
 
 def open_gate_branches(projs):
@@ -583,10 +719,163 @@ def feature_of_issue(features, issue):
     return None
 
 
+# --- history: what moved, and how fast (issues #66, #63) ---
+#
+# No new record file, and no revival of proposal 08's logbook, which was
+# proposed and rejected. The history is already on disk and unread: the tick
+# count at any past commit of CLAUDE-checklist.md is recoverable directly.
+# Measured depth today: finance-tracker 20 revisions, pip 11, pockets 9,
+# mac-explorer 5, spanning six days.
+
+HISTORY_TTL = 900        # walks git log; must not ride the 5s cadence
+HISTORY_REVISIONS = 30
+
+
+def checklist_history(proj):
+    """[(date, done, total)] oldest first, from the checklist's own git log."""
+    path = proj["path"]
+    shas = run([GIT, "-C", path, "log", "--follow", "--format=%h %cs",
+                f"-{HISTORY_REVISIONS}", "--", "CLAUDE-checklist.md"])
+    if not shas:
+        return []
+    out = []
+    for line in reversed(shas.splitlines()):
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        sha, date = parts
+        blob = run([GIT, "-C", path, "show", f"{sha}:CLAUDE-checklist.md"])
+        if blob is None:
+            continue
+        done = len(re.findall(r"(?m)^- \[x\]", blob))
+        total = len(re.findall(r"(?m)^- \[[ x]\]", blob))
+        if total:
+            out.append((date, done, total))
+    return out
+
+
+_hist_lock = threading.Lock()
+_hist = {"ts": 0, "data": None}
+
+
+def history_data(projs):
+    """Per project history, cached hard: this is ~30 `git show` calls each."""
+    with _hist_lock:
+        if _hist["data"] is not None and time.time() - _hist["ts"] < HISTORY_TTL:
+            return _hist["data"]
+    out = []
+    for proj in projs:
+        h = checklist_history(proj)
+        if len(h) >= 2:
+            out.append({"project": proj["name"], "points": h})
+    with _hist_lock:
+        _hist["ts"] = time.time()
+        _hist["data"] = out
+    return out
+
+
+def velocity(points, days=7):
+    """Items completed over the last `days`, as a MEASUREMENT of what happened.
+
+    Explicitly not a forecast. Proposal 08 refused an ETA on four active days
+    and #63 held the same line on six; a rate is a fact about the past, a date
+    is a claim about the future, and only the first is supportable here.
+    """
+    if len(points) < 2:
+        return None
+    cutoff = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+    window = [p for p in points if p[0] >= cutoff] or points[-2:]
+    return window[-1][1] - window[0][1], days
+
+
+def moved(points):
+    """(done_from, done_to, total_from, total_to) for today, or None.
+
+    Scope growth is reported alongside completion because the two together are
+    the only honest summary: finance-tracker went 9/25 to 16/51, completing
+    seven items while its percentage FELL from 36% to 31%.
+    """
+    if len(points) < 2:
+        return None
+    today = datetime.date.today().isoformat()
+    todays = [p for p in points if p[0] == today]
+    if not todays:
+        return None
+    before = [p for p in points if p[0] < today]
+    base = before[-1] if before else points[0]
+    last = todays[-1]
+    if base[1] == last[1] and base[2] == last[2]:
+        return None
+    return base[1], last[1], base[2], last[2]
+
+
+# NOTE: cost per feature (#76) is NOT implemented here, deliberately.
+# `bin/spend` groups tasks via `_tasks_here()`, which derives the repo root from
+# the *current working directory* and takes no path. Reaching it from a
+# collector would mean chdir-ing inside a server that fans collectors out across
+# threads, and a process-global chdir is exactly the kind of race that produces
+# a wrong number occasionally rather than an obvious failure.
+#
+# #76 puts "changing bin/spend itself" out of scope and says it is its own
+# issue, so that is where this stops. The join it needs already exists here --
+# spend keys tasks by worktree name, and feature_of_issue() maps a worktree's
+# issue to a feature -- so once spend exposes a path-taking entry point this is
+# a small function, not a redesign.
+
+
 # --- collect everything, cached ---
 
 _cache_lock = threading.Lock()
 _cache = {"ts": 0, "data": None}
+_stale_lock = threading.Lock()
+_stale = {"ts": 0, "data": None}
+
+
+def staleness():
+    """Is the code rendering this page behind origin/main? (issue #73)
+
+    Tower.app runs bin/tower from a pinned checkout refreshed only by
+    `build_towerapp.sh --install`, so it falls behind on every merge. Measured
+    two hours after one rebuild: the app on 208c789, main on cd19f10. Before
+    that it had been two days behind, serving the pre-proposal-09 screen while
+    every session reported those problems fixed.
+
+    A status screen that is confidently wrong with nothing hinting at it is the
+    worst defect one can have, so this is a correction, not a feature.
+
+    Cached separately and for far longer than everything else: it needs a
+    `git fetch`, and the thing it measures changes on merge, not every 5s.
+    Returns None when current, or when anything at all goes wrong — silence is
+    the right failure mode for a check whose whole job is to be quiet until it
+    is not.
+    """
+    with _stale_lock:
+        if _stale["data"] is not None and time.time() - _stale["ts"] < STALE_TTL:
+            return _stale["data"]
+    out = None
+    try:
+        # RULES is the parent of the running bin/tower, so this measures the
+        # checkout actually serving the page -- the app's pinned copy, or a
+        # worktree if tower was started from one.
+        subprocess.run([GIT, "-C", str(RULES), "fetch", "origin", "--quiet"],
+                       capture_output=True, timeout=25)
+        here = run([GIT, "-C", str(RULES), "rev-parse", "--short", "HEAD"])
+        behind_ahead = run([GIT, "-C", str(RULES), "rev-list",
+                            "--left-right", "--count", "HEAD...origin/main"])
+        if here and behind_ahead:
+            ahead, behind = (int(n) for n in behind_ahead.split())
+            # Only "behind" is stale. A worktree ahead of main is a session
+            # doing its job, and calling that stale would make the line noise
+            # on precisely the screens most likely to be read.
+            if behind > 0:
+                out = {"here": here, "behind": behind}
+    except Exception:
+        out = None
+    with _stale_lock:
+        _stale["ts"] = time.time()
+        _stale["data"] = out
+    return out
+
 
 
 def collect():
@@ -632,6 +921,10 @@ def collect():
     wall, wall_err = safe(wall_items, worktrees)
     pipeline, pipeline_err = safe(pipeline_data, worktrees)
     features, features_err = safe(feature_data, projs)
+    stale, _stale_err = safe(staleness)   # silence is the failure mode; err unused
+    queue, queue_err = safe(decision_queue, projs)
+    drift, drift_err = safe(rules_drift, projs)
+    history, history_err = safe(history_data, projs)
     gate_branches, gate_err = safe(open_gate_branches, projs)
 
     # Node labels (issue title, prefix stripped) — shared lookup from the
@@ -682,6 +975,10 @@ def collect():
         "wall": wall or [], "wall_err": wall_err,
         "pipeline": pipeline, "pipeline_err": pipeline_err,
         "features": features or [], "features_err": features_err,
+        "stale": stale,
+        "queue": queue, "queue_err": queue_err,
+        "drift": drift or [], "drift_err": drift_err,
+        "history": history or [], "history_err": history_err,
         "needs_input": needs_input, "gate_err": gate_err,
     }
     with _cache_lock:
@@ -739,6 +1036,7 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
          text-align:right; }
 .hdr-r p { margin:0 0 var(--gap-1); }
 .wall-hd { color:var(--purple); font-weight:700; letter-spacing:.1em; }
+.stale { color:var(--amber); }   /* stale is not broken -- amber, not red */
 
 /* --- the region grid: columns are a grid concern, so a short column can
    never be padded to a tall one. That padding was the 310px void. --- */
@@ -851,20 +1149,54 @@ a.dot:hover { outline:1px solid var(--ink); }
                   cursor:pointer; padding:var(--gap-1) 0; }
 .more > summary:hover { color:var(--ink); }
 
-/* --- features: the spine. One grid so the figure sits beside its own bar
-   rather than at a hardcoded x, same lesson as the old package rows --- */
-.feats { display:grid; grid-template-columns:minmax(160px,1.6fr) 2fr auto minmax(0,1.2fr);
-         gap:var(--gap-1) var(--gap-2); align-items:center; margin:var(--gap-2) 0; }
-.f-nm { font-size:12.5px; font-weight:600; min-width:0; }
-.f-fig { font-family:var(--mono); font-size:11px; text-align:right; white-space:nowrap; }
-.f-note { font-family:var(--mono); font-size:9.5px; color:var(--dim); min-width:0; }
-.f-proj { font-family:var(--mono); font-size:10px; color:var(--dim);
-          letter-spacing:.08em; margin:var(--gap-3) 0 0; }
-.f-none { font-family:var(--mono); font-size:10.5px; color:var(--dim);
-          margin:var(--gap-2) 0 0; }
-.f-none b { color:var(--ink); }
+/* --- features: the spine, full width, two tabs --- */
+.tabs { display:flex; gap:var(--gap-1); margin:var(--gap-2) 0; }
+.tab { font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+       padding:5px 14px; border:1px solid var(--edge); border-radius:6px;
+       color:var(--dim); text-decoration:none; }
+.tab.on { color:var(--ink); border-color:var(--green); background:var(--card-2); }
+.tab:hover { color:var(--ink); }
+
+.board { display:grid; grid-template-columns:repeat(4,1fr); gap:var(--gap-3);
+         align-items:start; margin-top:var(--gap-2); }
+.board .col { min-width:0; }
+.fcard { background:var(--card); border:1px solid var(--edge); border-radius:9px;
+         padding:var(--gap-2); margin-bottom:var(--gap-1); min-width:0; }
+.fc-t { font-size:12.5px; font-weight:600; margin:0; }
+.fc-m { font-family:var(--mono); font-size:9.5px; color:var(--dim);
+        margin:var(--gap-1) 0 0; }
+
+.ledger { display:grid; gap:var(--gap-1) var(--gap-2); margin-top:var(--gap-2);
+          grid-template-columns:auto auto minmax(200px,2.4fr) minmax(140px,1fr) minmax(0,1.1fr);
+          align-items:center; }
+.lh { font-family:var(--mono); font-size:9.5px; letter-spacing:.09em; color:var(--dim); }
+.lst { font-family:var(--mono); font-size:9px; letter-spacing:.06em;
+       padding:2px 6px; border-radius:3px; background:var(--edge);
+       color:var(--ink); white-space:nowrap; }
+.lst.in-flight { background:var(--green); color:var(--bg); }
+.lst.blocked { background:var(--amber); color:var(--bg); }
+.lst.later { background:var(--purple); color:var(--bg); }
+.lprog { display:flex; align-items:center; gap:var(--gap-1); min-width:0; }
+.wp { font-family:var(--mono); font-size:11px; color:var(--dim); margin:var(--gap-2) 0 0; }
+.wp b { font-family:var(--sans); font-size:22px; color:var(--ink); }
+
+.prog { display:grid; grid-template-columns:minmax(110px,1fr) auto auto minmax(0,2.4fr);
+        gap:var(--gap-2) var(--gap-3); align-items:center; margin-top:var(--gap-2); }
+.pname { font-size:12.5px; font-weight:600; }
+.pchart { width:260px; }
+.pfig { font-family:var(--mono); font-size:11px; text-align:right; white-space:nowrap; }
+.pnote { font-family:var(--mono); font-size:9.5px; color:var(--dim); min-width:0; }
+.spark { width:260px; height:44px; display:block; }
+.spark polyline { fill:none; stroke-width:1.6; vector-effect:non-scaling-stroke; }
+.sp-total { stroke:var(--edge); }
+.sp-done { stroke:var(--green); }
+
+.f-fig { font-family:var(--mono); font-size:11px; white-space:nowrap; }
+.f-none { font-family:var(--mono); font-size:10px; color:var(--dim);
+          margin:var(--gap-3) 0 0; }
 .warn { color:var(--amber); }
 .await { color:var(--purple); font-family:var(--mono); font-size:10px; }
+.dim { color:var(--dim); }
 .strip-grp { font-family:var(--mono); font-size:10px; color:var(--dim);
              margin:var(--gap-2) 0 var(--gap-1); }
 .bar { background:var(--trk); border-radius:4px; height:9px; width:100%; overflow:hidden; }
@@ -915,7 +1247,8 @@ def contested_notes(contested):
     return notes
 
 
-def render_needs_you(worktrees, needs_input, contested, features=None):
+def render_needs_you(worktrees, needs_input, contested, features=None,
+                     queue=None, drift=None):
     """The band, first and largest (issue #51).
 
     Of 23 session nodes on the live tree exactly two carried state, and they
@@ -961,6 +1294,49 @@ def render_needs_you(worktrees, needs_input, contested, features=None):
             f'<p class="you-meta clamp1">two sessions are both holding the '
             f'same uncommitted file</p></div>')
 
+    # Decisions waiting on him, counted from every open non-draft PR rather
+    # than from worktree mapping -- a PR from an unmapped branch was invisible.
+    if queue:
+        nums = ", ".join(f'#{n}' for n in queue["numbers"][:6])
+        more = f' +{len(queue["numbers"]) - 6}' if len(queue["numbers"]) > 6 else ""
+        rows.insert(0,
+            f'<div class="you-row"><p class="you-ttl clamp2">'
+            f'{queue["count"]} decision(s) waiting</p>'
+            f'<p class="you-meta clamp1">{e(nums)}{e(more)} · oldest waiting '
+            f'{e(ago(queue["oldest"]) or "now")} · '
+            f'{e(", ".join(queue["projects"]))}</p></div>')
+
+    # Rules drift graduates out of the header once it is far enough behind to
+    # be a thing to do rather than a thing to know.
+    #
+    # Capped, and the cap is the point. Measured on the live estate, every
+    # project was 8-17 versions behind, so escalating all of them put five rows
+    # in the band and recreated the wallpaper one level up -- the exact failure
+    # this was meant to fix. The worst two earn rows; the rest is a count, so
+    # the band stays scannable and the signal keeps its edge.
+    #
+    # Full project names here, not project_tag: the tag is built for compact
+    # chips ("finance #41") and reads as a typo in a sentence ("idea has never
+    # recorded a rules version").
+    worst = sorted(drift or [], key=lambda d: -(d["behind"] or 10 ** 6))
+    for d in worst[:DRIFT_ROWS_SHOWN]:
+        if d["behind"] is None:
+            head = f'{d["project"]} has never recorded a rules version'
+            meta = "run rulecheck --align there · it is not the same as 0 behind"
+        else:
+            head = f'{d["project"]} is {d["behind"]} rules versions behind'
+            meta = (f'stamped {d["stamped"]}, current is {d["current"]} · '
+                    f'escalated past {DRIFT_ESCALATES_AT}')
+        rows.append(f'<div class="you-row cont"><p class="you-ttl clamp2">{e(head)}</p>'
+                    f'<p class="you-meta clamp1">{e(meta)}</p></div>')
+    rest = len(worst) - DRIFT_ROWS_SHOWN
+    if rest > 0:
+        rows.append(f'<div class="you-row cont"><p class="you-ttl clamp2">'
+                    f'+{rest} more project(s) behind the rules</p>'
+                    f'<p class="you-meta clamp1">'
+                    f'{e(", ".join(d["project"] for d in worst[DRIFT_ROWS_SHOWN:]))}'
+                    f'</p></div>')
+
     if not rows:
         return ('<p class="you-none">nothing needs you · '
                 'the autopilot is unblocked</p>')
@@ -974,63 +1350,257 @@ def session_id_of(w):
     return t.stem if t else None
 
 
-def render_features(features):
-    """FEATURES — what the product is made of, and how much of it is done.
+VIEWS = ("board", "ledger", "progress")
 
-    Read from each project's declared `## Features` register, never inferred.
-    A project that has not declared any says so: proposal 08's rule that
-    undeclared scope is reported as undeclared and never as 0%, which matters
-    most here because a completion figure is the thing the sponsor asked for
-    by name — a number over an invented denominator would be worse than none.
+STATE_ORDER = ("in flight", "next", "blocked", "later", "done")
+BOARD_COLUMNS = (("in flight", "IN FLIGHT", "var(--green)"),
+                 ("next", "NEXT", None),
+                 ("blocked", "BLOCKED", "var(--amber)"),
+                 ("done", "DONE", None))
+
+
+def feature_pct(feature, closed):
+    """(percent, note) for a feature, or (None, note) where no percentage is
+    honest — which is most of them.
+
+    A blocked feature gets no number and no bar. An empty track reads as 0%,
+    and 0% is a claim about progress that nothing supports (#70).
     """
-    if features is None:
+    impl = feature["implements"]
+    if feature["kind"] == "blocked":
+        by = ", ".join(f'#{n}' for n in feature["blocked_by"])
+        return None, f'blocked by {by}' if by else "blocked"
+    if not impl or not closed:
+        return None, feature["state"] or ""
+    done = sum(1 for n in impl if closed.get(n))
+    return round(done / len(impl) * 100), f'{done}/{len(impl)} issues'
+
+
+def undeclared_line(rows):
+    """One grouped statement, not one apology per project (#70). Five separate
+    'no features declared' lines shouted over the single project that had any."""
+    none = [r for r in rows if not r["features"]]
+    if not none:
+        return ""
+    names = ", ".join(r["project"] for r in none)
+    done = sum(r["items"][0] for r in none if r["items"])
+    total = sum(r["items"][1] for r in none if r["items"])
+    tail = (f' {done}/{total} checklist items ticked between them, against no '
+            f'product definition.' if total else "")
+    return (f'<p class="f-none">{e(names)} — <span class="warn">no features '
+            f'declared</span>.{e(tail)}</p>')
+
+
+def whole_product(rows):
+    """(percent, declared, projects_with_registers, total_projects) or None.
+
+    The denominator is stated, never implied. A figure that silently averages
+    over projects which declared nothing is the failure mode proposal 08 named,
+    and it binds hardest here because this is the number asked for by name.
+    """
+    feats = [(f, r["closed"]) for r in rows for f in (r["features"] or [])]
+    if not feats:
+        return None
+    with_reg = sum(1 for r in rows if r["features"])
+    pcts = [feature_pct(f, c)[0] for f, c in feats]
+    scored = [x for x in pcts if x is not None]
+    # unscored features count as 0 toward the product, not as absent: a blocked
+    # feature is undone, and dropping it would flatter the figure
+    pct = round(sum(scored) / len(feats)) if feats else 0
+    return pct, len(feats), with_reg, len(rows)
+
+
+def render_tabs(view):
+    out = []
+    for name in VIEWS:
+        cls = "tab on" if name == view else "tab"
+        out.append(f'<a class="{cls}" href="/?view={name}">{name.upper()}</a>')
+    return f'<div class="tabs">{"".join(out)}</div>'
+
+
+def render_board(rows):
+    """Features in columns by state (#70). Replaces PIPELINE rather than sitting
+    beside it: PIPELINE was already a board of work by state, and two boards of
+    the same shape at different altitudes is the noise proposal 10 removed."""
+    if rows is None:
         return unavailable("features")
-    out, any_declared = [], False
-    for row in features:
-        proj = row["project"]
-        feats = row["features"]
-        if not feats:
-            # the honest fallback: ticks are real, but they are ticks against no
-            # product definition, and the label has to say exactly that
-            items = row.get("items")
-            tail = (f' — {items[0]}/{items[1]} checklist items ticked, against no '
-                    f'product definition' if items else "")
-            out.append(f'<p class="f-none"><b>{e(proj)}</b> · '
-                       f'<span class="warn">no features declared</span>{e(tail)}</p>')
-            if row.get("unparsed"):
-                out.append(f'<p class="sub" style="color:var(--amber)">'
-                           f'{row["unparsed"]} line(s) in {e(proj)} look like items '
-                           f'but could not be parsed, and are not counted</p>')
-            continue
-        any_declared = True
-        out.append(f'<p class="f-proj">{e(proj)} · {len(feats)} declared</p>')
-        out.append('<div class="feats">')
-        for f in feats:
-            impl, closed = f["implements"], row["closed"]
-            # A percentage only where the feature names the issues that
-            # implement it. "blocked by #2" is a dependency, not progress, and
-            # is never counted -- see BLOCKED_BY.
-            if impl and closed:
-                done = sum(1 for n in impl if closed.get(n))
-                pct = round(done / len(impl) * 100)
-                if pct == 100 and f["kind"] != "done":
-                    # proposal 05: the sponsor closes features. All tickets shut
-                    # is not the same as him having seen it work.
-                    figure = f'<span class="await">100% · awaiting your close</span>'
-                else:
-                    figure = f'{pct}%'
-                bar = (f'<div class="bar"><i style="width:{pct}%"></i></div>')
-                note = f'{done}/{len(impl)} issues'
-            else:
-                figure, bar, note = "", '<div class="bar"></div>', e(f["state"] or "")
-            out.append(
-                f'<div class="f-nm clamp1" title="{e(f["title"])}">{e(f["title"])}</div>'
-                f'{bar}<div class="f-fig">{figure}</div>'
-                f'<div class="f-note clamp1" title="{e(note)}">{note}</div>')
+    by_kind = {}
+    for r in rows:
+        for f in r["features"] or []:
+            by_kind.setdefault(f["kind"], []).append((r, f))
+    out = ['<div class="board">']
+    for kind, label, colour in BOARD_COLUMNS:
+        items = by_kind.get(kind, [])
+        style = f' style="color:{colour}"' if colour else ""
+        out.append(f'<div class="col"><p class="psec"{style}>{label} · {len(items)}</p>')
+        if not items:
+            out.append(f'<p class="sub">{e(EMPTY_COLUMN.get(kind, "none"))}</p>')
+        for r, f in items:
+            pct, note = feature_pct(f, r["closed"])
+            fig = f'<span class="f-fig">{pct}%</span>' if pct is not None else ""
+            out.append(f'<div class="fcard"><p class="fc-t clamp2" '
+                       f'title="{e(f["title"])}">{e(f["title"])}</p>'
+                       f'<p class="fc-m clamp1">{e(project_tag(r["project"]))} · '
+                       f'{e(note)}</p>{fig}</div>')
         out.append("</div>")
-    if not any_declared:
-        out.append('<p class="sub">no project has declared its features yet, so there '
-                   'is no whole-product figure to report</p>')
+    out.append("</div>")
+    out.append(undeclared_line(rows))
+    return "\n".join(out)
+
+
+# An empty column is a fact, and DONE·0 is an uncomfortable one. Say why rather
+# than hiding it: proposal 05 means a feature is done when the sponsor closes
+# it, not when its tickets are shut.
+EMPTY_COLUMN = {
+    "in flight": "nothing in flight",
+    "next": "nothing queued behind what is in flight",
+    "blocked": "nothing blocked",
+    "done": "nothing closed yet — a feature is done when you close it, "
+            "not when its issues are",
+}
+
+
+def render_ledger(rows, pipeline):
+    """Every feature across every project, ordered by state, with the
+    whole-product figure (#71)."""
+    if rows is None:
+        return unavailable("features")
+    out = []
+    wp = whole_product(rows)
+    if wp:
+        pct, n, with_reg, total = wp
+        out.append(f'<p class="wp"><b>{pct}%</b> of declared scope · {n} features '
+                   f'in {with_reg} of {total} projects</p>')
+    else:
+        out.append('<p class="sub">no project has declared its features yet, so '
+                   'there is no whole-product figure to report</p>')
+    flat = [(r, f) for r in rows for f in (r["features"] or [])]
+    flat.sort(key=lambda rf: (STATE_ORDER.index(rf[1]["kind"])
+                              if rf[1]["kind"] in STATE_ORDER else 99,
+                              rf[0]["project"], rf[1]["number"]))
+    if flat:
+        out.append('<div class="ledger">')
+        out.append('<div class="lh">STATE</div><div class="lh">PROJECT</div>'
+                   '<div class="lh">FEATURE</div><div class="lh">PROGRESS</div>'
+                   '<div class="lh">NOTE</div>')
+        for r, f in flat:
+            pct, note = feature_pct(f, r["closed"])
+            if pct is None:
+                prog = '<span class="dim">— no percentage while blocked —</span>' \
+                       if f["kind"] == "blocked" else ""
+            else:
+                prog = (f'<div class="bar"><i style="width:{pct}%"></i></div>'
+                        f'<span class="f-fig">{pct}%</span>')
+            out.append(f'<div class="lst {e(f["kind"].replace(" ", "-"))}">'
+                       f'{e(f["kind"].upper())}</div>'
+                       f'<div class="dim clamp1">{e(r["project"])}</div>'
+                       f'<div class="clamp1" title="{e(f["title"])}">{e(f["title"])}</div>'
+                       f'<div class="lprog">{prog}</div>'
+                       f'<div class="dim clamp1" title="{e(note)}">{e(note)}</div>')
+        out.append("</div>")
+    out.append(undeclared_line(rows))
+    # issue-level flow, rehomed from the removed PIPELINE -- detail, not noise
+    out.append(render_flow(pipeline))
+    return "\n".join(out)
+
+
+def sparkline(points, width=260, height=44):
+    """Two lines — done and total — over the checklist's own history (#63).
+
+    A burn*up*, not a burndown, and the gap between the lines is the point.
+    finance-tracker went 9/25 to 16/51: seven items completed while the
+    percentage FELL from 36% to 31%, because scope grew by 26. One number
+    cannot tell "nothing is happening" from "a lot is happening and scope is
+    outrunning it", and those need opposite responses.
+
+    Not smoothed and not clamped monotonic. The real data dips — mac-explorer's
+    total went 8 to 5 — and a dip is a re-scoping, which is information.
+    """
+    if len(points) < 2:
+        return ""
+    hi = max(t for _, _, t in points) or 1
+    n = len(points) - 1
+    def path(idx):
+        pts = []
+        for i, row in enumerate(points):
+            x = round(i / n * width, 1)
+            y = round(height - (row[idx] / hi) * height, 1)
+            pts.append(f'{x},{y}')
+        return " ".join(pts)
+    return (f'<svg class="spark" viewBox="0 0 {width} {height}" '
+            f'preserveAspectRatio="none" role="img" aria-label="burnup">'
+            f'<polyline points="{path(2)}" class="sp-total"/>'
+            f'<polyline points="{path(1)}" class="sp-done"/></svg>')
+
+
+def render_progress(history):
+    """PROGRESS — what moved, and how fast (#66, #63).
+
+    A third tab rather than a sixth region: the screen is 900px and already
+    holds the band, the features region and the strip. Measurement over time is
+    detail, and detail belongs behind a tab.
+    """
+    if not history:
+        return ('<p class="sub">no project has enough checklist history yet — '
+                'this reads the git log of CLAUDE-checklist.md, so a project '
+                'needs at least two revisions of one</p>')
+    out = ['<div class="prog">']
+    for h in history:
+        pts = h["points"]
+        d0, t0 = pts[0][1], pts[0][2]
+        d1, t1 = pts[-1][1], pts[-1][2]
+        v = velocity(pts)
+        mv = moved(pts)
+        pct0 = round(d0 / t0 * 100) if t0 else 0
+        pct1 = round(d1 / t1 * 100) if t1 else 0
+        out.append(f'<div class="pname">{e(h["project"])}</div>')
+        out.append(f'<div class="pchart">{sparkline(pts)}</div>')
+        out.append(f'<div class="pfig">{d1}/{t1}<br><span class="dim">{pct1}%</span></div>')
+        notes = [f'{pts[0][0]} → {pts[-1][0]} · {d0}/{t0} → {d1}/{t1}']
+        if pct1 < pct0:
+            # the case a single percentage actively hides
+            notes.append(f'{pct0}% → {pct1}% while completing {d1 - d0}: '
+                         f'scope grew by {t1 - t0}')
+        if v and v[0]:
+            notes.append(f'{v[0]} item(s) completed in the last {v[1]} days')
+        if mv:
+            b0, b1, s0, s1 = mv
+            bits = []
+            if b1 != b0:
+                bits.append(f'{b1 - b0:+d} done')
+            if s1 != s0:
+                bits.append(f'{s1 - s0:+d} scope' if s1 > s0
+                            else f'{s1 - s0:+d} scope (re-scoped)')
+            if bits:
+                notes.append("today: " + ", ".join(bits))
+        out.append(f'<div class="pnote">' +
+                   "<br>".join(f'<span class="clamp1">{e(x)}</span>' for x in notes) +
+                   "</div>")
+    out.append("</div>")
+    out.append('<p class="sub">measured from each checklist\'s own git history · '
+               'a rate is what happened, not a forecast — no ETA, by the same '
+               'rule proposal 08 set</p>')
+    return "\n".join(out)
+
+
+def render_flow(pipeline):
+    """QUEUED and MERGED TODAY, moved here when PIPELINE came off the main
+    screen (#71). Issue-level flow is detail; the board is the altitude the
+    sponsor asked for."""
+    if not pipeline:
+        return ""
+    out = ['<p class="psec">QUEUED · '
+           f'{len(pipeline["queued"]) + pipeline["queued_more"]}</p>']
+    for r in pipeline["queued"]:
+        out.append(chip(issue_label(r, strip_prefix(r["title"]))))
+    if pipeline["queued_more"]:
+        out.append(f'<p class="sub">+{pipeline["queued_more"]} more</p>')
+    out.append(f'<p class="psec">MERGED TODAY · {len(pipeline["merged"])}</p>')
+    if pipeline["merged"]:
+        for r in pipeline["merged"]:
+            out.append(chip(issue_label(r, r["title"])))
+    else:
+        out.append('<p class="sub">none yet</p>')
     return "\n".join(out)
 
 
@@ -1109,57 +1679,7 @@ def strip_prefix(title):
     return title.split(":", 1)[-1].strip() if ":" in title else title
 
 
-def render_pipeline(pipeline, wall):
-    out = []
-    if pipeline is None:
-        out.append(unavailable("pipeline"))
-    else:
-        # In flight means a *mapped issue* (issue #51). The count used to add
-        # the ahead-of-main worktrees to it and read "IN FLIGHT · 19" when one
-        # of those nineteen was work and eighteen were git ahead-counts — an
-        # 18x overstatement of the only number on this region anyone reads.
-        mapped = pipeline["in_flight"]
-        unmapped = pipeline["in_flight_worktrees"]
-        out.append(f'<p class="psec">IN FLIGHT · {len(mapped)}</p>')
-        if mapped:
-            for r in mapped:
-                out.append(chip(issue_label(r, strip_prefix(r["title"])), "done"))
-        else:
-            out.append('<p class="sub">none</p>')
-        if unmapped:
-            # Collapsed, not hidden: <details> expands in place, so nothing
-            # becomes unreachable and no JavaScript is involved. Still never an
-            # invented issue chip for a worktree that has no mapped issue —
-            # the honest-mapping rule from #24 and #25.
-            # No names in here any more (#65). A worktree with no mapped issue
-            # has nothing to identify it *by* except its directory, and a
-            # directory is not a fact about the product — so it is a count.
-            # The SESSIONS strip still shows one dot per session.
-            out.append(
-                f'<p class="sub">{len(unmapped)} session(s) ahead of main on '
-                f'work that maps to no issue</p>')
-
-        out.append(f'<p class="psec">QUEUED · '
-                   f'{len(pipeline["queued"]) + pipeline["queued_more"]}</p>')
-        for r in pipeline["queued"]:
-            out.append(chip(issue_label(r, strip_prefix(r["title"]))))
-        if pipeline["queued_more"]:
-            out.append(f'<p class="sub">+{pipeline["queued_more"]} more</p>')
-
-        out.append(f'<p class="psec">MERGED TODAY · {len(pipeline["merged"])}</p>')
-        if pipeline["merged"]:
-            for r in pipeline["merged"]:
-                out.append(chip(issue_label(r, r["title"])))
-        else:
-            out.append('<p class="sub">none yet</p>')
-
-    # AT THE WALL was removed here by #65 (proposal 10, decision 3). It named
-    # worktrees, and it said a second time what the NEEDS YOU band already says
-    # first and larger — a wall item is exactly a thing waiting on the sponsor.
-    return "\n".join(out)
-
-
-def render_header(header, wall_count):
+def render_header(header, wall_count, stale=None):
     if header:
         behind = [c for c in header["chips"] if c["state"] != "aligned"]
         aligned = len(header["chips"]) - len(behind)
@@ -1177,12 +1697,19 @@ def render_header(header, wall_count):
         line1 = " ".join(bits)
     else:
         line1 = "rules unavailable"
-    return (f'<div class="hdr-r"><p>{line1}</p>'
-            f'<p><span class="wall-hd">THE WALL</span> · '
-            f'{wall_count} item(s) waiting</p></div>')
+    out = [f'<div class="hdr-r"><p>{line1}</p>',
+           f'<p><span class="wall-hd">THE WALL</span> · '
+           f'{wall_count} item(s) waiting</p>']
+    # Absent when current. A staleness line that is always there is finding 3 of
+    # proposal 12 all over again -- a permanent warning nobody reads.
+    if stale:
+        out.append(f'<p class="stale">⚠ running {e(stale["here"])} · main is '
+                   f'{stale["behind"]} ahead · restart to update</p>')
+    out.append('</div>')
+    return "".join(out)
 
 
-def render_page():
+def render_page(view="board"):
     data = collect()
     now = datetime.datetime.now()
 
@@ -1191,12 +1718,18 @@ def render_page():
     graph_err = (data["worktrees_err"] or data["contested_err"]
                  or data["gate_err"])
 
-    n_you = len(data["needs_input"]) + len(contested_notes(data["contested"])) // 2
+    drift_rows = min(len(data["drift"]), DRIFT_ROWS_SHOWN) + \
+        (1 if len(data["drift"]) > DRIFT_ROWS_SHOWN else 0)
+    n_you = (len(data["needs_input"]) + len(contested_notes(data["contested"])) // 2
+             + (1 if data["queue"] else 0) + drift_rows)
+    title = f'NEEDS YOU · {n_you}' if n_you else "NEEDS YOU"
+    if data["queue"]:
+        title += f' · OLDEST WAITING {(ago(data["queue"]["oldest"]) or "now").upper()}'
     needs_you = region(
-        f'NEEDS YOU · {n_you}' if n_you else "NEEDS YOU",
-        None,
+        title, None,
         render_needs_you(data["worktrees"], data["needs_input"],
-                         data["contested"], data["features"]),
+                         data["contested"], data["features"],
+                         data["queue"], data["drift"]),
         graph_err, "needs you")
 
     sessions = region(
@@ -1209,18 +1742,23 @@ def render_page():
                      data["contested"], data["features"]),
         graph_err, "sessions")
 
-    pipeline = region("PIPELINE", None,
-                      render_pipeline(data["pipeline"], data["wall"]),
-                      data["pipeline_err"] or data["wall_err"], "pipeline")
-
-    # FEATURES replaces APPS & WORK PACKAGES (#65). The per-package bars
-    # measured `##` headings, which in three of four projects are priority
-    # buckets — "Now" is not a feature and never finishes. Depth inside a
-    # feature is issue #63's burnup chart, not a bar per heading.
+    # The features region replaces PIPELINE outright (#70). PIPELINE was
+    # already a board of work by state; a board of *features* by state beside it
+    # would be two boards of one shape at different altitudes. The feature board
+    # IS the pipeline, one altitude up, and it needs the full width for four
+    # columns — at ~600px they were ~150px each and every title truncated.
+    if view == "board":
+        body = render_board(data["features"])
+    elif view == "progress":
+        body = render_progress(data["history"])
+    else:
+        body = render_ledger(data["features"], data["pipeline"])
     features = region("FEATURES · WHAT THE PRODUCT IS MADE OF",
-                      "declared by the sponsor · percentage only where a "
-                      "feature names the issues that implement it",
-                      render_features(data["features"]), data["features_err"],
+                      None,
+                      render_tabs(view) + body,
+                      (data["history_err"] if view == "progress" else
+                       data["features_err"] or
+                       (data["pipeline_err"] if view == "ledger" else None)),
                       "features")
 
     return f"""<!doctype html>
@@ -1239,7 +1777,7 @@ def render_page():
       <h1>TOWER · APPS AUTOPILOT · LIVE</h1>
       <p class="stamp">{e(now.strftime("%Y-%m-%d %H:%M:%S"))} · updates every {CACHE_TTL}s</p>
     </div>
-    {render_header(data["header"], len(data["wall"]))}
+    {render_header(data["header"], len(data["wall"]), data["stale"])}
   </header>
   <div class="band">{needs_you}</div>
   <!-- The order proposal 09's mockup locked: what needs him first and
@@ -1248,8 +1786,7 @@ def render_page():
        the two items that required him were below the fold of their own
        screen. -->
   <main class="grid">
-    <div class="cell">{pipeline}</div>
-    <div class="cell">{features}</div>
+    <div class="cell wide">{features}</div>
     <div class="cell wide">{sessions}</div>
   </main>
   <p class="foot">tower · loopback only · recollects every {CACHE_TTL}s ·
@@ -1415,8 +1952,15 @@ def serve(port):
                     self._send(f"<pre>session view failed: {html.escape(str(exc))}</pre>")
                 return
             if self.path == "/" or self.path.startswith("/?"):
+                # The tab is a query parameter, not DOM state (#70). The page
+                # re-requests itself every 10s via <meta refresh>, which throws
+                # the DOM away -- measured: a CSS :checked tab reverted to BOARD
+                # on every reload, while ?view=ledger survived. An unknown or
+                # missing value falls back to the board rather than erroring.
+                q = urllib.parse.urlparse(self.path).query
+                view = urllib.parse.parse_qs(q).get("view", ["board"])[0]
                 try:
-                    self._send(render_page())
+                    self._send(render_page(view if view in VIEWS else "board"))
                 except Exception as exc:
                     self._send(f"<pre>tower render failed: {html.escape(str(exc))}</pre>")
                 return

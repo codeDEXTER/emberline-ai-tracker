@@ -1,5 +1,78 @@
 # Changelog — common-rules
 
+## 2026-08-07 · The Tower's whole open queue, in one pass
+
+Implements #73, #74, #70, #71, #75, #66 and #63 — every open Tower issue but
+one. All seven touch `bin/tower`, so they went through as a queue on one branch
+rather than as parallel branches racing on a single surface.
+
+**The two corrections came first, and not because they were small.** A screen
+that can be silently stale and an amber warning that is wrong three times in
+five undermine every other number on it.
+
+`#73` — Tower.app runs a pinned checkout refreshed only by
+`build_towerapp.sh --install`, so it falls behind on every merge. Against the
+live pinned copy it was **5 commits behind**; two days behind before today's
+rebuild, serving the pre-proposal-09 screen while every session reported those
+problems fixed. The header says so now, and says nothing when current — a
+permanent line would be the wallpaper problem #75 exists to fix. A checkout
+*ahead* of main is not stale: that is a session working, and warning there would
+put the line on the screens most likely to be read.
+
+`#74` — three of five contested pairs were `AGENT-LOG.md`, which carries
+`merge=ours`. A file with a merge driver cannot conflict; that is the point of
+#44, #45 and #57. It asks `git check-attr` rather than parsing `.gitattributes`,
+so glob rules work and the answer is the one git will use at merge time. A
+failure degrades to warning rather than silence: over-warning is recoverable,
+under-warning hides a real collision.
+
+**PIPELINE is gone, replaced by BOARD / LEDGER / PROGRESS tabs** (#70, #71, #66,
+#63). It replaces rather than joins: PIPELINE was already a board of work by
+state, and a board of *features* by state beside it would have been two boards
+of one shape at different altitudes.
+
+The tabs are links, not CSS state, because the page re-requests itself every
+10 seconds and the DOM does not survive that — measured, then verified in a
+browser by watching the timestamp advance through a real reload with LEDGER
+still selected.
+
+`PROGRESS` is a third tab rather than a sixth region, because the screen is
+900px and detail belongs behind a tab. It draws a burn**up** — two lines, done
+and total — from each checklist's own git log. No new record file and no
+revival of proposal 08's rejected logbook. The gap between the lines is the
+whole point: finance-tracker really went `4/24 → 18/51`, completing 14 items
+in seven days while its percentage fell, because scope grew faster. Nothing is
+smoothed or clamped monotonic — mac-explorer's total genuinely went 8 → 5, and
+a dip is a re-scoping, which is information. Velocity names its window; there is
+no ETA, no projection, no "on track", by the rule proposal 08 set.
+
+**Two things were found by looking rather than by reasoning.** Escalating rules
+drift put *five* rows in the band, because every project is 8–18 versions
+behind — recreating the wallpaper one level up, which is the exact failure #75
+was meant to fix. The worst two get rows and the rest is a count. And
+`project_tag` shortened names into the prose: "idea has never recorded a rules
+version". The tag is built for compact chips, so the band uses full names.
+
+**One test was wrong and the test was fixed, not the code.** A branch name typed
+into the sponsor's own State column is his prose, and rendering it is faithful;
+the defect #65 fixed was the Tower *deriving* labels from directory names. The
+guard now asserts the board and ledger take no worktree argument at all — they
+cannot leak a name by construction.
+
+**#76 is deliberately not implemented, and the reason is recorded in the code.**
+Cost per feature needs `bin/spend`, whose `_tasks_here()` derives the repo root
+from the *current working directory* and takes no path. Reaching it from a
+collector would mean a process-global `chdir` inside a server that fans
+collectors across threads — the kind of race that yields a wrong number
+occasionally rather than an obvious failure. #76 puts changing `spend` out of
+scope and says it is its own issue, so that is where this stops. The join it
+needs already exists: spend keys tasks by worktree name, and `feature_of_issue`
+maps a worktree's issue to a feature.
+
+Tests: 34 → **73 passing**. The new guards were verified by reinjection —
+putting the staleness line back on permanently, and removing the contested
+filter — not by trusting a green run.
+
 ## 2026-08-07 · Five things the Tower should know, and doesn't
 
 Proposal 12. Every finding came from using the screen for a day rather than from
