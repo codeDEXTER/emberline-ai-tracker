@@ -659,12 +659,16 @@ def parse_features(md):
             kind = "in flight"
         elif blocked:
             kind = "blocked"
-        elif "version 2" in low or "version 3" in low:
+        elif "version" in low or "later" in low:
             kind = "later"
         elif "done" in low or "built" in low or "shipped" in low:
             kind = "done"
+        elif "next" in low:
+            kind = "next"
         else:
-            kind = "declared"
+            # Declared but unstated: it is queued, not invisible. Falling
+            # through to a kind with no column is how a feature disappears.
+            kind = "next"
         out.append({"number": number, "title": title, "state": plain,
                     "kind": kind, "implements": impl, "blocked_by": blocked})
     return out
@@ -1522,7 +1526,14 @@ STATE_ORDER = ("in flight", "next", "blocked", "later", "done")
 BOARD_COLUMNS = (("in flight", "IN FLIGHT", "var(--green)"),
                  ("next", "NEXT", None),
                  ("blocked", "BLOCKED", "var(--amber)"),
+                 ("later", "LATER", None),
                  ("done", "DONE", None))
+
+# Every kind parse_features can produce must have a column, or features vanish.
+# Measured after the first registers landed: pockets declared 7 features and the
+# board rendered 6 — the `version 2` one fell through, silently, since #70.
+assert {k for k, _, _ in BOARD_COLUMNS} >= {"in flight", "next", "blocked",
+                                            "later", "done", "declared"} - {"declared"}
 
 
 def feature_pct(feature, closed):
@@ -1602,6 +1613,12 @@ def render_board(rows):
     for r in rows:
         for f in r["features"] or []:
             by_kind.setdefault(f["kind"], []).append((r, f))
+    # A kind with no column would drop its features off the screen entirely.
+    # Park them in NEXT rather than lose them: an unexpected state is a
+    # register that needs correcting, not a feature that stops existing.
+    known = {k for k, _, _ in BOARD_COLUMNS}
+    for kind in [k for k in by_kind if k not in known]:
+        by_kind.setdefault("next", []).extend(by_kind.pop(kind))
     out = ['<div class="board">']
     for kind, label, colour in BOARD_COLUMNS:
         items = by_kind.get(kind, [])

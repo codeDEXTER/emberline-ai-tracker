@@ -112,6 +112,30 @@ sequencing them, resolving disagreements between sessions, choosing between
 implementations, deciding what to research — is the AI's job, done without
 asking.
 
+**Every project keeps a feature register.** A `## Features` table in its
+`CLAUDE-checklist.md`: one row per feature, linking the GitHub issue that *is*
+the feature, with a state column. The Tower reads it — that table is the only
+answer to "what is this product made of, and how much of it is done".
+
+| # | Feature | State |
+|---|---|---|
+| [#2](…/issues/2) | Capture a document and see it filed | **in flight** — issue #1 |
+| [#3](…/issues/3) | Import the backlog | blocked by #2 |
+| [#8](…/issues/8) | Get it onto the second phone | version 2 |
+
+States: `in flight` · `next` · `blocked by #N` · `later` / `version N` · `built`
+/ `done`. Name the implementing issues as `issue #N` — that is what makes a
+percentage computable, and it is read separately from `blocked by`, which is a
+dependency and never progress.
+
+**This is not a per-task obligation.** It changes when the sponsor adds, renames
+or closes a feature — which is rare, and is his act rather than a session's.
+Nothing here asks a session to append anything when work lands: that was
+proposal 08's logbook, and it was rejected for exactly that reason.
+
+A project with no register is reported as **"no features declared"**, never as
+0% — undeclared scope is a different statement from none of it done.
+
 **A question to the user is a cost, not a safety move.** Before asking, check
 whether the answer would change what gets built. If either answer leads to the
 same work, pick one, say which you picked, and continue. A question about
