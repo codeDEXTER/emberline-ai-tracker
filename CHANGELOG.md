@@ -1,5 +1,63 @@
 # Changelog — common-rules
 
+## 2026-08-07 · The heavy collectors stop blocking the first page too
+
+Follow-on to #86, found by merging #76's cost work into it and measuring the
+combination rather than assuming the two composed.
+
+#86 stopped a render waiting for a *recollect*, but the **first** render is
+deliberately synchronous — a page with no data is worse than a slow first page.
+With cost added, that first page took **57 seconds**. The app looked hung on
+launch, which is a worse defect than the one #86 fixed.
+
+So the three collectors with their own long TTLs — `staleness` (fetches),
+`history_data` and `cost_data` (walk git and every transcript, 26.8s cold) —
+now go through `cached_async`: return whatever is cached immediately, refresh in
+the background. They return None on the very first call, which every one of
+their renderers already treats as absence: no staleness line, no history yet, no
+cost note.
+
+Cold first page: **57s → 5.2s**. Warm: ~2ms. History appears at ~24s, cost at
+~56s, and the window is responsive the whole time. A region arriving a few
+seconds late is far better than a window that will not open.
+
+Their private cache blocks were removed rather than left alongside — two caches
+over one value is how a number ends up stale in a way nobody can reproduce.
+
+One test failure here was the test's fault, not the code's: the single-refresh
+assertion saw two because the previous test's background thread was still alive.
+Fixed with a release event and a join in `tearDown`, since a test that fails
+from its own leftovers teaches the next person to distrust the suite.
+
+## 2026-08-07 · Cost is per week, because per feature attributes nothing
+
+Implements #76, rescoped by measurement rather than by preference.
+
+**Per feature attributes 0%.** Measured across the estate: of 67,393,007 tokens,
+**96.8%** sit in `(main checkout)` and `(management)` pseudo-tasks and **3.1%**
+in worktrees that have since been deleted. Zero was attributable to a declared
+feature. Two structural reasons, neither fixable in the Tower: most work never
+happens in a task worktree at all, and the ones that do have their key —
+the worktree directory — destroyed by the act of landing. Built as originally
+specified, #76 would have shipped a column of dashes and a footer holding all
+the spend. That was reported before writing any of it.
+
+So the unit is the week. **"What did this week cost, and what moved"** sits on
+one line of the PROGRESS section beside the burnup, and a 7-DAY COST column on
+`ALL` makes it comparable across projects. On the live estate that immediately
+reads: finance-tracker **27.6M tokens for +14 items**, common-rules **18.2M**
+against no checklist to move at all.
+
+**`spend` now carries per-day tokens through `tasks_for`.** `_read` already
+counted them and the aggregation dropped them. This matters more than it looks:
+summing whole task totals for tasks that merely *touch* the window overstates
+the estate's week by **4,492,100 tokens — 7.1%** — because a task spanning the
+boundary gets counted entire. That is a wrong answer rather than a rounded one,
+and it was measured by building the tempting version and comparing.
+
+A test asserts **no cost appears against any individual feature**, which is the
+number the data cannot support and therefore the one most likely to be added
+back by someone who has not seen the 0%.
 ## 2026-08-07 · A render never waits for a collection
 
 Implements #86, reported by aashish as *"this app is slow and time
