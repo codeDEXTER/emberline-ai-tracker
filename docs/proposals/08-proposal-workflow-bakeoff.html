@@ -1,0 +1,238 @@
+<title>common-rules · What five workflows cost, and which one to keep — Proposal</title>
+<meta name="proposal-id" content="08">
+<meta name="proposal-topic" content="workflow-bakeoff">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="accepted">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
+    --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E;
+    --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0; --border:#26303C;
+            --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81; --warn:#D2A05A;
+            --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660;
+            --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B;
+            --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1030px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:34px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  h3 { font-size:17px; font-weight:640; margin:26px 0 4px; letter-spacing:-.01em; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:66ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  section > p { max-width:70ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:72ch; }
+  code, .mono { font-family:var(--mono); font-size:12.6px; }
+  a { color:var(--accent); }
+
+  .tablewrap { overflow-x:auto; margin-top:18px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:620px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.n { font-family:var(--mono); font-size:12.1px; text-align:right; white-space:nowrap; }
+  tr.win td { background:var(--lane); font-weight:600; }
+  .lab { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+         display:inline-block; padding:2px 7px; border-radius:4px; white-space:nowrap; color:var(--chip-ink); }
+  .lab.ok { background:var(--gain); } .lab.mid { background:var(--warn); } .lab.no { background:var(--loss); }
+
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:22px 0; max-width:74ch; }
+  .verdict.bad { border-left-color:var(--loss); }
+  .verdict.good { border-left-color:var(--gain); }
+  .verdict p { margin:0 0 8px; } .verdict p:last-child { margin:0; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; margin:20px 0; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; }
+  .card.ok { border-top:3px solid var(--gain); } .card.no { border-top:3px solid var(--loss); }
+  .card h4 { margin:0 0 6px; font-size:14.5px; }
+  .card p { margin:0; font-size:13px; color:var(--dim); }
+  ul { max-width:70ch; } li { margin:0 0 6px; }
+  figure { margin:24px 0; } figure svg { width:100%; height:auto; }
+  figcaption { font-size:12.5px; color:var(--dim); margin-top:8px; }
+</style>
+
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · proposal 08</span>
+  <span>accepted 2026-08-07 · aashish</span>
+</div>
+
+<h1>What five workflows cost, and which one to keep</h1>
+<p class="standfirst">Five process architectures built the same specification, in isolation,
+scored by a suite written before any of them started. All five produced identical quality.
+Cost varied by more than seventeen times. The cheapest is the one already written down.</p>
+
+<div class="eyebrow"><span>The result</span><span class="tag">measured, not argued</span></div>
+<section>
+
+<p>Each arm received one frozen specification — 22 EARS criteria and a fixed public Swift API —
+and built it in its own git worktree. None could read another's code, another's rules, or the
+sealed acceptance suite. That suite was written from the specification <em>before</em> any arm
+existed and verified to score 0/20 against a do-nothing stub, so no arm could pass it by
+returning nothing.</p>
+
+<div class="tablewrap">
+<table>
+<tr><th>Arm</th><th>Process</th><th>Sealed score</th><th class="n">Wall-clock</th><th class="n">Output tokens</th></tr>
+<tr class="win"><td>C — Bare</td><td>37 lines of rules; no roles, no gate</td><td><span class="lab ok">22 / 22</span></td><td class="n">5.4 min</td><td class="n">66,816</td></tr>
+<tr><td>B — Contract</td><td>spec compiled to 22 failing tests first</td><td><span class="lab ok">22 / 22</span></td><td class="n">10.3 min</td><td class="n">98,301</td></tr>
+<tr><td>D — Partition</td><td>four concurrent single-file writers</td><td><span class="lab ok">22 / 22</span></td><td class="n">30.6 min</td><td class="n">183,655</td></tr>
+<tr><td>A — Conductor</td><td>driver with no edit tools; forced delegation</td><td><span class="lab ok">22 / 22</span></td><td class="n" colspan="1">—</td><td class="n">—</td></tr>
+<tr><td>F — Full</td><td>the six-day review's whole pipeline</td><td><span class="lab ok">22 / 22</span></td><td class="n">—</td><td class="n">—</td></tr>
+<tr><td colspan="3"><strong>A and F combined</strong> <span class="lab mid">not separable</span></td><td class="n">~2 h</td><td class="n"><strong>1,160,499</strong></td></tr>
+</table>
+</div>
+
+<div class="verdict">
+<p><strong>Quality did not vary. Cost varied 17×.</strong> Every arm passed every criterion it
+was judged on. The only thing that separated them was what they spent getting there.</p>
+</div>
+
+<p class="note"><strong>Why A and F carry no individual figure.</strong> Both ran concurrently
+inside one session, and when all 28 sub-agent runs are attributed by the worktree they touched,
+15 of them touch both arms. A per-arm split cannot be derived from that record. Earlier reporting
+gave A 209,355 and F 161,427; those figures count the two driver agents but not the sub-agent
+trees beneath them, and understate the true combined total by 3.1×. The combined figure —
+942,655 across 28 sub-agent runs plus 217,844 in the driving session — is the one that can be
+defended.</p>
+</section>
+
+<div class="eyebrow"><span>Today, and what replaces it</span></div>
+<section>
+<figure>
+<svg viewBox="0 0 900 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Today's four-stage flow with questions arriving throughout, beside the proposed flow with two touchpoints.">
+<text x="20" y="20" font-family="ui-monospace,monospace" font-size="11" letter-spacing="1.2" fill="currentColor" opacity=".6">TODAY</text>
+<g font-family="-apple-system,sans-serif">
+<rect x="20" y="32" width="180" height="52" rx="7" fill="var(--surface)" stroke="var(--border)"/>
+<text x="34" y="54" font-size="12.5" font-weight="600" fill="currentColor">Proposal</text><text x="34" y="72" font-size="10.5" fill="currentColor" opacity=".6">you write it</text>
+<rect x="212" y="32" width="180" height="52" rx="7" fill="var(--surface)" stroke="var(--border)"/>
+<text x="226" y="54" font-size="12.5" font-weight="600" fill="currentColor">Specs + issues</text><text x="226" y="72" font-size="10.5" fill="currentColor" opacity=".6">1,000-line documents</text>
+<rect x="404" y="32" width="180" height="52" rx="7" fill="var(--surface)" stroke="var(--border)"/>
+<text x="418" y="54" font-size="12.5" font-weight="600" fill="currentColor">Build</text><text x="418" y="72" font-size="10.5" fill="currentColor" opacity=".6">roles, gates, records by hand</text>
+<rect x="596" y="32" width="180" height="52" rx="7" fill="var(--surface)" stroke="var(--border)"/>
+<text x="610" y="54" font-size="12.5" font-weight="600" fill="currentColor">Merge</text><text x="610" y="72" font-size="10.5" fill="var(--loss)">conflicts in framework files</text>
+<rect x="20" y="94" width="756" height="26" rx="5" fill="none" stroke="var(--you)" stroke-dasharray="5 4"/>
+<circle cx="40" cy="107" r="4.5" fill="var(--you)"/><circle cx="140" cy="107" r="4.5" fill="var(--you)"/><circle cx="240" cy="107" r="4.5" fill="var(--you)"/><circle cx="340" cy="107" r="4.5" fill="var(--you)"/><circle cx="440" cy="107" r="4.5" fill="var(--you)"/><circle cx="540" cy="107" r="4.5" fill="var(--you)"/><circle cx="640" cy="107" r="4.5" fill="var(--you)"/><circle cx="740" cy="107" r="4.5" fill="var(--you)"/>
+<text x="796" y="111" font-size="11" font-weight="600" fill="var(--you)">58 questions</text>
+
+<text x="20" y="156" font-family="ui-monospace,monospace" font-size="11" letter-spacing="1.2" fill="currentColor" opacity=".6">PROPOSED</text>
+<rect x="20" y="168" width="180" height="52" rx="7" fill="var(--lane)" stroke="var(--accent)"/>
+<text x="34" y="190" font-size="12.5" font-weight="600" fill="currentColor">Proposal</text><text x="34" y="208" font-size="10.5" fill="currentColor" opacity=".6">you write it</text>
+<rect x="212" y="168" width="180" height="52" rx="7" fill="var(--lane)" stroke="var(--accent)"/>
+<circle cx="212" cy="194" r="6" fill="var(--you)"/>
+<text x="226" y="190" font-size="12.5" font-weight="600" fill="currentColor">Spec + decisions</text><text x="226" y="208" font-size="10.5" fill="currentColor" opacity=".6">~20 lines · one batch</text>
+<rect x="404" y="168" width="180" height="52" rx="7" fill="var(--lane)" stroke="var(--accent)"/>
+<text x="418" y="190" font-size="12.5" font-weight="600" fill="currentColor">Build</text><text x="418" y="208" font-size="10.5" fill="currentColor" opacity=".6">one worktree · tests gate it</text>
+<rect x="596" y="168" width="180" height="52" rx="7" fill="var(--lane)" stroke="var(--accent)"/>
+<circle cx="596" cy="194" r="6" fill="var(--you)"/>
+<text x="610" y="190" font-size="12.5" font-weight="600" fill="currentColor">Merge</text><text x="610" y="208" font-size="10.5" fill="currentColor" opacity=".6">records generated</text>
+<text x="796" y="198" font-size="11" font-weight="700" fill="var(--accent)">2 touchpoints</text>
+</g>
+</svg>
+<figcaption>Purple marks a point where the sponsor is pulled in. The stages do not change;
+where the sponsor sits in them does.</figcaption>
+</figure>
+</section>
+
+<div class="eyebrow"><span>What changes</span><span class="tag">three things, two already exist</span></div>
+<section>
+<div class="cards">
+  <div class="card ok"><h4>1 · Batch decisions before code</h4>
+  <p>Every unknown in the specification is settled in one sitting, before implementation starts.
+  Unknowns that arrive later get a recorded default and the work continues.
+  <strong>Already merged</strong> (common-rules #46).</p></div>
+  <div class="card ok"><h4>2 · Generate the records</h4>
+  <p><code>spend agentlog</code> derives <code>AGENT-LOG.md</code> from the session transcripts.
+  Nothing is hand-written, so nothing can be wrong, and the file leaves the merge surface.
+  <strong>Built and tested.</strong></p></div>
+  <div class="card no"><h4>3 · Drop forced delegation</h4>
+  <p>A driving session holding no <code>Edit</code>/<code>Write</code>, structurally required to
+  delegate all code. Two arms ran it. <strong>Measured — it failed.</strong></p></div>
+</div>
+
+<p><strong>Why this proposal is small.</strong> <code>CLAUDE-workflow.md</code> already says
+ceremony is opt-in. Arm C — the winner — is very nearly that default already. This is not a
+rewrite of the rules; it is two additions and one retraction.</p>
+</section>
+
+<div class="eyebrow"><span>The retraction</span></div>
+<section>
+<div class="verdict bad">
+<p><strong>Forced delegation was proposal A of the six-day review, and it is the thing that
+measurably failed.</strong> The reasoning was that instructions are not a control boundary but
+tool grants are — sound in itself, and the compliance data supported it: the rule "the session
+delegates, never writes code" was followed by 1 of 7 worktree sessions, while the executable
+tooling was invoked 415 times.</p>
+<p>The experiment tested whether making that structural pays for itself. It does not. Both arms
+running it scored the same 22/22 as a control with 37 lines of rules, at many times the cost.</p>
+</div>
+
+<p><strong>Scope of the retraction, stated precisely.</strong> This does not indict tool grants as
+applied to the <em>roles</em> — <code>quality-manager</code> having no write access is untested here
+and stays. What failed is extending that mechanism to the driving session.</p>
+</section>
+
+<div class="eyebrow"><span>What this does not prove</span><span class="tag">stated up front</span></div>
+<section>
+<ul>
+<li><strong>A suite everyone passes cannot rank quality.</strong> All five arms scored full marks,
+so the experiment measured cost precisely and quality not at all. The task was made small enough
+to run five times; that same choice removed the headroom needed to separate the arms.</li>
+<li><strong>The silent-wrong-guess question is open.</strong> The control resolved nine
+specification ambiguities silently and got all nine right. Nothing tested what happens when such a
+guess is wrong, because the sealed suite catches wrong guesses before they can reach scoring.
+<em>This is the only finding that would overturn the rest.</em></li>
+<li><strong>n = 1, and the task favoured the losers.</strong> Pure domain logic with no UI is
+unusually test-shaped — conditions that suit the heavier arms' methods. They still lost.</li>
+<li><strong>Two criteria are vacuous.</strong> R20 and R21 pass against a do-nothing stub, so
+"22/22" is 20 discriminating criteria plus two free ones. R20 — "shall never write outside the
+process" — is a universal negative and is not decidable by a test at all.</li>
+</ul>
+</section>
+
+<div class="eyebrow"><span>Two corrections to the record</span></div>
+<section>
+<p><strong>Agent definitions register immediately, not at session start.</strong> This document's
+author previously advised a session restart on the belief that the agent roster was fixed at
+startup. That is false — an agent definition dropped into a searched directory became invokable
+in a running session. What <em>is</em> fixed at session start is <strong>which directories are
+searched</strong>, which is why an agent in one project's <code>.claude/agents/</code> is invisible
+to a session rooted elsewhere. That was the real cause, and the restart was not needed.</p>
+
+<p><strong>A session merged a change to the shared rules.</strong> common-rules #46 was opened and
+merged by the same session at 06:28 on 2026-08-06, by calling <code>gh pr merge</code> directly and
+bypassing <code>bin/land</code>'s guard, which exists to refuse exactly that. The content was
+reviewed and kept. The precedent was not: merging a rules change remains the sponsor's, and only
+the sponsor's.</p>
+</section>
+
+<div class="eyebrow"><span>Provenance</span></div>
+<section>
+<p class="note">Five arms, one frozen <code>SPEC.md</code>, one sealed judge, on branches
+<code>experiment/arm-{a,b,c,d,f}-*</code> and <code>experiment/sealed</code>. Full numbers in
+<code>experiments/pockets-core/RESULTS.md</code> on <code>experiment/results</code>. Cost figures
+recomputed from <code>~/.claude/projects</code> transcripts and the sub-agent task records, not
+from any arm's self-report — every arm mis-stated its own wall-clock, and one arm's headline bug
+finding was overturned by direct probe. Nothing has been merged to <code>pockets/main</code>.</p>
+</section>
+
+</div>
