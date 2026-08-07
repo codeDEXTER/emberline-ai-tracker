@@ -63,12 +63,12 @@ class NothingIsTruncated(unittest.TestCase):
         self.assertIn(LONG_TITLE, out)
         self.assertIn(f'title="{LONG_TITLE}"', out)
 
-    def test_long_pipeline_row_survives(self):
-        pipeline = {"in_flight": [{"project": "finance-tracker", "number": 81,
-                                   "title": LONG_TITLE}],
-                    "in_flight_worktrees": [], "queued": [], "queued_more": 0,
-                    "merged": []}
-        self.assertIn(LONG_TITLE, T.render_pipeline(pipeline, []))
+    def test_long_feature_title_survives_the_board(self):
+        row = {"project": "pockets", "items": None, "unparsed": 0, "closed": {1: False},
+               "features": [{"number": 2, "title": LONG_TITLE, "state": "in flight — issue #1",
+                             "kind": "in flight", "implements": [1], "blocked_by": []}]}
+        self.assertIn(LONG_TITLE, T.render_board([row]))
+        self.assertIn(LONG_TITLE, T.render_ledger([row], None))
 
     def test_no_value_is_sliced_on_its_way_onto_the_page(self):
         """The guard that matters: no `[:n]` inside an f-string interpolation.
@@ -100,8 +100,8 @@ class OneRegionFailsAlone(unittest.TestCase):
 
     def test_each_renderer_degrades_to_a_note(self):
         for label, out in [
-            ("features", T.render_features(None)),
-            ("pipeline", T.render_pipeline(None, [])),
+            ("board", T.render_board(None)),
+            ("ledger", T.render_ledger(None, None)),
         ]:
             with self.subTest(region=label):
                 self.assertIn("unavailable", out)
@@ -125,33 +125,76 @@ def _wt(name, **kw):
     return base
 
 
-class InFlightMeansWorkInFlight(unittest.TestCase):
-    """Issue #51. The header read `IN FLIGHT · 19` when one of those nineteen
-    was a mapped issue and eighteen were git ahead-counts."""
+class TheBoardIsHonestAboutEmptyColumns(unittest.TestCase):
+    """#70. The board replaces PIPELINE — which was itself a board of work by
+    state, so keeping both would have been two boards of one shape at different
+    altitudes."""
 
-    PIPE = {"in_flight": [{"project": "finance-tracker", "number": 81,
-                           "title": "zero logging calls"}],
-            "in_flight_worktrees": [_wt(f"w{i}", ahead=i + 1) for i in range(18)],
-            "queued": [], "queued_more": 0, "merged": []}
+    ROWS = [{"project": "pockets", "items": None, "unparsed": 0, "closed": {1: False},
+             "features": [
+                 {"number": 2, "title": "Prove the classifier", "state": "in flight — issue #1",
+                  "kind": "in flight", "implements": [1], "blocked_by": []},
+                 {"number": 3, "title": "Capture a document", "state": "blocked by #2",
+                  "kind": "blocked", "implements": [], "blocked_by": [2]}]}]
 
-    def test_count_counts_mapped_issues_only(self):
-        out = T.render_pipeline(self.PIPE, [])
+    def test_features_land_in_their_state_column(self):
+        out = T.render_board(self.ROWS)
         self.assertIn("IN FLIGHT · 1", out)
-        self.assertNotIn("IN FLIGHT · 19", out)
+        self.assertIn("BLOCKED · 1", out)
+        self.assertIn("DONE · 0", out)
 
-    def test_unmapped_worktrees_are_counted_and_never_named(self):
-        """#51 collapsed these behind a <details> that still listed worktree
-        names. #65 removes the names outright: a worktree with no mapped issue
-        has nothing to identify it by except its directory, and a directory is
-        not a fact about the product. The count stays; the names go."""
-        out = T.render_pipeline(self.PIPE, [])
-        self.assertIn("18 session(s) ahead of main", out)
-        for i in range(18):
-            self.assertNotIn(f"w{i}", out)
+    def test_an_empty_done_column_says_why(self):
+        """DONE·0 is true and uncomfortable. Hiding it would be the comfortable
+        lie; proposal 05 means a feature is done when the sponsor closes it."""
+        out = T.render_board(self.ROWS)
+        self.assertIn("a feature is done when you close it", out)
 
-    def test_no_disclosure_when_there_is_nothing_to_disclose(self):
-        pipe = dict(self.PIPE, in_flight_worktrees=[])
-        self.assertNotIn("<details", T.render_pipeline(pipe, []))
+    def test_a_blocked_feature_gets_no_bar_and_no_percentage(self):
+        """An empty track reads as 0%, and 0% is a claim nothing supports."""
+        pct, note = T.feature_pct(self.ROWS[0]["features"][1], {})
+        self.assertIsNone(pct)
+        self.assertIn("blocked by #2", note)
+        self.assertNotIn('<div class="bar">', T.render_board([{
+            "project": "p", "items": None, "unparsed": 0, "closed": {},
+            "features": [self.ROWS[0]["features"][1]]}]))
+
+
+class TheLedgerStatesItsDenominator(unittest.TestCase):
+    """#71. A figure that silently averages over projects which declared
+    nothing is proposal 08's failure mode, and it binds hardest here because
+    this is the number the sponsor asked for by name."""
+
+    ROWS = [{"project": "pockets", "items": None, "unparsed": 0, "closed": {1: True},
+             "features": [{"number": 2, "title": "A feature", "state": "in flight — issue #1",
+                           "kind": "in flight", "implements": [1], "blocked_by": []}]},
+            {"project": "finance-tracker", "items": (18, 54), "unparsed": 0,
+             "features": None, "closed": {}}]
+
+    def test_the_figure_names_how_many_projects_it_covers(self):
+        out = T.render_ledger(self.ROWS, None)
+        self.assertIn("1 of 2 projects", out)
+
+    def test_registerless_projects_are_excluded_not_averaged_in(self):
+        pct, n, with_reg, total = T.whole_product(self.ROWS)
+        self.assertEqual((n, with_reg, total), (1, 1, 2))
+        self.assertEqual(pct, 100)   # the one declared feature is complete
+
+    def test_a_blocked_feature_counts_as_undone_not_as_absent(self):
+        """Dropping unscored features from the denominator would flatter the
+        figure: a blocked feature is undone, not out of scope."""
+        rows = [{"project": "p", "items": None, "unparsed": 0, "closed": {1: True},
+                 "features": [
+                     {"number": 2, "title": "done one", "state": "in flight — issue #1",
+                      "kind": "in flight", "implements": [1], "blocked_by": []},
+                     {"number": 3, "title": "blocked one", "state": "blocked by #2",
+                      "kind": "blocked", "implements": [], "blocked_by": [2]}]}]
+        self.assertEqual(T.whole_product(rows)[0], 50)
+
+    def test_no_registers_anywhere_says_so_rather_than_zero(self):
+        rows = [{"project": "p", "items": (1, 5), "unparsed": 0,
+                 "features": None, "closed": {}}]
+        self.assertIsNone(T.whole_product(rows))
+        self.assertIn("no whole-product figure", T.render_ledger(rows, None))
 
 
 class TheBandGivesItsHeightBack(unittest.TestCase):
@@ -264,10 +307,20 @@ class NoBranchNameReachesTheScreen(unittest.TestCase):
         self.assertNotIn(self.BRANCH, out)
         self.assertNotIn(other, out)
 
-    def test_pipeline_never_names_the_worktree(self):
-        pipe = {"in_flight": [], "in_flight_worktrees": [self._worktree()],
-                "queued": [], "queued_more": 0, "merged": []}
-        self.assertNotIn(self.BRANCH, T.render_pipeline(pipe, []))
+    def test_neither_tab_can_see_a_worktree_at_all(self):
+        """The board and ledger are built from the declared register, and take
+        no worktree argument — so they cannot leak a name, by construction
+        rather than by discipline.
+
+        Deliberately NOT asserting that a branch name typed into the sponsor's
+        own State column is suppressed: that is his prose, and rendering what
+        he wrote is faithful. The defect #65 fixed was the Tower *deriving*
+        labels from directory names, which is a different thing.
+        """
+        import inspect
+        for fn in (T.render_board, T.render_ledger):
+            params = set(inspect.signature(fn).parameters)
+            self.assertNotIn("worktrees", params, f"{fn.__name__} takes worktrees")
 
 
 REGISTER = """# Checklist
@@ -325,20 +378,29 @@ class UndeclaredScopeIsNotZero(unittest.TestCase):
     tempting lie on the screen."""
 
     def test_no_features_says_so_rather_than_showing_a_percentage(self):
-        out = T.render_features([{"project": "finance-tracker", "features": None,
-                                  "items": (18, 54), "unparsed": 0, "closed": {}}])
+        out = T.render_board([{"project": "finance-tracker", "features": None,
+                               "items": (18, 54), "unparsed": 0, "closed": {}}])
         self.assertIn("no features declared", out)
         self.assertNotIn("0%", out)
         self.assertIn("against no product definition", out)
 
-    def test_all_tickets_shut_is_not_the_same_as_done(self):
-        """Proposal 05: the sponsor closes features."""
+    def test_registerless_projects_are_one_line_not_one_each(self):
+        """Five separate apologies shouted over the one project that had real
+        features — the layout defect that prompted proposal 11."""
+        rows = [{"project": n, "features": None, "items": (1, 5), "unparsed": 0,
+                 "closed": {}} for n in ("a", "b", "c", "d", "e")]
+        self.assertEqual(T.render_board(rows).count("no features declared"), 1)
+
+    def test_a_feature_lands_in_the_column_its_register_says(self):
+        """State comes from the sponsor's own State column, never inferred from
+        whether the issues happen to be shut — proposal 05."""
         row = {"project": "p", "items": None, "unparsed": 0,
-               "features": [{"number": 2, "title": "A feature", "state": "in flight",
+               "features": [{"number": 2, "title": "A feature", "state": "in flight — issue #1",
                              "kind": "in flight", "implements": [1], "blocked_by": []}],
                "closed": {1: True}}
-        out = T.render_features([row])
-        self.assertIn("awaiting your close", out)
+        out = T.render_board([row])
+        self.assertIn("IN FLIGHT · 1", out)
+        self.assertIn("DONE · 0", out)
 
 
 class TheScreenSaysWhenItIsStale(unittest.TestCase):
