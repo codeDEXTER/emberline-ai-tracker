@@ -248,6 +248,18 @@ its own rule — never novelty-from-search), and *he* judges whether a new idea
 sits too close to something already out there. Agents supply the evidence; the
 resemblance call is taste and stays his.
 
+## 2026-08-06 · Formal, descriptive issues for every planned task, maintained with the work
+Said in: pip
+
+"i would like you to document formal and discriptive issues for all the
+planned task… issues need to be maintaind along with the trasks." Pip had a
+checklist file but zero issues on its repo; every planned task got one
+(#2–#15), and the checklist became an index that points at them. The second
+sentence is the durable part: an issue is updated in the same breath as the
+task that moves — not batched later. Note the overlap with proposal 05's
+"issues exist for parallelism": these issues are for *record and handover*,
+which is a second job he wants them doing.
+
 ---
 
 # Patterns
