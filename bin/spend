@@ -79,7 +79,7 @@ def _scan(path):
     hand-written file for.
     """
     out, agents, days = _read(path)
-    cwd = ""
+    cwds = []
     first = last = ""
     with open(path, errors="replace") as fh:
         lines = fh.readlines()
@@ -88,8 +88,9 @@ def _scan(path):
             rec = json.loads(line)
         except ValueError:
             continue
-        if not cwd:
-            cwd = rec.get("cwd") or ""
+        c = rec.get("cwd") or ""
+        if c:
+            cwds.append(c)
         ts = rec.get("timestamp") or ""
         if ts:
             if not first or ts < first:
@@ -97,7 +98,25 @@ def _scan(path):
             if not last or ts > last:
                 last = ts
     return {"path": path, "out": out, "agents": agents, "days": days,
-            "cwd": cwd, "first": first, "last": last}
+            "cwd": cwds[0] if cwds else "", "cwds": cwds,
+            "home": _dominant(cwds),
+            "first": first, "last": last}
+
+
+def _dominant(cwds):
+    """Where a session actually lived, not where it was launched.
+
+    The most-recorded cwd, which is the session's real home. Using any cwd it
+    ever touched counts a one-line `cd` in a bash command as a whole session's
+    work -- measured 2026-08-07, that inflated finance-tracker eight-fold and
+    attributed the same session to two projects at once.
+    """
+    if not cwds:
+        return ""
+    counts = {}
+    for c in cwds:
+        counts[c] = counts.get(c, 0) + 1
+    return max(counts, key=lambda k: counts[k])
 
 
 def _repo_root():
@@ -108,20 +127,37 @@ def _repo_root():
     return _git("rev-parse", "--show-toplevel") or os.getcwd()
 
 
-def _task_of(cwd, root):
-    """Which task a transcript belongs to, from where it ran. None if elsewhere.
+def _task_of(cwds, root):
+    """Which task a transcript belongs to, from everywhere it ran.
+
+    Takes every distinct cwd the session recorded, not just the first. A
+    management session is launched from `apps/` and only enters the project
+    later, via EnterWorktree -- judging it on its launch directory attributed
+    every token it spent to the parent folder and dropped it from the project
+    entirely. Found 2026-08-07 on pockets, which reported zero tasks on a day
+    it had spent 836k output tokens across four agents.
+
+    A worktree cwd wins over the main checkout: a session that entered a
+    worktree was working on that task, whatever directory it started in.
 
     Both sides are realpath'd: on macOS `/var` is a symlink to `/private/var`,
     so a session's recorded cwd and git's toplevel can name one directory two
     ways, and a plain string compare silently drops the task.
     """
-    cwd = os.path.realpath(cwd or "")
+    if isinstance(cwds, str):
+        cwds = [cwds]
     root = os.path.realpath(root)
-    if cwd != root and not cwd.startswith(root + os.sep):
-        return None
     marker = os.sep + ".claude" + os.sep + "worktrees" + os.sep
-    if marker in cwd:
-        return cwd.split(marker, 1)[1].split(os.sep)[0]
+    inside = []
+    for cwd in cwds or []:
+        cwd = os.path.realpath(cwd or "")
+        if cwd == root or cwd.startswith(root + os.sep):
+            inside.append(cwd)
+    if not inside:
+        return None
+    for cwd in inside:
+        if marker in cwd:
+            return cwd.split(marker, 1)[1].split(os.sep)[0]
     return "(main checkout)"
 
 
@@ -141,7 +177,7 @@ def _tasks_here():
         info = _scan(path)
         if not info["out"]:
             continue
-        task = _task_of(info["cwd"], root)
+        task = _task_of(info.get("home") or info["cwd"], root)
         if task is None:
             continue
         t = tasks.setdefault(task, {"task": task, "out": 0, "sessions": 0,
