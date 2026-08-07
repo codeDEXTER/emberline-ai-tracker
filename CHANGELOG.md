@@ -52,6 +52,25 @@ it gives the board the full width four columns need. Issue-level flow moves to
 `/features`, where it is detail rather than noise. #70 was rewritten to say so
 before any code was written against it.
 
+**Then the sponsor chose tabs, and a measurement decided how to build them.**
+Both views now live in one full-width region where PIPELINE was, switched by a
+tab — and the obvious dependency-free implementation is broken here. The Tower
+re-requests itself every 10 seconds, and CSS tabs (hidden radios plus a
+`:checked` sibling) hold their state in a DOM that every reload destroys. Tested
+against a 3-second refresh: selecting LEDGER came back on BOARD, while a
+`?view=ledger` query string survived intact.
+
+So the tabs are **links**, and the server renders the chosen view —
+`/?view=board` and `/?view=ledger`. The meta refresh re-requests the current URL
+including its query string, so the choice sticks, and no JavaScript is involved,
+which keeps proposal 09's rule that the Tower's only interaction is a link. It
+also retires the separate `/features` route drafted an hour earlier: a query
+string already is one.
+
+Worth recording as a near miss. Building CSS tabs would have produced a screen
+that silently flipped back to BOARD every ten seconds, and the blame would have
+landed on the tab rather than on a refresh nobody was thinking about.
+
 ## 2026-08-07 · Handovers and the commit ticker come off the Tower
 
 Implements issue #64, the first of proposal 10's queue. Two regions gone:
