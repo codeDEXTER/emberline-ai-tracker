@@ -105,7 +105,7 @@
 
 <div class="brand">
   <span>common-rules · reference</span>
-  <span>derived from CLAUDE-workflow.md · rules version 104 · 2026-08-07</span>
+  <span>derived from CLAUDE-workflow.md · rules version 130 · 2026-08-07</span>
 </div>
 
 <h1>The whole workflow, on one page</h1>
@@ -661,6 +661,7 @@ honest remaining gap in both.</p>
   <li><b>Look before you start, and commit before you pause</b> — uncommitted work is invisible to everyone, including the next check.</li>
   <li><b>A question to the user is a cost.</b> If the answer wouldn't change what he sees at a look and isn't reserved, the AI decides, records one line, and proceeds. Unnecessary questions are counted at the gate.</li>
   <li><b>You own features; the AI owns the issues they decompose into</b> — cut vertically, never backend-for-X plus UI-for-X.</li>
+  <li><b>Every project keeps a feature register</b> — a <code>## Features</code> table in its <code>CLAUDE-checklist.md</code>, one row per feature, linking the issue that <em>is</em> the feature. The Tower reads it: that table is the only answer to what a product is made of and how much is done. It changes when you add, rename or close a feature — never per task. A project without one reports <em>"no features declared"</em>, never 0%.</li>
   <li><b>Nothing about features, merges, promotions or these rules happens without you.</b></li>
 </ul>
 
