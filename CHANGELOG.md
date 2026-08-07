@@ -1,5 +1,54 @@
 # Changelog — common-rules
 
+## 2026-08-07 · Five things the Tower should know, and doesn't
+
+Proposal 12. Every finding came from using the screen for a day rather than from
+thinking about dashboards, and two of them sharpened under checking.
+
+**The Tower cannot tell you it is stale, and it is stale constantly.** Tower.app
+runs `bin/tower` from a pinned checkout refreshed only by
+`build_towerapp.sh --install`. Measured two hours after a rebuild: the app on
+`208c789`, main on `cd19f10`. It falls behind on every merge. Before that
+rebuild it had been two days behind, serving the pre-proposal-09 screen — the
+truncated names, the 310px void — while every session reported those fixed. A
+status screen that is confidently wrong with no hint that it might be is the
+worst defect one can have, so this is a correction rather than a feature (#73).
+
+**Three of five contested warnings are false by construction.** All three are on
+`AGENT-LOG.md`, which carries `merge=ours` — confirmed in pockets and
+finance-tracker. A file with a merge driver cannot conflict; that is the entire
+point of #44, #45 and #57. `contested_pairs()` is `whoelse`'s logic, predates
+the merge drivers, and has never been told they exist. Three in five is enough
+to teach a person to ignore amber, which costs the two that are real (#74).
+
+**Four million tokens are measured and none reach the screen.** `bin/spend`
+reports 4,018,382 across 8 finance-tracker tasks. Note how it labels them —
+`adoring-euler-ba942f`, `compassionate-bassi-fd5327` — which is exactly the
+branch-name noise proposal 10 removed, and exactly why cost has never been
+useful here. Cost per worktree is trivia; cost per *feature* is a decision.
+#65's register plus `worktree_issue()` is the join that turns one into the
+other (#76).
+
+**A warning that never resolves is wallpaper.** `5 behind: finance-tracker,
+idea-lab, mac-explorer +2` sat unchanged in the header through a dozen merges,
+four proposals and six issues. Against version 114 the real spread is pip 11
+behind, mac-explorer 9, finance-tracker 8, pockets 2, idea-lab never stamped —
+and the screen renders all of them identically. It has to be able to escalate or
+it will be tuned out again within a week (#75).
+
+**The decision queue is under-reported.** Open PRs reach NEEDS YOU only when
+they belong to a worktree with a mapped issue, so a PR from an unmapped branch
+is invisible. How many decisions are waiting, and how long the oldest has
+waited, is the number that says whether the autopilot can keep going without the
+sponsor. The age is the part that matters: four things waiting ten minutes is a
+working autopilot, four waiting two days is a stalled one (#75).
+
+Three things are ruled out in the document rather than left to drift back in:
+no new region (900px is already tight and #70 is about to take PIPELINE's
+space), no forecast of any kind (proposal 08 refused an ETA on four days and #63
+held the line on six — cost and drift both invite "at this rate…"), and no new
+bookkeeping, since every figure above is derivable today and the logbook was
+rejected once already.
 ## 2026-08-07 · Three ways to show the features, and the two he picked
 
 Proposal 11, a design exploration rather than a proposal with one answer.
