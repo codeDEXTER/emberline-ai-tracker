@@ -21,6 +21,7 @@ table reflects them. If they disagree, the document wins.
 | [10](10-proposal-tower-features.html) | The Tower reports the product, not the plumbing — features as the spine, no branch names | proposal | **accepted** | 2026-08-07 |
 | [11](11-design-feature-screen.html) | Three ways to show the features — Ledger, Board, Portfolio | design-concept | **accepted** | 2026-08-07 |
 | [12](12-proposal-tower-worth-knowing.html) | Five things the Tower should know and doesn't — staleness, cost, signal decay | proposal | **accepted** | 2026-08-07 |
+| [13](13-proposal-tower-by-project.html) | Switch by project, not by lens — one app's whole picture on one screen | proposal | **accepted** | 2026-08-07 |
 
 Statuses: `draft` · `proposed` · `accepted` · `rejected` · `superseded-by NN` /
 `amends NN` · `built`. There is deliberately no `deferred` and no

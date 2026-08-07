@@ -1,5 +1,47 @@
 # Changelog — common-rules
 
+## 2026-08-07 · The Tower switches by project, not by lens
+
+Proposal 13, from the sponsor looking at what had just been built: *"rather than
+switching board, ledger and progress, I should be able to switch between
+projects with all details."*
+
+He is right, and the interesting part is why the lenses existed at all. BOARD /
+LEDGER / PROGRESS answered a real constraint — six projects' features, history
+and flow do not fit in 900px, so the estate view had to be cut three ways. But
+**one project's data fits easily**: the largest is pockets at 7 features, 6
+sessions and 9 history points; finance-tracker is 3 sessions and 21 history
+points. Change the axis to project and the split stops being necessary at all,
+rather than needing re-cutting per project. The lenses were the answer to a
+volume problem that disappears when the question changes from "show me a way of
+looking" to "show me one app".
+
+So the tab bar becomes the project list, a project page composes everything that
+already exists filtered to one app, and `ALL` becomes a one-line-per-project
+estate summary.
+
+**NEEDS YOU stays above the tabs and is never filtered.** It is the autopilot's
+blocking state: a decision waiting in an app the sponsor is not currently
+looking at must still reach him, and filtering it is the one change that would
+make the screen actively worse rather than better.
+
+Worth recording plainly: the `ALL` page is almost exactly the **Portfolio**
+option from proposal 11 — the one recommended then and turned down in favour of
+Ledger and Board. That recommendation was wrong *at the time*: as the only view
+it hid individual features behind an expand, and with one register declared it
+had nothing to compare. As a summary above per-project pages it is the right
+shape, because comparison is what a top level is for. Rejecting it as the answer
+and adopting it as the roof are both correct, a day apart.
+
+The costs are stated in the document rather than discovered later: the
+cross-project feature table goes, "everything blocked anywhere" becomes six tab
+visits, and the tab bar grows with the estate — six fit, twelve would need
+grouping.
+
+Cut as #81. #76 (cost per feature) was unblocked by #78 the same hour and
+immediately re-queued behind #81, because cost is a column on a feature list and
+#81 moves where that list lives.
+
 ## 2026-08-07 · spend can be asked about a project by path
 
 Implements #78, which exists only to unblock #76 (cost per feature on the
