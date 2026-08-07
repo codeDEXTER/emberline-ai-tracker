@@ -1,5 +1,54 @@
 # Changelog — common-rules
 
+## 2026-08-07 · Proposal 10: the Tower has been reporting the plumbing
+
+aashish, on the screen proposal 09 had just finished: *"it doesn't help when you
+are saying some random branch name. What features are done, what is the degree of
+completion of the whole product, and what things are running. I don't want to
+know what internal communication is going on."*
+
+He is right, and the cause is that the Tower reads three things that are all the
+wrong thing: **worktree directory names**, **issue title prefixes**
+(`title.split(":")[0]` — two issues share a "feature" only if someone typed the
+same words before a colon), and **`##` headings in `CLAUDE-checklist.md`**, which
+in three of four projects are priority buckets. `Now` is not a feature and never
+finishes.
+
+**Features already exist as a first-class idea in these very rules** — "the user
+owns features, the AI owns issues" — and **pockets already declares seven** in a
+register with states and linked issues. The Tower has never read it. That is the
+whole diagnosis: not a labelling bug, a wrong source.
+
+**The honest blocker, and it is not the Tower's.** "Degree of completion of the
+whole product" is a fraction, and the denominator exists for **one of four**
+active projects. finance-tracker, pip and mac-explorer have never declared what
+their features are, and there are no GitHub milestones anywhere. A percentage
+across the estate would be a number over an invented denominator — the same lie
+proposal 08 refused when it insisted a project with no checklist reads "no
+declared scope", never 0%. So those three render "no features declared" until
+their registers land.
+
+Draft registers for all three were written the same day and are with the sponsor
+for correction. Creating and scoping features is reserved to him, so they are
+proposals: 9 candidates for finance-tracker, 9 for pip, 7 for mac-explorer, each
+listing the open issues that roll up into it — which is what makes a percentage
+computable, and also the honest test of whether a feature is real.
+
+**Progress does not need the logbook proposal 08 rejected.** The history is
+already on disk and unread: the tick count at any past commit is recoverable from
+`git log` of each checklist, and the register's issues carry real close
+timestamps. finance-tracker has 20 such revisions, pockets 9, pip 11.
+
+Two decisions taken in-role rather than asked. **A feature's percentage comes
+from its issues; "done" comes only from the sponsor's State column** — proposal 05
+already says he closes features, so a feature whose tickets are all shut reads
+"100% · awaiting your close". And **the per-package bars are dropped**: with
+features as the spine they measure the filing structure again.
+
+Cut into a queue on one surface — #64 (handovers and ticker off, pure removal),
+#65 (features as the spine, no branch names anywhere), #66 (what moved today) —
+plus #63 for burnup and velocity, which is independent of all of it.
+
 ## 2026-08-07 · derecord corrects a changed rule instead of freezing it (#57)
 
 `bin/derecord` installed `.gitattributes` rules by asking *"is there a line for

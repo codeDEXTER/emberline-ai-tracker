@@ -18,6 +18,7 @@ table reflects them. If they disagree, the document wins.
 | [07](07-concept-tower.html) | The Tower — a live window on the autopilot | design-concept | **accepted** | 2026-08-05 |
 | [08](08-proposal-work-packages.html) | The Tower keeps the record — completion, and whether the autopilot still needs you | proposal | **accepted** | 2026-08-05 |
 | [09](09-proposal-tower-ui.html) | The Tower, made legible — the screen fits its window, and what needs you comes first | proposal | **built** | 2026-08-07 |
+| [10](10-proposal-tower-features.html) | The Tower reports the product, not the plumbing — features as the spine, no branch names | proposal | **accepted** | 2026-08-07 |
 
 Statuses: `draft` · `proposed` · `accepted` · `rejected` · `superseded-by NN` /
 `amends NN` · `built`. There is deliberately no `deferred` and no
