@@ -1,5 +1,61 @@
 # Changelog — common-rules
 
+## 2026-08-07 · What needs you is first on the Tower, and the graph is retired
+
+Implements issues #51 and #52, the last two of proposal 09. Built as one branch
+rather than two: both re-cut the same surface, and `CLAUDE-workflow.md` says two
+issues that touch the same file are one issue or one queue — running them in
+parallel is the #30/#31 collision class.
+
+**The two things that needed him used to be two circles among 23.** They are a
+band at the top now, in words, at 17px: the issue title, the project, why, and
+how long it has waited. When nothing needs him it collapses to one line and
+gives its height back — reserving empty space is the failure mode this proposal
+exists to fix, so the empty state had to be a line and not a box.
+
+**`IN FLIGHT · 19` was an 18x overstatement.** One of those nineteen was a
+mapped issue; eighteen were git ahead-counts wearing the same chip. In flight
+means a mapped issue now, and the ahead-of-main worktrees collapse into a
+`<details>` that expands in place — collapsed, not hidden, and no JavaScript.
+
+**The graph from concept 07 is retired, not deferred**, on aashish's call. 615px
+bought 23 labels in a 4-column grid where position was enumeration order, size
+and fill were constant, and one edge ever rendered. It is a 117px strip of state
+dots — measured, against the ~118px the proposal estimated. Every worktree is
+still reachable: the hover carries the name, the mapped issue and the age *in
+full*, because a title attribute has no width to fit and so cannot truncate. The
+six worktrees that have a transcript link through to `/session/<id>`; the other
+21 have no session to open and render as plain dots rather than dead links.
+
+The one contested pair the graph ever drew — as a 470px diagonal with its
+caption floating unanchored at the midpoint — is a row in the band now, which is
+where an actionable collision belongs.
+
+**Repeated events collapse, and only byte-identical ones.** Four of nine ticker
+lines were the same event recorded by four agent logs a minute apart. The window
+is 900s and the count is always shown. A row differing by one character stays
+its own row: the claim is "this is literally the same event N times", and
+anything looser hides real events. `_epoch` returns 0.0 on an unparseable stamp,
+which puts a row outside every window and leaves it *uncollapsed* — the safe
+direction, and `tests/test_tower_render.py` pins it, because the tempting
+implementation folds two junk-stamped rows together on the strength of both
+being equally unparseable.
+
+**One collector change, and it is the same shape as #50's.** `needs_input` was a
+set of names, so the reason and the wait were computed and thrown away — the
+screen could say "needs you" but never why or for how long, which is most of
+what the band is for. It is a dict now. Same two conditions, same inputs,
+nothing new collected.
+
+**The no-scroll budget still is not met, and this says so rather than claiming
+it.** The page is **1,721px at 1280 wide**, down from 2,283px after #50 and
+2,241px before any of this. The target is 900. What remains is the pipeline
+column at 780px — eight queued chips, four merged, and the wall — which neither
+of these issues touches. Closing the rest means cutting the queued list, and
+that is a content decision nobody has taken yet, not something to slip in here.
+
+No behaviour change for any adopted project: this is `bin/tower` and its tests.
+
 ## 2026-08-07 · The Tower is HTML now, and stops cutting words in half
 
 Implements issue #50, the first of proposal 09's three. The page was one
