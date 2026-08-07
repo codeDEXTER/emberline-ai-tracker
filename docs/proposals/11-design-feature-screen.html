@@ -469,6 +469,102 @@ what #70 should build.</p>
 Merged main screen · the board takes the width PIPELINE used to share · whole-product
 figure in the header, linking to the ledger · four regions, not five</p>
 
+<p class="eyebrow">Final shape · A and B as tabs <span class="tag">sponsor, 2026-08-07</span></p>
+
+<p>Both views live in one full-width region where PIPELINE used to be, switched by
+a tab. <b>BOARD</b> answers “what is running, what is done” by position;
+<b>LEDGER</b> is the full cross-project list with the whole-product figure. One
+place, two lenses, and no separate page to navigate to.</p>
+
+<div class="verdict warn">
+  <b>The constraint that decides how the tabs are built — measured, not assumed</b>
+  <p>The Tower re-requests itself every 10 seconds
+  (<code>&lt;meta http-equiv="refresh" content="10"&gt;</code>). Tabs built the
+  usual dependency-free way — hidden radio inputs and a <code>:checked</code>
+  sibling selector — hold their state in the DOM, and the DOM is thrown away on
+  every reload. Tested directly with a 3-second refresh:</p>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Mechanism</th><th>Survives the refresh?</th></tr>
+    <tr><td class="k">CSS <code>:checked</code> radio tabs</td>
+        <td><span class="lab no">no</span> — selected LEDGER, the reload came back on BOARD</td></tr>
+    <tr><td class="k">Query string <code>?view=ledger</code></td>
+        <td><span class="lab ok">yes</span> — intact after two refresh cycles</td></tr>
+  </table>
+  </div>
+  <p>So a CSS-only tab would silently flip you back to BOARD every ten seconds —
+  a defect that would be blamed on the tab, not on the refresh, and would be
+  miserable to diagnose after the fact.</p>
+</div>
+
+<div class="verdict good">
+  <b>The tabs are links, and the server renders the chosen view</b>
+  <p><span class="mono">/?view=board</span> (the default) and
+  <span class="mono">/?view=ledger</span>. The meta refresh re-requests the
+  <em>current</em> URL, query string included, so the choice sticks across every
+  reload. No JavaScript, consistent with proposal 09's rule that the Tower is a
+  served document whose only interaction is a link.</p>
+  <p>This also retires the separate <span class="mono">/features</span> route
+  from the previous draft: <span class="mono">?view=ledger</span> already is one,
+  and one fewer URL to explain.</p>
+</div>
+
+<div class="mock">
+<svg viewBox="0 0 1280 440" role="img" aria-label="The features region with BOARD and LEDGER tabs">
+  <style>
+    .tb2{fill:#0B0E13}.tc{fill:#131820;stroke:#26303C}
+    .th{font-family:ui-monospace,monospace;font-size:11px;fill:#7C8594;letter-spacing:.12em;font-weight:700}
+    .tt{font-family:-apple-system,sans-serif;font-size:13px;fill:#DFE3EA;font-weight:600}
+    .td{font-family:ui-monospace,monospace;font-size:10px;fill:#7C8594}
+    .tg{fill:#5FA985}.ta{fill:#D2A05A}
+  </style>
+  <rect class="tb2" width="1280" height="440" rx="12"/>
+  <text class="th" x="28" y="34">FEATURES · 7 DECLARED IN 1 OF 5 PROJECTS</text>
+
+  <rect x="28" y="52" width="86" height="26" rx="6" fill="#1A2230" stroke="#5FA985"/>
+  <text class="td" x="52" y="69" fill="#DFE3EA">BOARD</text>
+  <rect x="122" y="52" width="86" height="26" rx="6" fill="none" stroke="#39434F"/>
+  <text class="td" x="142" y="69">LEDGER</text>
+  <text class="td" x="1010" y="69">?view=ledger · survives the refresh</text>
+  <line x1="24" y1="88" x2="1256" y2="88" stroke="#222B38"/>
+
+  <text class="th" x="28" y="116" fill="#5FA985">IN FLIGHT · 1</text>
+  <rect class="tc" x="24" y="128" width="290" height="66" rx="9" stroke="#5FA985"/>
+  <text class="tt" x="40" y="150">Milestone 0: prove the</text>
+  <text class="tt" x="40" y="166">classifier is good enough</text>
+  <text class="td" x="40" y="184">pockets · 0/1 issues</text>
+
+  <text class="th" x="338" y="116">NEXT · 0</text>
+  <text class="td" x="338" y="140">nothing queued behind</text>
+  <text class="td" x="338" y="156">the one in flight</text>
+
+  <text class="th" x="652" y="116" fill="#D2A05A">BLOCKED · 5</text>
+  <rect class="tc" x="648" y="128" width="290" height="46" rx="9"/>
+  <text class="tt" x="664" y="148">Capture a document and see it filed</text>
+  <text class="td" x="664" y="164">pockets · by Milestone 0</text>
+  <rect class="tc" x="648" y="182" width="290" height="46" rx="9"/>
+  <text class="tt" x="664" y="202">Import the WhatsApp backlog</text>
+  <text class="td" x="664" y="218">pockets · by #2, #3</text>
+  <text class="td" x="650" y="248">+ 3 more blocked</text>
+
+  <text class="th" x="966" y="116">DONE · 0</text>
+  <text class="td" x="966" y="140">nothing closed yet.</text>
+  <text class="td" x="966" y="156">A feature is done when</text>
+  <text class="td" x="966" y="172">you close it.</text>
+
+  <text class="td" x="28" y="290">finance-tracker, pip, mac-explorer, common-rules, idea-lab — <tspan fill="#D2A05A">no features declared</tspan>. 26/78 items ticked, against no product definition.</text>
+
+  <line x1="24" y1="318" x2="1256" y2="318" stroke="#222B38"/>
+  <text class="td" x="28" y="344" fill="#39434F">— the LEDGER tab renders in this same region, full width: every feature across every project,</text>
+  <text class="td" x="28" y="362" fill="#39434F">   ordered by state, with "14% of declared scope" and the four excluded projects named beneath it.</text>
+  <text class="td" x="28" y="386" fill="#39434F">— PIPELINE is gone: the feature board is the pipeline one altitude up, and queued/merged move</text>
+  <text class="td" x="28" y="404" fill="#39434F">   into the LEDGER tab, where issue-level flow is detail rather than noise.</text>
+</svg>
+</div>
+<p style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:8px">
+One region, two tabs, full width · tab state carried in the URL so the 10-second
+refresh cannot reset it</p>
+
 <p class="eyebrow">The work <span class="tag">cut into issues, 2026-08-07</span></p>
 <div class="tablewrap">
 <table>
