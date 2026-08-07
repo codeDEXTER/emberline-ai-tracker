@@ -758,19 +758,13 @@ _hist_lock = threading.Lock()
 _hist = {"ts": 0, "data": None}
 
 
-def history_data(projs):
+def _history_now(projs):
     """Per project history, cached hard: this is ~30 `git show` calls each."""
-    with _hist_lock:
-        if _hist["data"] is not None and time.time() - _hist["ts"] < HISTORY_TTL:
-            return _hist["data"]
     out = []
     for proj in projs:
         h = checklist_history(proj)
         if len(h) >= 2:
             out.append({"project": proj["name"], "points": h})
-    with _hist_lock:
-        _hist["ts"] = time.time()
-        _hist["data"] = out
     return out
 
 
@@ -823,6 +817,73 @@ def moved(points):
 # a small function, not a redesign.
 
 
+# --- cost, by week (issue #76) ---
+#
+# NOT per feature. Measured 2026-08-07 across the whole estate: of 67,393,007
+# tokens, 96.8% sit in `(main checkout)` and `(management)` pseudo-tasks and
+# 3.1% in worktrees that have since been deleted -- **0% was attributable to a
+# declared feature**, and structurally so: most work never happens in a task
+# worktree, and the ones that do have their key destroyed when they land.
+#
+# So the unit is the week, not the feature. "What did this week cost, and what
+# moved" is answerable from data that exists, and it pairs with the burnup
+# rather than needing a durable per-task key that nothing writes.
+
+COST_TTL = 900
+COST_WINDOW_DAYS = 7
+
+_cost_lock = threading.Lock()
+_cost = {"ts": 0, "data": None}
+
+
+def load_spend():
+    path = RULES / "bin" / "spend"
+    loader = importlib.machinery.SourceFileLoader("tower_spend", str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def _cost_now(projs):
+    """Tokens per project: the last COST_WINDOW_DAYS, and all time.
+
+    Reads `spend.tasks_for(path)` -- no chdir, per #78 -- and sums the per-day
+    counters it now carries. Summing task totals inside a date window would
+    count a task that merely *spans* the window whole, which is a wrong answer
+    rather than a rounded one.
+    """
+    try:
+        spend = load_spend()
+    except Exception:
+        return None
+    cutoff = (datetime.date.today()
+              - datetime.timedelta(days=COST_WINDOW_DAYS)).isoformat()
+    out = {}
+    for proj in projs:
+        try:
+            _, tasks = spend.tasks_for(proj["path"])
+        except Exception:
+            continue
+        week = total = 0
+        for t in tasks:
+            total += t.get("out") or 0
+            for day, tok in (t.get("days") or {}).items():
+                if day >= cutoff:
+                    week += tok
+        if total:
+            out[proj["name"]] = {"week": week, "total": total}
+    return out
+
+
+def human_tokens(n):
+    if n >= 1_000_000:
+        return f'{n / 1_000_000:.1f}M'
+    if n >= 1_000:
+        return f'{n // 1000}k'
+    return str(n)
+
+
 # --- collect everything, cached ---
 
 _cache_lock = threading.Lock()
@@ -833,7 +894,7 @@ _stale_lock = threading.Lock()
 _stale = {"ts": 0, "data": None}
 
 
-def staleness():
+def _staleness_now():
     """Is the code rendering this page behind origin/main? (issue #73)
 
     Tower.app runs bin/tower from a pinned checkout refreshed only by
@@ -851,9 +912,6 @@ def staleness():
     the right failure mode for a check whose whole job is to be quiet until it
     is not.
     """
-    with _stale_lock:
-        if _stale["data"] is not None and time.time() - _stale["ts"] < STALE_TTL:
-            return _stale["data"]
     out = None
     try:
         # RULES is the parent of the running bin/tower, so this measures the
@@ -873,9 +931,6 @@ def staleness():
                 out = {"here": here, "behind": behind}
     except Exception:
         out = None
-    with _stale_lock:
-        _stale["ts"] = time.time()
-        _stale["data"] = out
     return out
 
 
@@ -904,6 +959,41 @@ def collect():
     # Nothing cached yet: the first render has to wait, because a page with no
     # data at all is worse than a slow first page.
     return _collect_now()
+
+
+def cached_async(store, lock, ttl, fn, *args):
+    """Whatever is cached, right now — and a background refresh if it is stale.
+
+    For the collectors with their own long TTLs: `staleness` fetches, and
+    `history_data` and `cost_data` walk git and every transcript. Measured cold,
+    cost alone is 26.8s, and running all three inside the first synchronous
+    collect made the app's very first page load **57 seconds** — it looked hung
+    on launch.
+
+    Returns None the first time, which every caller already renders as absence:
+    no staleness line, no history yet, no cost note. A region that appears a few
+    seconds late is far better than a window that does not open.
+    """
+    with lock:
+        data, ts, running = store["data"], store["ts"], store.get("running")
+    if data is None or time.time() - ts >= ttl:
+        if not running:
+            with lock:
+                if store.get("running"):
+                    return data
+                store["running"] = True
+
+            def run():
+                try:
+                    got = fn(*args)
+                    with lock:
+                        store["data"], store["ts"] = got, time.time()
+                finally:
+                    with lock:
+                        store["running"] = False
+
+            threading.Thread(target=run, daemon=True).start()
+    return data
 
 
 def _refresh_async():
@@ -970,10 +1060,15 @@ def _collect_now():
     wall, wall_err = safe(wall_items, worktrees)
     pipeline, pipeline_err = safe(pipeline_data, worktrees)
     features, features_err = safe(feature_data, projs)
-    stale, _stale_err = safe(staleness)   # silence is the failure mode; err unused
+    # never inline: see cached_async. Absent on the first render, present on
+    # the next -- which is why every one of these renders absence cleanly.
+    stale = cached_async(_stale, _stale_lock, STALE_TTL, _staleness_now)
     queue, queue_err = safe(decision_queue, projs)
     drift, drift_err = safe(rules_drift, projs)
-    history, history_err = safe(history_data, projs)
+    history = cached_async(_hist, _hist_lock, HISTORY_TTL, _history_now, projs)
+    history_err = None
+    cost = cached_async(_cost, _cost_lock, COST_TTL, _cost_now, projs)
+    cost_err = None
     gate_branches, gate_err = safe(open_gate_branches, projs)
 
     # Node labels (issue title, prefix stripped) — shared lookup from the
@@ -1028,6 +1123,7 @@ def _collect_now():
         "queue": queue, "queue_err": queue_err,
         "drift": drift or [], "drift_err": drift_err,
         "history": history or [], "history_err": history_err,
+        "cost": cost or {}, "cost_err": cost_err,
         "needs_input": needs_input, "gate_err": gate_err,
     }
     with _cache_lock:
@@ -1232,8 +1328,8 @@ a.dot:hover { outline:1px solid var(--ink); }
 .phead { font-family:var(--mono); font-size:11px; letter-spacing:.08em;
          color:var(--ink); margin:var(--gap-3) 0 var(--gap-1); }
 .estate { display:grid; gap:var(--gap-1) var(--gap-3); margin-top:var(--gap-2);
-          grid-template-columns:minmax(120px,1fr) minmax(180px,2fr)
-                                minmax(140px,1.2fr) auto auto minmax(0,1fr);
+          grid-template-columns:minmax(120px,1fr) minmax(160px,2fr)
+                                minmax(130px,1.2fr) auto auto auto minmax(0,1fr);
           align-items:center; }
 .estate .pname { font-size:13px; font-weight:600; text-decoration:none;
                  color:var(--ink); }
@@ -1567,7 +1663,7 @@ def sparkline(points, width=260, height=44):
             f'<polyline points="{path(1)}" class="sp-done"/></svg>')
 
 
-def render_progress(history):
+def render_progress(history, cost=None):
     """PROGRESS — what moved, and how fast (#66, #63).
 
     A third tab rather than a sixth region: the screen is 900px and already
@@ -1597,6 +1693,12 @@ def render_progress(history):
                          f'scope grew by {t1 - t0}')
         if v and v[0]:
             notes.append(f'{v[0]} item(s) completed in the last {v[1]} days')
+        c = (cost or {}).get(h["project"])
+        if c and c["week"]:
+            # "what did this week cost, and what moved" -- the two on one line,
+            # which is the pairing that makes either of them worth reading
+            notes.append(f'{human_tokens(c["week"])} tokens in the last '
+                         f'{COST_WINDOW_DAYS} days · {human_tokens(c["total"])} all time')
         if mv:
             b0, b1, s0, s1 = mv
             bits = []
@@ -1649,7 +1751,7 @@ def render_project(name, data):
     out.append(render_board(feats))
     if hist:
         out.append('<p class="psec">PROGRESS</p>')
-        out.append(render_progress(hist))
+        out.append(render_progress(hist, data["cost"]))
     out.append(render_flow(pipe))
     out.append('<p class="psec">SESSIONS</p>')
     out.append(render_strip(wts, data["needs_input"], data["contested"], feats))
@@ -1686,6 +1788,7 @@ def render_all(data):
     out.append('<div class="estate">')
     out.append('<div class="lh">PROJECT</div><div class="lh">FEATURES</div>'
                '<div class="lh">ITEMS</div><div class="lh">7-DAY</div>'
+               '<div class="lh">7-DAY COST</div>'
                '<div class="lh">SESSIONS</div><div class="lh">RULES</div>')
     for n in names:
         r = feats.get(n)
@@ -1712,15 +1815,23 @@ def render_all(data):
             rcell = '<span class="warn">never stamped</span>'
         else:
             rcell = f'<span class="warn">{d["behind"]} behind</span>'
+        c = data["cost"].get(n)
+        ccell = human_tokens(c["week"]) if c and c["week"] else "—"
         out.append(f'<a class="pname" href="/?project={e(n)}">{e(n)}</a>'
                    f'<div class="clamp1">{fcell}</div>'
                    f'<div class="lprog">{icell}</div>'
                    f'<div class="f-fig">{vcell}</div>'
+                   f'<div class="f-fig">{e(ccell)}</div>'
                    f'<div class="f-fig">{counts.get(n, 0)}</div>'
                    f'<div class="clamp1">{rcell}</div>')
     out.append("</div>")
+    week_total = sum(v["week"] for v in data["cost"].values())
+    if week_total:
+        out.append(f'<p class="wp"><b>{human_tokens(week_total)}</b> tokens across '
+                   f'the estate in the last {COST_WINDOW_DAYS} days</p>')
     out.append('<p class="sub">click a project, or its tab, for everything about '
-               'it · 7-day is items completed, a measurement and not a forecast</p>')
+               'it · 7-day figures are measurements of what happened, not '
+               'forecasts · cost is per project, not per feature — see #76</p>')
     return "\n".join(out)
 
 

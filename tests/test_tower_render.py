@@ -22,6 +22,7 @@ import importlib.machinery
 import importlib.util
 import re
 import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -171,7 +172,7 @@ class TheEstatePageStatesItsDenominator(unittest.TestCase):
 
     def _data(self, rows):
         return {"features": rows, "history": [], "drift": [], "worktrees": [],
-                "needs_input": {}, "contested": [], "pipeline": None}
+                "needs_input": {}, "contested": [], "pipeline": None, "cost": {}}
 
     def test_the_figure_names_how_many_projects_it_covers(self):
         """It moved from the retired LEDGER to ALL (#81) — a statement about
@@ -440,7 +441,7 @@ class TheScreenSaysWhenItIsStale(unittest.TestCase):
         ahead, behind = (int(n) for n in counts.split())
         if behind:
             self.skipTest(f"this checkout is genuinely {behind} behind")
-        self.assertIsNone(T.staleness(), f"branch {here} is {ahead} ahead, not stale")
+        self.assertIsNone(T._staleness_now(), f"branch {here} is {ahead} ahead, not stale")
 
 
 class OnlyRealCollisionsAreContested(unittest.TestCase):
@@ -630,7 +631,8 @@ class SwitchingIsByProject(unittest.TestCase):
         return {"features": self.ROWS, "history": [], "drift": [],
                 "worktrees": [_wt("w1", project="pockets"),
                               _wt("w2", project="finance-tracker")],
-                "needs_input": {}, "contested": [], "pipeline": None}
+                "needs_input": {}, "contested": [], "pipeline": None,
+                "cost": {"pockets": {"week": 1_500_000, "total": 4_000_000}}}
 
     def test_the_tabs_are_links_carrying_the_project(self):
         """Not DOM state: the page re-requests itself every 10s and the DOM does
@@ -689,6 +691,53 @@ class NeedsYouIsNeverFilteredByTab(unittest.TestCase):
         self.assertIn("finance thing", out)
 
 
+class CostIsPerWeekNotPerFeature(unittest.TestCase):
+    """#76, rescoped after measurement. Per feature attributed **0%** of
+    67,393,007 tokens: 96.8% sits in `(main checkout)` and `(management)`
+    pseudo-tasks, and 3.1% in worktrees deleted when their work landed. Most
+    work never happens in a task worktree, and the ones that do have their key
+    destroyed by finishing. So the unit is the week."""
+
+    HIST = [{"project": "pockets",
+             "points": [("2026-08-02", 0, 10), ("2026-08-07", 5, 14)]}]
+    COST = {"pockets": {"week": 1_500_000, "total": 4_000_000}}
+
+    def test_the_week_and_what_moved_sit_together(self):
+        """The pairing is the point: a cost with no movement beside it is a
+        number, and movement with no cost is half an answer."""
+        out = T.render_progress(self.HIST, self.COST)
+        self.assertIn("1.5M tokens in the last 7 days", out)
+        self.assertIn("completed in the last 7 days", out)
+
+    def test_all_time_is_shown_but_second(self):
+        self.assertIn("4.0M all time", T.render_progress(self.HIST, self.COST))
+
+    def test_a_project_with_no_recorded_cost_says_nothing(self):
+        out = T.render_progress(self.HIST, {})
+        self.assertNotIn("tokens", out)
+
+    def test_no_cost_appears_against_any_individual_feature(self):
+        """The thing #76 originally asked for and the data cannot support.
+        A per-feature number here would be fabricated."""
+        row = {"project": "pockets", "items": None, "unparsed": 0, "closed": {1: False},
+               "features": [{"number": 2, "title": "A feature",
+                             "state": "in flight — issue #1", "kind": "in flight",
+                             "implements": [1], "blocked_by": []}]}
+        out = T.render_board([row])
+        for unit in ("tokens", "M", "k tok"):
+            self.assertNotIn(f'>{unit}', out)
+
+    def test_human_tokens_reads_at_a_glance(self):
+        self.assertEqual(T.human_tokens(1_500_000), "1.5M")
+        self.assertEqual(T.human_tokens(27_600), "27k")
+        self.assertEqual(T.human_tokens(940), "940")
+
+    def test_the_window_is_named_wherever_it_is_used(self):
+        """A delta or a cost with an unstated window is not a measurement."""
+        out = T.render_progress(self.HIST, self.COST)
+        self.assertIn(f"last {T.COST_WINDOW_DAYS} days", out)
+
+
 class ARenderNeverWaitsForACollection(unittest.TestCase):
     """#86. Measured against the running app before this: ~4s per recollect,
     with a 5s cache and a 10s auto-refresh, so the window froze for four
@@ -699,8 +748,19 @@ class ARenderNeverWaitsForACollection(unittest.TestCase):
         self._data = T._cache["data"]
         self._ts = T._cache["ts"]
         self._collect = T._collect_now
+        # Released in tearDown so a background thread from one test cannot
+        # still be alive during the next — which is what made the
+        # single-refresh assertion see two, from test pollution rather than
+        # from a real concurrent refresh.
+        self.release = threading.Event()
 
     def tearDown(self):
+        self.release.set()
+        for _ in range(100):
+            with T._refresh_lock:
+                if not T._refresh["running"]:
+                    break
+            time.sleep(0.01)
         T._cache["data"], T._cache["ts"] = self._data, self._ts
         T._collect_now = self._collect
         with T._refresh_lock:
@@ -711,17 +771,14 @@ class ARenderNeverWaitsForACollection(unittest.TestCase):
         import time
         T._cache["data"] = {"marker": "old"}
         T._cache["ts"] = time.time() - (T.CACHE_TTL + 60)
-        slow = threading.Event()
-
         def never_finishes():
-            slow.wait(5)
+            self.release.wait(5)
             return {"marker": "new"}
 
         T._collect_now = never_finishes
         started = time.time()
         got = T.collect()
         elapsed = time.time() - started
-        slow.set()
         self.assertEqual(got, {"marker": "old"}, "served something other than the cache")
         self.assertLess(elapsed, 0.5, f"collect() blocked for {elapsed:.2f}s")
 
@@ -732,18 +789,16 @@ class ARenderNeverWaitsForACollection(unittest.TestCase):
         T._cache["data"] = {"marker": "old"}
         T._cache["ts"] = time.time() - (T.CACHE_TTL + 60)
         calls = []
-        hold = threading.Event()
 
         def counted():
             calls.append(1)
-            hold.wait(5)
+            self.release.wait(5)
             return {"marker": "new"}
 
         T._collect_now = counted
         for _ in range(5):
             T.collect()
         time.sleep(0.2)
-        hold.set()
         self.assertEqual(len(calls), 1, f"{len(calls)} concurrent refreshes")
 
     def test_the_first_render_does_wait(self):
