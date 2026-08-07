@@ -134,6 +134,50 @@ class TestReport(SpendHarness):
         self.assertRegex(out, r"test-engineer\s+1")
 
 
+class TestTasksForPath(SpendHarness):
+    """#78. The Tower needs a project's cost without changing the process's
+    working directory: its collectors run in a thread pool, and a global chdir
+    there is the kind of race that yields a wrong number occasionally rather
+    than an obvious failure."""
+
+    def test_by_path_matches_the_current_directory_form(self):
+        """The whole promise: an access change, not a measurement one."""
+        here_root, here = self.spend.tasks_for()
+        os.chdir(self.cwd)                      # deliberately leave the project
+        there_root, there = self.spend.tasks_for(str(self.repo))
+        self.assertEqual(os.path.realpath(there_root), os.path.realpath(here_root))
+        self.assertEqual([(t["task"], t["out"]) for t in there],
+                         [(t["task"], t["out"]) for t in here])
+
+    def test_it_does_not_change_the_working_directory(self):
+        """If this ever regresses to a chdir, the race comes back silently.
+
+        Deliberately called from OUTSIDE the project: the first version of this
+        test ran from inside it, so a chdir to that same directory changed
+        nothing observable and the guard passed against the very bug it exists
+        to catch.
+        """
+        os.chdir(self.cwd)
+        before = os.getcwd()
+        self.spend.tasks_for(str(self.repo))
+        self.assertEqual(os.getcwd(), before,
+                         "tasks_for changed the process working directory")
+
+    def test_sessions_from_elsewhere_are_still_excluded(self):
+        """The harness plants a 99,999-token session outside the project. It
+        must not be attributed by the path form any more than by the CLI."""
+        os.chdir(self.cwd)
+        _, tasks = self.spend.tasks_for(str(self.repo))
+        self.assertNotIn(99999, [t["out"] for t in tasks])
+
+    def test_tasks_here_is_still_the_current_directory(self):
+        """The CLI path must be untouched — every existing caller goes through
+        _tasks_here()."""
+        root, tasks = self.spend._tasks_here()
+        self.assertEqual(os.path.realpath(root), os.path.realpath(self.repo))
+        self.assertTrue(tasks)
+
+
 class TestAgentLog(SpendHarness):
 
     def test_generated_log_carries_the_cost_column(self):
