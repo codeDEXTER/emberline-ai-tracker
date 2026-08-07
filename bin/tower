@@ -823,6 +823,73 @@ def moved(points):
 # a small function, not a redesign.
 
 
+# --- cost, by week (issue #76) ---
+#
+# NOT per feature. Measured 2026-08-07 across the whole estate: of 67,393,007
+# tokens, 96.8% sit in `(main checkout)` and `(management)` pseudo-tasks and
+# 3.1% in worktrees that have since been deleted -- **0% was attributable to a
+# declared feature**, and structurally so: most work never happens in a task
+# worktree, and the ones that do have their key destroyed when they land.
+#
+# So the unit is the week, not the feature. "What did this week cost, and what
+# moved" is answerable from data that exists, and it pairs with the burnup
+# rather than needing a durable per-task key that nothing writes.
+
+COST_TTL = 900
+COST_WINDOW_DAYS = 7
+
+_cost_lock = threading.Lock()
+_cost = {"ts": 0, "data": None}
+
+
+def load_spend():
+    path = RULES / "bin" / "spend"
+    loader = importlib.machinery.SourceFileLoader("tower_spend", str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def cost_data(projs):
+    """Tokens per project: the last COST_WINDOW_DAYS, and all time.
+
+    Reads `spend.tasks_for(path)` -- no chdir, per #78 -- and sums the per-day
+    counters it now carries. Summing task totals inside a date window would
+    count a task that merely *spans* the window whole, which is a wrong answer
+    rather than a rounded one.
+    """
+    try:
+        spend = load_spend()
+    except Exception:
+        return None
+    cutoff = (datetime.date.today()
+              - datetime.timedelta(days=COST_WINDOW_DAYS)).isoformat()
+    out = {}
+    for proj in projs:
+        try:
+            _, tasks = spend.tasks_for(proj["path"])
+        except Exception:
+            continue
+        week = total = 0
+        for t in tasks:
+            total += t.get("out") or 0
+            for day, tok in (t.get("days") or {}).items():
+                if day >= cutoff:
+                    week += tok
+        if total:
+            out[proj["name"]] = {"week": week, "total": total}
+    return out
+
+
+def human_tokens(n):
+    if n >= 1_000_000:
+        return f'{n / 1_000_000:.1f}M'
+    if n >= 1_000:
+        return f'{n // 1000}k'
+    return str(n)
+
+
 # --- collect everything, cached ---
 
 _cache_lock = threading.Lock()
@@ -925,6 +992,7 @@ def collect():
     queue, queue_err = safe(decision_queue, projs)
     drift, drift_err = safe(rules_drift, projs)
     history, history_err = safe(history_data, projs)
+    cost, cost_err = safe(cost_data, projs)
     gate_branches, gate_err = safe(open_gate_branches, projs)
 
     # Node labels (issue title, prefix stripped) — shared lookup from the
@@ -979,6 +1047,7 @@ def collect():
         "queue": queue, "queue_err": queue_err,
         "drift": drift or [], "drift_err": drift_err,
         "history": history or [], "history_err": history_err,
+        "cost": cost or {}, "cost_err": cost_err,
         "needs_input": needs_input, "gate_err": gate_err,
     }
     with _cache_lock:
@@ -1183,8 +1252,8 @@ a.dot:hover { outline:1px solid var(--ink); }
 .phead { font-family:var(--mono); font-size:11px; letter-spacing:.08em;
          color:var(--ink); margin:var(--gap-3) 0 var(--gap-1); }
 .estate { display:grid; gap:var(--gap-1) var(--gap-3); margin-top:var(--gap-2);
-          grid-template-columns:minmax(120px,1fr) minmax(180px,2fr)
-                                minmax(140px,1.2fr) auto auto minmax(0,1fr);
+          grid-template-columns:minmax(120px,1fr) minmax(160px,2fr)
+                                minmax(130px,1.2fr) auto auto auto minmax(0,1fr);
           align-items:center; }
 .estate .pname { font-size:13px; font-weight:600; text-decoration:none;
                  color:var(--ink); }
@@ -1518,7 +1587,7 @@ def sparkline(points, width=260, height=44):
             f'<polyline points="{path(1)}" class="sp-done"/></svg>')
 
 
-def render_progress(history):
+def render_progress(history, cost=None):
     """PROGRESS — what moved, and how fast (#66, #63).
 
     A third tab rather than a sixth region: the screen is 900px and already
@@ -1548,6 +1617,12 @@ def render_progress(history):
                          f'scope grew by {t1 - t0}')
         if v and v[0]:
             notes.append(f'{v[0]} item(s) completed in the last {v[1]} days')
+        c = (cost or {}).get(h["project"])
+        if c and c["week"]:
+            # "what did this week cost, and what moved" -- the two on one line,
+            # which is the pairing that makes either of them worth reading
+            notes.append(f'{human_tokens(c["week"])} tokens in the last '
+                         f'{COST_WINDOW_DAYS} days · {human_tokens(c["total"])} all time')
         if mv:
             b0, b1, s0, s1 = mv
             bits = []
@@ -1600,7 +1675,7 @@ def render_project(name, data):
     out.append(render_board(feats))
     if hist:
         out.append('<p class="psec">PROGRESS</p>')
-        out.append(render_progress(hist))
+        out.append(render_progress(hist, data["cost"]))
     out.append(render_flow(pipe))
     out.append('<p class="psec">SESSIONS</p>')
     out.append(render_strip(wts, data["needs_input"], data["contested"], feats))
@@ -1637,6 +1712,7 @@ def render_all(data):
     out.append('<div class="estate">')
     out.append('<div class="lh">PROJECT</div><div class="lh">FEATURES</div>'
                '<div class="lh">ITEMS</div><div class="lh">7-DAY</div>'
+               '<div class="lh">7-DAY COST</div>'
                '<div class="lh">SESSIONS</div><div class="lh">RULES</div>')
     for n in names:
         r = feats.get(n)
@@ -1663,15 +1739,23 @@ def render_all(data):
             rcell = '<span class="warn">never stamped</span>'
         else:
             rcell = f'<span class="warn">{d["behind"]} behind</span>'
+        c = data["cost"].get(n)
+        ccell = human_tokens(c["week"]) if c and c["week"] else "—"
         out.append(f'<a class="pname" href="/?project={e(n)}">{e(n)}</a>'
                    f'<div class="clamp1">{fcell}</div>'
                    f'<div class="lprog">{icell}</div>'
                    f'<div class="f-fig">{vcell}</div>'
+                   f'<div class="f-fig">{e(ccell)}</div>'
                    f'<div class="f-fig">{counts.get(n, 0)}</div>'
                    f'<div class="clamp1">{rcell}</div>')
     out.append("</div>")
+    week_total = sum(v["week"] for v in data["cost"].values())
+    if week_total:
+        out.append(f'<p class="wp"><b>{human_tokens(week_total)}</b> tokens across '
+                   f'the estate in the last {COST_WINDOW_DAYS} days</p>')
     out.append('<p class="sub">click a project, or its tab, for everything about '
-               'it · 7-day is items completed, a measurement and not a forecast</p>')
+               'it · 7-day figures are measurements of what happened, not '
+               'forecasts · cost is per project, not per feature — see #76</p>')
     return "\n".join(out)
 
 

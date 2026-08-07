@@ -170,7 +170,7 @@ class TheEstatePageStatesItsDenominator(unittest.TestCase):
 
     def _data(self, rows):
         return {"features": rows, "history": [], "drift": [], "worktrees": [],
-                "needs_input": {}, "contested": [], "pipeline": None}
+                "needs_input": {}, "contested": [], "pipeline": None, "cost": {}}
 
     def test_the_figure_names_how_many_projects_it_covers(self):
         """It moved from the retired LEDGER to ALL (#81) — a statement about
@@ -629,7 +629,8 @@ class SwitchingIsByProject(unittest.TestCase):
         return {"features": self.ROWS, "history": [], "drift": [],
                 "worktrees": [_wt("w1", project="pockets"),
                               _wt("w2", project="finance-tracker")],
-                "needs_input": {}, "contested": [], "pipeline": None}
+                "needs_input": {}, "contested": [], "pipeline": None,
+                "cost": {"pockets": {"week": 1_500_000, "total": 4_000_000}}}
 
     def test_the_tabs_are_links_carrying_the_project(self):
         """Not DOM state: the page re-requests itself every 10s and the DOM does
@@ -686,6 +687,53 @@ class NeedsYouIsNeverFilteredByTab(unittest.TestCase):
                                  [], None, None, [])
         self.assertIn("pockets thing", out)
         self.assertIn("finance thing", out)
+
+
+class CostIsPerWeekNotPerFeature(unittest.TestCase):
+    """#76, rescoped after measurement. Per feature attributed **0%** of
+    67,393,007 tokens: 96.8% sits in `(main checkout)` and `(management)`
+    pseudo-tasks, and 3.1% in worktrees deleted when their work landed. Most
+    work never happens in a task worktree, and the ones that do have their key
+    destroyed by finishing. So the unit is the week."""
+
+    HIST = [{"project": "pockets",
+             "points": [("2026-08-02", 0, 10), ("2026-08-07", 5, 14)]}]
+    COST = {"pockets": {"week": 1_500_000, "total": 4_000_000}}
+
+    def test_the_week_and_what_moved_sit_together(self):
+        """The pairing is the point: a cost with no movement beside it is a
+        number, and movement with no cost is half an answer."""
+        out = T.render_progress(self.HIST, self.COST)
+        self.assertIn("1.5M tokens in the last 7 days", out)
+        self.assertIn("completed in the last 7 days", out)
+
+    def test_all_time_is_shown_but_second(self):
+        self.assertIn("4.0M all time", T.render_progress(self.HIST, self.COST))
+
+    def test_a_project_with_no_recorded_cost_says_nothing(self):
+        out = T.render_progress(self.HIST, {})
+        self.assertNotIn("tokens", out)
+
+    def test_no_cost_appears_against_any_individual_feature(self):
+        """The thing #76 originally asked for and the data cannot support.
+        A per-feature number here would be fabricated."""
+        row = {"project": "pockets", "items": None, "unparsed": 0, "closed": {1: False},
+               "features": [{"number": 2, "title": "A feature",
+                             "state": "in flight — issue #1", "kind": "in flight",
+                             "implements": [1], "blocked_by": []}]}
+        out = T.render_board([row])
+        for unit in ("tokens", "M", "k tok"):
+            self.assertNotIn(f'>{unit}', out)
+
+    def test_human_tokens_reads_at_a_glance(self):
+        self.assertEqual(T.human_tokens(1_500_000), "1.5M")
+        self.assertEqual(T.human_tokens(27_600), "27k")
+        self.assertEqual(T.human_tokens(940), "940")
+
+    def test_the_window_is_named_wherever_it_is_used(self):
+        """A delta or a cost with an unstated window is not a measurement."""
+        out = T.render_progress(self.HIST, self.COST)
+        self.assertIn(f"last {T.COST_WINDOW_DAYS} days", out)
 
 
 class StillEscapes(unittest.TestCase):

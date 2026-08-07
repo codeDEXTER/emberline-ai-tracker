@@ -209,8 +209,15 @@ def tasks_for(path=None):
             continue
         t = tasks.setdefault(task, {"task": task, "out": 0, "sessions": 0,
                                     "agents": collections.Counter(),
+                                    "days": collections.Counter(),
                                     "first": "", "last": "", "cwd": info["cwd"]})
         t["out"] += info["out"]
+        # Per-day tokens, which `_read` already counts and this used to drop.
+        # A caller asking "what did this week cost" cannot get there from a
+        # task total plus first/last: a task spanning the window would be
+        # counted whole, which is the wrong answer rather than an approximate
+        # one (#76).
+        t["days"] += info["days"]
         t["sessions"] += 1
         t["agents"] += info["agents"]
         for key, better in (("first", min), ("last", max)):

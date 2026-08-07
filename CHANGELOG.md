@@ -1,5 +1,35 @@
 # Changelog — common-rules
 
+## 2026-08-07 · Cost is per week, because per feature attributes nothing
+
+Implements #76, rescoped by measurement rather than by preference.
+
+**Per feature attributes 0%.** Measured across the estate: of 67,393,007 tokens,
+**96.8%** sit in `(main checkout)` and `(management)` pseudo-tasks and **3.1%**
+in worktrees that have since been deleted. Zero was attributable to a declared
+feature. Two structural reasons, neither fixable in the Tower: most work never
+happens in a task worktree at all, and the ones that do have their key —
+the worktree directory — destroyed by the act of landing. Built as originally
+specified, #76 would have shipped a column of dashes and a footer holding all
+the spend. That was reported before writing any of it.
+
+So the unit is the week. **"What did this week cost, and what moved"** sits on
+one line of the PROGRESS section beside the burnup, and a 7-DAY COST column on
+`ALL` makes it comparable across projects. On the live estate that immediately
+reads: finance-tracker **27.6M tokens for +14 items**, common-rules **18.2M**
+against no checklist to move at all.
+
+**`spend` now carries per-day tokens through `tasks_for`.** `_read` already
+counted them and the aggregation dropped them. This matters more than it looks:
+summing whole task totals for tasks that merely *touch* the window overstates
+the estate's week by **4,492,100 tokens — 7.1%** — because a task spanning the
+boundary gets counted entire. That is a wrong answer rather than a rounded one,
+and it was measured by building the tempting version and comparing.
+
+A test asserts **no cost appears against any individual feature**, which is the
+number the data cannot support and therefore the one most likely to be added
+back by someone who has not seen the 0%.
+
 ## 2026-08-07 · The Tower switches by project
 
 Implements #81. The tab bar is the project list now — `ALL · pockets ·
