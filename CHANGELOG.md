@@ -1,5 +1,43 @@
 # Changelog — common-rules
 
+## 2026-08-07 · Three ways to show the features, and the two he picked
+
+Proposal 11, a design exploration rather than a proposal with one answer.
+Building #65 is what made it necessary: the information was right and the
+layout it landed in was the one the deleted regions left behind. Measured on
+the running screen — five "no features declared" lines shouting over the one
+project with real features, every feature title truncating because the region
+sits in the 2fr half of a 3fr/2fr split despite being the spine, blocked
+features drawing an empty bar that reads as 0%, and no whole-product figure
+anywhere.
+
+Three structurally different answers were drawn, not three skins: **A** a
+cross-project feature ledger, **B** a board with columns by state, **C** a
+portfolio of one line per project with the whole-product figure first.
+
+**aashish chose A and B.** Recorded plainly, because it went against the
+recommendation: the paper argued for C first with A later, and argued against
+building B at all on the grounds that it has no home for a completion
+percentage and three of its four columns are empty on today's data. He read
+that and chose otherwise. It is his screen. The original reasoning is left
+unedited in the document so the disagreement stays visible rather than being
+tidied into agreement after the fact.
+
+Taking both raised two questions the options paper never had to answer, and
+both are settled in the document rather than left to be discovered mid-build.
+**The completion figure lives in A's header** — taking A alongside B resolves
+the objection to B instead of overriding it, and B gets no bolted-on figure.
+**The two views do not share one screen**: B is the region on the main screen,
+because "what is running, what is done" answered by position is the job that
+screen exists to do, and **A becomes its own `/features` route**, which is the
+same move the Tower already makes with `/pulse` and `/session/<id>`. A gets
+better as registers land without ever making the main screen taller, and the
+900px budget from #56 is untouched.
+
+Three fixes land with whichever option, since they are corrections rather than
+choices: a blocked feature gets no bar at all, the features region moves to the
+wider column, and undeclared projects collapse to one grouped statement.
+
 ## 2026-08-07 · Handovers and the commit ticker come off the Tower
 
 Implements issue #64, the first of proposal 10's queue. Two regions gone:
