@@ -836,6 +836,48 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
 .cell.wide { grid-column:1 / -1; }
 @media (max-width:1000px) { .grid { grid-template-columns:1fr; } }
 
+/* --- fit the window, whatever the tree does (issue #56) ---
+   The page height was a function of how much work exists: it went 1,721 ->
+   1,792px in half an hour purely because worktrees were added. Cutting lists
+   to fit only moves that number, it does not stop it moving — measured, even
+   deleting the whole pipeline left 1,196px against a 900px budget, because
+   work packages and handovers set the floor.
+   So the regions are capped and scroll inside themselves instead. The page
+   fits by construction and stops tracking the size of the tree. Nothing is
+   dropped and nothing is hidden behind a disclosure.
+   Only above the single-column breakpoint: a narrow window is a browser being
+   read, not the wall screen, and locking that to the viewport would squash it. */
+@media (min-width:1001px) {
+  html, body { height:100%; }
+  body { overflow:hidden; }
+  .tower { height:100%; display:flex; flex-direction:column; }
+  /* The band is the most important thing on the screen and still must not own
+     it: unbounded, three waiting items took 28% of the height and squeezed the
+     pipeline to 165px. Capped, it scrolls like everything else. */
+  .band { flex:0 0 auto; max-height:22vh; overflow-y:auto; }
+  .grid { flex:1 1 auto; min-height:0;
+          /* the work and its progress get more room than the two logs below */
+          grid-template-rows:minmax(0,1.5fr) minmax(0,1fr) auto;
+          /* stretch, not start: with align-items:start a grid item sizes to
+             its content and simply overflows its track, so the cap never
+             binds and the overflow lands back on the page. */
+          align-items:stretch; }
+  /* min-height:0 is the load-bearing half — without it a grid item refuses to
+     shrink below its content and the overflow moves back onto the page. */
+  .grid > .cell { overflow-y:auto; min-height:0; }
+  .grid > .cell.wide { overflow:hidden; }   /* the strip row sizes to content */
+  .foot { flex:0 0 auto; margin-top:var(--gap-2); }
+  /* the region title stays put while its list scrolls under it */
+  .cell > .rgn > .ht { position:sticky; top:0; z-index:1;
+                       background:var(--bg); padding-bottom:var(--gap-1); }
+}
+/* dark, unobtrusive scrollbars — a default light scrollbar on this background
+   reads as a rendering fault rather than as a control */
+* { scrollbar-width:thin; scrollbar-color:var(--edge) transparent; }
+::-webkit-scrollbar { width:8px; height:8px; }
+::-webkit-scrollbar-thumb { background:var(--edge); border-radius:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+
 .ht { font-family:var(--mono); font-size:11px; font-weight:700;
       letter-spacing:.12em; color:var(--dim); margin:0; }
 .sub { font-family:var(--mono); font-size:10px; color:var(--dim); margin:var(--gap-1) 0 0; }
