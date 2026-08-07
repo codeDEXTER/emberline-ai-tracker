@@ -68,7 +68,6 @@ class NothingIsTruncated(unittest.TestCase):
                "features": [{"number": 2, "title": LONG_TITLE, "state": "in flight — issue #1",
                              "kind": "in flight", "implements": [1], "blocked_by": []}]}
         self.assertIn(LONG_TITLE, T.render_board([row]))
-        self.assertIn(LONG_TITLE, T.render_ledger([row], None))
 
     def test_no_value_is_sliced_on_its_way_onto_the_page(self):
         """The guard that matters: no `[:n]` inside an f-string interpolation.
@@ -101,7 +100,6 @@ class OneRegionFailsAlone(unittest.TestCase):
     def test_each_renderer_degrades_to_a_note(self):
         for label, out in [
             ("board", T.render_board(None)),
-            ("ledger", T.render_ledger(None, None)),
         ]:
             with self.subTest(region=label):
                 self.assertIn("unavailable", out)
@@ -159,7 +157,7 @@ class TheBoardIsHonestAboutEmptyColumns(unittest.TestCase):
             "features": [self.ROWS[0]["features"][1]]}]))
 
 
-class TheLedgerStatesItsDenominator(unittest.TestCase):
+class TheEstatePageStatesItsDenominator(unittest.TestCase):
     """#71. A figure that silently averages over projects which declared
     nothing is proposal 08's failure mode, and it binds hardest here because
     this is the number the sponsor asked for by name."""
@@ -170,8 +168,14 @@ class TheLedgerStatesItsDenominator(unittest.TestCase):
             {"project": "finance-tracker", "items": (18, 54), "unparsed": 0,
              "features": None, "closed": {}}]
 
+    def _data(self, rows):
+        return {"features": rows, "history": [], "drift": [], "worktrees": [],
+                "needs_input": {}, "contested": [], "pipeline": None}
+
     def test_the_figure_names_how_many_projects_it_covers(self):
-        out = T.render_ledger(self.ROWS, None)
+        """It moved from the retired LEDGER to ALL (#81) — a statement about
+        every project cannot sit on a page showing one."""
+        out = T.render_all(self._data(self.ROWS))
         self.assertIn("1 of 2 projects", out)
 
     def test_registerless_projects_are_excluded_not_averaged_in(self):
@@ -194,7 +198,7 @@ class TheLedgerStatesItsDenominator(unittest.TestCase):
         rows = [{"project": "p", "items": (1, 5), "unparsed": 0,
                  "features": None, "closed": {}}]
         self.assertIsNone(T.whole_product(rows))
-        self.assertIn("no whole-product figure", T.render_ledger(rows, None))
+        self.assertIn("no whole-product figure", T.render_all(self._data(rows)))
 
 
 class TheBandGivesItsHeightBack(unittest.TestCase):
@@ -318,9 +322,8 @@ class NoBranchNameReachesTheScreen(unittest.TestCase):
         labels from directory names, which is a different thing.
         """
         import inspect
-        for fn in (T.render_board, T.render_ledger):
-            params = set(inspect.signature(fn).parameters)
-            self.assertNotIn("worktrees", params, f"{fn.__name__} takes worktrees")
+        self.assertNotIn("worktrees", set(inspect.signature(T.render_board).parameters),
+                         "render_board takes worktrees")
 
 
 REGISTER = """# Checklist
@@ -608,6 +611,81 @@ class ProgressReportsWhatHappened(unittest.TestCase):
 
     def test_too_little_history_says_so_rather_than_drawing_nothing(self):
         self.assertIn("enough checklist history", T.render_progress([]))
+
+
+class SwitchingIsByProject(unittest.TestCase):
+    """#81. The lenses answered a volume problem — six projects' data does not
+    fit in 900px. One project's does, so the split is retired rather than
+    re-cut."""
+
+    ROWS = [{"project": "pockets", "items": (5, 14), "unparsed": 0, "closed": {1: False},
+             "features": [{"number": 2, "title": "Prove the classifier",
+                           "state": "in flight — issue #1", "kind": "in flight",
+                           "implements": [1], "blocked_by": []}]},
+            {"project": "finance-tracker", "items": (19, 54), "unparsed": 0,
+             "features": None, "closed": {}}]
+
+    def _data(self):
+        return {"features": self.ROWS, "history": [], "drift": [],
+                "worktrees": [_wt("w1", project="pockets"),
+                              _wt("w2", project="finance-tracker")],
+                "needs_input": {}, "contested": [], "pipeline": None}
+
+    def test_the_tabs_are_links_carrying_the_project(self):
+        """Not DOM state: the page re-requests itself every 10s and the DOM does
+        not survive that. Measured when the view tabs were built — a CSS
+        :checked tab reverted on every reload, a query string did not."""
+        out = T.render_tabs([T.ALL, "pockets"], "pockets")
+        self.assertIn('href="/?project=pockets"', out)
+        self.assertIn('href="/?project=all"', out)
+        self.assertNotIn("<input", out)      # no radio/checkbox tab state
+
+    def test_a_project_page_shows_only_that_project(self):
+        out = T.render_project("pockets", self._data())
+        self.assertIn("Prove the classifier", out)
+        self.assertNotIn("finance-tracker", out)
+
+    def test_a_project_page_carries_everything_about_it(self):
+        """The point of the rework: no second click for the whole picture."""
+        data = self._data()
+        data["history"] = [{"project": "pockets",
+                            "points": [("2026-08-02", 0, 10), ("2026-08-07", 5, 14)]}]
+        out = T.render_project("pockets", data)
+        for expect in ("IN FLIGHT", "PROGRESS", "SESSIONS"):
+            self.assertIn(expect, out)
+
+    def test_all_lists_every_project_including_the_registerless(self):
+        out = T.render_all(self._data())
+        self.assertIn("pockets", out)
+        self.assertIn("finance-tracker", out)
+        self.assertIn("no features declared", out)
+
+    def test_an_unknown_project_is_not_an_error(self):
+        """A stale bookmark or a removed project must not 500 the page."""
+        self.assertIn(T.ALL, T.tab_projects(self._data()))
+
+
+class NeedsYouIsNeverFilteredByTab(unittest.TestCase):
+    """#81's one hard rule. Filtering the band to the selected project is the
+    tempting simplification, and the single change that would make the screen
+    actively worse: a decision waiting in an app the sponsor is not looking at
+    must still reach him."""
+
+    def test_the_band_takes_no_project_argument(self):
+        """By construction rather than by discipline — it cannot be filtered if
+        it is never told which project is selected."""
+        import inspect
+        params = set(inspect.signature(T.render_needs_you).parameters)
+        self.assertNotIn("project", params)
+
+    def test_it_counts_worktrees_from_every_project(self):
+        wts = [_wt("a", project="pockets", issue_title="pockets thing"),
+               _wt("b", project="finance-tracker", issue_title="finance thing")]
+        out = T.render_needs_you(wts, {"a": {"why": "waiting on you", "age": "1m"},
+                                       "b": {"why": "waiting on you", "age": "2h"}},
+                                 [], None, None, [])
+        self.assertIn("pockets thing", out)
+        self.assertIn("finance thing", out)
 
 
 class StillEscapes(unittest.TestCase):

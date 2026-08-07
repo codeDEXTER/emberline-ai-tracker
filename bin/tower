@@ -1180,6 +1180,16 @@ a.dot:hover { outline:1px solid var(--ink); }
 .wp { font-family:var(--mono); font-size:11px; color:var(--dim); margin:var(--gap-2) 0 0; }
 .wp b { font-family:var(--sans); font-size:22px; color:var(--ink); }
 
+.phead { font-family:var(--mono); font-size:11px; letter-spacing:.08em;
+         color:var(--ink); margin:var(--gap-3) 0 var(--gap-1); }
+.estate { display:grid; gap:var(--gap-1) var(--gap-3); margin-top:var(--gap-2);
+          grid-template-columns:minmax(120px,1fr) minmax(180px,2fr)
+                                minmax(140px,1.2fr) auto auto minmax(0,1fr);
+          align-items:center; }
+.estate .pname { font-size:13px; font-weight:600; text-decoration:none;
+                 color:var(--ink); }
+.estate .pname:hover { color:var(--purple); }
+
 .prog { display:grid; grid-template-columns:minmax(110px,1fr) auto auto minmax(0,2.4fr);
         gap:var(--gap-2) var(--gap-3); align-items:center; margin-top:var(--gap-2); }
 .pname { font-size:12.5px; font-weight:600; }
@@ -1350,7 +1360,18 @@ def session_id_of(w):
     return t.stem if t else None
 
 
-VIEWS = ("board", "ledger", "progress")
+ALL = "all"     # the estate summary tab
+
+
+def tab_projects(data):
+    """Tab order: ALL first, then projects by how much is going on in them —
+    a project with work in flight is the one being asked about."""
+    counts = {}
+    for w in data["worktrees"]:
+        counts[w["project"]] = counts.get(w["project"], 0) + 1
+    names = sorted({r["project"] for r in data["features"]} | set(counts),
+                   key=lambda n: (-counts.get(n, 0), n))
+    return [ALL] + names
 
 STATE_ORDER = ("in flight", "next", "blocked", "later", "done")
 BOARD_COLUMNS = (("in flight", "IN FLIGHT", "var(--green)"),
@@ -1410,11 +1431,19 @@ def whole_product(rows):
     return pct, len(feats), with_reg, len(rows)
 
 
-def render_tabs(view):
+def render_tabs(names, current):
+    """Tabs are links carrying ?project=, not DOM state.
+
+    The page re-requests itself every 10s via <meta refresh>, and DOM state does
+    not survive that -- measured when the view tabs were built: a CSS :checked
+    tab reverted to its default on every reload, while a query string survived.
+    The constraint is unchanged, so the mechanism is too.
+    """
     out = []
-    for name in VIEWS:
-        cls = "tab on" if name == view else "tab"
-        out.append(f'<a class="{cls}" href="/?view={name}">{name.upper()}</a>')
+    for name in names:
+        cls = "tab on" if name == current else "tab"
+        label = "ALL" if name == ALL else name
+        out.append(f'<a class="{cls}" href="/?project={e(name)}">{e(label)}</a>')
     return f'<div class="tabs">{"".join(out)}</div>'
 
 
@@ -1458,50 +1487,6 @@ EMPTY_COLUMN = {
     "done": "nothing closed yet — a feature is done when you close it, "
             "not when its issues are",
 }
-
-
-def render_ledger(rows, pipeline):
-    """Every feature across every project, ordered by state, with the
-    whole-product figure (#71)."""
-    if rows is None:
-        return unavailable("features")
-    out = []
-    wp = whole_product(rows)
-    if wp:
-        pct, n, with_reg, total = wp
-        out.append(f'<p class="wp"><b>{pct}%</b> of declared scope · {n} features '
-                   f'in {with_reg} of {total} projects</p>')
-    else:
-        out.append('<p class="sub">no project has declared its features yet, so '
-                   'there is no whole-product figure to report</p>')
-    flat = [(r, f) for r in rows for f in (r["features"] or [])]
-    flat.sort(key=lambda rf: (STATE_ORDER.index(rf[1]["kind"])
-                              if rf[1]["kind"] in STATE_ORDER else 99,
-                              rf[0]["project"], rf[1]["number"]))
-    if flat:
-        out.append('<div class="ledger">')
-        out.append('<div class="lh">STATE</div><div class="lh">PROJECT</div>'
-                   '<div class="lh">FEATURE</div><div class="lh">PROGRESS</div>'
-                   '<div class="lh">NOTE</div>')
-        for r, f in flat:
-            pct, note = feature_pct(f, r["closed"])
-            if pct is None:
-                prog = '<span class="dim">— no percentage while blocked —</span>' \
-                       if f["kind"] == "blocked" else ""
-            else:
-                prog = (f'<div class="bar"><i style="width:{pct}%"></i></div>'
-                        f'<span class="f-fig">{pct}%</span>')
-            out.append(f'<div class="lst {e(f["kind"].replace(" ", "-"))}">'
-                       f'{e(f["kind"].upper())}</div>'
-                       f'<div class="dim clamp1">{e(r["project"])}</div>'
-                       f'<div class="clamp1" title="{e(f["title"])}">{e(f["title"])}</div>'
-                       f'<div class="lprog">{prog}</div>'
-                       f'<div class="dim clamp1" title="{e(note)}">{e(note)}</div>')
-        out.append("</div>")
-    out.append(undeclared_line(rows))
-    # issue-level flow, rehomed from the removed PIPELINE -- detail, not noise
-    out.append(render_flow(pipeline))
-    return "\n".join(out)
 
 
 def sparkline(points, width=260, height=44):
@@ -1580,6 +1565,113 @@ def render_progress(history):
     out.append('<p class="sub">measured from each checklist\'s own git history · '
                'a rate is what happened, not a forecast — no ETA, by the same '
                'rule proposal 08 set</p>')
+    return "\n".join(out)
+
+
+def render_project(name, data):
+    """Everything about one project, on one screen (#81).
+
+    The lenses existed because six projects' features, history and flow do not
+    fit in 900px. One project's do -- measured, the largest is 7 features, 6
+    sessions and 9 history points -- so the split is not re-cut per project, it
+    is retired.
+    """
+    feats = [r for r in data["features"] if r["project"] == name]
+    hist = [h for h in data["history"] if h["project"] == name]
+    wts = [w for w in data["worktrees"] if w["project"] == name]
+    pipe = data["pipeline"]
+    if pipe:
+        pipe = {**pipe,
+                "queued": [r for r in pipe["queued"] if r.get("project") == name],
+                "merged": [r for r in pipe["merged"] if r.get("project") == name]}
+        # queued_more counts issues beyond the shown slice across every project,
+        # so it cannot be filtered honestly -- drop it rather than misattribute
+        pipe["queued_more"] = 0
+
+    row = feats[0] if feats else None
+    head = [name]
+    if row and row["features"]:
+        head.append(f'{len(row["features"])} features')
+    if row and row.get("items"):
+        d, t = row["items"]
+        head.append(f'{d}/{t} items · {round(d / t * 100) if t else 0}%')
+    out = [f'<p class="phead">{e(" · ".join(head))}</p>']
+
+    out.append(render_board(feats))
+    if hist:
+        out.append('<p class="psec">PROGRESS</p>')
+        out.append(render_progress(hist))
+    out.append(render_flow(pipe))
+    out.append('<p class="psec">SESSIONS</p>')
+    out.append(render_strip(wts, data["needs_input"], data["contested"], feats))
+    return "\n".join(out)
+
+
+def render_all(data):
+    """One line per project, comparable down each column (#81).
+
+    This is where "which app is stuck" is answerable, which is the only
+    question a top level needs to answer.
+    """
+    feats = {r["project"]: r for r in data["features"]}
+    hist = {h["project"]: h for h in data["history"]}
+    drift = {d["project"]: d for d in data["drift"]}
+    counts = {}
+    for w in data["worktrees"]:
+        counts[w["project"]] = counts.get(w["project"], 0) + 1
+    names = sorted(set(feats) | set(counts))
+    if not names:
+        return unavailable("projects")
+    # The whole-product figure moves here from the retired LEDGER (#81). The
+    # estate summary is where it belongs: it is a statement about every project,
+    # so it cannot sit on a page showing one. Denominator stated, never implied.
+    out = []
+    wp = whole_product(data["features"])
+    if wp:
+        pct, n, with_reg, total = wp
+        out.append(f'<p class="wp"><b>{pct}%</b> of declared scope · {n} features '
+                   f'in {with_reg} of {total} projects</p>')
+    else:
+        out.append('<p class="sub">no project has declared its features yet, so '
+                   'there is no whole-product figure to report</p>')
+    out.append('<div class="estate">')
+    out.append('<div class="lh">PROJECT</div><div class="lh">FEATURES</div>'
+               '<div class="lh">ITEMS</div><div class="lh">7-DAY</div>'
+               '<div class="lh">SESSIONS</div><div class="lh">RULES</div>')
+    for n in names:
+        r = feats.get(n)
+        if r and r["features"]:
+            by_kind = {}
+            for f in r["features"]:
+                by_kind[f["kind"]] = by_kind.get(f["kind"], 0) + 1
+            fcell = " · ".join(f'{v} {k}' for k, v in sorted(by_kind.items()))
+        else:
+            fcell = '<span class="warn">no features declared</span>'
+        items = r.get("items") if r else None
+        if items and items[1]:
+            pct = round(items[0] / items[1] * 100)
+            icell = (f'<div class="bar"><i style="width:{pct}%"></i></div>'
+                     f'<span class="f-fig">{pct}%</span>')
+        else:
+            icell = '<span class="dim">no checklist</span>'
+        v = velocity(hist[n]["points"]) if n in hist else None
+        vcell = f'{v[0]:+d}' if v else "—"
+        d = drift.get(n)
+        if d is None:
+            rcell = '<span class="dim">aligned</span>'
+        elif d["behind"] is None:
+            rcell = '<span class="warn">never stamped</span>'
+        else:
+            rcell = f'<span class="warn">{d["behind"]} behind</span>'
+        out.append(f'<a class="pname" href="/?project={e(n)}">{e(n)}</a>'
+                   f'<div class="clamp1">{fcell}</div>'
+                   f'<div class="lprog">{icell}</div>'
+                   f'<div class="f-fig">{vcell}</div>'
+                   f'<div class="f-fig">{counts.get(n, 0)}</div>'
+                   f'<div class="clamp1">{rcell}</div>')
+    out.append("</div>")
+    out.append('<p class="sub">click a project, or its tab, for everything about '
+               'it · 7-day is items completed, a measurement and not a forecast</p>')
     return "\n".join(out)
 
 
@@ -1709,7 +1801,7 @@ def render_header(header, wall_count, stale=None):
     return "".join(out)
 
 
-def render_page(view="board"):
+def render_page(project=ALL):
     data = collect()
     now = datetime.datetime.now()
 
@@ -1732,8 +1824,8 @@ def render_page(view="board"):
                          data["queue"], data["drift"]),
         graph_err, "needs you")
 
-    sessions = region(
-        "SESSIONS",
+    sessions_all = region(
+        "SESSIONS · EVERY PROJECT",
         '<span style="color:var(--green)">green</span> active · '
         '<span style="color:var(--dim)">grey</span> idle · '
         '<span style="color:var(--amber)">amber</span> contested · '
@@ -1747,19 +1839,20 @@ def render_page(view="board"):
     # would be two boards of one shape at different altitudes. The feature board
     # IS the pipeline, one altitude up, and it needs the full width for four
     # columns — at ~600px they were ~150px each and every title truncated.
-    if view == "board":
-        body = render_board(data["features"])
-    elif view == "progress":
-        body = render_progress(data["history"])
-    else:
-        body = render_ledger(data["features"], data["pipeline"])
-    features = region("FEATURES · WHAT THE PRODUCT IS MADE OF",
-                      None,
-                      render_tabs(view) + body,
-                      (data["history_err"] if view == "progress" else
-                       data["features_err"] or
-                       (data["pipeline_err"] if view == "ledger" else None)),
-                      "features")
+    tabs = tab_projects(data)
+    if project not in tabs:
+        project = ALL          # unknown or stale project name falls back
+    body = (render_all(data) if project == ALL
+            else render_project(project, data))
+    body_err = (data["features_err"] or data["history_err"]
+                or (data["pipeline_err"] if project != ALL else None))
+    features = region("PROJECTS", None, render_tabs(tabs, project) + body,
+                      body_err, "projects")
+
+    # The estate-wide strip belongs on ALL only: a project page has its own,
+    # already filtered, and showing both would say the same thing twice.
+    sessions_block = (f'<div class="cell wide">{sessions_all}</div>'
+                      if project == ALL else "")
 
     return f"""<!doctype html>
 <html lang="en">
@@ -1787,7 +1880,7 @@ def render_page(view="board"):
        screen. -->
   <main class="grid">
     <div class="cell wide">{features}</div>
-    <div class="cell wide">{sessions}</div>
+    {sessions_block}
   </main>
   <p class="foot">tower · loopback only · recollects every {CACHE_TTL}s ·
     <a href="/pulse">/pulse</a> for the plain-page view</p>
@@ -1952,15 +2045,15 @@ def serve(port):
                     self._send(f"<pre>session view failed: {html.escape(str(exc))}</pre>")
                 return
             if self.path == "/" or self.path.startswith("/?"):
-                # The tab is a query parameter, not DOM state (#70). The page
-                # re-requests itself every 10s via <meta refresh>, which throws
-                # the DOM away -- measured: a CSS :checked tab reverted to BOARD
-                # on every reload, while ?view=ledger survived. An unknown or
-                # missing value falls back to the board rather than erroring.
+                # The tab is a query parameter, not DOM state (#70, #81). The
+                # page re-requests itself every 10s via <meta refresh>, which
+                # throws the DOM away -- measured: a CSS :checked tab reverted on
+                # every reload, while a query string survived. An unknown or
+                # missing project falls back to ALL rather than erroring.
                 q = urllib.parse.urlparse(self.path).query
-                view = urllib.parse.parse_qs(q).get("view", ["board"])[0]
+                project = urllib.parse.parse_qs(q).get("project", [ALL])[0]
                 try:
-                    self._send(render_page(view if view in VIEWS else "board"))
+                    self._send(render_page(project))
                 except Exception as exc:
                     self._send(f"<pre>tower render failed: {html.escape(str(exc))}</pre>")
                 return
