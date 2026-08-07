@@ -18,12 +18,35 @@ glance and read without suspicion.
 Regenerate the PNG after any edit:
 
 ```
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless \
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=old \
   --screenshot=/tmp/wf.png --window-size=1180,20000 --force-device-scale-factor=2 \
-  --hide-scrollbars "file://$PWD/docs/workflow.html"
+  --hide-scrollbars --no-sandbox --disable-gpu "file://$PWD/docs/workflow.html"
 ```
 
-then crop the trailing blank with PIL (see `CHANGELOG.md`, 2026-08-04).
+**`--headless=old` is load-bearing.** Plain `--headless` now resolves to Chrome's
+new headless mode, which ignores `--screenshot` and never exits — it hangs
+until killed, writing no file and printing no error. Found 2026-08-07, after ten
+minutes of waiting on a command that looked like it was working.
+
+Then crop the trailing blank — the window is 20,000px at 2× scale, so the raw
+capture is 40,000px tall and mostly empty:
+
+```
+python3 - <<'EOF'
+from PIL import Image
+Image.MAX_IMAGE_PIXELS = None            # 40,000px trips the decompression-bomb guard
+im = Image.open("/tmp/wf.png").convert("RGB")
+px, (w, h) = im.load(), im.size
+bg, last = px[5, 5], h - 1
+while last > 0 and all(px[x, last] == bg for x in range(0, w, 7)):
+    last -= 1
+im.crop((0, 0, w, min(h, last + 60))).save("docs/workflow.png")
+EOF
+```
+
+Sample every 7th pixel rather than every one, or the scan takes longer than the
+render. Check the result opens and is not blank before committing it: a stale or
+empty diagram is worse than none, because it gets shared without a second look.
 
 ## `proposals/` — decisions about the shared rules themselves
 
