@@ -70,16 +70,6 @@ class NothingIsTruncated(unittest.TestCase):
                     "merged": []}
         self.assertIn(LONG_TITLE, T.render_pipeline(pipeline, []))
 
-    def test_long_handover_summary_survives(self):
-        rows = [{"ts": "2026-08-07T15:18:00", "sender": "a session with a "
-                 "genuinely long descriptive name", "to_label": "another one",
-                 "to_session": "abc", "summary": LONG_TITLE}]
-        self.assertIn(LONG_TITLE, T.render_handovers(rows))
-
-    def test_long_ticker_subject_survives(self):
-        out = T.render_ticker([(0, "common-rules", "deadbee", LONG_TITLE)])
-        self.assertIn(LONG_TITLE, out)
-
     def test_no_value_is_sliced_on_its_way_onto_the_page(self):
         """The guard that matters: no `[:n]` inside an f-string interpolation.
 
@@ -111,9 +101,7 @@ class OneRegionFailsAlone(unittest.TestCase):
     def test_each_renderer_degrades_to_a_note(self):
         for label, out in [
             ("work packages", T.render_burnup(None)),
-            ("handovers", T.render_handovers(None)),
             ("pipeline", T.render_pipeline(None, [])),
-            ("ticker", T.render_ticker([])),
         ]:
             with self.subTest(region=label):
                 self.assertIn("unavailable", out)
@@ -177,44 +165,6 @@ class TheBandGivesItsHeightBack(unittest.TestCase):
         out = T.render_needs_you(wts, {}, [("alpha", "beta", "pulse.py")])
         self.assertEqual(out.count("you-row"), 1, "one row per pair")
         self.assertIn("pulse.py", out)
-
-
-class RepeatedEventsCollapse(unittest.TestCase):
-    """Issue #52. Four of nine ticker lines were the same event."""
-
-    def test_identical_bodies_in_window_collapse_with_a_count(self):
-        same = "## 2026-08-03 (continued) — v4: redesign personalId"
-        rows = [(1000 + i, f"agent-log-{i}", "sha", same) for i in range(4)]
-        out = T.render_ticker(rows)
-        self.assertEqual(out.count("<div class=\"tick\">"), 1)
-        self.assertIn("×4", out)
-
-    def test_a_single_character_difference_is_a_different_event(self):
-        rows = [(1000, "a", "sha", "deployed v4"),
-                (1001, "b", "sha", "deployed v5")]
-        out = T.render_ticker(rows)
-        self.assertEqual(out.count("<div class=\"tick\">"), 2)
-        self.assertNotIn("×", out)
-
-    def test_the_same_body_outside_the_window_stays_two_rows(self):
-        body = "identical text"
-        rows = [(0, "a", "sha", body), (T.DEDUP_WINDOW + 60, "b", "sha", body)]
-        self.assertEqual(T.render_ticker(rows).count("<div class=\"tick\">"), 2)
-
-    def test_an_unparseable_timestamp_never_folds_a_row_away(self):
-        """_epoch returns 0.0 on junk. Two junk-stamped rows must not collapse
-        into one just because their stamps are equally unparseable — losing a
-        real event is the one outcome worse than an untidy list."""
-        rows = [{"ts": "not-a-date", "sender": "s", "to_label": "t",
-                 "to_session": "x", "summary": "different one"},
-                {"ts": "also-junk", "sender": "s", "to_label": "t",
-                 "to_session": "y", "summary": "different two"}]
-        out = T.render_handovers(rows)
-        self.assertEqual(out.count('class="hand"'), 2)
-
-    def test_count_is_always_shown_when_a_row_stands_for_many(self):
-        self.assertEqual(T.times(1), "")
-        self.assertIn("×3", T.times(3))
 
 
 class FitsTheWindow(unittest.TestCase):
@@ -281,12 +231,18 @@ class FitsTheWindow(unittest.TestCase):
 
 class StillEscapes(unittest.TestCase):
     def test_markup_in_data_cannot_reach_the_page(self):
-        evil = '<script>alert(1)</script>'
-        rows = [{"ts": "2026-08-07T15:18:00", "sender": evil, "to_label": "x",
-                 "to_session": "s", "summary": evil}]
-        out = T.render_handovers(rows)
-        self.assertNotIn("<script>", out)
-        self.assertIn("&lt;script&gt;", out)
+        """Retargeted in #64 from render_handovers, which no longer exists.
+        The coverage is the point, not the renderer: a worktree or issue title
+        is attacker-adjacent text that reaches the page, and the strip puts it
+        inside a title attribute where an unescaped quote would break out."""
+        evil = '<script>alert(1)</script>" onmouseover="x'
+        wt = [_wt("wt-1", issue_title=evil)]
+        for out in (T.render_strip(wt, {}, []),
+                    T.render_needs_you(wt, {"wt-1": {"why": "waiting on you",
+                                                     "age": "1m"}}, [])):
+            self.assertNotIn("<script>", out)
+            self.assertNotIn('" onmouseover="', out)
+            self.assertIn("&lt;script&gt;", out)
 
 
 if __name__ == "__main__":

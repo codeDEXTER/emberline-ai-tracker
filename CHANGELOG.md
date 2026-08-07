@@ -1,5 +1,45 @@
 # Changelog — common-rules
 
+## 2026-08-07 · Handovers and the commit ticker come off the Tower
+
+Implements issue #64, the first of proposal 10's queue. Two regions gone:
+HANDOVERS was two AI sessions coordinating, the EVENT TICKER was commit
+subjects. Neither is something the sponsor needs at a glance — *"I don't want
+to know what internal communication is going on."*
+
+**The point was the space.** At 1280×900 the two regions were 453px and 186px.
+Removing them, and correcting a row template that still declared a row for them,
+**doubled the pipeline's visible height from 211px to 425px** — the region that
+had room for about four rows since #56. Work packages went from 211px to 425px
+against 478px of content, so it now very nearly fits without scrolling at all.
+
+**What was deliberately kept.** `/session/<id>` survives: it is reached from the
+sessions strip, and it still shows what a session last said *and what was handed
+to it*, so the cross-session-message parsing (`_XSM`, `_first_sentence`,
+`resolve_cwd`) stays. Only the region that listed those messages is gone. This
+was checked rather than assumed — the issue asked for exactly that check, and
+`_first_sentence` turned out to be shared between `message_edges` and
+`session_digest`.
+
+**What went with them, which is worth naming.** `collapse_repeats()`, `times()`,
+`_epoch` and `DEDUP_WINDOW` — the byte-identical de-duplication built in #52 —
+had no subject left once both regions went, so they are deleted. That is #52's
+work being removed two commits after it landed, deliberately: the regions it
+made honest are not on the screen any more. Git keeps it if #66 wants it back.
+`session_owner_dirs()` also went; it had already been dead on main.
+
+**Test coverage was retargeted rather than dropped.** The de-duplication tests
+are gone with their subject, but the escaping test — which happened to use
+`render_handovers` — now runs against `render_strip` and `render_needs_you`
+with a payload that also tries to break out of a `title` attribute. Losing that
+guard because the renderer it happened to be written against was deleted would
+have been the quiet kind of regression.
+
+Found while verifying, not fixed here: `render_strip`'s summary line does not
+sum (`22 · 0 active, 1 needs you, 4 idle`) because the contested branch
+increments no counter. Mine, from #52, invisible until many worktrees were
+contested at once. Recorded on #65, which rewrites that function.
+
 ## 2026-08-07 · Proposal 10: the Tower has been reporting the plumbing
 
 the-sponsor, on the screen proposal 09 had just finished: *"it doesn't help when you

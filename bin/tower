@@ -3,10 +3,9 @@
 
 Step 2 of concept 07 (`docs/proposals/07-concept-tower.html`, accepted
 2026-08-05): the drawn screen, not just pulse re-rendered behind a port.
-One window, six regions — header, live graph, pipeline, work packages,
-handovers, event ticker —
-built from the same ground truth `pulse` already reads, plus worktree
-file lists (for contested surfaces) and transcript tails (for the wall).
+One window, four regions — header, needs-you band, pipeline, work packages,
+sessions strip — built from the same ground truth `pulse` already reads, plus
+worktree file lists (for contested surfaces) and transcript tails (for the wall).
 
   tower                # serve on 127.0.0.1:8890
   tower --port N       # serve on a different port
@@ -24,11 +23,12 @@ when run inside an agent session; a plain-terminal run prints one line
 saying registration was skipped, since apprun refuses an ownerless entry
 by design.
 
-Step 3 (issue #22) is in: cross-session messages are read from the
-transcripts and listed as HANDOVERS, and every row links through to
-`/session/<id>` — what that session last said, and what was handed to it.
-They are a list rather than edges drawn between graph nodes, which is a
-measurement and not a shortcut; see message_edges() for the numbers.
+HANDOVERS and the EVENT TICKER were removed by issue #64 (proposal 10): two
+AI sessions coordinating, and commit subjects, are plumbing rather than
+anything the sponsor needs at a glance. `/session/<id>` survives them — it is
+reached from the sessions strip now, and still shows what a session last said
+and what was handed to it, which is why the cross-session-message parsing
+below is still here.
 """
 
 import atexit
@@ -173,10 +173,11 @@ def worktree_issue(path):
     return int(m.group(1)) if m else None
 
 
-# --- handovers: who told what to whom (issue #22, concept 07 step 3) ---
+# --- cross-session messages: read only by the /session/<id> page now.
+# The HANDOVERS region that used to list them came off the screen in #64;
+# session_digest() still reports what was handed to one named session. ---
 
 _XSM = re.compile(r'<cross-session-message\s+from="([^"]*)"\s+name="([^"]*)"[^>]*>', re.S)
-MAX_HANDOVERS = 6
 
 
 def _first_sentence(body, limit=96):
@@ -216,89 +217,6 @@ def resolve_cwd(slug):
             if str(cand).replace("/", "-").replace(".", "-") == slug:
                 return str(cand).replace(str(Path.home()), "~")
     return slug
-
-
-def session_owner_dirs():
-    """sessionId -> the transcript directory holding it. The directory name is
-    the session's cwd with separators flattened, which is how a message is tied
-    back to the worktree that received it."""
-    out = {}
-    if not TRANSCRIPTS.is_dir():
-        return out
-    for d in TRANSCRIPTS.iterdir():
-        if not d.is_dir():
-            continue
-        for f in d.glob("*.jsonl"):
-            out[f.stem] = d.name
-    return out
-
-
-def message_edges(worktrees):
-    """Cross-session messages, newest first.
-
-    Delivered messages are recorded as a `queue-operation` line whose content
-    opens with a `<cross-session-message from="local_<id>" name="<title>">`
-    tag, so both ends and the sender's human title are on the record itself.
-
-    **The sender's title comes from the tag, never from resolving its id.**
-    Measured across the real corpus on 2026-08-06: 15 messages, and only 6
-    senders still had a transcript on disk — the rest were sessions whose
-    worktree and transcript are gone. The tag outlives them, so a handover
-    stays readable ("who found it, who took it, when") after the session that
-    sent it no longer exists. Resolving ids would have lost nine of fifteen.
-
-    That same measurement is why these are a list and not edges drawn between
-    graph nodes, as concept 07 sketched: every message had a worktree at the
-    *receiving* end, but not one had a drawn node at both ends — senders were
-    either gone or were management sessions running at the apps root, which is
-    not a worktree and has no node. Edges would have rendered almost never.
-    """
-    by_dir = {}
-    for w in worktrees:
-        slug = str(w["path"]).replace("/", "-").replace(".", "-")
-        by_dir[slug] = w
-
-    rows = []
-    if not TRANSCRIPTS.is_dir():
-        return rows
-    for d in TRANSCRIPTS.iterdir():
-        if not d.is_dir():
-            continue
-        for f in d.glob("*.jsonl"):
-            try:
-                text = f.read_text(errors="replace")
-            except OSError:
-                continue
-            if "cross-session-message" not in text:
-                continue
-            for line in text.splitlines():
-                if "cross-session-message" not in line:
-                    continue
-                try:
-                    rec = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                content = rec.get("content")
-                if not isinstance(content, str):
-                    continue
-                m = _XSM.search(content)
-                if not m:
-                    continue
-                target = by_dir.get(d.name)
-                rows.append({
-                    "ts": rec.get("timestamp") or "",
-                    "sender": m.group(2) or "(untitled session)",
-                    "sender_id": m.group(1).removeprefix("local_"),
-                    "to_session": rec.get("sessionId") or f.stem,
-                    # The receiving worktree, when it is one this screen draws.
-                    # A message into a checkout with no worktree still shows —
-                    # it happened — it just names the directory instead.
-                    "to_node": target["short"] if target else None,
-                    "to_label": target["short"] if target else d.name.split("--")[0].split("-apps-")[-1],
-                    "summary": _first_sentence(content[m.end():].strip()),
-                })
-    rows.sort(key=lambda r: r["ts"], reverse=True)
-    return rows
 
 
 def session_digest(session_id, max_chars=1400):
@@ -555,64 +473,6 @@ def open_gate_branches(projs):
     return pairs
 
 
-# --- event ticker ---
-
-def last_heading(path, max_len=70):
-    """The last "## ..." markdown heading line in a file, truncated."""
-    try:
-        text = path.read_text(errors="replace")
-    except OSError:
-        return None
-    heading = None
-    for line in text.splitlines():
-        if line.startswith("## "):
-            heading = line.rstrip()
-    if heading is None:
-        return None
-    return heading if len(heading) <= max_len else heading[:max_len - 1] + "…"
-
-
-def agent_log_events(worktrees):
-    """One ticker event per AGENT-LOG.md — main checkouts and every worktree —
-    scope item, silently dropped in the first pass: this is a live signal of
-    recorded decisions, not just commits."""
-    checkouts = [(p["name"], Path(p["path"])) for p in projects()]
-    checkouts += [(w["short"], w["path"]) for w in worktrees]
-    events = []
-    for name, path in checkouts:
-        f = path / "AGENT-LOG.md"
-        if not f.exists():
-            continue
-        heading = last_heading(f)
-        if heading is None:
-            continue
-        try:
-            mtime = f.stat().st_mtime
-        except OSError:
-            continue
-        events.append((mtime, f"agent-log · {name}", "", heading))
-    return events
-
-
-def ticker_data(worktrees):
-    # common-rules used to be appended by hand here because it was absent from
-    # the hardcoded PROJECTS list; discovery finds it like any other app, so
-    # appending it again would double every one of its commits in the ticker.
-    repos = [(p["name"], p["path"]) for p in projects()]
-    events = []
-    for name, path in repos:
-        out = run([GIT, "-C", path, "log", "-4", "--pretty=%ct|%h|%s"])
-        if not out:
-            continue
-        for line in out.splitlines():
-            parts = line.split("|", 2)
-            if len(parts) == 3 and parts[0].isdigit():
-                events.append((int(parts[0]), name, parts[1], parts[2]))
-    events += agent_log_events(worktrees)
-    events.sort(key=lambda e: -e[0])
-    return events[:8]
-
-
 # --- feature hulls (locked concept: group graph nodes by feature) ---
 
 def compute_hulls(worktrees, pipeline):
@@ -713,9 +573,7 @@ def collect():
     contested, contested_err = safe(contested_pairs, worktrees)
     wall, wall_err = safe(wall_items, worktrees)
     pipeline, pipeline_err = safe(pipeline_data, worktrees)
-    ticker, ticker_err = safe(ticker_data, worktrees)
     burnup, burnup_err = safe(burnup_data, projs)
-    handovers, handovers_err = safe(message_edges, worktrees)
     hulls, hulls_err = safe(compute_hulls, worktrees, pipeline)
     gate_branches, gate_err = safe(open_gate_branches, projs)
 
@@ -766,9 +624,7 @@ def collect():
         "contested": contested or [], "contested_err": contested_err,
         "wall": wall or [], "wall_err": wall_err,
         "pipeline": pipeline, "pipeline_err": pipeline_err,
-        "ticker": ticker or [], "ticker_err": ticker_err,
         "burnup": burnup, "burnup_err": burnup_err,
-        "handovers": handovers, "handovers_err": handovers_err,
         "hulls": hulls or [], "hulls_err": hulls_err,
         "needs_input": needs_input, "gate_err": gate_err,
     }
@@ -841,7 +697,9 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
    1,792px in half an hour purely because worktrees were added. Cutting lists
    to fit only moves that number, it does not stop it moving — measured, even
    deleting the whole pipeline left 1,196px against a 900px budget, because
-   work packages and handovers set the floor.
+   work packages and handovers set the floor. (Handovers came off in #64,
+   which is why there is headroom now — the cap stays: the point was never
+   those particular regions, it was that height tracked the size of the tree.)
    So the regions are capped and scroll inside themselves instead. The page
    fits by construction and stops tracking the size of the tree. Nothing is
    dropped and nothing is hidden behind a disclosure.
@@ -856,8 +714,12 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
      pipeline to 165px. Capped, it scrolls like everything else. */
   .band { flex:0 0 auto; max-height:22vh; overflow-y:auto; }
   .grid { flex:1 1 auto; min-height:0;
-          /* the work and its progress get more room than the two logs below */
-          grid-template-rows:minmax(0,1.5fr) minmax(0,1fr) auto;
+          /* Two rows now, not three: #64 took handovers and the ticker off, and
+             a template still declaring their row left the sessions strip in a
+             1fr track it does not need (211px for 123px of dots) plus an empty
+             third track. The work takes everything left over; the strip sizes
+             to its content. */
+          grid-template-rows:minmax(0,1fr) auto;
           /* stretch, not start: with align-items:start a grid item sizes to
              its content and simply overflows its track, so the cap never
              binds and the overflow lands back on the page. */
@@ -932,7 +794,6 @@ a.dot:hover { outline:1px solid var(--ink); }
 .more > summary { font-family:var(--mono); font-size:10px; color:var(--dim);
                   cursor:pointer; padding:var(--gap-1) 0; }
 .more > summary:hover { color:var(--ink); }
-.xn { color:var(--dim); }
 
 /* --- work packages: one grid, so the figure sits beside its own bar
    instead of at a hardcoded x 700px from the label --- */
@@ -948,25 +809,6 @@ a.dot:hover { outline:1px solid var(--ink); }
 .bar > i { display:block; height:100%; border-radius:4px; background:var(--green); }
 .bar > i.warn { background:var(--amber); }
 .bar > i.soft { opacity:.8; }
-
-/* --- handovers --- */
-.hand { display:block; text-decoration:none; color:inherit;
-        background:var(--card-2); border:1px solid var(--edge);
-        border-radius:5px; padding:var(--gap-2); margin-bottom:var(--gap-1); }
-.hand:hover { border-color:var(--purple); }
-.hand .top { display:flex; justify-content:space-between; gap:var(--gap-2);
-             font-family:var(--mono); font-size:10.5px; }
-.hand .who { min-width:0; }
-.hand .when { color:var(--dim); white-space:nowrap; }
-.hand .smry { font-family:var(--mono); font-size:9.5px; color:var(--dim);
-              margin-top:var(--gap-1); }
-
-/* --- ticker --- */
-.tick { display:grid; grid-template-columns:auto auto 1fr; gap:var(--gap-2);
-        font-family:var(--mono); font-size:10.5px; color:var(--dim);
-        padding:3px 0; align-items:baseline; }
-.tick .repo { color:var(--ink); font-weight:700; white-space:nowrap; }
-.tick .t { white-space:nowrap; }
 
 .foot { font-family:var(--mono); font-size:10.5px; color:var(--dim);
         margin-top:var(--gap-4); padding-top:var(--gap-2);
@@ -1113,51 +955,6 @@ def render_strip(worktrees, needs_input, contested):
             f'click to open the session</p>')
 
 
-DEDUP_WINDOW = 900  # seconds
-
-
-def _epoch(ts):
-    """Best-effort ISO timestamp -> epoch. An unparseable stamp returns 0,
-    which puts the row outside every window and so leaves it uncollapsed —
-    the safe direction: a duplicate shown twice is untidy, a distinct event
-    silently folded into another is a lie."""
-    try:
-        return datetime.datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
-    except Exception:
-        return 0.0
-
-
-def collapse_repeats(items, key_of, ts_of, window):
-    """Fold byte-identical entries within `window` seconds into one, counted.
-
-    Measured on the live screen: four of nine ticker lines were the same event
-    (`## 2026-08-03 (continued) — v4: redesign personalId…`, four agent logs,
-    15:10–15:11), and two handover rows carried identical summaries. Nothing
-    was rendering wrong; there was simply no de-duplication step.
-
-    Only *byte-identical* keys collapse. Two rows differing by one character
-    stay two rows — the claim being made is "these are literally the same
-    event recorded N times", and anything looser would hide real events.
-    Returns [(item, count)] preserving input order.
-    """
-    out = []
-    for it in items:
-        k, t = key_of(it), ts_of(it)
-        for prev in out:
-            if prev["k"] == k and abs(prev["t"] - t) <= window:
-                prev["n"] += 1
-                break
-        else:
-            out.append({"k": k, "t": t, "item": it, "n": 1})
-    return [(o["item"], o["n"]) for o in out]
-
-
-def times(n):
-    """The count is always shown when a row stands for more than one event —
-    a collapsed row that looks like a single row is the failure mode."""
-    return f' <span class="xn">×{n}</span>' if n > 1 else ""
-
-
 def issue_label(row, title):
     """`finance #41 the Ticket Rail` — the project tag is not decoration: with
     six repos on one screen a bare "#22" names two different tickets."""
@@ -1275,49 +1072,6 @@ def render_burnup(burnup):
     return "\n".join(rows)
 
 
-def render_handovers(rows):
-    """HANDOVERS — who told what to whom, and when (issue #22).
-
-    Concept 07 drew these as edges between session nodes. They are a list
-    instead, and that is a finding rather than a shortcut: measured over the
-    real corpus, no message had a drawn node at *both* ends, so edges would
-    have rendered almost never. See message_edges() for the numbers.
-    """
-    if rows is None:
-        return unavailable("handovers")
-    if not rows:
-        return '<p class="sub">no messages between sessions yet</p>'
-    collapsed = collapse_repeats(rows, lambda r: (r["sender"], r["summary"]),
-                                 lambda r: _epoch(r["ts"]), DEDUP_WINDOW)
-    out = []
-    for r, n in collapsed[:MAX_HANDOVERS]:
-        when = r["ts"][11:16] if len(r["ts"]) > 15 else ""
-        arrow = f'{r["sender"]}  →  {r["to_label"]}'
-        out.append(
-            f'<a class="hand" href="/session/{e(r["to_session"])}">'
-            f'<span class="top"><span class="who clamp1" title="{e(arrow)}">{e(arrow)}'
-            f'{times(n)}</span>'
-            f'<span class="when">{e(when)}</span></span>'
-            f'<span class="smry clamp2">{e(r["summary"])}</span></a>')
-    rest = len(collapsed) - MAX_HANDOVERS
-    if rest > 0:
-        out.append(f'<p class="sub">+{rest} older</p>')
-    return "\n".join(out)
-
-
-def render_ticker(ticker):
-    if not ticker:
-        return unavailable("ticker")
-    out = []
-    for (ts, repo, sha, subj), n in collapse_repeats(
-            ticker, lambda r: r[3], lambda r: r[0], DEDUP_WINDOW):
-        t = datetime.datetime.fromtimestamp(ts).strftime("%H:%M")
-        out.append(f'<div class="tick"><span class="t">{e(t)}</span>'
-                   f'<span class="repo">{e(repo)}</span>'
-                   f'<span class="clamp1" title="{e(subj)}">{e(subj)}{times(n)}</span></div>')
-    return "\n".join(out)
-
-
 def render_header(header, wall_count):
     if header:
         behind = [c for c in header["chips"] if c["state"] != "aligned"]
@@ -1376,17 +1130,6 @@ def render_page():
                     render_burnup(data["burnup"]), data["burnup_err"],
                     "work packages")
 
-    hand_sub = None
-    if data["handovers"]:
-        hand_sub = (f'{len(data["handovers"])} recorded · newest first · '
-                    f'click a row to open the receiving session')
-    handovers = region("HANDOVERS · WHO TOLD WHAT TO WHOM", hand_sub,
-                       render_handovers(data["handovers"]),
-                       data["handovers_err"], "handovers")
-
-    ticker = region("EVENT TICKER", None, render_ticker(data["ticker"]),
-                    data["ticker_err"], "ticker")
-
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -1414,8 +1157,6 @@ def render_page():
   <main class="grid">
     <div class="cell">{pipeline}</div>
     <div class="cell">{burnup}</div>
-    <div class="cell">{handovers}</div>
-    <div class="cell">{ticker}</div>
     <div class="cell wide">{sessions}</div>
   </main>
   <p class="foot">tower · loopback only · recollects every {CACHE_TTL}s ·
