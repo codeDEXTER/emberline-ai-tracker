@@ -41,6 +41,7 @@ import json
 import os
 import re
 import signal
+import string
 import subprocess
 import sys
 import threading
@@ -113,18 +114,6 @@ def short_name(name):
     """adoring-euler-ba942f -> adoring-euler; strips a trailing hash suffix."""
     m = re.match(r"^(.+)-[0-9a-f]{4,8}$", name)
     return m.group(1) if m else name
-
-
-def truncate_words(text, limit=22):
-    """~limit chars, cut on a word boundary rather than mid-word."""
-    text = text.strip()
-    if len(text) <= limit:
-        return text
-    cut = text[:limit]
-    sp = cut.rfind(" ")
-    if sp > 0:
-        cut = cut[:sp]
-    return cut.rstrip(",;:.-") + "…"
 
 
 def touched_files(path):
@@ -744,7 +733,14 @@ def collect():
         prefix = issue_to_prefix.get(key)
         if prefix and ":" in title and title.split(":", 1)[0].strip() == prefix:
             title = title.split(":", 1)[1].strip()
-        w["issue_title"] = truncate_words(title)
+        # The full title, not a 22-character cut. This was the one truncation
+        # living above the render layer: it existed because the label had to fit
+        # inside a 25px-radius circle, and it cut "Tower: the screen fits its
+        # window..." down to "the screen fits its…". The screen is HTML now, so
+        # fitting is CSS's job — the card clamps visually and keeps the whole
+        # string in its title attribute. Nothing about what is *collected*
+        # changes (issue #50, decided with the-sponsor 2026-08-07).
+        w["issue_title"] = title
 
     # "Needs you": a wall item, or its mapped issue's branch has an open,
     # non-draft PR awaiting a merge decision — the two things issue #25 asks
@@ -774,116 +770,243 @@ def collect():
 
 
 # --- rendering ---
+#
+# The page is HTML and CSS. It used to be one hand-positioned SVG: every
+# render_* had the shape (data, x0, y0, width) -> (svg, bottom_y) and
+# render_page threaded `bottom` forward to stack regions. That is a layout
+# engine with no text measurement, no intrinsic sizing and no reflow, and all
+# three absences were visible on the live screen (issue #50, proposal 09):
+# eight hardcoded [:n] cuts existed only because SVG <text> cannot wrap;
+# `main_bottom = max(graph_bottom, pipe_bottom)` padded the shorter column
+# with 310px of nothing; and WIDTH was a Python constant, so the page could
+# only ever be 1200px wide.
+#
+# The browser ships that engine and this page is already served into WebKit.
+# So: CSS grid for the regions, CSS clamping for long strings, one spacing
+# scale, no absolute coordinates anywhere.
 
 PALETTE = dict(bg="#0B0E13", ink="#DFE3EA", dim="#7C8594", line="#222B38",
                green="#5FA985", amber="#D2A05A", purple="#A98FD6")
+
+# Every length on the screen comes from here. The old renderers set spacing
+# inline (cell_h=118, y0=116, +30, +10) and disagreed with themselves — 40px
+# below the header rule, 20px below every other one.
+CSS = string.Template("""
+:root {
+  --bg:$bg; --ink:$ink; --dim:$dim; --line:$line;
+  --green:$green; --amber:$amber; --purple:$purple;
+  --card:#131820; --card-2:#1A2230; --edge:#39434F; --trk:#222B38;
+  --gap-1:6px; --gap-2:12px; --gap-3:20px; --gap-4:32px;
+  --radius:10px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+}
+* { box-sizing:border-box; }
+body { background:var(--bg); color:var(--ink); font-family:var(--sans);
+       margin:0; padding:var(--gap-3); font-size:13px; line-height:1.45; }
+.tower { max-width:1600px; margin:0 auto; }
+
+/* --- header --- */
+.hdr { display:flex; justify-content:space-between; align-items:flex-start;
+       gap:var(--gap-3); flex-wrap:wrap;
+       padding-bottom:var(--gap-2); border-bottom:1px solid var(--line); }
+.hdr h1 { font-family:var(--mono); font-size:14px; font-weight:700;
+          letter-spacing:.12em; color:var(--dim); margin:0; }
+.hdr .stamp { font-family:var(--mono); font-size:10.5px; color:var(--dim);
+              margin:var(--gap-1) 0 0; }
+.hdr-r { font-family:var(--mono); font-size:11px; color:var(--dim);
+         text-align:right; }
+.hdr-r p { margin:0 0 var(--gap-1); }
+.wall-hd { color:var(--purple); font-weight:700; letter-spacing:.1em; }
+
+/* --- the region grid: columns are a grid concern, so a short column can
+   never be padded to a tall one. That padding was the 310px void. --- */
+.grid { display:grid; grid-template-columns:3fr 2fr; gap:var(--gap-3);
+        align-items:start; margin-top:var(--gap-3); }
+.cell { min-width:0; }              /* lets children shrink instead of overflow */
+.cell.wide { grid-column:1 / -1; }
+@media (max-width:1000px) { .grid { grid-template-columns:1fr; } }
+
+.ht { font-family:var(--mono); font-size:11px; font-weight:700;
+      letter-spacing:.12em; color:var(--dim); margin:0; }
+.sub { font-family:var(--mono); font-size:10px; color:var(--dim); margin:var(--gap-1) 0 0; }
+.rgn { padding-top:var(--gap-3); border-top:1px solid var(--line); }
+.rgn:first-child, .grid > .cell:first-child > .rgn:first-child { border-top:none; padding-top:0; }
+.na { font-family:var(--mono); font-size:11px; color:var(--dim); margin:var(--gap-2) 0 0; }
+
+/* --- long strings clamp in CSS, never by slicing the string --- */
+.clamp1 { display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical;
+          overflow:hidden; overflow-wrap:anywhere; }
+.clamp2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+          overflow:hidden; overflow-wrap:anywhere; }
+
+/* --- sessions --- */
+.feat { border:1px dashed var(--edge); border-radius:var(--radius);
+        padding:var(--gap-2); margin-top:var(--gap-2); }
+.feat > .flabel { font-family:var(--mono); font-size:9.5px; letter-spacing:.1em;
+                  color:var(--dim); margin:0 0 var(--gap-2); }
+.nodes { display:grid; gap:var(--gap-2);
+         grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); }
+.node { background:var(--card); border:1px solid var(--edge);
+        border-left-width:3px; border-radius:var(--radius);
+        padding:var(--gap-2); min-width:0; }
+.node.act    { border-left-color:var(--green); }
+.node.live   { border-left-color:var(--green); box-shadow:0 0 0 1px var(--green) inset; }
+.node.cont   { border-left-color:var(--amber); }
+.node.you    { border-left-color:var(--purple); background:#171526; }
+.node .ttl { font-size:12.5px; font-weight:600; margin:0; }
+.node .meta { font-family:var(--mono); font-size:9.5px; color:var(--dim);
+              margin:var(--gap-1) 0 0; }
+.node .flag { font-family:var(--mono); font-size:9.5px; margin:var(--gap-1) 0 0; }
+.flag.you { color:var(--purple); } .flag.cont { color:var(--amber); }
+
+/* --- pipeline --- */
+.psec { font-family:var(--mono); font-size:10px; color:var(--dim);
+        letter-spacing:.08em; margin:var(--gap-3) 0 var(--gap-2); }
+.psec:first-of-type { margin-top:var(--gap-2); }
+.chip { background:var(--card-2); border:1px solid var(--edge);
+        border-radius:5px; padding:var(--gap-1) 10px; margin-bottom:var(--gap-1);
+        font-family:var(--mono); font-size:10.5px; min-width:0; }
+.chip.done { border-color:var(--green); }
+.chip.wall { border-color:var(--purple); }
+.chip .num { color:var(--dim); }
+
+/* --- work packages: one grid, so the figure sits beside its own bar
+   instead of at a hardcoded x 700px from the label --- */
+.pkgs { display:grid; grid-template-columns:minmax(120px,1.4fr) 3fr auto auto;
+        gap:var(--gap-1) var(--gap-2); align-items:center; margin-top:var(--gap-2); }
+.pkgs .nm { font-size:12.5px; font-weight:600; min-width:0; }
+.pkgs .nm.sub2 { font-family:var(--mono); font-size:10px; font-weight:400;
+                 color:var(--dim); padding-left:var(--gap-2); }
+.pkgs .fig { font-family:var(--mono); font-size:11px; text-align:right; white-space:nowrap; }
+.pkgs .note { font-family:var(--mono); font-size:9.5px; color:var(--dim); white-space:nowrap; }
+.bar { background:var(--trk); border-radius:4px; height:9px; width:100%; overflow:hidden; }
+.bar.thin { height:7px; }
+.bar > i { display:block; height:100%; border-radius:4px; background:var(--green); }
+.bar > i.warn { background:var(--amber); }
+.bar > i.soft { opacity:.8; }
+
+/* --- handovers --- */
+.hand { display:block; text-decoration:none; color:inherit;
+        background:var(--card-2); border:1px solid var(--edge);
+        border-radius:5px; padding:var(--gap-2); margin-bottom:var(--gap-1); }
+.hand:hover { border-color:var(--purple); }
+.hand .top { display:flex; justify-content:space-between; gap:var(--gap-2);
+             font-family:var(--mono); font-size:10.5px; }
+.hand .who { min-width:0; }
+.hand .when { color:var(--dim); white-space:nowrap; }
+.hand .smry { font-family:var(--mono); font-size:9.5px; color:var(--dim);
+              margin-top:var(--gap-1); }
+
+/* --- ticker --- */
+.tick { display:grid; grid-template-columns:auto auto 1fr; gap:var(--gap-2);
+        font-family:var(--mono); font-size:10.5px; color:var(--dim);
+        padding:3px 0; align-items:baseline; }
+.tick .repo { color:var(--ink); font-weight:700; white-space:nowrap; }
+.tick .t { white-space:nowrap; }
+
+.foot { font-family:var(--mono); font-size:10.5px; color:var(--dim);
+        margin-top:var(--gap-4); padding-top:var(--gap-2);
+        border-top:1px solid var(--line); }
+a { color:var(--purple); }
+""").substitute(**PALETTE)
 
 
 def e(s):
     return html.escape(str(s))
 
 
-def unavailable(x, y, label):
-    return (f'<text x="{x}" y="{y}" class="dim" font-size="11">'
-            f'{e(label)} · unavailable</text>')
+def unavailable(label):
+    return f'<p class="na">{e(label)} · unavailable</p>'
 
 
-def render_graph(worktrees, contested, hulls, needs_input, x0, y0, width):
-    els = [f'<text class="ht" x="{x0}" y="{y0}">LIVE GRAPH · SESSIONS</text>']
-    els.append(f'<text class="sub" x="{x0}" y="{y0 + 14}">'
-               f'<tspan fill="{PALETTE["green"]}">green</tspan> active · '
-               f'<tspan fill="{PALETTE["dim"]}">grey</tspan> idle · '
-               f'<tspan fill="{PALETTE["amber"]}">amber</tspan> contested · '
-               f'<tspan fill="{PALETTE["purple"]}">purple</tspan> needs you</text>')
-    grid_y0 = y0 + 14
+def region(title, sub, body, err=None, label=None):
+    """One region. A failed collector renders this region empty with a note —
+    never a 500 for the whole page, same contract as before."""
+    out = [f'<div class="rgn"><p class="ht">{title}</p>']
+    if sub:
+        out.append(f'<p class="sub">{sub}</p>')
+    out.append(body)
+    if err:
+        out.append(unavailable(label or "region"))
+    out.append("</div>")
+    return "\n".join(out)
+
+
+def render_sessions(worktrees, contested, hulls, needs_input):
     if not worktrees:
-        els.append(unavailable(x0, grid_y0 + 24, "no worktrees found"))
-        return "\n".join(els), grid_y0 + 50
+        return unavailable("no worktrees found")
 
-    cols = 4 if width > 620 else 3
-    cell_w = (width - 40) // cols
-    cell_h = 118
-
-    # positions first — hulls need every node's (cx, cy) to size a bounding box
-    positions = {w["name"]: (x0 + 50 + (i % cols) * cell_w, grid_y0 + 60 + (i // cols) * cell_h)
-                 for i, w in enumerate(worktrees)}
-
-    for hull in hulls:
-        pts = [positions[n] for n in hull["members"] if n in positions]
-        if not pts:
-            continue
-        xs, ys = [p[0] for p in pts], [p[1] for p in pts]
-        hx0, hy0 = min(xs) - 46, min(ys) - 46
-        hx1, hy1 = max(xs) + 46, max(ys) + 46
-        els.append(f'<rect class="hull" x="{hx0}" y="{hy0}" width="{hx1 - hx0}" '
-                    f'height="{hy1 - hy0}" rx="16"/>')
-        name = hull["prefix"].upper()[:28]
-        label = (f'FEATURE · {e(name)} · {hull["total"]} tickets, 1 active' if hull["single"]
-                 else f'FEATURE · {e(name)} · {hull["total"]} TICKETS')
-        els.append(f'<text class="sub" x="{hx0 + 12}" y="{hy0 + 16}">{label}</text>')
-
-    for i, w in enumerate(worktrees):
-        cx, cy = positions[w["name"]]
-
-        age_s = (time.time() - w["session"]) if w["session"] else None
-        is_contested = any(w["name"] in (a, b) for a, b, _ in contested)
-        is_needs_input = w["name"] in needs_input
-        # Priority: what he's scanning for (needs you) outranks a queueing
-        # note (contested), which outranks plain freshness.
-        if is_needs_input:
-            stroke, extra_ring = PALETTE["purple"], False
-        elif is_contested:
-            stroke, extra_ring = PALETTE["amber"], False
-        elif age_s is not None and age_s < 180:
-            stroke, extra_ring = PALETTE["green"], True
-        elif age_s is not None and age_s < 1800:
-            stroke, extra_ring = PALETTE["green"], False
-        else:
-            stroke, extra_ring = "#39434F", False
-
-        if extra_ring:
-            els.append(f'<circle class="ring" cx="{cx}" cy="{cy}" r="33" '
-                        f'stroke="{stroke}"/>')
-        els.append(f'<circle class="node" cx="{cx}" cy="{cy}" r="25" stroke="{stroke}"/>')
-
-        # Primary label = the issue title (what he's tracking), not the
-        # branch — "it's showing branch names, it doesn't mean anything to
-        # me" (issue #25). No mapped issue: falls back to the worktree name,
-        # same honest mapping as #24 rather than guessing one from a branch.
-        if w.get("issue_title"):
-            els.append(f'<text class="tt" x="{cx}" y="{cy - 4}" text-anchor="middle" '
-                        f'font-size="10">{e(w["issue_title"])}</text>')
-            els.append(f'<text class="sub" x="{cx}" y="{cy + 10}" text-anchor="middle">'
-                        f'{e(project_tag(w["project"]))} #{w["issue"]}</text>')
-            els.append(f'<text class="sub" x="{cx}" y="{cy + 42}" text-anchor="middle">'
-                        f'{e(w["short"][:20])}</text>')
-        else:
-            els.append(f'<text class="tt" x="{cx}" y="{cy - 2}" text-anchor="middle">'
-                        f'{e(w["short"][:11])}</text>')
-
-        if is_needs_input:
-            els.append(f'<text class="sub" x="{cx}" y="{cy + 54}" text-anchor="middle" '
-                        f'fill="{PALETTE["purple"]}">needs you</text>')
-
-    rows = (len(worktrees) + cols - 1) // cols
-    bottom = grid_y0 + 60 + rows * cell_h
-
-    seen_pairs = set()
+    # One note per contested pair, naming one file — unchanged from the SVG
+    # version. What changed is that it is attached to the cards it concerns
+    # rather than drawn as a 470px diagonal with a caption floating at its
+    # midpoint over empty grid. Issue #51 promotes these to the "needs you"
+    # band; until then the information stays where it can be read.
+    cont_note, seen = {}, set()
     for a, b, f in contested:
-        pair_key = frozenset((a, b))
-        if pair_key in seen_pairs:
-            continue  # one note per contested pair, naming one file, per the concept
-        seen_pairs.add(pair_key)
-        if a in positions and b in positions:
-            ax, ay = positions[a]
-            bx, by = positions[b]
-            mx, my = (ax + bx) / 2, (ay + by) / 2 - 20
-            els.append(f'<path class="edge q" d="M{ax},{ay} Q{mx},{my} {bx},{by}"/>')
-            els.append(f'<text class="sub" x="{mx}" y="{my}" text-anchor="middle" '
-                        f'fill="{PALETTE["amber"]}">{e(f[:28])} contested</text>')
-            bottom = max(bottom, int(my) + 16)
+        key = frozenset((a, b))
+        if key in seen:
+            continue
+        seen.add(key)
+        for n in (a, b):
+            cont_note.setdefault(n, f)
 
-    return "\n".join(els), bottom + 20
+    def card(w):
+        age_s = (time.time() - w["session"]) if w["session"] else None
+        is_you = w["name"] in needs_input
+        is_cont = w["name"] in cont_note
+        # Priority unchanged: needs-you outranks contested, which outranks
+        # plain freshness.
+        if is_you:
+            cls = "you"
+        elif is_cont:
+            cls = "cont"
+        elif age_s is not None and age_s < 180:
+            cls = "live"
+        elif age_s is not None and age_s < 1800:
+            cls = "act"
+        else:
+            cls = ""
+        title = w.get("issue_title") or w["short"]
+        # title="" carries the untruncated string even when CSS clamps the box.
+        parts = [f'<div class="node {cls}">',
+                 f'<p class="ttl clamp2" title="{e(title)}">{e(title)}</p>']
+        meta = []
+        if w.get("issue_title"):
+            # Only worth a second line when the heading is the issue title —
+            # with no mapped issue the heading already *is* the worktree name,
+            # and repeating it reads as two different facts about the card.
+            meta.append(f'{e(project_tag(w["project"]))} #{e(w["issue"])}')
+            meta.append(e(w["short"]))
+        if age_s is not None:
+            meta.append(e(ago(w["session"])))
+        if meta:
+            parts.append(f'<p class="meta clamp1">{" · ".join(meta)}</p>')
+        if is_you:
+            parts.append('<p class="flag you">needs you</p>')
+        if is_cont:
+            parts.append(f'<p class="flag cont clamp1">contested · '
+                         f'{e(cont_note[w["name"]])}</p>')
+        parts.append("</div>")
+        return "".join(parts)
+
+    by_name = {w["name"]: w for w in worktrees}
+    grouped, out = set(), []
+    for hull in hulls:
+        members = [by_name[n] for n in hull["members"] if n in by_name]
+        if not members:
+            continue
+        grouped.update(w["name"] for w in members)
+        label = (f'FEATURE · {hull["prefix"].upper()} · {hull["total"]} tickets, 1 active'
+                 if hull["single"] else
+                 f'FEATURE · {hull["prefix"].upper()} · {hull["total"]} TICKETS')
+        out.append(f'<div class="feat"><p class="flabel">{e(label)}</p>'
+                   f'<div class="nodes">{"".join(card(w) for w in members)}</div></div>')
+    loose = [w for w in worktrees if w["name"] not in grouped]
+    if loose:
+        out.append(f'<div class="nodes" style="margin-top:var(--gap-2)">'
+                   f'{"".join(card(w) for w in loose)}</div>')
+    return "\n".join(out)
 
 
 def issue_label(row, title):
@@ -893,82 +1016,60 @@ def issue_label(row, title):
     return f'{tag} #{row["number"]} {title}'.strip()
 
 
-def chip_row(x, y, w, label, cls="chipd"):
-    return (f'<rect class="chipq {cls}" x="{x}" y="{y - 15}" width="{w}" height="22" rx="5"/>'
-            f'<text class="ct" x="{x + 8}" y="{y}">{e(label[:44])}</text>')
+def chip(label, cls=""):
+    return (f'<div class="chip {cls} clamp1" title="{e(label)}">{e(label)}</div>')
 
 
-def render_pipeline(pipeline, wall, x0, y0, width):
-    els = [f'<text class="ht" x="{x0}" y="{y0}">PIPELINE</text>']
+def strip_prefix(title):
+    return title.split(":", 1)[-1].strip() if ":" in title else title
+
+
+def render_pipeline(pipeline, wall):
+    out = []
     if pipeline is None:
-        els.append(unavailable(x0, y0 + 24, "pipeline"))
-        y = y0 + 50
+        out.append(unavailable("pipeline"))
     else:
-        y = y0 + 26
-
-        def section(title, count):
-            nonlocal y
-            els.append(f'<text class="sub" x="{x0}" y="{y}">{e(title)}'
-                        f'{" · " + str(count) if count is not None else ""}</text>')
-            y += 24
-
-        section("IN FLIGHT", len(pipeline["in_flight"]) + len(pipeline["in_flight_worktrees"]))
-        if pipeline["in_flight"] or pipeline["in_flight_worktrees"]:
+        n_flight = len(pipeline["in_flight"]) + len(pipeline["in_flight_worktrees"])
+        out.append(f'<p class="psec">IN FLIGHT · {n_flight}</p>')
+        if n_flight:
             for r in pipeline["in_flight"]:
-                title = r["title"].split(":", 1)[-1].strip() if ":" in r["title"] else r["title"]
-                els.append(chip_row(x0, y, width, issue_label(r, title), "chipf"))
-                y += 28
-            # Ahead-of-main worktrees with no mapped issue — dim, worktree-named,
-            # never an invented issue chip.
+                out.append(chip(issue_label(r, strip_prefix(r["title"])), "done"))
+            # Ahead-of-main worktrees with no mapped issue — worktree-named,
+            # never an invented issue chip. Issue #51 collapses these behind a
+            # disclosure so the in-flight count stops overstating the work.
             for w in pipeline["in_flight_worktrees"]:
-                els.append(chip_row(x0, y, width, f'{w["short"]} · {w["ahead"]} ahead', "chipd"))
-                y += 28
+                out.append(chip(f'{w["short"]} · {w["ahead"]} ahead'))
         else:
-            els.append(f'<text class="sub" x="{x0}" y="{y}">none</text>')
-            y += 24
-        y += 10
+            out.append('<p class="sub">none</p>')
 
-        section("QUEUED", len(pipeline["queued"]) + pipeline["queued_more"])
+        out.append(f'<p class="psec">QUEUED · '
+                   f'{len(pipeline["queued"]) + pipeline["queued_more"]}</p>')
         for r in pipeline["queued"]:
-            title = r["title"].split(":", 1)[-1].strip() if ":" in r["title"] else r["title"]
-            els.append(chip_row(x0, y, width, issue_label(r, title)))
-            y += 28
+            out.append(chip(issue_label(r, strip_prefix(r["title"]))))
         if pipeline["queued_more"]:
-            els.append(f'<text class="sub" x="{x0}" y="{y}">+{pipeline["queued_more"]} more</text>')
-            y += 24
-        y += 10
+            out.append(f'<p class="sub">+{pipeline["queued_more"]} more</p>')
 
-        section("MERGED TODAY", len(pipeline["merged"]))
+        out.append(f'<p class="psec">MERGED TODAY · {len(pipeline["merged"])}</p>')
         if pipeline["merged"]:
             for r in pipeline["merged"]:
-                els.append(chip_row(x0, y, width, issue_label(r, r["title"]), "chipd"))
-                y += 28
+                out.append(chip(issue_label(r, r["title"])))
         else:
-            els.append(f'<text class="sub" x="{x0}" y="{y}">none yet</text>')
-            y += 24
-        y += 10
+            out.append('<p class="sub">none yet</p>')
 
-    els.append(f'<text class="sub" x="{x0}" y="{y}" fill="{PALETTE["purple"]}">'
-                f'AT THE WALL · YOURS · likely waiting (heuristic)</text>')
-    y += 24
+    out.append('<p class="psec" style="color:var(--purple)">'
+               'AT THE WALL · YOURS · likely waiting (heuristic)</p>')
     if wall:
         for item in wall:
-            els.append(f'<rect class="chipq" x="{x0}" y="{y - 15}" width="{width}" height="22" '
-                        f'rx="5" stroke="{PALETTE["purple"]}"/>')
-            els.append(f'<text class="ct" x="{x0 + 8}" y="{y}">'
-                        f'{e(item["worktree"])} · waiting ~{e(item["age"])}</text>')
-            y += 28
+            out.append(chip(f'{item["worktree"]} · waiting ~{item["age"]}', "wall"))
     else:
-        els.append(f'<text class="sub" x="{x0}" y="{y}">nothing waiting</text>')
-        y += 24
-
-    return "\n".join(els), y + 10
+        out.append('<p class="sub">nothing waiting</p>')
+    return "\n".join(out)
 
 
 MAX_PACKAGES_SHOWN = 4
 
 
-def render_burnup(burnup, x0, y0, width):
+def render_burnup(burnup):
     """APPS & WORK PACKAGES — how much of each app's declared scope is done
     (issue #38, proposal 08 step 1b).
 
@@ -976,69 +1077,46 @@ def render_burnup(burnup, x0, y0, width):
     logbook, which was proposed and not accepted, and a forecast drawn from
     four active days would be a slope through noise.
     """
-    els = [f'<text class="ht" x="{x0}" y="{y0}">APPS &amp; WORK PACKAGES</text>',
-           f'<text class="sub" x="{x0}" y="{y0 + 16}">degree of completion · '
-           f'ticked over declared items, not guessed size</text>']
     if burnup is None:
-        els.append(unavailable(x0, y0 + 40, "work packages"))
-        return "\n".join(els), y0 + 66
-
-    bar_x = x0 + 210
-    bar_w = min(400, max(160, int(width * 0.34)))
-    fig_x = bar_x + bar_w + 20
-    note_x = fig_x + 60
-
-    def bar(x, y, w, frac, cls):
-        filled = max(0, min(w, int(round(w * frac))))
-        out = f'<rect class="trk" x="{x}" y="{y}" width="{w}" height="{9 if cls == "barA" else 7}" rx="4"/>'
-        if filled:
-            out += (f'<rect class="{cls}" x="{x}" y="{y}" width="{filled}" '
-                    f'height="{9 if cls == "barA" else 7}" rx="4"/>')
-        return out
-
-    y = y0 + 42
+        return unavailable("work packages")
+    rows = ['<div class="pkgs">']
     for row in burnup["apps"]:
         pct = row["done"] / row["total"]
-        els.append(f'<text class="tt" x="{x0}" y="{y + 4}">{e(row["name"])}</text>')
-        els.append(bar(bar_x, y - 5, bar_w, pct, "barA"))
-        els.append(f'<text class="tt" x="{fig_x}" y="{y + 4}">{round(pct * 100)}%</text>')
-        els.append(f'<text class="sub" x="{note_x}" y="{y + 4}">'
-                   f'{row["done"]} / {row["total"]} items · {len(row["packages"])} packages</text>')
-        y += 24
-
+        rows.append(
+            f'<div class="nm clamp1">{e(row["name"])}</div>'
+            f'<div class="bar"><i style="width:{round(pct * 100)}%"></i></div>'
+            f'<div class="fig">{round(pct * 100)}%</div>'
+            f'<div class="note">{row["done"]} / {row["total"]} items · '
+            f'{len(row["packages"])} packages</div>')
         shown = sorted(row["packages"], key=lambda p: -p["total"])[:MAX_PACKAGES_SHOWN]
         for p in shown:
             frac = p["done"] / p["total"]
             # amber under a third: the eye should find the stalled package
             # without reading the numbers, and green-for-everything hides it.
-            cls = "barP" if frac >= 0.34 else "barW"
-            els.append(f'<text class="sub" x="{x0 + 22}" y="{y + 3}">{e(p["name"][:30])}</text>')
-            els.append(bar(bar_x + 30, y - 3, bar_w - 30, frac, cls))
-            els.append(f'<text class="sub" x="{fig_x}" y="{y + 3}">'
-                       f'{p["done"]}/{p["total"]} · {round(frac * 100)}%</text>')
-            y += 19
+            cls = "soft" if frac >= 0.34 else "warn"
+            rows.append(
+                f'<div class="nm sub2 clamp1" title="{e(p["name"])}">{e(p["name"])}</div>'
+                f'<div class="bar thin"><i class="{cls}" style="width:{round(frac * 100)}%"></i></div>'
+                f'<div class="fig">{p["done"]}/{p["total"]}</div>'
+                f'<div class="note">{round(frac * 100)}%</div>')
         rest = len(row["packages"]) - len(shown)
         if rest > 0:
-            els.append(f'<text class="sub" x="{x0 + 22}" y="{y + 3}">+ {rest} more package(s)</text>')
-            y += 19
-        y += 8
-
+            rows.append(f'<div class="nm sub2">+ {rest} more package(s)</div>'
+                        f'<div></div><div></div><div></div>')
+    rows.append("</div>")
     if burnup["undeclared"]:
-        els.append(f'<text class="sub" x="{x0}" y="{y + 4}">'
-                   f'{e(" · ".join(burnup["undeclared"]))} — no checklist file, '
-                   f'so no declared scope to measure (not 0%)</text>')
-        y += 22
+        rows.append(f'<p class="sub">{e(" · ".join(burnup["undeclared"]))} — no '
+                    f'checklist file, so no declared scope to measure (not 0%)</p>')
     if burnup["unparsed"]:
         # Never let a line vanish into a lower denominator — see
         # PULSE.checklist_progress and proposal 08's load-bearing-prose limit.
-        els.append(f'<text class="sub" x="{x0}" y="{y + 4}" fill="{PALETTE["amber"]}">'
-                   f'{burnup["unparsed"]} line(s) look like items but could not be '
-                   f'parsed, and are not counted above</text>')
-        y += 22
-    return "\n".join(els), y + 6
+        rows.append(f'<p class="sub" style="color:var(--amber)">{burnup["unparsed"]} '
+                    f'line(s) look like items but could not be parsed, and are '
+                    f'not counted above</p>')
+    return "\n".join(rows)
 
 
-def render_handovers(rows, x0, y0, width):
+def render_handovers(rows):
     """HANDOVERS — who told what to whom, and when (issue #22).
 
     Concept 07 drew these as edges between session nodes. They are a list
@@ -1046,32 +1124,134 @@ def render_handovers(rows, x0, y0, width):
     real corpus, no message had a drawn node at *both* ends, so edges would
     have rendered almost never. See message_edges() for the numbers.
     """
-    els = [f'<text class="ht" x="{x0}" y="{y0}">HANDOVERS · WHO TOLD WHAT TO WHOM</text>']
     if rows is None:
-        els.append(unavailable(x0, y0 + 24, "handovers"))
-        return "\n".join(els), y0 + 50
+        return unavailable("handovers")
     if not rows:
-        els.append(f'<text class="sub" x="{x0}" y="{y0 + 20}">no messages between sessions yet</text>')
-        return "\n".join(els), y0 + 42
-
-    els.append(f'<text class="sub" x="{x0}" y="{y0 + 16}">'
-               f'{len(rows)} recorded · newest first · click a row to open the receiving session</text>')
-    y = y0 + 42
+        return '<p class="sub">no messages between sessions yet</p>'
+    out = []
     for r in rows[:MAX_HANDOVERS]:
         when = r["ts"][11:16] if len(r["ts"]) > 15 else ""
-        arrow = f'{r["sender"][:34]}  →  {r["to_label"][:24]}'
-        els.append(f'<a href="/session/{e(r["to_session"])}">')
-        els.append(f'<rect class="chipq" x="{x0}" y="{y - 14}" width="{width}" height="40" rx="5"/>')
-        els.append(f'<text class="ct" x="{x0 + 10}" y="{y}">{e(arrow)}</text>')
-        els.append(f'<text class="sub" x="{x0 + width - 60}" y="{y}">{e(when)}</text>')
-        els.append(f'<text class="sub" x="{x0 + 10}" y="{y + 16}">{e(r["summary"][:110])}</text>')
-        els.append('</a>')
-        y += 48
+        arrow = f'{r["sender"]}  →  {r["to_label"]}'
+        out.append(
+            f'<a class="hand" href="/session/{e(r["to_session"])}">'
+            f'<span class="top"><span class="who clamp1" title="{e(arrow)}">{e(arrow)}</span>'
+            f'<span class="when">{e(when)}</span></span>'
+            f'<span class="smry clamp2">{e(r["summary"])}</span></a>')
     rest = len(rows) - MAX_HANDOVERS
     if rest > 0:
-        els.append(f'<text class="sub" x="{x0}" y="{y}">+{rest} older</text>')
-        y += 22
-    return "\n".join(els), y + 6
+        out.append(f'<p class="sub">+{rest} older</p>')
+    return "\n".join(out)
+
+
+def render_ticker(ticker):
+    if not ticker:
+        return unavailable("ticker")
+    out = []
+    for ts, repo, sha, subj in ticker:
+        t = datetime.datetime.fromtimestamp(ts).strftime("%H:%M")
+        out.append(f'<div class="tick"><span class="t">{e(t)}</span>'
+                   f'<span class="repo">{e(repo)}</span>'
+                   f'<span class="clamp1" title="{e(subj)}">{e(subj)}</span></div>')
+    return "\n".join(out)
+
+
+def render_header(header, wall_count):
+    if header:
+        behind = [c for c in header["chips"] if c["state"] != "aligned"]
+        aligned = len(header["chips"]) - len(behind)
+        bits = [f'rules {e(header["rules"])}']
+        if aligned:
+            bits.append(f'<span style="color:var(--green)">●</span> {aligned} aligned')
+        if behind:
+            # Every project named inline overran the header once discovery
+            # found six of them. The signal is which ones are *not* aligned, so
+            # those keep their names (up to three) and the rest is a count.
+            named = ", ".join(c["name"] for c in behind[:3])
+            rest = len(behind) - 3
+            bits.append(f'<span style="color:var(--amber)">△</span> {len(behind)} '
+                        f'behind: {e(named)}{f" +{rest}" if rest > 0 else ""}')
+        line1 = " ".join(bits)
+    else:
+        line1 = "rules unavailable"
+    return (f'<div class="hdr-r"><p>{line1}</p>'
+            f'<p><span class="wall-hd">THE WALL</span> · '
+            f'{wall_count} item(s) waiting</p></div>')
+
+
+def render_page():
+    data = collect()
+    now = datetime.datetime.now()
+
+    graph_err = (data["worktrees_err"] or data["contested_err"]
+                 or data["hulls_err"] or data["gate_err"])
+
+    sessions = region(
+        "LIVE GRAPH · SESSIONS",
+        '<span style="color:var(--green)">green</span> active · '
+        '<span style="color:var(--dim)">grey</span> idle · '
+        '<span style="color:var(--amber)">amber</span> contested · '
+        '<span style="color:var(--purple)">purple</span> needs you',
+        render_sessions(data["worktrees"], data["contested"],
+                        data["hulls"], data["needs_input"]),
+        graph_err, "live graph")
+
+    pipeline = region("PIPELINE", None,
+                      render_pipeline(data["pipeline"], data["wall"]),
+                      data["pipeline_err"] or data["wall_err"], "pipeline")
+
+    burnup = region("APPS &amp; WORK PACKAGES",
+                    "degree of completion · ticked over declared items, "
+                    "not guessed size",
+                    render_burnup(data["burnup"]), data["burnup_err"],
+                    "work packages")
+
+    hand_sub = None
+    if data["handovers"]:
+        hand_sub = (f'{len(data["handovers"])} recorded · newest first · '
+                    f'click a row to open the receiving session')
+    handovers = region("HANDOVERS · WHO TOLD WHAT TO WHOM", hand_sub,
+                       render_handovers(data["handovers"]),
+                       data["handovers_err"], "handovers")
+
+    ticker = region("EVENT TICKER", None, render_ticker(data["ticker"]),
+                    data["ticker_err"], "ticker")
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="10">
+<title>TOWER · apps autopilot, live</title>
+<style>{CSS}</style>
+</head>
+<body>
+<div class="tower">
+  <header class="hdr">
+    <div>
+      <h1>TOWER · APPS AUTOPILOT · LIVE</h1>
+      <p class="stamp">{e(now.strftime("%Y-%m-%d %H:%M:%S"))} · updates every {CACHE_TTL}s</p>
+    </div>
+    {render_header(data["header"], len(data["wall"]))}
+  </header>
+  <main class="grid">
+    <!-- Work packages sits under the sessions rather than full-width below
+         both columns. The pipeline column is roughly 1.7x the height of the
+         sessions column on a live tree, and a two-column row is only as short
+         as its taller cell — so full-width-below left ~600px of empty column
+         beside the pipeline. Stacking two regions there balances the row and
+         the band closes. -->
+    <div class="cell">{sessions}{burnup}</div>
+    <div class="cell">{pipeline}</div>
+    <div class="cell wide">{handovers}</div>
+    <div class="cell wide">{ticker}</div>
+  </main>
+  <p class="foot">tower · loopback only · recollects every {CACHE_TTL}s ·
+    <a href="/pulse">/pulse</a> for the plain-page view</p>
+</div>
+</body>
+</html>
+"""
 
 
 def render_session_page(session_id):
@@ -1104,152 +1284,6 @@ def render_session_page(session_id):
   <pre style="white-space:pre-wrap;background:#131820;border:1px solid #26303C;
     border-radius:8px;padding:16px;color:#DFE3EA">{e(d["digest"]) or "(nothing said yet)"}</pre>
 </body>"""
-
-
-def render_ticker(ticker, x0, y0, width):
-    els = [f'<text class="ht" x="{x0}" y="{y0}">EVENT TICKER</text>']
-    if not ticker:
-        els.append(unavailable(x0, y0 + 24, "ticker"))
-        return "\n".join(els), y0 + 50
-    y = y0 + 26
-    for ts, repo, sha, subj in ticker:
-        t = datetime.datetime.fromtimestamp(ts).strftime("%H:%M")
-        els.append(f'<text class="tick" x="{x0}" y="{y}">{e(t)} &#160; '
-                    f'<tspan fill="{PALETTE["ink"]}" font-weight="700">{e(repo)}</tspan>'
-                    f' · {e(subj[:90])}</text>')
-        y += 22
-    return "\n".join(els), y + 10
-
-
-def render_page():
-    data = collect()
-    now = datetime.datetime.now()
-
-    header = data["header"]
-    if header:
-        rules = header["rules"]
-        # Every project named inline overran the header once discovery found
-        # six of them. The signal is which ones are *not* aligned, so those
-        # keep their names (up to three) and everything else is a count.
-        behind = [c for c in header["chips"] if c["state"] != "aligned"]
-        aligned = len(header["chips"]) - len(behind)
-        chips = ""
-        if aligned:
-            chips += f' <tspan fill="{PALETTE["green"]}">●</tspan> {aligned} aligned'
-        if behind:
-            named = ", ".join(c["name"] for c in behind[:3])
-            rest = len(behind) - 3
-            chips += (f' <tspan fill="{PALETTE["amber"]}">△</tspan> '
-                      f'{len(behind)} behind: {e(named)}'
-                      f'{f" +{rest}" if rest > 0 else ""}')
-        header_line1 = f'rules {e(rules)}{chips}'
-    else:
-        header_line1 = "rules unavailable"
-    wall_count = len(data["wall"])
-    header_line2 = (f'<tspan fill="{PALETTE["purple"]}">THE WALL</tspan> '
-                     f'· {wall_count} item(s) waiting')
-
-    WIDTH = 1200
-    graph_x0, graph_w = 24, int(WIDTH * 0.6) - 40
-    pipe_x0 = graph_x0 + graph_w + 40
-    pipe_w = WIDTH - pipe_x0 - 24
-
-    graph_svg, graph_bottom = render_graph(data["worktrees"], data["contested"], data["hulls"],
-                                           data["needs_input"], graph_x0, 116, graph_w)
-    if data["worktrees_err"] or data["contested_err"] or data["hulls_err"] or data["gate_err"]:
-        graph_svg += unavailable(graph_x0, graph_bottom, "live graph")
-        graph_bottom += 20
-
-    pipe_svg, pipe_bottom = render_pipeline(data["pipeline"], data["wall"], pipe_x0, 116, pipe_w)
-    if data["pipeline_err"] or data["wall_err"]:
-        pipe_svg += unavailable(pipe_x0, pipe_bottom, "pipeline")
-        pipe_bottom += 20
-
-    main_bottom = max(graph_bottom, pipe_bottom) + 10
-
-    burnup_svg, burnup_bottom = render_burnup(data["burnup"], 24, main_bottom + 30, WIDTH - 48)
-    if data["burnup_err"]:
-        burnup_svg += unavailable(24, burnup_bottom, "work packages")
-        burnup_bottom += 20
-
-    hand_svg, hand_bottom = render_handovers(data["handovers"], 24, burnup_bottom + 30, WIDTH - 48)
-    if data["handovers_err"]:
-        hand_svg += unavailable(24, hand_bottom, "handovers")
-        hand_bottom += 20
-
-    ticker_svg, ticker_bottom = render_ticker(data["ticker"], 24, hand_bottom + 30, WIDTH - 48)
-    if data["ticker_err"]:
-        ticker_svg += unavailable(24, ticker_bottom, "ticker")
-        ticker_bottom += 20
-
-    HEIGHT = ticker_bottom + 20
-
-    svg = f'''<svg viewBox="0 0 {WIDTH} {HEIGHT}" width="{WIDTH}" height="{HEIGHT}"
-    role="img" aria-label="Tower — live autopilot screen">
-<style>
-  .scr {{ fill:{PALETTE["bg"]}; }}
-  .pane {{ fill:none; stroke:{PALETTE["line"]}; stroke-width:1.2; }}
-  .ht {{ font-family:ui-monospace,monospace; font-size:11px; fill:{PALETTE["dim"]};
-         letter-spacing:.12em; font-weight:700; }}
-  .tt {{ font-family:-apple-system,sans-serif; font-size:12px; fill:{PALETTE["ink"]}; font-weight:600; }}
-  .sub {{ font-family:ui-monospace,monospace; font-size:9.5px; fill:{PALETTE["dim"]}; }}
-  .tick {{ font-family:ui-monospace,monospace; font-size:11px; fill:{PALETTE["dim"]}; }}
-  .node {{ fill:#141B26; stroke-width:1.6; }}
-  .ring {{ fill:none; stroke-width:1.2; opacity:.5; }}
-  .edge.q {{ fill:none; stroke:{PALETTE["amber"]}; stroke-width:1.3; stroke-dasharray:5 4; }}
-  .hull {{ fill:none; stroke:#39434F; stroke-width:1.2; stroke-dasharray:4 5; }}
-  .chipq {{ fill:#1A2230; stroke:#39434F; stroke-width:1; }}
-  .chipf {{ stroke:{PALETTE["green"]}; }}
-  .chipd {{ stroke:#39434F; }}
-  .ct {{ font-family:ui-monospace,monospace; font-size:10px; fill:{PALETTE["ink"]}; }}
-  .dim {{ fill:{PALETTE["dim"]}; }}
-  .trk {{ fill:#222B38; }}
-  .barA {{ fill:{PALETTE["green"]}; }}
-  .barP {{ fill:{PALETTE["green"]}; opacity:.8; }}
-  .barW {{ fill:{PALETTE["amber"]}; opacity:.85; }}
-</style>
-<rect class="scr" x="0" y="0" width="{WIDTH}" height="{HEIGHT}" rx="16"/>
-<text class="ht" x="24" y="38" font-size="14">TOWER · APPS AUTOPILOT · live</text>
-<text class="sub" x="24" y="56">{e(now.strftime("%Y-%m-%d %H:%M:%S"))} · updates every 5s</text>
-<text class="tick" x="640" y="42">{header_line1}</text>
-<text class="tick" x="640" y="60">{header_line2}</text>
-<line class="pane" x1="20" y1="76" x2="{WIDTH - 20}" y2="76"/>
-<line class="pane" x1="{graph_x0 + graph_w + 20}" y1="86" x2="{graph_x0 + graph_w + 20}" y2="{main_bottom}"/>
-{graph_svg}
-{pipe_svg}
-<line class="pane" x1="20" y1="{main_bottom + 10}" x2="{WIDTH - 20}" y2="{main_bottom + 10}"/>
-{burnup_svg}
-<line class="pane" x1="20" y1="{burnup_bottom + 10}" x2="{WIDTH - 20}" y2="{burnup_bottom + 10}"/>
-{hand_svg}
-<line class="pane" x1="20" y1="{hand_bottom + 10}" x2="{WIDTH - 20}" y2="{hand_bottom + 10}"/>
-{ticker_svg}
-</svg>'''
-
-    doc = f"""<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta http-equiv="refresh" content="10">
-<title>TOWER · apps autopilot, live</title>
-<style>
-  body {{ background:{PALETTE["bg"]}; color:{PALETTE["ink"]}; margin:0; padding:24px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }}
-  .page {{ max-width:{WIDTH + 40}px; margin:0 auto; }}
-  .foot {{ font-family:ui-monospace,monospace; font-size:11px; color:{PALETTE["dim"]};
-    margin-top:10px; }}
-  a {{ color:{PALETTE["purple"]}; }}
-</style>
-</head>
-<body>
-<div class="page">
-{svg}
-<p class="foot">tower · loopback only · recollects every {CACHE_TTL}s ·
-  <a href="/pulse">/pulse</a> for the plain-page view</p>
-</div>
-</body>
-</html>
-"""
-    return doc
 
 
 def render_pulse_page():
