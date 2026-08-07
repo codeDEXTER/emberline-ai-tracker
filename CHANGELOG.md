@@ -32,6 +32,71 @@
   and it was rejected for the same reason the hand-written log was — a number
   nobody can trace is not a measurement. Management cost is now visible and
   attributed to a project; which task inside it consumed what is still unknown.
+## 2026-08-07 · The Tower switches by project, not by lens
+
+Proposal 13, from the sponsor looking at what had just been built: *"rather than
+switching board, ledger and progress, I should be able to switch between
+projects with all details."*
+
+He is right, and the interesting part is why the lenses existed at all. BOARD /
+LEDGER / PROGRESS answered a real constraint — six projects' features, history
+and flow do not fit in 900px, so the estate view had to be cut three ways. But
+**one project's data fits easily**: the largest is pockets at 7 features, 6
+sessions and 9 history points; finance-tracker is 3 sessions and 21 history
+points. Change the axis to project and the split stops being necessary at all,
+rather than needing re-cutting per project. The lenses were the answer to a
+volume problem that disappears when the question changes from "show me a way of
+looking" to "show me one app".
+
+So the tab bar becomes the project list, a project page composes everything that
+already exists filtered to one app, and `ALL` becomes a one-line-per-project
+estate summary.
+
+**NEEDS YOU stays above the tabs and is never filtered.** It is the autopilot's
+blocking state: a decision waiting in an app the sponsor is not currently
+looking at must still reach him, and filtering it is the one change that would
+make the screen actively worse rather than better.
+
+Worth recording plainly: the `ALL` page is almost exactly the **Portfolio**
+option from proposal 11 — the one recommended then and turned down in favour of
+Ledger and Board. That recommendation was wrong *at the time*: as the only view
+it hid individual features behind an expand, and with one register declared it
+had nothing to compare. As a summary above per-project pages it is the right
+shape, because comparison is what a top level is for. Rejecting it as the answer
+and adopting it as the roof are both correct, a day apart.
+
+The costs are stated in the document rather than discovered later: the
+cross-project feature table goes, "everything blocked anywhere" becomes six tab
+visits, and the tab bar grows with the estate — six fit, twelve would need
+grouping.
+
+Cut as #81. #76 (cost per feature) was unblocked by #78 the same hour and
+immediately re-queued behind #81, because cost is a column on a feature list and
+#81 moves where that list lives.
+
+## 2026-08-07 · spend can be asked about a project by path
+
+Implements #78, which exists only to unblock #76 (cost per feature on the
+Tower).
+
+`bin/spend` measured everything through `_tasks_here()`, which derived the repo
+root from the **current working directory** and took no path. The Tower cannot
+use that: its collectors run in a thread pool, and a process-global `chdir`
+there is the kind of race that produces a wrong number occasionally rather than
+an obvious failure — the worst way for a cost figure to be wrong.
+
+So `_repo_root()` takes an optional path, `tasks_for(path=None)` is the public
+form, and `_tasks_here()` is now a thin wrapper over it. **An access change, not
+a measurement one**: task grouping, token counting and the CLI are untouched.
+Checked project by project — the path form and the CLI agree on all five,
+including finance-tracker's 4,018,382 tokens and the two that legitimately have
+none.
+
+**The first version of the no-chdir test was useless and passed anyway.** It
+called `tasks_for(repo)` from inside that same repo, so a reinjected `chdir` to
+that directory changed nothing observable and the guard went green against the
+exact bug it existed to catch. It now runs from outside the project, and
+reinjecting the chdir turns it red.
 
 ## 2026-08-07 · The Tower's whole open queue, in one pass
 
