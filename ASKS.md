@@ -306,3 +306,17 @@ implementation keeps moving. Said while phase 1 was mid-build, the same day
 issue #5's bug rounds had consumed most of a working day — read against that
 backdrop. Note what it does not say: it does not say broken work should land;
 it says finding a bug is not a reason to stop building.
+
+## 2026-08-07 · The Simulator window goes on the Mac's built-in screen
+Said in: pip (M1)
+
+"please open iphone simulator on macs screen only, i have a multi screen
+setup." A machine-level placement rule, not a one-off: when a session opens
+Simulator.app for him to watch, the window goes on the built-in display
+(currently origin (1920,0), 1728×1117 — verify via CGDisplayBounds, don't
+hard-code), not whichever external Chrome/Tower lives on. Backdrop: the same
+day, a gate's cliclick tap aimed at a remembered Simulator position landed in
+his live Tower window after Stage Manager swapped it — window placement on
+this machine is load-bearing, not cosmetic. Ninth entry in the
+state-visible-at-a-glance family: he shouldn't have to hunt across three
+screens for the thing he was asked to look at.
