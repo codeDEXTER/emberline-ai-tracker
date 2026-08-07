@@ -295,3 +295,14 @@ rule ("relaying means showing, not summarising").
 honest read is one rule that keeps being rediscovered in a new context, which
 by the guidance above makes it an amendment candidate rather than a fourth
 independent statement of it.
+
+## 2026-08-07 · If there is a bug, create an issue, but continue
+Said in: mac-explorer (phase 1 build)
+
+"and in parallel continue the implementation if there is a bug, create an
+issue, but continue." Bugs found during a build must not stall the pipeline:
+each becomes a formal issue at once (per the 2026-08-06 issues ask) and the
+implementation keeps moving. Said while phase 1 was mid-build, the same day
+issue #5's bug rounds had consumed most of a working day — read against that
+backdrop. Note what it does not say: it does not say broken work should land;
+it says finding a bug is not a reason to stop building.

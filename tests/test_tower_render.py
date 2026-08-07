@@ -21,6 +21,7 @@ from __future__ import annotations
 import importlib.machinery
 import importlib.util
 import re
+import threading
 import unittest
 from pathlib import Path
 
@@ -734,6 +735,78 @@ class CostIsPerWeekNotPerFeature(unittest.TestCase):
         """A delta or a cost with an unstated window is not a measurement."""
         out = T.render_progress(self.HIST, self.COST)
         self.assertIn(f"last {T.COST_WINDOW_DAYS} days", out)
+
+
+class ARenderNeverWaitsForACollection(unittest.TestCase):
+    """#86. Measured against the running app before this: ~4s per recollect,
+    with a 5s cache and a 10s auto-refresh, so the window froze for four
+    seconds out of every ten and the visible clock ran up to 14s late. That was
+    reported as "outdated data" when the data was correct and merely late."""
+
+    def setUp(self):
+        self._data = T._cache["data"]
+        self._ts = T._cache["ts"]
+        self._collect = T._collect_now
+
+    def tearDown(self):
+        T._cache["data"], T._cache["ts"] = self._data, self._ts
+        T._collect_now = self._collect
+        with T._refresh_lock:
+            T._refresh["running"] = False
+
+    def test_a_stale_cache_is_served_immediately_not_recollected_inline(self):
+        """The whole fix. A slow collector must cost nothing at render time."""
+        import time
+        T._cache["data"] = {"marker": "old"}
+        T._cache["ts"] = time.time() - (T.CACHE_TTL + 60)
+        slow = threading.Event()
+
+        def never_finishes():
+            slow.wait(5)
+            return {"marker": "new"}
+
+        T._collect_now = never_finishes
+        started = time.time()
+        got = T.collect()
+        elapsed = time.time() - started
+        slow.set()
+        self.assertEqual(got, {"marker": "old"}, "served something other than the cache")
+        self.assertLess(elapsed, 0.5, f"collect() blocked for {elapsed:.2f}s")
+
+    def test_only_one_background_refresh_runs_at_a_time(self):
+        """Otherwise a slow sweep spawns a thread per request and the machine
+        does the same expensive work N times over."""
+        import time
+        T._cache["data"] = {"marker": "old"}
+        T._cache["ts"] = time.time() - (T.CACHE_TTL + 60)
+        calls = []
+        hold = threading.Event()
+
+        def counted():
+            calls.append(1)
+            hold.wait(5)
+            return {"marker": "new"}
+
+        T._collect_now = counted
+        for _ in range(5):
+            T.collect()
+        time.sleep(0.2)
+        hold.set()
+        self.assertEqual(len(calls), 1, f"{len(calls)} concurrent refreshes")
+
+    def test_the_first_render_does_wait(self):
+        """A page with no data at all is worse than a slow first page, so the
+        cold path is deliberately synchronous."""
+        T._cache["data"], T._cache["ts"] = None, 0
+        T._collect_now = lambda: {"marker": "seeded"}
+        self.assertEqual(T.collect(), {"marker": "seeded"})
+
+    def test_the_age_is_reported_not_implied(self):
+        import time
+        T._cache["data"], T._cache["ts"] = {"x": 1}, time.time() - 42
+        self.assertGreaterEqual(T.data_age(), 41)
+        T._cache["ts"] = 0
+        self.assertIsNone(T.data_age())
 
 
 class StillEscapes(unittest.TestCase):
