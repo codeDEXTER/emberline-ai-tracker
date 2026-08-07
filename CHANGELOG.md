@@ -49,6 +49,59 @@ space), no forecast of any kind (proposal 08 refused an ETA on four days and #63
 held the line on six — cost and drift both invite "at this rate…"), and no new
 bookkeeping, since every figure above is derivable today and the logbook was
 rejected once already.
+## 2026-08-07 · The Tower reads the features register, and names no branches
+
+Implements issue #65, the core of proposal 10. The screen's spine is now each
+project's declared `## Features` table. Nothing is inferred.
+
+**What was actually wrong.** Three sources, all of them the wrong thing:
+worktree directory names, issue title prefixes (`title.split(":")[0]` — two
+issues shared a "feature" only if somebody typed the same words before a
+colon), and `##` headings, which in three of four projects are priority
+buckets. `Now` is not a feature and never finishes.
+
+**No worktree or branch name is rendered anywhere now** — not in a label, not
+in a hover, not in a disclosure. `tests/test_tower_render.py` pins it across
+every renderer that takes a worktree, verified by reinjecting a name into the
+strip's hover and watching the guard go red. The `<details>` listing 18
+worktree names from #51 is a count instead: a worktree with no mapped issue has
+nothing to identify it *by* except its directory.
+
+**The parsing subtlety that would have corrupted every percentage.** A register
+row reads either `in flight — issue #1` or `blocked by #2`. Those are opposite
+facts. Reading every `#N` in the row would have made each blocked feature
+inherit its blocker's progress, so `IMPLEMENTS` and `BLOCKED_BY` are separate
+patterns and only the first ever reaches a figure. On the live register that is
+the difference between "0/1 issues" and five features silently claiming
+Milestone 0's completion.
+
+**Completion is split, per proposal 05.** The percentage is derived from issues
+— a measurement nobody maintains. **Done** comes only from the sponsor's State
+column. A feature whose tickets are all shut but which he has not closed reads
+`100% · awaiting your close`, which is the honest state and a useful prompt.
+
+**Undeclared scope is still not zero.** Only pockets has a register, so
+finance-tracker, pip and mac-explorer read "no features declared — 18/54
+checklist items ticked, against no product definition". Proposal 08's rule, and
+it binds harder here because a completion figure is the thing the sponsor asked
+for by name: a number over an invented denominator would be worse than none.
+`feature_data` calls `PULSE.checklist_progress` rather than counting ticks with
+a local regex, specifically so the "lines that look like items but could not be
+parsed" warning survives instead of being quietly dropped.
+
+**Deleted:** `compute_hulls` (dead since #52), `burnup_data`, `render_burnup`
+and the per-package bars, and the `groups`/`prefix_total` payload that existed
+only to feed the hulls. `AT THE WALL` also went — it named worktrees and said a
+second time what the NEEDS YOU band says first and larger.
+
+Fixed on the way, having been recorded on this issue during #64: the sessions
+summary did not sum. `22 · 0 active, 1 needs you, 4 idle` left 17 of 22
+sessions in no bucket, because the contested branch assigned a class and
+counted nothing. Every session now lands in exactly one bucket and the line
+reads `11 · 1 needs you, 5 contested, 5 idle`.
+
+Also fixed: `graph_err` included `hulls_err`, so a failure inside a collector
+rendered nowhere would have blanked both NEEDS YOU and SESSIONS.
 
 ## 2026-08-07 · Handovers and the commit ticker come off the Tower
 
