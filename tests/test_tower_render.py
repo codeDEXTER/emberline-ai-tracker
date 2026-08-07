@@ -217,6 +217,68 @@ class RepeatedEventsCollapse(unittest.TestCase):
         self.assertIn("×3", T.times(3))
 
 
+class FitsTheWindow(unittest.TestCase):
+    """Issue #56. The page height used to be a function of how much work
+    existed — 1,721px to 1,792px in half an hour, purely because worktrees were
+    added. Capping the regions and letting them scroll fixes that by
+    construction, but only if four CSS rules all survive together.
+
+    This is a proxy: whether the page truly fits 1280x900 can only be settled
+    in a browser, and it was (page height 900, every region scrolling, verified
+    at 1280 and again at 820 where the caps must NOT apply). What the proxy
+    guards is the two rules that silently undo it, both of which I got wrong
+    on the way here:
+
+      * `align-items:start` (inherited from the uncapped layout) makes a grid
+        item size to its content and overflow its track, so the cap never binds
+        and the overflow lands straight back on the page. The fix is an
+        explicit `align-items:stretch`.
+      * without `min-height:0`, a grid item refuses to shrink below its content
+        for exactly the same net effect.
+
+    Either one reads as harmless in review and puts the scrollbar back on the
+    page. Hence a test rather than a comment.
+    """
+
+    def setUp(self):
+        css = T.CSS
+        start = css.index("@media (min-width:1001px)")
+        depth, i = 0, start
+        while True:                       # walk to the matching brace
+            if css[i] == "{":
+                depth += 1
+            elif css[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            i += 1
+        self.fit = css[start:i + 1]
+
+    def test_cells_are_stretched_not_content_sized(self):
+        self.assertIn("align-items:stretch", self.fit)
+
+    def test_cells_may_shrink_below_their_content(self):
+        self.assertIn("min-height:0", self.fit)
+
+    def test_cells_scroll_internally(self):
+        self.assertIn("overflow-y:auto", self.fit)
+
+    def test_the_page_itself_does_not_scroll(self):
+        self.assertRegex(self.fit, r"body\s*\{[^}]*overflow:hidden")
+
+    def test_the_band_is_capped_too(self):
+        """Unbounded, three waiting items took 28% of the height and squeezed
+        the pipeline to 165px. It is the most important region and still must
+        not be allowed to own the screen."""
+        self.assertRegex(self.fit, r"\.band\s*\{[^}]*max-height")
+
+    def test_the_caps_do_not_apply_to_a_narrow_window(self):
+        """A narrow window is a browser being read, not the wall screen —
+        locking it to the viewport would squash six regions into nothing."""
+        self.assertIn("min-width:1001px", self.fit)
+        self.assertNotIn("@media (max-width", self.fit)
+
+
 class StillEscapes(unittest.TestCase):
     def test_markup_in_data_cannot_reach_the_page(self):
         evil = '<script>alert(1)</script>'

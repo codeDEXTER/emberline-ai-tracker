@@ -1,5 +1,58 @@
 # Changelog — common-rules
 
+## 2026-08-07 · The Tower fits its window, and stops growing with the tree
+
+Implements issue #56, which finishes proposal 09. **The page now fits 1280×900
+exactly** — verified in a browser at 900px, and again at 820px where the caps
+must *not* apply.
+
+**The issue was filed on a diagnosis that turned out to be wrong, and that is
+the useful part of this entry.** It said the pipeline was "the last 780px
+between the screen and one glance" and that collapsing two of its lists would
+get under budget. Measured by hiding whole regions and re-reading the page
+height, at 1280 wide:
+
+| state | height |
+|---|---|
+| before | 1,792px |
+| **entire pipeline region deleted** | **1,196px** |
+| pipeline *and* handovers deleted | 912px |
+
+Deleting the whole pipeline still overshot by 296px. The reasoning error was
+forgetting the grid: the page is
+`header + band + max(pipeline, work-packages) + max(handovers, ticker) + strip`,
+so work packages (472px) and handovers (453px) set a floor that no amount of
+pipeline cutting reaches. Once the pipeline drops below 472px every further chip
+removed buys exactly nothing.
+
+**So the fix is not a cut at all.** The regions are capped and scroll inside
+themselves. Nothing is dropped, nothing is hidden behind a disclosure, and the
+page fits by construction rather than by tuning.
+
+That last part is the real point. The page height was a *function of how much
+work exists* — it went 1,721 → 1,792px during the hour #51 and #52 were being
+built, purely because worktrees were added. Any fix that works by cutting
+content would have gone out of budget again on its own the next busy week.
+aashish chose this over cutting content for that reason.
+
+**Two CSS rules do all the load-bearing work, and both were wrong first.**
+`align-items:start`, inherited from the uncapped layout, makes a grid item size
+to its content and overflow its track — so the cap never binds and the scrollbar
+lands back on the page, looking exactly like the cap "not working". Same net
+effect if `min-height:0` is missing. `tests/test_tower_render.py` pins both,
+verified by reinjecting `align-items:start` and watching it go red, because
+either one reads as harmless in review.
+
+The band is capped too, at 22vh. Unbounded, three waiting items took 28% of the
+screen and squeezed the pipeline to 165px — it is the most important region and
+still must not own the window.
+
+Below 1001px none of this applies: a narrow window is a browser being read, not
+the wall screen, and locking that to the viewport would squash six regions into
+nothing. It stays a normally scrolling single column.
+
+No behaviour change for any adopted project: this is `bin/tower` and its tests.
+
 ## 2026-08-07 · What needs you is first on the Tower, and the graph is retired
 
 Implements issues #51 and #52, the last two of proposal 09. Built as one branch
