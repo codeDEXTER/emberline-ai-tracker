@@ -38,6 +38,20 @@ Three fixes land with whichever option, since they are corrections rather than
 choices: a blocked feature gets no bar at all, the features region moves to the
 wider column, and undeclared projects collapse to one grouped statement.
 
+**Drawing the merged screen changed one of the two issues before either was
+built.** Assembled, A and B collide in two ways neither had alone. The board and
+the existing PIPELINE are the same widget at different altitudes — one counting
+issues by state, one counting features by state — which is the noise this
+redesign set out to remove, reintroduced somewhere new. And four columns in the
+wider half of a 3fr/2fr split are ~150px each, so titles would truncate *worse*
+than they do now, which is the defect #70 exists to fix.
+
+Both have one answer: **the feature board replaces PIPELINE rather than sitting
+beside it.** It follows from the ask — features, not issues, not branches — and
+it gives the board the full width four columns need. Issue-level flow moves to
+`/features`, where it is detail rather than noise. #70 was rewritten to say so
+before any code was written against it.
+
 ## 2026-08-07 · Handovers and the commit ticker come off the Tower
 
 Implements issue #64, the first of proposal 10's queue. Two regions gone:

@@ -356,6 +356,119 @@ happen regardless: blocked features get no bar, the region moves to the wider
 column, and the whole-product figure appears somewhere. Whichever you pick, those
 land with it.</p>
 
+<p class="eyebrow">A and B merged <span class="tag">drawn after the choice, and it changes one thing</span></p>
+
+<p>Assembling the two options into one product surfaced two problems neither
+option had on its own. Both are real, both are fixable, and one of them changes
+what #70 should build.</p>
+
+<div class="verdict warn">
+  <b>Problem 1 — the board and the PIPELINE are the same widget</b>
+  <p>PIPELINE already shows <span class="mono">IN FLIGHT</span> /
+  <span class="mono">QUEUED</span> / <span class="mono">MERGED TODAY</span>. That
+  is a board of work by state. Putting a board of <em>features</em> by state next
+  to it gives the screen two boards of identical shape at different altitudes —
+  one counting issues, one counting features. That is precisely the noise the
+  whole redesign set out to remove, reintroduced in a new place.</p>
+</div>
+
+<div class="verdict warn">
+  <b>Problem 2 — four columns cannot live in half a screen</b>
+  <p>Option B was drawn full width. As a region in the existing grid it gets the
+  wider column of a 3fr/2fr split — about 600px — so four columns are ~150px
+  each. Feature titles would truncate <em>worse</em> than they do today, which is
+  the exact defect #70 exists to fix.</p>
+</div>
+
+<div class="verdict good">
+  <b>The resolution: the board replaces PIPELINE rather than joining it</b>
+  <p>Both problems have the same answer, and it follows from what was actually
+  asked for — <em>“what features are done… I don't want to know what internal
+  communication is going on or what branch names they are naming.”</em> The
+  feature board <b>is</b> the pipeline, one altitude up. Issue-level flow is
+  detail, and detail belongs on <span class="mono">/features</span>.</p>
+  <p>So the board takes the full width PIPELINE used to share, gets four honest
+  columns, and the main screen goes back to four regions rather than five.</p>
+</div>
+
+<div class="mock">
+<svg viewBox="0 0 1280 900" role="img" aria-label="Merged main screen: needs-you, feature board, sessions">
+  <style>
+    .mb{fill:#0B0E13}.mc{fill:#131820;stroke:#26303C}
+    .mh{font-family:ui-monospace,monospace;font-size:11px;fill:#7C8594;letter-spacing:.12em;font-weight:700}
+    .mt{font-family:-apple-system,sans-serif;font-size:13px;fill:#DFE3EA;font-weight:600}
+    .mtb{font-family:-apple-system,sans-serif;font-size:18px;fill:#DFE3EA;font-weight:650}
+    .md{font-family:ui-monospace,monospace;font-size:10px;fill:#7C8594}
+    .mg{fill:#5FA985}.ma{fill:#D2A05A}.mp{fill:#A98FD6}
+  </style>
+  <rect class="mb" width="1280" height="900" rx="14"/>
+  <text class="mh" x="28" y="34" font-size="13">TOWER · APPS AUTOPILOT · LIVE</text>
+  <text class="md" x="28" y="52">2026-08-07 18:20 · updates every 5s</text>
+  <text class="md" x="880" y="34">rules 114 · 5 behind</text>
+  <text class="md" x="880" y="52"><tspan fill="#A98FD6">14%</tspan> of declared scope · <tspan fill="#7FB2CE">/features</tspan></text>
+  <line x1="24" y1="66" x2="1256" y2="66" stroke="#222B38"/>
+
+  <text class="mh" x="28" y="92" fill="#A98FD6">NEEDS YOU · 1</text>
+  <rect class="mc" x="24" y="102" width="1232" height="60" rx="10" stroke="#A98FD6" fill="#171526"/>
+  <text class="mtb" x="44" y="128">rulecheck reports idea-lab as unaligned forever</text>
+  <text class="md" x="44" y="148">common #61 · open PR, awaiting your merge · 41m</text>
+
+  <text class="mh" x="28" y="196">FEATURES · 7 DECLARED IN 1 OF 5 PROJECTS</text>
+  <text class="md" x="1010" y="196">full ledger → /features</text>
+  <line x1="24" y1="208" x2="1256" y2="208" stroke="#222B38"/>
+
+  <text class="mh" x="28" y="236" fill="#5FA985">IN FLIGHT · 1</text>
+  <rect class="mc" x="24" y="248" width="290" height="72" rx="9" stroke="#5FA985"/>
+  <text class="mt" x="40" y="270">Milestone 0: prove the</text>
+  <text class="mt" x="40" y="286">classifier is good enough</text>
+  <text class="md" x="40" y="306">pockets · 0/1 issues</text>
+
+  <text class="mh" x="338" y="236">NEXT · 0</text>
+  <text class="md" x="338" y="260">nothing queued behind</text>
+  <text class="md" x="338" y="276">the one in flight</text>
+
+  <text class="mh" x="652" y="236" fill="#D2A05A">BLOCKED · 5</text>
+  <rect class="mc" x="648" y="248" width="290" height="52" rx="9"/>
+  <text class="mt" x="664" y="268">Capture a document and see it filed</text>
+  <text class="md" x="664" y="286">pockets · by Milestone 0</text>
+  <rect class="mc" x="648" y="308" width="290" height="52" rx="9"/>
+  <text class="mt" x="664" y="328">Import the WhatsApp backlog</text>
+  <text class="md" x="664" y="346">pockets · by #2, #3</text>
+  <rect class="mc" x="648" y="368" width="290" height="52" rx="9"/>
+  <text class="mt" x="664" y="388">Review what the app was not sure about</text>
+  <text class="md" x="664" y="406">pockets · by #2, #3</text>
+  <text class="md" x="650" y="436">+ 2 more blocked</text>
+
+  <text class="mh" x="966" y="236">DONE · 0</text>
+  <text class="md" x="966" y="260">nothing closed yet.</text>
+  <text class="md" x="966" y="276">A feature is done when</text>
+  <text class="md" x="966" y="292">you close it, not when</text>
+  <text class="md" x="966" y="308">its tickets are shut.</text>
+
+  <text class="md" x="28" y="474">finance-tracker, pip, mac-explorer, common-rules, idea-lab — <tspan fill="#D2A05A">no features declared</tspan>.</text>
+  <text class="md" x="28" y="492">26/78 checklist items ticked between them, against no product definition.</text>
+
+  <line x1="24" y1="520" x2="1256" y2="520" stroke="#222B38"/>
+  <text class="mh" x="28" y="548">SESSIONS · 11 · 1 NEEDS YOU, 5 CONTESTED, 5 IDLE</text>
+  <text class="md" x="28" y="574">Milestone 0 — classifier · 2</text>
+  <circle class="mg" cx="240" cy="570" r="6"/><circle cx="258" cy="570" r="6" fill="#39434F"/>
+  <text class="md" x="28" y="600">no declared feature · 9</text>
+  <circle class="mp" cx="240" cy="596" r="6"/><circle class="ma" cx="258" cy="596" r="6"/>
+  <circle class="ma" cx="276" cy="596" r="6"/><circle class="ma" cx="294" cy="596" r="6"/>
+  <circle class="ma" cx="312" cy="596" r="6"/><circle class="ma" cx="330" cy="596" r="6"/>
+  <circle cx="348" cy="596" r="6" fill="#39434F"/><circle cx="366" cy="596" r="6" fill="#39434F"/>
+  <circle cx="384" cy="596" r="6" fill="#39434F"/>
+  <text class="md" x="28" y="628">hover a dot for the feature and issue · click to open the session</text>
+
+  <text class="md" x="28" y="676">tower · loopback only · <tspan fill="#A98FD6">/features</tspan> for the full ledger · <tspan fill="#A98FD6">/pulse</tspan> for the plain page</text>
+  <text class="md" x="28" y="720" fill="#39434F">— PIPELINE is gone from this screen: the feature board is the pipeline, one altitude up.</text>
+  <text class="md" x="28" y="738" fill="#39434F">   Issue-level flow (queued, merged today) moves to /features, where it is detail rather than noise.</text>
+</svg>
+</div>
+<p class="mockcap" style="font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:8px">
+Merged main screen · the board takes the width PIPELINE used to share · whole-product
+figure in the header, linking to the ledger · four regions, not five</p>
+
 <p class="eyebrow">The work <span class="tag">cut into issues, 2026-08-07</span></p>
 <div class="tablewrap">
 <table>
