@@ -1,5 +1,44 @@
 # Changelog — common-rules
 
+## 2026-08-07 · A render never waits for a collection
+
+Implements #86, reported by aashish as *"this app is slow and time
+non-responsive. it also shows outdated data."*
+
+**The slowness was real and reproducible.** Measured against the running app:
+every recollect blocked the HTTP response for **~4 seconds**, and with a 5s
+cache against a 10s auto-refresh that meant the window froze for four seconds
+out of every ten.
+
+**The "outdated data" was not.** Checked against ground truth, the rules stamp,
+the decision count and the absent staleness line were all correct. What was
+wrong was *lateness*: the visible page ran up to 14s behind because each refresh
+took 4s to arrive. It read as stale because it was late — a useful distinction,
+because the fix for one is not the fix for the other.
+
+`collect()` now serves the cached snapshot immediately and refreshes in a
+background thread, one at a time. Requests went from ~4s every other hit to
+**~2ms**, warm or cold. The first render still waits, deliberately: a page with
+no data at all is worse than a slow first page.
+
+The cost of not blocking is that a snapshot can be a cycle old, so **the page
+now states its own age** — `data is current` or `data is 9s old · refreshing in
+the background`. A number whose age is visible is honest; a number that is
+silently late is the thing that was reported.
+
+**A far worse defect turned up while measuring.** In the unmerged #76 branch,
+`cost_data` declared `COST_TTL`, `_cost_lock` and `_cost` and never referenced
+them, so it rescanned every transcript on every 5-second collect. Cold, that
+call takes **26.8 seconds**. It would have shipped with #85 and made the app
+close to unusable. Fixed on that branch, and it is the honest argument for
+measuring rather than reviewing: nothing about reading the code made it obvious,
+and the app being slow is what led to it.
+
+The no-blocking guarantee is pinned by tests, verified by reinjecting the old
+inline collect and watching them go red — including one asserting only a single
+background refresh runs at a time, since otherwise a slow sweep spawns a thread
+per request and does the same expensive work many times over.
+
 ## 2026-08-07 · The Tower switches by project
 
 Implements #81. The tab bar is the project list now — `ALL · pockets ·
