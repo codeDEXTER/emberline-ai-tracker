@@ -745,11 +745,20 @@ def collect():
     # "Needs you": a wall item, or its mapped issue's branch has an open,
     # non-draft PR awaiting a merge decision — the two things issue #25 asks
     # this screen to surface at a glance.
-    wall_worktrees = {item["worktree"] for item in (wall or [])}
+    # A dict rather than a set: the *reason* was computed here and thrown
+    # away, so the screen could only ever say "needs you" and never why or for
+    # how long. The band in issue #51 has to say both. Same two conditions,
+    # same inputs — nothing new is collected, the answer is just kept.
+    wall_age = {item["worktree"]: item["age"] for item in (wall or [])}
     gate_set = gate_branches or set()
-    needs_input = {w["name"] for w in worktrees
-                   if w["short"] in wall_worktrees
-                   or (w["project"], w["branch"]) in gate_set}
+    needs_input = {}
+    for w in worktrees:
+        if w["short"] in wall_age:
+            needs_input[w["name"]] = {"why": "waiting on you",
+                                      "age": wall_age[w["short"]]}
+        elif (w["project"], w["branch"]) in gate_set:
+            needs_input[w["name"]] = {"why": "open PR, awaiting your merge",
+                                      "age": ago(w["session"])}
 
     data = {
         "worktrees": worktrees, "worktrees_err": wt_err,
@@ -831,7 +840,8 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
       letter-spacing:.12em; color:var(--dim); margin:0; }
 .sub { font-family:var(--mono); font-size:10px; color:var(--dim); margin:var(--gap-1) 0 0; }
 .rgn { padding-top:var(--gap-3); border-top:1px solid var(--line); }
-.rgn:first-child, .grid > .cell:first-child > .rgn:first-child { border-top:none; padding-top:0; }
+.band > .rgn { border-top:none; padding-top:var(--gap-3); }
+.grid > .cell > .rgn:first-child { border-top:none; padding-top:0; }
 .na { font-family:var(--mono); font-size:11px; color:var(--dim); margin:var(--gap-2) 0 0; }
 
 /* --- long strings clamp in CSS, never by slicing the string --- */
@@ -840,25 +850,31 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
 .clamp2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
           overflow:hidden; overflow-wrap:anywhere; }
 
-/* --- sessions --- */
-.feat { border:1px dashed var(--edge); border-radius:var(--radius);
-        padding:var(--gap-2); margin-top:var(--gap-2); }
-.feat > .flabel { font-family:var(--mono); font-size:9.5px; letter-spacing:.1em;
-                  color:var(--dim); margin:0 0 var(--gap-2); }
-.nodes { display:grid; gap:var(--gap-2);
-         grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); }
-.node { background:var(--card); border:1px solid var(--edge);
-        border-left-width:3px; border-radius:var(--radius);
-        padding:var(--gap-2); min-width:0; }
-.node.act    { border-left-color:var(--green); }
-.node.live   { border-left-color:var(--green); box-shadow:0 0 0 1px var(--green) inset; }
-.node.cont   { border-left-color:var(--amber); }
-.node.you    { border-left-color:var(--purple); background:#171526; }
-.node .ttl { font-size:12.5px; font-weight:600; margin:0; }
-.node .meta { font-family:var(--mono); font-size:9.5px; color:var(--dim);
-              margin:var(--gap-1) 0 0; }
-.node .flag { font-family:var(--mono); font-size:9.5px; margin:var(--gap-1) 0 0; }
-.flag.you { color:var(--purple); } .flag.cont { color:var(--amber); }
+/* --- needs you: first, largest, and zero height when empty --- */
+.you-band { display:grid; gap:var(--gap-2); margin-top:var(--gap-2);
+            grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); }
+.you-row { background:#171526; border:1px solid var(--purple);
+           border-radius:var(--radius); padding:var(--gap-2) var(--gap-3); }
+.you-row.cont { background:#1E1A12; border-color:var(--amber); }
+.you-ttl { font-size:17px; font-weight:650; margin:0; letter-spacing:-.01em; }
+.you-meta { font-family:var(--mono); font-size:10px; color:var(--dim);
+            margin:var(--gap-1) 0 0; }
+.you-none { font-family:var(--mono); font-size:11px; color:var(--dim);
+            margin:var(--gap-2) 0 0; }
+
+/* --- sessions: a strip, not a grid (issue #52) --- */
+.strip { display:flex; flex-wrap:wrap; gap:var(--gap-1); margin:var(--gap-2) 0; }
+.strip-count { font-family:var(--mono); font-size:10px; color:var(--dim);
+               margin:var(--gap-2) 0 0; }
+.dot { display:block; width:16px; height:16px; border-radius:50%;
+       display:flex; align-items:center; justify-content:center;
+       border:1px solid var(--edge); background:var(--card); }
+.dot > span { width:6px; height:6px; border-radius:50%; background:var(--edge); }
+.dot.idle > span { background:var(--edge); }
+.dot.live { border-color:var(--green); } .dot.live > span { background:var(--green); }
+.dot.cont { border-color:var(--amber); } .dot.cont > span { background:var(--amber); }
+.dot.you  { border-color:var(--purple); } .dot.you  > span { background:var(--purple); }
+a.dot:hover { outline:1px solid var(--ink); }
 
 /* --- pipeline --- */
 .psec { font-family:var(--mono); font-size:10px; color:var(--dim);
@@ -870,6 +886,11 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
 .chip.done { border-color:var(--green); }
 .chip.wall { border-color:var(--purple); }
 .chip .num { color:var(--dim); }
+.more { margin-top:var(--gap-1); }
+.more > summary { font-family:var(--mono); font-size:10px; color:var(--dim);
+                  cursor:pointer; padding:var(--gap-1) 0; }
+.more > summary:hover { color:var(--ink); }
+.xn { color:var(--dim); }
 
 /* --- work packages: one grid, so the figure sits beside its own bar
    instead of at a hardcoded x 700px from the label --- */
@@ -933,80 +954,166 @@ def region(title, sub, body, err=None, label=None):
     return "\n".join(out)
 
 
-def render_sessions(worktrees, contested, hulls, needs_input):
-    if not worktrees:
-        return unavailable("no worktrees found")
-
-    # One note per contested pair, naming one file — unchanged from the SVG
-    # version. What changed is that it is attached to the cards it concerns
-    # rather than drawn as a 470px diagonal with a caption floating at its
-    # midpoint over empty grid. Issue #51 promotes these to the "needs you"
-    # band; until then the information stays where it can be read.
-    cont_note, seen = {}, set()
+def contested_notes(contested):
+    """One note per contested pair, naming one file — the concept's own limit.
+    Returns {worktree_name: (other_name, file)}."""
+    notes, seen = {}, set()
     for a, b, f in contested:
         key = frozenset((a, b))
         if key in seen:
             continue
         seen.add(key)
-        for n in (a, b):
-            cont_note.setdefault(n, f)
+        notes.setdefault(a, (b, f))
+        notes.setdefault(b, (a, f))
+    return notes
 
-    def card(w):
-        age_s = (time.time() - w["session"]) if w["session"] else None
-        is_you = w["name"] in needs_input
-        is_cont = w["name"] in cont_note
-        # Priority unchanged: needs-you outranks contested, which outranks
-        # plain freshness.
-        if is_you:
-            cls = "you"
-        elif is_cont:
-            cls = "cont"
-        elif age_s is not None and age_s < 180:
-            cls = "live"
-        elif age_s is not None and age_s < 1800:
-            cls = "act"
-        else:
-            cls = ""
-        title = w.get("issue_title") or w["short"]
-        # title="" carries the untruncated string even when CSS clamps the box.
-        parts = [f'<div class="node {cls}">',
-                 f'<p class="ttl clamp2" title="{e(title)}">{e(title)}</p>']
-        meta = []
-        if w.get("issue_title"):
-            # Only worth a second line when the heading is the issue title —
-            # with no mapped issue the heading already *is* the worktree name,
-            # and repeating it reads as two different facts about the card.
-            meta.append(f'{e(project_tag(w["project"]))} #{e(w["issue"])}')
-            meta.append(e(w["short"]))
-        if age_s is not None:
-            meta.append(e(ago(w["session"])))
-        if meta:
-            parts.append(f'<p class="meta clamp1">{" · ".join(meta)}</p>')
-        if is_you:
-            parts.append('<p class="flag you">needs you</p>')
-        if is_cont:
-            parts.append(f'<p class="flag cont clamp1">contested · '
-                         f'{e(cont_note[w["name"]])}</p>')
-        parts.append("</div>")
-        return "".join(parts)
 
+def render_needs_you(worktrees, needs_input, contested):
+    """The band, first and largest (issue #51).
+
+    Of 23 session nodes on the live tree exactly two carried state, and they
+    were the same size and weight as the 21 that did not. Everything that
+    actually requires him is here instead, in words, above everything else —
+    and when there is nothing, this collapses to one line and gives its height
+    back rather than reserving empty space, which is the failure mode proposal
+    09 is about in the first place.
+    """
     by_name = {w["name"]: w for w in worktrees}
-    grouped, out = set(), []
-    for hull in hulls:
-        members = [by_name[n] for n in hull["members"] if n in by_name]
-        if not members:
+    rows = []
+
+    for name, info in sorted(needs_input.items()):
+        w = by_name.get(name)
+        if not w:
             continue
-        grouped.update(w["name"] for w in members)
-        label = (f'FEATURE · {hull["prefix"].upper()} · {hull["total"]} tickets, 1 active'
-                 if hull["single"] else
-                 f'FEATURE · {hull["prefix"].upper()} · {hull["total"]} TICKETS')
-        out.append(f'<div class="feat"><p class="flabel">{e(label)}</p>'
-                   f'<div class="nodes">{"".join(card(w) for w in members)}</div></div>')
-    loose = [w for w in worktrees if w["name"] not in grouped]
-    if loose:
-        out.append(f'<div class="nodes" style="margin-top:var(--gap-2)">'
-                   f'{"".join(card(w) for w in loose)}</div>')
-    return "\n".join(out)
+        title = w.get("issue_title") or w["short"]
+        meta = [info["why"]]
+        if w.get("issue_title"):
+            meta.insert(0, f'{project_tag(w["project"])} #{w["issue"]}')
+        meta.append(e(w["short"]))
+        if info.get("age"):
+            meta.append(f'{info["age"]}')
+        rows.append(
+            f'<div class="you-row"><p class="you-ttl clamp2" title="{e(title)}">'
+            f'{e(title)}</p><p class="you-meta clamp1">'
+            f'{" · ".join(e(m) for m in meta)}</p></div>')
+
+    # A contested pair is an actionable collision — it belongs beside the other
+    # things that need him, not drawn as a 470px diagonal across a node grid
+    # with its caption floating unanchored at the midpoint (which is what it
+    # was, and the only edge the "graph" ever rendered).
+    for a, (b, f) in sorted(contested_notes(contested).items()):
+        if a > b:
+            continue  # one row per pair, not one per end
+        rows.append(
+            f'<div class="you-row cont"><p class="you-ttl clamp2" '
+            f'title="{e(f)}">Contested · {e(f)}</p>'
+            f'<p class="you-meta clamp1">{e(short_name(a))} ↔ {e(short_name(b))} '
+            f'· both holding the same uncommitted file</p></div>')
+
+    if not rows:
+        return ('<p class="you-none">nothing needs you · '
+                'the autopilot is unblocked</p>')
+    return f'<div class="you-band">{"".join(rows)}</div>'
+
+
+def session_id_of(w):
+    """The transcript filename is the session id — already collected as
+    `newest_transcript`, never previously used for anything but its mtime."""
+    t = w.get("newest_transcript")
+    return t.stem if t else None
+
+
+def render_strip(worktrees, needs_input, contested):
+    """SESSIONS as one dense row of state dots (issue #52).
+
+    This retires the graph from concept 07 rather than deferring it. Position
+    in the old 4-column grid was enumeration order, size and fill were
+    constant, and across 23 nodes exactly one edge ever rendered — proposal
+    08's own message_edges() had already measured why. 615px for 23 labels was
+    the worst trade on the page; this is ~118px, and every worktree is still
+    reachable by hover and click.
+    """
+    if not worktrees:
+        return unavailable("no worktrees found")
+    cont = contested_notes(contested)
+
+    dots, n_live, n_you, n_idle = [], 0, 0, 0
+    for w in sorted(worktrees, key=lambda x: (x["project"], x["short"])):
+        age_s = (time.time() - w["session"]) if w["session"] else None
+        if w["name"] in needs_input:
+            cls, n_you = "you", n_you + 1
+        elif w["name"] in cont:
+            cls = "cont"
+        elif age_s is not None and age_s < 1800:
+            cls, n_live = "live", n_live + 1
+        else:
+            cls, n_idle = "idle", n_idle + 1
+        # The hover carries what the node label used to, in full: no
+        # truncation, because a title attribute has no width to fit.
+        bits = [w["short"]]
+        if w.get("issue_title"):
+            bits.append(f'{project_tag(w["project"])} #{w["issue"]}: '
+                        f'{w["issue_title"]}')
+        if age_s is not None:
+            bits.append(f'last active {ago(w["session"])}')
+        tip = " — ".join(bits)
+        sid = session_id_of(w)
+        if sid:
+            dots.append(f'<a class="dot {cls}" href="/session/{e(sid)}" '
+                        f'title="{e(tip)}"><span></span></a>')
+        else:
+            dots.append(f'<span class="dot {cls}" title="{e(tip)}"><span></span></span>')
+
+    counts = f'{len(worktrees)} · {n_live} active, {n_you} needs you, {n_idle} idle'
+    return (f'<p class="strip-count">{e(counts)}</p>'
+            f'<div class="strip">{"".join(dots)}</div>'
+            f'<p class="sub">hover a dot for the worktree and its issue · '
+            f'click to open the session</p>')
+
+
+DEDUP_WINDOW = 900  # seconds
+
+
+def _epoch(ts):
+    """Best-effort ISO timestamp -> epoch. An unparseable stamp returns 0,
+    which puts the row outside every window and so leaves it uncollapsed —
+    the safe direction: a duplicate shown twice is untidy, a distinct event
+    silently folded into another is a lie."""
+    try:
+        return datetime.datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+    except Exception:
+        return 0.0
+
+
+def collapse_repeats(items, key_of, ts_of, window):
+    """Fold byte-identical entries within `window` seconds into one, counted.
+
+    Measured on the live screen: four of nine ticker lines were the same event
+    (`## 2026-08-03 (continued) — v4: redesign personalId…`, four agent logs,
+    15:10–15:11), and two handover rows carried identical summaries. Nothing
+    was rendering wrong; there was simply no de-duplication step.
+
+    Only *byte-identical* keys collapse. Two rows differing by one character
+    stay two rows — the claim being made is "these are literally the same
+    event recorded N times", and anything looser would hide real events.
+    Returns [(item, count)] preserving input order.
+    """
+    out = []
+    for it in items:
+        k, t = key_of(it), ts_of(it)
+        for prev in out:
+            if prev["k"] == k and abs(prev["t"] - t) <= window:
+                prev["n"] += 1
+                break
+        else:
+            out.append({"k": k, "t": t, "item": it, "n": 1})
+    return [(o["item"], o["n"]) for o in out]
+
+
+def times(n):
+    """The count is always shown when a row stands for more than one event —
+    a collapsed row that looks like a single row is the failure mode."""
+    return f' <span class="xn">×{n}</span>' if n > 1 else ""
 
 
 def issue_label(row, title):
@@ -1029,18 +1136,28 @@ def render_pipeline(pipeline, wall):
     if pipeline is None:
         out.append(unavailable("pipeline"))
     else:
-        n_flight = len(pipeline["in_flight"]) + len(pipeline["in_flight_worktrees"])
-        out.append(f'<p class="psec">IN FLIGHT · {n_flight}</p>')
-        if n_flight:
-            for r in pipeline["in_flight"]:
+        # In flight means a *mapped issue* (issue #51). The count used to add
+        # the ahead-of-main worktrees to it and read "IN FLIGHT · 19" when one
+        # of those nineteen was work and eighteen were git ahead-counts — an
+        # 18x overstatement of the only number on this region anyone reads.
+        mapped = pipeline["in_flight"]
+        unmapped = pipeline["in_flight_worktrees"]
+        out.append(f'<p class="psec">IN FLIGHT · {len(mapped)}</p>')
+        if mapped:
+            for r in mapped:
                 out.append(chip(issue_label(r, strip_prefix(r["title"])), "done"))
-            # Ahead-of-main worktrees with no mapped issue — worktree-named,
-            # never an invented issue chip. Issue #51 collapses these behind a
-            # disclosure so the in-flight count stops overstating the work.
-            for w in pipeline["in_flight_worktrees"]:
-                out.append(chip(f'{w["short"]} · {w["ahead"]} ahead'))
         else:
             out.append('<p class="sub">none</p>')
+        if unmapped:
+            # Collapsed, not hidden: <details> expands in place, so nothing
+            # becomes unreachable and no JavaScript is involved. Still never an
+            # invented issue chip for a worktree that has no mapped issue —
+            # the honest-mapping rule from #24 and #25.
+            rows = "".join(chip(f'{w["short"]} · {w["ahead"]} ahead')
+                           for w in unmapped)
+            out.append(
+                f'<details class="more"><summary>{len(unmapped)} worktree(s) '
+                f'ahead of main, no mapped issue</summary>{rows}</details>')
 
         out.append(f'<p class="psec">QUEUED · '
                    f'{len(pipeline["queued"]) + pipeline["queued_more"]}</p>')
@@ -1128,16 +1245,19 @@ def render_handovers(rows):
         return unavailable("handovers")
     if not rows:
         return '<p class="sub">no messages between sessions yet</p>'
+    collapsed = collapse_repeats(rows, lambda r: (r["sender"], r["summary"]),
+                                 lambda r: _epoch(r["ts"]), DEDUP_WINDOW)
     out = []
-    for r in rows[:MAX_HANDOVERS]:
+    for r, n in collapsed[:MAX_HANDOVERS]:
         when = r["ts"][11:16] if len(r["ts"]) > 15 else ""
         arrow = f'{r["sender"]}  →  {r["to_label"]}'
         out.append(
             f'<a class="hand" href="/session/{e(r["to_session"])}">'
-            f'<span class="top"><span class="who clamp1" title="{e(arrow)}">{e(arrow)}</span>'
+            f'<span class="top"><span class="who clamp1" title="{e(arrow)}">{e(arrow)}'
+            f'{times(n)}</span>'
             f'<span class="when">{e(when)}</span></span>'
             f'<span class="smry clamp2">{e(r["summary"])}</span></a>')
-    rest = len(rows) - MAX_HANDOVERS
+    rest = len(collapsed) - MAX_HANDOVERS
     if rest > 0:
         out.append(f'<p class="sub">+{rest} older</p>')
     return "\n".join(out)
@@ -1147,11 +1267,12 @@ def render_ticker(ticker):
     if not ticker:
         return unavailable("ticker")
     out = []
-    for ts, repo, sha, subj in ticker:
+    for (ts, repo, sha, subj), n in collapse_repeats(
+            ticker, lambda r: r[3], lambda r: r[0], DEDUP_WINDOW):
         t = datetime.datetime.fromtimestamp(ts).strftime("%H:%M")
         out.append(f'<div class="tick"><span class="t">{e(t)}</span>'
                    f'<span class="repo">{e(repo)}</span>'
-                   f'<span class="clamp1" title="{e(subj)}">{e(subj)}</span></div>')
+                   f'<span class="clamp1" title="{e(subj)}">{e(subj)}{times(n)}</span></div>')
     return "\n".join(out)
 
 
@@ -1185,15 +1306,23 @@ def render_page():
     graph_err = (data["worktrees_err"] or data["contested_err"]
                  or data["hulls_err"] or data["gate_err"])
 
+    n_you = len(data["needs_input"]) + len(contested_notes(data["contested"])) // 2
+    needs_you = region(
+        f'NEEDS YOU · {n_you}' if n_you else "NEEDS YOU",
+        None,
+        render_needs_you(data["worktrees"], data["needs_input"],
+                         data["contested"]),
+        graph_err, "needs you")
+
     sessions = region(
-        "LIVE GRAPH · SESSIONS",
+        "SESSIONS",
         '<span style="color:var(--green)">green</span> active · '
         '<span style="color:var(--dim)">grey</span> idle · '
         '<span style="color:var(--amber)">amber</span> contested · '
         '<span style="color:var(--purple)">purple</span> needs you',
-        render_sessions(data["worktrees"], data["contested"],
-                        data["hulls"], data["needs_input"]),
-        graph_err, "live graph")
+        render_strip(data["worktrees"], data["needs_input"],
+                     data["contested"]),
+        graph_err, "sessions")
 
     pipeline = region("PIPELINE", None,
                       render_pipeline(data["pipeline"], data["wall"]),
@@ -1234,17 +1363,18 @@ def render_page():
     </div>
     {render_header(data["header"], len(data["wall"]))}
   </header>
+  <div class="band">{needs_you}</div>
+  <!-- The order proposal 09's mockup locked: what needs him first and
+       full-width, the work beside its progress, and the sessions demoted to a
+       strip at the foot. The old page opened with 615px of session grid, so
+       the two items that required him were below the fold of their own
+       screen. -->
   <main class="grid">
-    <!-- Work packages sits under the sessions rather than full-width below
-         both columns. The pipeline column is roughly 1.7x the height of the
-         sessions column on a live tree, and a two-column row is only as short
-         as its taller cell — so full-width-below left ~600px of empty column
-         beside the pipeline. Stacking two regions there balances the row and
-         the band closes. -->
-    <div class="cell">{sessions}{burnup}</div>
     <div class="cell">{pipeline}</div>
-    <div class="cell wide">{handovers}</div>
-    <div class="cell wide">{ticker}</div>
+    <div class="cell">{burnup}</div>
+    <div class="cell">{handovers}</div>
+    <div class="cell">{ticker}</div>
+    <div class="cell wide">{sessions}</div>
   </main>
   <p class="foot">tower · loopback only · recollects every {CACHE_TTL}s ·
     <a href="/pulse">/pulse</a> for the plain-page view</p>
