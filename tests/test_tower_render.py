@@ -861,6 +861,58 @@ class NoFeatureIsEverDropped(unittest.TestCase):
               "features": feats}]))
 
 
+class TheRegisterComesFromMainNotTheCheckout(unittest.TestCase):
+    """#91. pip's register was merged and on origin/main while its checkout sat
+    a commit behind with another session mid-work, so the Tower reported "no
+    features declared" for a project that had declared nine.
+
+    A feature is declared when its register is merged. Whether a working copy
+    has pulled is an accident of who is working where — the same class of
+    defect as #73, an answer that quietly depends on local state it does not
+    mention."""
+
+    def _repo(self, committed, working=None):
+        import subprocess, tempfile
+        d = Path(tempfile.mkdtemp())
+        git = [T.GIT, "-C", str(d)]
+        subprocess.run([T.GIT, "init", "-q", "-b", "main", str(d)], check=True)
+        subprocess.run(git + ["config", "user.email", "t@t"], check=True)
+        subprocess.run(git + ["config", "user.name", "t"], check=True)
+        (d / "CLAUDE-checklist.md").write_text(committed)
+        subprocess.run(git + ["add", "-A"], check=True)
+        subprocess.run(git + ["commit", "-qm", "register"], check=True)
+        if working is not None:
+            (d / "CLAUDE-checklist.md").write_text(working)
+        return d
+
+    TABLE = ("## Features\n\n| # | Feature | State |\n|---|---|---|\n"
+             "| [#2](x) | A declared feature | **in flight** — issue #1 |\n")
+
+    def test_a_checkout_behind_main_still_reports_the_merged_register(self):
+        """The exact live case: committed register, working file without it."""
+        d = self._repo(self.TABLE, working="## Now\n\n- [ ] nothing here\n")
+        feats = T.parse_features(T.register_source(d))
+        self.assertEqual(len(feats), 1, "read the stale working file, not main")
+
+    def test_an_uncommitted_register_does_not_count_yet(self):
+        """Correct rather than unfortunate: a feature is not declared until it
+        is merged, which is the rule its own State column follows."""
+        d = self._repo("## Now\n\n- [ ] nothing\n", working=self.TABLE)
+        self.assertEqual(T.parse_features(T.register_source(d)), [])
+
+    def test_a_repo_with_no_commits_falls_back_to_the_working_file(self):
+        """Degrading to LESS scope than exists is the failure mode here, so the
+        working file is a resort rather than an error."""
+        import subprocess, tempfile
+        d = Path(tempfile.mkdtemp())
+        subprocess.run([T.GIT, "init", "-q", str(d)], check=True)
+        (d / "CLAUDE-checklist.md").write_text(self.TABLE)
+        self.assertEqual(len(T.parse_features(T.register_source(d))), 1)
+
+    def test_a_path_that_is_not_a_repo_is_not_an_exception(self):
+        self.assertEqual(T.register_source(Path("/nonexistent-xyz")), "")
+
+
 class StillEscapes(unittest.TestCase):
     def test_markup_in_data_cannot_reach_the_page(self):
         """Retargeted in #64 from render_handovers, which no longer exists.

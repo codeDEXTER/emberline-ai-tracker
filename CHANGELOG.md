@@ -1,5 +1,43 @@
 # Changelog — common-rules
 
+## 2026-08-07 · The register is read from main, not from whatever the checkout is parked on
+
+Implements #91. All four registers were merged; the Tower reported three.
+
+pip's register was on `origin/main` while its working checkout sat a commit
+behind, with another session mid-work in it. `feature_data` read
+`proj["path"]/CLAUDE-checklist.md` — the working file — saw no table, and
+reported **"no features declared"** for a project that had declared nine.
+
+**A feature is declared when its register is merged.** Whether a particular
+working copy has pulled is an accident of who is working where, and the answer
+to "what is this product made of" must not move because of it. Same class of
+defect as #73: an answer that quietly depends on local state it does not
+mention.
+
+`origin/main` first, then `main`, then the working file. The order matters and
+is commented, because a *local* main can itself be behind — which is exactly the
+case that produced this. The working file is a last resort rather than an error:
+degrading to *less* scope than exists is the failure mode here, so an
+unreachable remote must not drop a project to zero.
+
+Reading from git also means an uncommitted register edit does not count yet.
+That is correct rather than unfortunate, and it matches the rule the State
+column already follows.
+
+The estate now reports **32 features in 4 of 6 projects**, with pip's checkout
+untouched — the overlap rule says do not reach into a surface another session
+is holding, and fixing the Tower was the better answer than fixing their
+checkout.
+
+**One inconsistency is left open deliberately.** `checklist_progress` — item
+counts, and so the burnup — still reads the working file, so a project can now
+show features from `main` and item counts from a checkout that is behind.
+Aligning them would make declared scope wholly a merged fact; leaving items on
+the working tree keeps them a live signal of what a session is doing. That
+changes what the burnup measures, so it is recorded on #91 for the sponsor
+rather than decided in passing.
+
 ## 2026-08-07 · workflow.html catches up with the feature-register rule
 
 #88 changed `CLAUDE-workflow.md` and did not update `docs/workflow.html` in the

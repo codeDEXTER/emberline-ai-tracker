@@ -674,6 +674,32 @@ def parse_features(md):
     return out
 
 
+def register_source(path):
+    """The checklist as *merged*, not as whatever this checkout is parked on.
+
+    A feature is declared when its register is merged. Whether a particular
+    working copy has pulled yet is an accident of who is working where, and the
+    answer to "what is this product made of" must not move because of it —
+    measured 2026-08-07, pip's register was merged and on origin/main while its
+    checkout sat a commit behind with another session mid-work, so the Tower
+    reported "no features declared" for a project that had declared nine.
+
+    Same class of defect as #73: an answer that quietly depends on local state
+    it does not mention.
+
+    origin/main first, because a *local* main can itself be behind — which is
+    exactly the case that produced this. The working file is the last resort,
+    for a repo with no remote or no commits yet, and it is a resort rather than
+    an error: degrading to less scope than exists is the failure mode here.
+    """
+    for ref in ("origin/main", "main"):
+        out = run([GIT, "-C", str(path), "show", f"{ref}:CLAUDE-checklist.md"])
+        if out:
+            return out
+    f = Path(path) / "CLAUDE-checklist.md"
+    return f.read_text(errors="replace") if f.exists() else ""
+
+
 def feature_data(projs):
     """Per project: its declared features, and -- only where a feature names the
     issues that implement it -- how many of those are closed.
@@ -685,8 +711,7 @@ def feature_data(projs):
     """
     out = []
     for proj in projs:
-        md_path = Path(proj["path"]) / "CLAUDE-checklist.md"
-        feats = parse_features(md_path.read_text(errors="replace")) if md_path.exists() else []
+        feats = parse_features(register_source(proj["path"]))
         row = {"project": proj["name"], "features": feats or None,
                "items": None, "unparsed": 0, "closed": {}}
         # The checklist's own tick count, kept as the honest fallback signal for
