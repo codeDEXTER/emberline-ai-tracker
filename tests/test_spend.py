@@ -111,6 +111,23 @@ class TestReport(SpendHarness):
         self.assertIn("task-one", out)
         self.assertIn("(main checkout)", out)
 
+    def test_a_session_spanning_worktrees_is_management_not_a_task(self):
+        """A management session enters several worktrees; charging it to one
+        of them over-claims that task and hides the rest. Regression guard for
+        2026-08-07, when attribution by first-cwd hid 88% of all spend."""
+        (self.repo / ".claude" / "worktrees" / "task-two").mkdir(parents=True)
+        path = self.projects / "manager.jsonl"
+        with open(path, "w") as fh:
+            for cwd in (str(self.repo / ".claude" / "worktrees" / "task-one"),
+                        str(self.repo / ".claude" / "worktrees" / "task-two")):
+                fh.write(json.dumps({
+                    "cwd": cwd, "timestamp": "2026-08-07T10:00:00Z",
+                    "message": {"usage": {"output_tokens": 700}},
+                }) + "\n")
+        out = self.report()
+        self.assertIn("(management)", out)
+        self.assertIn("1,400", out, "both worktrees' spend lands on one management row")
+
     def test_by_agent_counts_dispatches_from_transcripts(self):
         out = self.report(by_agent=True)
         self.assertRegex(out, r"code-engineer\s+1")
