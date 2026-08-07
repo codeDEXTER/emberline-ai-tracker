@@ -1,5 +1,41 @@
 # Changelog — common-rules
 
+## 2026-08-07 · Every project keeps a feature register, and the board stops losing features
+
+Two things, found together because landing the first real registers is what
+exposed the second.
+
+**The rule.** `CLAUDE-workflow.md` now requires a `## Features` table in every
+project's `CLAUDE-checklist.md`, in the shape pockets already used and the Tower
+already parses. It is the only answer to "what is this product made of, and how
+much of it is done" — a question the sponsor asked by name and which the estate
+could answer for one project in six.
+
+Worth being explicit about the tension, because it looks like a rule that was
+already refused: **this is not proposal 08's logbook.** That was rejected for
+imposing a per-task append on every session. A register changes when the sponsor
+adds, renames or closes a feature — rare, and his act rather than a session's.
+Nothing here asks a session to write anything when work lands. A project with no
+register still reports "no features declared", never 0%.
+
+**The bug.** Landing the registers immediately showed the board undercounting:
+pockets declares **7** features and the board rendered **6**. The `version 2` one
+parsed as kind `later`, there was no LATER column, and the grouping dropped it —
+silently, since #70 merged. Any state the parser produced without a matching
+column disappeared the same way, and a state the register did not spell out fell
+through to `declared`, which had no column either.
+
+There is now a LATER column, an unstated state parses as `next` rather than into
+nothing, and an unrecognised state is parked in NEXT rather than lost — a
+register can be hand-edited, so an unexpected value is something to correct, not
+a reason for a feature to stop existing. Verified across all four registers:
+7 + 9 + 9 + 7 declared, 32 rendered.
+
+A quiet undercount is worse than a wrong column: the board is meant to answer
+what the product is made of, and an undercount makes it a wrong answer that
+looks right. The guard is verified by removing the LATER column and watching it
+go red.
+
 ## 2026-08-07 · The heavy collectors stop blocking the first page too
 
 Follow-on to #86, found by merging #76's cost work into it and measuring the

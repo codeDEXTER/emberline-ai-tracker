@@ -816,6 +816,51 @@ class ARenderNeverWaitsForACollection(unittest.TestCase):
         self.assertIsNone(T.data_age())
 
 
+class NoFeatureIsEverDropped(unittest.TestCase):
+    """Found when the first real registers landed: pockets declared 7 features
+    and the board rendered 6 — silently, since #70. The `version 2` one had
+    kind `later`, and there was no LATER column, so it fell through the grouping
+    into nothing.
+
+    A feature that vanishes is worse than one shown in the wrong column: the
+    board is meant to be the answer to "what is the product made of", and a
+    quiet undercount makes it a wrong answer that looks right."""
+
+    def _rows(self, kinds):
+        return [{"project": "p", "items": None, "unparsed": 0, "closed": {},
+                 "features": [{"number": i, "title": f"feature {i}", "state": k,
+                               "kind": k, "implements": [], "blocked_by": []}
+                              for i, k in enumerate(kinds)]}]
+
+    def test_every_kind_the_parser_produces_has_a_column(self):
+        columns = {k for k, _, _ in T.BOARD_COLUMNS}
+        produced = {"in flight", "blocked", "later", "done", "next"}
+        self.assertTrue(produced <= columns,
+                        f"no column for {produced - columns}")
+
+    def test_all_features_render_whatever_their_state(self):
+        kinds = ["in flight", "next", "blocked", "later", "done"]
+        out = T.render_board(self._rows(kinds))
+        for i in range(len(kinds)):
+            self.assertIn(f"feature {i}", out, f"kind {kinds[i]!r} was dropped")
+
+    def test_an_unrecognised_state_is_parked_not_lost(self):
+        """A register can be edited by hand, so an unexpected state is a thing
+        to correct — not a reason for the feature to stop existing."""
+        out = T.render_board(self._rows(["something nobody anticipated"]))
+        self.assertIn("feature 0", out)
+
+    def test_a_state_the_register_does_not_spell_out_is_queued_not_invisible(self):
+        """`| #7 | Something | |` — no state at all. It is queued."""
+        feats = T.parse_features(
+            "## Features\n\n| # | Feature | State |\n|---|---|---|\n"
+            "| [#7](x) | A thing nobody has stated a state for | |\n")
+        self.assertEqual(feats[0]["kind"], "next")
+        self.assertIn("A thing nobody", T.render_board(
+            [{"project": "p", "items": None, "unparsed": 0, "closed": {},
+              "features": feats}]))
+
+
 class StillEscapes(unittest.TestCase):
     def test_markup_in_data_cannot_reach_the_page(self):
         """Retargeted in #64 from render_handovers, which no longer exists.
