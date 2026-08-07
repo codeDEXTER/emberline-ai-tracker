@@ -859,6 +859,9 @@ def cost_data(projs):
     count a task that merely *spans* the window whole, which is a wrong answer
     rather than a rounded one.
     """
+    with _cost_lock:
+        if _cost["data"] is not None and time.time() - _cost["ts"] < COST_TTL:
+            return _cost["data"]
     try:
         spend = load_spend()
     except Exception:
@@ -879,6 +882,9 @@ def cost_data(projs):
                     week += tok
         if total:
             out[proj["name"]] = {"week": week, "total": total}
+    with _cost_lock:
+        _cost["ts"] = time.time()
+        _cost["data"] = out
     return out
 
 
