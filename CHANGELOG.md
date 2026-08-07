@@ -1,5 +1,39 @@
 # Changelog — common-rules
 
+## 2026-08-07 · derecord corrects a changed rule instead of freezing it (#57)
+
+`bin/derecord` installed `.gitattributes` rules by asking *"is there a line for
+this path?"* and nothing more. Once a pattern was present its value was frozen
+forever: changing a rule in `gitattributes-for-projects` silently failed to
+reach any project that had already adopted, **and the script reported success**.
+
+Its own header called it "Idempotent: run it as often as you like." That was
+true in the weak sense — running twice added nothing twice — and false in the
+sense the header invites you to rely on, which is that running it makes the
+project match the shared rules.
+
+**It had already bitten.** `AGENT-LOG.md` moved from `merge=union` to
+`merge=ours` earlier the same day, because the log became generated output and
+union-merging generated output interleaves two tables into a file that is
+neither side's truth. finance-tracker was corrected by hand; **pockets was still
+on `merge=union`**, and `derecord` on it printed `0 record rule(s) added` and
+`is done`.
+
+The check is now "is there a line for this path *with this value*?", and a stale
+value is rewritten in place. Local rules for patterns the shared file says
+nothing about are never touched. The output says `added` / `corrected` /
+`already matches the shared rules` rather than only ever counting additions.
+
+`tests/test_derecord.py` covers it: a stale value is corrected, missing rules
+are still added, unrelated local rules survive, a second run is a genuine no-op,
+and the success wording cannot come back. Verified by running the new tests
+against the **old** script first — two failed, which is the only way to know a
+guard guards anything.
+
+**Behaviour change for adopted projects:** re-running `derecord` now rewrites a
+record-file merge strategy that has drifted from the shared rules. Run it once
+per project to pick up the `AGENT-LOG.md` change.
+
 ## 2026-08-07 · Proposal 09 is built
 
 Status flip only, no behaviour: `accepted` → `built`, in the document's
