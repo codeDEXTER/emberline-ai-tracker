@@ -37,6 +37,13 @@ tool grants as applied to the *roles* — `quality-manager` having no write acce
 is untested here and stays. What failed was extending the mechanism to the
 driving session.
 
+**Also fixes the `workflow.png` recipe in `docs/README.md`.** Plain `--headless`
+now resolves to Chrome's new headless mode, which ignores `--screenshot` and
+never exits — it hangs until killed, writing no file and printing no error. The
+documented command had silently stopped working; `--headless=old` restores it.
+The crop step, previously a pointer to a changelog entry, is now written out and
+was run verbatim to confirm it produces the committed image.
+
 Behaviour change for adopted projects: **regenerate `AGENT-LOG.md`, do not edit
 it.** Existing hand-written logs stay valid until regenerated; the first
 regeneration replaces the prose narrative with the measured table, so anything
