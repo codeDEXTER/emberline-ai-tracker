@@ -1,5 +1,37 @@
 # Changelog — common-rules
 
+## 2026-08-07
+
+- **`spend` was hiding 88% of what it measured, and now counts management
+  separately.** Reported as "pockets shows zero tasks"; the cause was much
+  wider. Attribution read the **first** `cwd` in a transcript — the launch
+  directory — and a management session launches from `apps/` and only enters a
+  project later via `EnterWorktree`. Every one of them was therefore dropped
+  from every project. `spend today` had been saying management chats are 88% of
+  all spend the whole time; the per-project figures simply excluded them.
+  Measured: pockets reported **0 tasks** on a day it spent 836k output tokens
+  across four agents; finance-tracker reported **4M** against a real **31.7M**.
+
+  Two fixes were tried and rejected before this one, and both are recorded
+  because the reasoning matters more than the patch. *Any cwd inside the
+  project* counts a one-line `cd` in a bash command as a session's work — it
+  put five sessions in two projects at once. *The dominant cwd* stops the
+  double-counting but silently loses a task, because a session that spent more
+  records elsewhere stops being that task at all.
+
+  The accepted split is the sponsor's call: **task rows measure worktree
+  sessions only, and orchestration gets its own row.** A session that spent all
+  its time in exactly one worktree is that task; one that never left the main
+  checkout stays `(main checkout)` as before; one that moved between worktrees
+  is `(management)`. The point is that no single label is honest for a session
+  that legitimately spans ten worktrees — charging it to one over-claims that
+  task and hides nine others.
+
+  What this does not do: split a management session's cost across the tasks it
+  served. That would make every task row a fraction with no session behind it,
+  and it was rejected for the same reason the hand-written log was — a number
+  nobody can trace is not a measurement. Management cost is now visible and
+  attributed to a project; which task inside it consumed what is still unknown.
 ## 2026-08-07 · The Tower switches by project, not by lens
 
 Proposal 13, from the sponsor looking at what had just been built: *"rather than

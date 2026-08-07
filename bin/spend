@@ -37,6 +37,7 @@ import sys
 
 PROJECTS = os.path.expanduser("~/.claude/projects")
 LOG = "AGENT-LOG.md"
+MANAGEMENT = "(management)"
 
 
 def _sessions():
@@ -79,7 +80,7 @@ def _scan(path):
     hand-written file for.
     """
     out, agents, days = _read(path)
-    cwd = ""
+    cwds = []
     first = last = ""
     with open(path, errors="replace") as fh:
         lines = fh.readlines()
@@ -88,8 +89,9 @@ def _scan(path):
             rec = json.loads(line)
         except ValueError:
             continue
-        if not cwd:
-            cwd = rec.get("cwd") or ""
+        c = rec.get("cwd") or ""
+        if c:
+            cwds.append(c)
         ts = rec.get("timestamp") or ""
         if ts:
             if not first or ts < first:
@@ -97,7 +99,25 @@ def _scan(path):
             if not last or ts > last:
                 last = ts
     return {"path": path, "out": out, "agents": agents, "days": days,
-            "cwd": cwd, "first": first, "last": last}
+            "cwd": cwds[0] if cwds else "", "cwds": cwds,
+            "home": _dominant(cwds),
+            "first": first, "last": last}
+
+
+def _dominant(cwds):
+    """Where a session actually lived, not where it was launched.
+
+    The most-recorded cwd, which is the session's real home. Using any cwd it
+    ever touched counts a one-line `cd` in a bash command as a whole session's
+    work -- measured 2026-08-07, that inflated finance-tracker eight-fold and
+    attributed the same session to two projects at once.
+    """
+    if not cwds:
+        return ""
+    counts = {}
+    for c in cwds:
+        counts[c] = counts.get(c, 0) + 1
+    return max(counts, key=lambda k: counts[k])
 
 
 def _repo_root(path=None):
@@ -116,21 +136,51 @@ def _repo_root(path=None):
     return _git(*at, "rev-parse", "--show-toplevel") or (path or os.getcwd())
 
 
-def _task_of(cwd, root):
-    """Which task a transcript belongs to, from where it ran. None if elsewhere.
+def _task_of(cwds, root):
+    """Which task a transcript belongs to, from everywhere it ran.
+
+    Three outcomes. A session that spent all its time in exactly one worktree
+    was doing that task. One that never left the main checkout is
+    `(main checkout)`, as before. One that moved between worktrees, or between
+    a worktree and main, was orchestrating -- it is `(management)`, not charged
+    to whichever task it happened to visit first.
+
+    That split exists because attributing by the *first* recorded cwd dropped
+    every management session: they launch from `apps/` and enter a project only
+    later, via EnterWorktree. Measured 2026-08-07, that hid 88% of all spend --
+    pockets reported zero tasks on a day it had spent 836k output tokens across
+    four agents, and finance-tracker reported 4M against a real 24M.
+
+    Charging a management session to a single task was tried and rejected: one
+    of them legitimately spans ten worktrees, so any single label either
+    over-claims one task or silently collapses nine others.
 
     Both sides are realpath'd: on macOS `/var` is a symlink to `/private/var`,
     so a session's recorded cwd and git's toplevel can name one directory two
     ways, and a plain string compare silently drops the task.
     """
-    cwd = os.path.realpath(cwd or "")
+    if isinstance(cwds, str):
+        cwds = [cwds]
     root = os.path.realpath(root)
-    if cwd != root and not cwd.startswith(root + os.sep):
-        return None
     marker = os.sep + ".claude" + os.sep + "worktrees" + os.sep
-    if marker in cwd:
-        return cwd.split(marker, 1)[1].split(os.sep)[0]
-    return "(main checkout)"
+    worktrees, saw_main = [], False
+    for cwd in cwds or []:
+        cwd = os.path.realpath(cwd or "")
+        if cwd != root and not cwd.startswith(root + os.sep):
+            continue
+        if marker in cwd:
+            name = cwd.split(marker, 1)[1].split(os.sep)[0]
+            if name not in worktrees:
+                worktrees.append(name)
+        else:
+            saw_main = True
+    if not worktrees and not saw_main:
+        return None
+    if len(worktrees) == 1 and not saw_main:
+        return worktrees[0]
+    if not worktrees:
+        return "(main checkout)"
+    return MANAGEMENT
 
 
 def _commits_in(cwd):
@@ -154,7 +204,7 @@ def tasks_for(path=None):
         info = _scan(path)
         if not info["out"]:
             continue
-        task = _task_of(info["cwd"], root)
+        task = _task_of(info.get("cwds") or info["cwd"], root)
         if task is None:
             continue
         t = tasks.setdefault(task, {"task": task, "out": 0, "sessions": 0,
