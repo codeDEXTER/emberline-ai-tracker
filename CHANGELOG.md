@@ -1,5 +1,20 @@
 # Changelog — common-rules
 
+## 2026-08-07 · workflow.html catches up with the feature-register rule
+
+#88 changed `CLAUDE-workflow.md` and did not update `docs/workflow.html` in the
+same PR, which is exactly what `docs/README.md` requires and what
+`tests/test_workflow_stamp.py` exists to enforce. **It merged red**: the stamp
+said version 104 against rules at 130.
+
+That test was written this morning, in this repo, for this failure mode — and
+the rule it protects was still broken by the next rules change, by me, hours
+later. The test did its job; the process around it did not, because the PR was
+merged without the suite being run against the merge result rather than against
+the branch.
+
+The page now describes the register rule and is stamped 130.
+
 ## 2026-08-07 · Every project keeps a feature register, and the board stops losing features
 
 Two things, found together because landing the first real registers is what
