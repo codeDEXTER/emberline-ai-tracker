@@ -49,7 +49,7 @@ class NothingIsTruncated(unittest.TestCase):
         wt = [{"name": "wt-1", "short": "wt-1", "project": "finance-tracker",
                "issue": 81, "issue_title": LONG_TITLE, "session": None,
                "newest_transcript": None}]
-        out = T.render_strip(wt, {}, [])
+        out = T.render_strip(wt, {}, [], [])
         # the strip has no room for a label at all, so the hover is the *only*
         # place the title exists — cutting it here would lose it outright
         self.assertIn(LONG_TITLE, out, "the dot's hover dropped the issue title")
@@ -100,7 +100,7 @@ class OneRegionFailsAlone(unittest.TestCase):
 
     def test_each_renderer_degrades_to_a_note(self):
         for label, out in [
-            ("work packages", T.render_burnup(None)),
+            ("features", T.render_features(None)),
             ("pipeline", T.render_pipeline(None, [])),
         ]:
             with self.subTest(region=label):
@@ -113,7 +113,7 @@ class OneRegionFailsAlone(unittest.TestCase):
                          T.region("T", None, "<p>body</p>", None))
 
     def test_empty_session_list_is_not_an_exception(self):
-        self.assertIn("no worktrees", T.render_strip([], {}, []))
+        self.assertIn("no worktrees", T.render_strip([], {}, [], []))
 
 
 def _wt(name, **kw):
@@ -138,13 +138,15 @@ class InFlightMeansWorkInFlight(unittest.TestCase):
         self.assertIn("IN FLIGHT · 1", out)
         self.assertNotIn("IN FLIGHT · 19", out)
 
-    def test_unmapped_worktrees_are_collapsed_but_still_present(self):
+    def test_unmapped_worktrees_are_counted_and_never_named(self):
+        """#51 collapsed these behind a <details> that still listed worktree
+        names. #65 removes the names outright: a worktree with no mapped issue
+        has nothing to identify it by except its directory, and a directory is
+        not a fact about the product. The count stays; the names go."""
         out = T.render_pipeline(self.PIPE, [])
-        self.assertIn("<details", out)
-        self.assertIn("18 worktree(s) ahead of main, no mapped issue", out)
-        # collapsed, NOT hidden — every one still reachable by expanding
+        self.assertIn("18 session(s) ahead of main", out)
         for i in range(18):
-            self.assertIn(f"w{i}", out)
+            self.assertNotIn(f"w{i}", out)
 
     def test_no_disclosure_when_there_is_nothing_to_disclose(self):
         pipe = dict(self.PIPE, in_flight_worktrees=[])
@@ -229,6 +231,115 @@ class FitsTheWindow(unittest.TestCase):
         self.assertNotIn("@media (max-width", self.fit)
 
 
+class NoBranchNameReachesTheScreen(unittest.TestCase):
+    """Issue #65, and the whole of the sponsor's complaint: *"it doesn't help
+    when you are saying some random branch name."*
+
+    This is the guard that must not rot. Every renderer that takes a worktree
+    gets one whose directory name is unmistakable, and the assertion is that it
+    appears nowhere in the output — not in a label, not in a hover, not in a
+    collapsed disclosure."""
+
+    BRANCH = "arm-f-filing-9c3e21"
+
+    def _worktree(self):
+        return _wt(self.BRANCH, short=self.BRANCH, issue=81,
+                   issue_title="zero logging calls", session=None, ahead=4)
+
+    def test_strip_never_names_the_worktree(self):
+        out = T.render_strip([self._worktree()], {}, [], [])
+        self.assertNotIn(self.BRANCH, out)
+
+    def test_needs_you_band_never_names_the_worktree(self):
+        out = T.render_needs_you([self._worktree()],
+                                 {self.BRANCH: {"why": "waiting on you", "age": "9m"}},
+                                 [], [])
+        self.assertNotIn(self.BRANCH, out)
+
+    def test_contested_row_never_names_the_worktree(self):
+        other = "arm-b-contract-77aa10"
+        out = T.render_needs_you([self._worktree(), _wt(other, short=other)], {},
+                                 [(self.BRANCH, other, "pulse.py")], [])
+        self.assertNotIn(self.BRANCH, out)
+        self.assertNotIn(other, out)
+
+    def test_pipeline_never_names_the_worktree(self):
+        pipe = {"in_flight": [], "in_flight_worktrees": [self._worktree()],
+                "queued": [], "queued_more": 0, "merged": []}
+        self.assertNotIn(self.BRANCH, T.render_pipeline(pipe, []))
+
+
+REGISTER = """# Checklist
+
+## Features
+
+| # | Feature | State |
+|---|---|---|
+| [#2](https://example.com/2) | Prove the classifier is good enough | **in flight** — issue [#1](https://example.com/1) |
+| [#3](https://example.com/3) | Capture a document and see it filed | blocked by #2 |
+| [#8](https://example.com/8) | Get the vault onto the second phone | version 2 |
+
+## Now
+
+- [x] something unrelated that mentions #99
+"""
+
+
+class TheRegisterIsReadNotGuessed(unittest.TestCase):
+    """Issue #65. Features come from the declared register; nothing is inferred
+    from an issue title's prefix any more."""
+
+    def setUp(self):
+        self.feats = T.parse_features(REGISTER)
+
+    def test_every_row_is_read(self):
+        self.assertEqual([f["number"] for f in self.feats], [2, 3, 8])
+        self.assertEqual(self.feats[0]["title"], "Prove the classifier is good enough")
+
+    def test_blocked_by_is_never_read_as_progress(self):
+        """The subtlety that would corrupt every percentage: `blocked by #2` is
+        a dependency. Counting it as an implementing issue would make a blocked
+        feature inherit its blocker's completion — the opposite of true."""
+        blocked = self.feats[1]
+        self.assertEqual(blocked["implements"], [])
+        self.assertEqual(blocked["blocked_by"], [2])
+        self.assertEqual(blocked["kind"], "blocked")
+
+    def test_an_implementing_issue_is_read(self):
+        self.assertEqual(self.feats[0]["implements"], [1])
+        self.assertEqual(self.feats[0]["kind"], "in flight")
+
+    def test_the_table_does_not_leak_into_the_next_section(self):
+        """#99 lives under `## Now`. Reading past the section boundary would
+        invent a feature out of an ordinary checklist line."""
+        self.assertNotIn(99, [f["number"] for f in self.feats])
+
+    def test_a_project_with_no_register_reports_none_not_zero(self):
+        self.assertEqual(T.parse_features("# Checklist\n\n## Now\n\n- [ ] a thing"), [])
+
+
+class UndeclaredScopeIsNotZero(unittest.TestCase):
+    """Proposal 08's rule, restated where it now matters most: the sponsor asked
+    for a completion figure by name, so an invented denominator is the most
+    tempting lie on the screen."""
+
+    def test_no_features_says_so_rather_than_showing_a_percentage(self):
+        out = T.render_features([{"project": "finance-tracker", "features": None,
+                                  "items": (18, 54), "unparsed": 0, "closed": {}}])
+        self.assertIn("no features declared", out)
+        self.assertNotIn("0%", out)
+        self.assertIn("against no product definition", out)
+
+    def test_all_tickets_shut_is_not_the_same_as_done(self):
+        """Proposal 05: the sponsor closes features."""
+        row = {"project": "p", "items": None, "unparsed": 0,
+               "features": [{"number": 2, "title": "A feature", "state": "in flight",
+                             "kind": "in flight", "implements": [1], "blocked_by": []}],
+               "closed": {1: True}}
+        out = T.render_features([row])
+        self.assertIn("awaiting your close", out)
+
+
 class StillEscapes(unittest.TestCase):
     def test_markup_in_data_cannot_reach_the_page(self):
         """Retargeted in #64 from render_handovers, which no longer exists.
@@ -237,7 +348,7 @@ class StillEscapes(unittest.TestCase):
         inside a title attribute where an unescaped quote would break out."""
         evil = '<script>alert(1)</script>" onmouseover="x'
         wt = [_wt("wt-1", issue_title=evil)]
-        for out in (T.render_strip(wt, {}, []),
+        for out in (T.render_strip(wt, {}, [], []),
                     T.render_needs_you(wt, {"wt-1": {"why": "waiting on you",
                                                      "age": "1m"}}, [])):
             self.assertNotIn("<script>", out)
