@@ -5,11 +5,15 @@
 #   derecord [project-dir]     default: current directory
 #
 # Installs three things:
-#   1. .gitattributes union-merge rules for the append-only record files
+#   1. .gitattributes merge rules for the record files
 #   2. a pre-commit hook that refuses to commit conflict markers
 #   3. a SessionStart hook that runs rulecheck --quiet
 #
-# Idempotent: run it as often as you like.
+# Idempotent, and in the strong sense: running it makes the project MATCH the
+# shared rules, rather than merely not adding the same line twice. A rule whose
+# value changed upstream is rewritten in place. That distinction is the whole of
+# issue #57 -- the weak version froze every value at whatever it was when the
+# project first adopted, and reported success while doing it.
 #
 # ONE ORDERING TRAP, and it bites exactly once per branch:
 #
@@ -36,18 +40,59 @@ $GIT rev-parse --git-dir >/dev/null 2>&1 || { echo "not a git repo: $PROJ" >&2; 
 TOP="$($GIT rev-parse --show-toplevel)"
 cd "$TOP"
 
-# --- 1. union merge for the record files -------------------------------------
+# --- 1. merge rules for the record files -------------------------------------
+#
+# This used to ask "is there a line for this path?" and nothing more, so once a
+# pattern was present its value was frozen forever: changing a rule in
+# gitattributes-for-projects silently failed to reach any project that had
+# already run derecord, and the script still reported success. It bit for real
+# when AGENT-LOG.md moved from merge=union to merge=ours (proposal 08) --
+# pockets kept union-merging a file that is now generated output, which would
+# interleave two generated tables into a file that is neither side's truth.
+#
+# So the check is now "is there a line for this path WITH THIS VALUE?", and a
+# stale value is rewritten in place rather than left alone. Local lines for
+# patterns we say nothing about are never touched.
 touch .gitattributes
-added=0
-while IFS= read -r line; do
-    [[ -z "$line" || "$line" == \#* ]] && continue
-    pat="${line%% *}"
-    if ! grep -qE "^${pat//./\\.}[[:space:]]" .gitattributes 2>/dev/null; then
-        printf '%s\n' "$line" >> .gitattributes
-        added=$((added+1))
-    fi
-done < "$RULES_DIR/gitattributes-for-projects"
-echo "  .gitattributes: $added record rule(s) added"
+python3 - ".gitattributes" "$RULES_DIR/gitattributes-for-projects" <<'PY'
+import sys
+
+target, source = sys.argv[1], sys.argv[2]
+
+def split(line):
+    """(pattern, attributes) for a rule line, or None for blank/comment."""
+    s = line.strip()
+    if not s or s.startswith("#"):
+        return None
+    parts = s.split()
+    return parts[0], " ".join(parts[1:])
+
+rules = [r for r in (split(l) for l in open(source)) if r]
+lines = open(target).read().splitlines()
+
+added = corrected = 0
+for pat, attrs in rules:
+    for i, line in enumerate(lines):
+        cur = split(line)
+        if not cur or cur[0] != pat:
+            continue
+        if cur[1] != attrs:
+            lines[i] = f"{pat}      {attrs}"
+            corrected += 1
+        break
+    else:
+        lines.append(f"{pat}      {attrs}")
+        added += 1
+
+if added or corrected:
+    with open(target, "w") as fh:
+        fh.write("\n".join(lines).rstrip("\n") + "\n")
+
+bits = []
+if added:     bits.append(f"{added} added")
+if corrected: bits.append(f"{corrected} corrected")
+print("  .gitattributes: " + (", ".join(bits) if bits else "already matches the shared rules"))
+PY
 
 # --- merge drivers: what git needs, and what actively breaks it --------------
 #
