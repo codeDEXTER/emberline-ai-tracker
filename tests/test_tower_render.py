@@ -22,6 +22,7 @@ import importlib.machinery
 import importlib.util
 import re
 import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -440,7 +441,7 @@ class TheScreenSaysWhenItIsStale(unittest.TestCase):
         ahead, behind = (int(n) for n in counts.split())
         if behind:
             self.skipTest(f"this checkout is genuinely {behind} behind")
-        self.assertIsNone(T.staleness(), f"branch {here} is {ahead} ahead, not stale")
+        self.assertIsNone(T._staleness_now(), f"branch {here} is {ahead} ahead, not stale")
 
 
 class OnlyRealCollisionsAreContested(unittest.TestCase):
@@ -747,8 +748,19 @@ class ARenderNeverWaitsForACollection(unittest.TestCase):
         self._data = T._cache["data"]
         self._ts = T._cache["ts"]
         self._collect = T._collect_now
+        # Released in tearDown so a background thread from one test cannot
+        # still be alive during the next — which is what made the
+        # single-refresh assertion see two, from test pollution rather than
+        # from a real concurrent refresh.
+        self.release = threading.Event()
 
     def tearDown(self):
+        self.release.set()
+        for _ in range(100):
+            with T._refresh_lock:
+                if not T._refresh["running"]:
+                    break
+            time.sleep(0.01)
         T._cache["data"], T._cache["ts"] = self._data, self._ts
         T._collect_now = self._collect
         with T._refresh_lock:
@@ -759,17 +771,14 @@ class ARenderNeverWaitsForACollection(unittest.TestCase):
         import time
         T._cache["data"] = {"marker": "old"}
         T._cache["ts"] = time.time() - (T.CACHE_TTL + 60)
-        slow = threading.Event()
-
         def never_finishes():
-            slow.wait(5)
+            self.release.wait(5)
             return {"marker": "new"}
 
         T._collect_now = never_finishes
         started = time.time()
         got = T.collect()
         elapsed = time.time() - started
-        slow.set()
         self.assertEqual(got, {"marker": "old"}, "served something other than the cache")
         self.assertLess(elapsed, 0.5, f"collect() blocked for {elapsed:.2f}s")
 
@@ -780,18 +789,16 @@ class ARenderNeverWaitsForACollection(unittest.TestCase):
         T._cache["data"] = {"marker": "old"}
         T._cache["ts"] = time.time() - (T.CACHE_TTL + 60)
         calls = []
-        hold = threading.Event()
 
         def counted():
             calls.append(1)
-            hold.wait(5)
+            self.release.wait(5)
             return {"marker": "new"}
 
         T._collect_now = counted
         for _ in range(5):
             T.collect()
         time.sleep(0.2)
-        hold.set()
         self.assertEqual(len(calls), 1, f"{len(calls)} concurrent refreshes")
 
     def test_the_first_render_does_wait(self):
