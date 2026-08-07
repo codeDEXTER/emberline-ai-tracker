@@ -102,6 +102,47 @@ does is make the screen reflow (single column below 1000px, where the old page
 clipped), stop lying about names, and stop reserving empty space.
 
 No behaviour change for any adopted project: this is `bin/tower` and its tests.
+## 2026-08-07 · Proposal 09: the Tower is drawing the right data the wrong way
+
+aashish asked for a proposal on the Tower's UI — "the ui is not clean". Measured
+against the live tree rather than read off the source: `tower --port 8893`, 23
+worktrees across 6 projects, numbers read back out of the rendered DOM.
+
+**Nearly every symptom has one cause.** Every `render_*` function has the shape
+`(data, x0, y0, width) -> (svg, bottom_y)` and `render_page` threads `bottom`
+forward to stack regions. That is a hand-rolled layout engine missing the three
+things a real one gives free — text measurement, intrinsic sizing, reflow — so it
+truncates, voids and overflows instead:
+
+- The SVG renders **1200 x 2241** into a window that opens at **1280 x 900**
+  (`tools/tower_window/towerwin.swift:168`). About 40% of a glanceable screen is
+  visible at a time.
+- **310px of empty black** down the left column, because
+  `main_bottom = max(graph_bottom, pipe_bottom)` pads two independently laid out
+  columns to the taller one.
+- Eight hardcoded `[:n]` caps exist only because SVG `<text>` cannot wrap. `[:11]`
+  produced `arm-f-filin`, `arm-b-contr`, `m0-stage2-v`; the pipeline's top row cut
+  one character short of "lines".
+- Of 23 session nodes exactly **two** carried state. The other 21 were identical
+  grey circles at identical weight. `IN FLIGHT - 19` counted 18 `worktree - N ahead`
+  git counts alongside one real mapped issue.
+
+**The collectors are not the problem and are not touched.** Everything above line
+780 of `bin/tower` — the hard part — stays exactly as it is, which is what keeps
+this a two-to-three day job rather than a rewrite.
+
+**The graph from concept 07 is retired, not deferred.** aashish decided on
+2026-08-07 to compress the session grid to a strip. That is the honest reading of a
+measurement this repo already had: `message_edges()` (proposal 08) found handover
+edges almost never have both ends on screen, and today exactly one edge renders
+across 23 nodes. A graph whose edges do not exist is a grid with extra ceremony.
+Retiring his own concept was his call to make, so it was asked rather than assumed.
+
+Cut into a dependency-ordered queue — #50 (the page becomes HTML/CSS), then #51
+(needs-you band, in-flight redefinition) and #52 (session strip, de-duplication),
+both blocked by #50. One queue rather than three parallel branches because all
+three touch the same surface, which is the collision class the worktree rule
+exists to prevent.
 
 ## 2026-08-07 · The workflow.html stamp is checkable now, not remembered
 

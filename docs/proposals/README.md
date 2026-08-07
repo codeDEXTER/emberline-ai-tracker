@@ -17,6 +17,7 @@ table reflects them. If they disagree, the document wins.
 | [06](06-research-idea-lab-v2.html) | The Idea Lab — architectures for refining an idea (v2, kept separate) | research | **accepted** | 2026-08-05 |
 | [07](07-concept-tower.html) | The Tower — a live window on the autopilot | design-concept | **accepted** | 2026-08-05 |
 | [08](08-proposal-work-packages.html) | The Tower keeps the record — completion, and whether the autopilot still needs you | proposal | **accepted** | 2026-08-05 |
+| [09](09-proposal-tower-ui.html) | The Tower, made legible — the screen fits its window, and what needs you comes first | proposal | **accepted** | 2026-08-07 |
 
 Statuses: `draft` · `proposed` · `accepted` · `rejected` · `superseded-by NN` /
 `amends NN` · `built`. There is deliberately no `deferred` and no
