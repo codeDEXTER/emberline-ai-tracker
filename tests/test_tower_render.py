@@ -45,12 +45,22 @@ LONG_TITLE = ("zero logging calls in 12,679 lines across every collector "
 
 
 class NothingIsTruncated(unittest.TestCase):
-    def test_long_issue_title_survives_into_a_session_card(self):
+    def test_long_issue_title_survives_into_a_session_dot(self):
         wt = [{"name": "wt-1", "short": "wt-1", "project": "finance-tracker",
-               "issue": 81, "issue_title": LONG_TITLE, "session": None}]
-        out = T.render_sessions(wt, [], [], set())
-        self.assertIn(LONG_TITLE, out, "the card dropped or cut the issue title")
-        # and again in the title attribute, which is what a hover has to show
+               "issue": 81, "issue_title": LONG_TITLE, "session": None,
+               "newest_transcript": None}]
+        out = T.render_strip(wt, {}, [])
+        # the strip has no room for a label at all, so the hover is the *only*
+        # place the title exists — cutting it here would lose it outright
+        self.assertIn(LONG_TITLE, out, "the dot's hover dropped the issue title")
+
+    def test_long_issue_title_survives_into_the_needs_you_band(self):
+        wt = [{"name": "wt-1", "short": "wt-1", "project": "finance-tracker",
+               "issue": 81, "issue_title": LONG_TITLE, "session": None,
+               "newest_transcript": None}]
+        out = T.render_needs_you(wt, {"wt-1": {"why": "waiting on you",
+                                               "age": "41m"}}, [])
+        self.assertIn(LONG_TITLE, out)
         self.assertIn(f'title="{LONG_TITLE}"', out)
 
     def test_long_pipeline_row_survives(self):
@@ -115,7 +125,96 @@ class OneRegionFailsAlone(unittest.TestCase):
                          T.region("T", None, "<p>body</p>", None))
 
     def test_empty_session_list_is_not_an_exception(self):
-        self.assertIn("no worktrees", T.render_sessions([], [], [], set()))
+        self.assertIn("no worktrees", T.render_strip([], {}, []))
+
+
+def _wt(name, **kw):
+    base = {"name": name, "short": name, "project": "finance-tracker",
+            "issue": None, "issue_title": None, "session": None,
+            "ahead": 0, "branch": name, "newest_transcript": None}
+    base.update(kw)
+    return base
+
+
+class InFlightMeansWorkInFlight(unittest.TestCase):
+    """Issue #51. The header read `IN FLIGHT · 19` when one of those nineteen
+    was a mapped issue and eighteen were git ahead-counts."""
+
+    PIPE = {"in_flight": [{"project": "finance-tracker", "number": 81,
+                           "title": "zero logging calls"}],
+            "in_flight_worktrees": [_wt(f"w{i}", ahead=i + 1) for i in range(18)],
+            "queued": [], "queued_more": 0, "merged": []}
+
+    def test_count_counts_mapped_issues_only(self):
+        out = T.render_pipeline(self.PIPE, [])
+        self.assertIn("IN FLIGHT · 1", out)
+        self.assertNotIn("IN FLIGHT · 19", out)
+
+    def test_unmapped_worktrees_are_collapsed_but_still_present(self):
+        out = T.render_pipeline(self.PIPE, [])
+        self.assertIn("<details", out)
+        self.assertIn("18 worktree(s) ahead of main, no mapped issue", out)
+        # collapsed, NOT hidden — every one still reachable by expanding
+        for i in range(18):
+            self.assertIn(f"w{i}", out)
+
+    def test_no_disclosure_when_there_is_nothing_to_disclose(self):
+        pipe = dict(self.PIPE, in_flight_worktrees=[])
+        self.assertNotIn("<details", T.render_pipeline(pipe, []))
+
+
+class TheBandGivesItsHeightBack(unittest.TestCase):
+    """Issue #51. Reserving empty space is the failure mode proposal 09 exists
+    to fix, so an empty band must not render an empty box."""
+
+    def test_nothing_waiting_is_one_line_not_a_box(self):
+        out = T.render_needs_you([_wt("a")], {}, [])
+        self.assertIn("nothing needs you", out)
+        self.assertNotIn("you-row", out)
+
+    def test_contested_pair_appears_once_not_once_per_end(self):
+        wts = [_wt("alpha"), _wt("beta")]
+        out = T.render_needs_you(wts, {}, [("alpha", "beta", "pulse.py")])
+        self.assertEqual(out.count("you-row"), 1, "one row per pair")
+        self.assertIn("pulse.py", out)
+
+
+class RepeatedEventsCollapse(unittest.TestCase):
+    """Issue #52. Four of nine ticker lines were the same event."""
+
+    def test_identical_bodies_in_window_collapse_with_a_count(self):
+        same = "## 2026-08-03 (continued) — v4: redesign personalId"
+        rows = [(1000 + i, f"agent-log-{i}", "sha", same) for i in range(4)]
+        out = T.render_ticker(rows)
+        self.assertEqual(out.count("<div class=\"tick\">"), 1)
+        self.assertIn("×4", out)
+
+    def test_a_single_character_difference_is_a_different_event(self):
+        rows = [(1000, "a", "sha", "deployed v4"),
+                (1001, "b", "sha", "deployed v5")]
+        out = T.render_ticker(rows)
+        self.assertEqual(out.count("<div class=\"tick\">"), 2)
+        self.assertNotIn("×", out)
+
+    def test_the_same_body_outside_the_window_stays_two_rows(self):
+        body = "identical text"
+        rows = [(0, "a", "sha", body), (T.DEDUP_WINDOW + 60, "b", "sha", body)]
+        self.assertEqual(T.render_ticker(rows).count("<div class=\"tick\">"), 2)
+
+    def test_an_unparseable_timestamp_never_folds_a_row_away(self):
+        """_epoch returns 0.0 on junk. Two junk-stamped rows must not collapse
+        into one just because their stamps are equally unparseable — losing a
+        real event is the one outcome worse than an untidy list."""
+        rows = [{"ts": "not-a-date", "sender": "s", "to_label": "t",
+                 "to_session": "x", "summary": "different one"},
+                {"ts": "also-junk", "sender": "s", "to_label": "t",
+                 "to_session": "y", "summary": "different two"}]
+        out = T.render_handovers(rows)
+        self.assertEqual(out.count('class="hand"'), 2)
+
+    def test_count_is_always_shown_when_a_row_stands_for_many(self):
+        self.assertEqual(T.times(1), "")
+        self.assertIn("×3", T.times(3))
 
 
 class StillEscapes(unittest.TestCase):
