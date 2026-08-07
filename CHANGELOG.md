@@ -1,5 +1,20 @@
 # Changelog — common-rules
 
+## 2026-08-07 · Proposal 09 is built
+
+Status flip only, no behaviour: `accepted` → `built`, in the document's
+`<meta>`, its visible chip, and the index row — the README derives the index
+from the documents, so all three have to agree or the table is lying.
+
+All four issues are merged to main: #50 (d00ecd5 lineage), #51 and #52 (dd8dd0e),
+#56 (d00ecd5). `built` is the first use of that status in this folder; the
+vocabulary has carried it since the index was written and nothing had earned it
+until now.
+
+The chip is `--accent` rather than the `--gain` an accepted proposal gets, so
+built and accepted are distinguishable at a glance on the proposals index —
+otherwise the only difference is a word in a table cell.
+
 ## 2026-08-07 · The Tower fits its window, and stops growing with the tree
 
 Implements issue #56, which finishes proposal 09. **The page now fits 1280×900
