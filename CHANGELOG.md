@@ -1,5 +1,29 @@
 # Changelog — common-rules
 
+## 2026-08-07 · spend can be asked about a project by path
+
+Implements #78, which exists only to unblock #76 (cost per feature on the
+Tower).
+
+`bin/spend` measured everything through `_tasks_here()`, which derived the repo
+root from the **current working directory** and took no path. The Tower cannot
+use that: its collectors run in a thread pool, and a process-global `chdir`
+there is the kind of race that produces a wrong number occasionally rather than
+an obvious failure — the worst way for a cost figure to be wrong.
+
+So `_repo_root()` takes an optional path, `tasks_for(path=None)` is the public
+form, and `_tasks_here()` is now a thin wrapper over it. **An access change, not
+a measurement one**: task grouping, token counting and the CLI are untouched.
+Checked project by project — the path form and the CLI agree on all five,
+including finance-tracker's 4,018,382 tokens and the two that legitimately have
+none.
+
+**The first version of the no-chdir test was useless and passed anyway.** It
+called `tasks_for(repo)` from inside that same repo, so a reinjected `chdir` to
+that directory changed nothing observable and the guard went green against the
+exact bug it existed to catch. It now runs from outside the project, and
+reinjecting the chdir turns it red.
+
 ## 2026-08-07 · The Tower's whole open queue, in one pass
 
 Implements #73, #74, #70, #71, #75, #66 and #63 — every open Tower issue but
