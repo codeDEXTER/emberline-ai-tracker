@@ -17,3 +17,9 @@ bin/__pycache__/
 # second, and it contains a compiled Swift binary — the source is committed,
 # the binary never is.
 dist/
+
+# Python bytecode from tests/ (bin/ already covered above). Build output --
+# regenerable, machine-specific, and it slipped into a commit once because a
+# `grep -q __pycache__` guard matched the bin/ line and skipped the append.
+__pycache__/
+*.pyc

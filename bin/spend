@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """spend -- what a task cost, and where the money goes.
 
-    spend log <task>          append one AGENT-LOG entry for this session
-    spend report              totals per task for this project
+    spend report              cost per task for this project
     spend report --by-agent   which roles are expensive
+    spend agentlog [--write]  regenerate AGENT-LOG.md from the transcripts
     spend today               everything spent today, across all projects
+    spend log <task>          append one AGENT-LOG entry (legacy, see below)
 
 The numbers come from the session transcripts under ~/.claude/projects, which
 record token usage per request. Output tokens are the effort proxy throughout:
@@ -12,6 +13,17 @@ transcript wall-clock spans include idle time and would be misleading.
 
 Written 2026-08-05, when measuring four days of sessions showed two thirds of
 all spend went to management chats rather than to worktrees doing the work.
+
+Rewritten the same day, because `report` was reading the wrong thing. It parsed
+AGENT-LOG.md for a `session output tokens:` line that only `spend log` ever
+wrote -- and the rules told sessions to keep that file by hand, so of ten
+entries in finance-tracker, none carried it. The command reported 0 for every
+row for a week and nobody noticed, because nothing tested it.
+
+Both faults are now fixed at the root: `report` and `agentlog` read the
+transcripts directly, and `tests/test_spend.py` fails if a report over a
+transcript with real usage ever comes back zero. `log` is kept for anyone who
+wants a hand-written note, but nothing reads its numbers any more.
 """
 from __future__ import annotations
 
@@ -38,7 +50,9 @@ def _read(path):
     out = 0
     agents = collections.Counter()
     days = collections.Counter()
-    for line in open(path, errors="replace"):
+    with open(path, errors="replace") as fh:
+        lines = fh.readlines()
+    for line in lines:
         try:
             rec = json.loads(line)
         except ValueError:
@@ -55,6 +69,91 @@ def _read(path):
                         and block.get("name") == "Agent":
                     agents[(block.get("input") or {}).get("subagent_type", "?")] += 1
     return out, agents, days
+
+
+def _scan(path):
+    """Everything one transcript knows about itself, including where it ran.
+
+    `_read` above answers "how much"; this answers "how much, and for what
+    task" -- which is what `report` needs and what it used to ask a
+    hand-written file for.
+    """
+    out, agents, days = _read(path)
+    cwd = ""
+    first = last = ""
+    with open(path, errors="replace") as fh:
+        lines = fh.readlines()
+    for line in lines:
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if not cwd:
+            cwd = rec.get("cwd") or ""
+        ts = rec.get("timestamp") or ""
+        if ts:
+            if not first or ts < first:
+                first = ts
+            if not last or ts > last:
+                last = ts
+    return {"path": path, "out": out, "agents": agents, "days": days,
+            "cwd": cwd, "first": first, "last": last}
+
+
+def _repo_root():
+    """The project this command was run in -- the shared dir if in a worktree."""
+    common = _git("rev-parse", "--path-format=absolute", "--git-common-dir")
+    if common:
+        return os.path.abspath(os.path.join(common, os.pardir))
+    return _git("rev-parse", "--show-toplevel") or os.getcwd()
+
+
+def _task_of(cwd, root):
+    """Which task a transcript belongs to, from where it ran. None if elsewhere.
+
+    Both sides are realpath'd: on macOS `/var` is a symlink to `/private/var`,
+    so a session's recorded cwd and git's toplevel can name one directory two
+    ways, and a plain string compare silently drops the task.
+    """
+    cwd = os.path.realpath(cwd or "")
+    root = os.path.realpath(root)
+    if cwd != root and not cwd.startswith(root + os.sep):
+        return None
+    marker = os.sep + ".claude" + os.sep + "worktrees" + os.sep
+    if marker in cwd:
+        return cwd.split(marker, 1)[1].split(os.sep)[0]
+    return "(main checkout)"
+
+
+def _commits_in(cwd):
+    """Commits ahead of main in that worktree, or None if it cannot be told."""
+    if not os.path.isdir(cwd):
+        return None
+    n = _git("-C", cwd, "rev-list", "--count", "main..HEAD")
+    return int(n) if n.isdigit() else None
+
+
+def _tasks_here():
+    """Every task in this project, measured from the transcripts themselves."""
+    root = _repo_root()
+    tasks = {}
+    for _, path in _sessions():
+        info = _scan(path)
+        if not info["out"]:
+            continue
+        task = _task_of(info["cwd"], root)
+        if task is None:
+            continue
+        t = tasks.setdefault(task, {"task": task, "out": 0, "sessions": 0,
+                                    "agents": collections.Counter(),
+                                    "first": "", "last": "", "cwd": info["cwd"]})
+        t["out"] += info["out"]
+        t["sessions"] += 1
+        t["agents"] += info["agents"]
+        for key, better in (("first", min), ("last", max)):
+            if info[key]:
+                t[key] = better(t[key], info[key]) if t[key] else info[key]
+    return root, sorted(tasks.values(), key=lambda t: -t["out"])
 
 
 def _this_session():
@@ -111,7 +210,9 @@ def _parse_log():
     if not os.path.exists(LOG):
         return []
     entries, cur = [], None
-    for line in open(LOG, errors="replace"):
+    with open(LOG, errors="replace") as fh:
+        log_lines = fh.readlines()
+    for line in log_lines:
         if line.startswith("## "):
             head = line[3:].strip()
             date, _, task = head.partition(" · ")
@@ -130,34 +231,83 @@ def _parse_log():
 
 
 def cmd_report(by_agent=False):
-    entries = _parse_log()
-    if not entries:
-        print(f"no {LOG} entries here yet -- run `spend log <task>` when a task lands.")
+    """Cost per task, measured from the transcripts -- never from prose.
+
+    This used to parse AGENT-LOG.md for a `session output tokens:` line that
+    only `spend log` ever wrote. Because the rules told sessions to keep that
+    file by hand, finance-tracker had ten entries and none of them carried the
+    field, so this command reported 0 for every row for a week. A number that
+    can only be right if somebody remembered to type it is not a measurement.
+    """
+    root, tasks = _tasks_here()
+    if not tasks:
+        print(f"no sessions recorded under {root} yet.")
         return
 
     if by_agent:
         roles = collections.Counter()
-        for e in entries:
-            for part in e["agents"].split(","):
-                part = part.strip()
-                if "×" in part:
-                    name, _, n = part.partition("×")
-                    roles[name.strip()] += int(n) if n.strip().isdigit() else 0
+        for t in tasks:
+            roles += t["agents"]
+        if not roles:
+            print("no agent dispatches recorded in this project.")
+            return
         print(f"{'role':24} {'calls':>6}")
         for name, n in roles.most_common():
             print(f"{name:24} {n:>6}")
+        print(f"{'TOTAL':24} {sum(roles.values()):>6}")
         return
 
     total_t = total_c = 0
-    print(f"{'date':11} {'task':38} {'tokens':>10} {'commits':>8} {'per commit':>11}")
-    for e in entries:
-        per = f"{e['tokens'] // e['commits']:,}" if e["commits"] else "—"
-        print(f"{e['date']:11} {e['task'][:38]:38} {e['tokens']:>10,} "
-              f"{e['commits']:>8} {per:>11}")
-        total_t += e["tokens"]
-        total_c += e["commits"]
+    print(f"{'started':11} {'task':34} {'tokens':>10} {'agents':>7} "
+          f"{'commits':>8} {'per commit':>11}")
+    for t in tasks:
+        commits = _commits_in(t["cwd"])
+        per = f"{t['out'] // commits:,}" if commits else "—"
+        print(f"{t['first'][:10]:11} {t['task'][:34]:34} {t['out']:>10,} "
+              f"{sum(t['agents'].values()):>7} "
+              f"{(commits if commits is not None else '—'):>8} {per:>11}")
+        total_t += t["out"]
+        total_c += commits or 0
     per = f"{total_t // total_c:,}" if total_c else "—"
-    print(f"{'':11} {'TOTAL':38} {total_t:>10,} {total_c:>8} {per:>11}")
+    print(f"{'':11} {'TOTAL':34} {total_t:>10,} "
+          f"{sum(sum(t['agents'].values()) for t in tasks):>7} "
+          f"{total_c:>8} {per:>11}")
+
+
+def cmd_agentlog(write=False):
+    """Generate AGENT-LOG.md from the transcripts instead of writing it by hand.
+
+    Every fact the hand-written log held is already in the session records.
+    Generating it removes the file from the merge surface -- and every merge
+    conflict on 5 Aug 2026 was in a record file the framework itself invented.
+    """
+    root, tasks = _tasks_here()
+    project = os.path.basename(root)
+    lines = [
+        f"# Agent log — {project}",
+        "",
+        "**Generated by `spend agentlog`. Do not edit by hand — regenerate.**",
+        "",
+        "Which agents ran on a task, what it cost, and over what span. Measured",
+        "from the session transcripts, so it cannot disagree with what happened.",
+        "",
+        f"Tasks: {len(tasks)} · total output tokens: "
+        f"{sum(t['out'] for t in tasks):,}",
+        "",
+        "| task | started | ended | output tokens | sessions | agents |",
+        "|---|---|---|---:|---:|---|",
+    ]
+    for t in tasks:
+        roles = ", ".join(f"{k}×{v}" for k, v in t["agents"].most_common()) or "—"
+        lines.append(f"| {t['task']} | {t['first'][:10]} | {t['last'][:10]} | "
+                     f"{t['out']:,} | {t['sessions']} | {roles} |")
+    text = "\n".join(lines) + "\n"
+    if write:
+        with open(os.path.join(root, LOG), "w") as fh:
+            fh.write(text)
+        print(f"wrote {os.path.join(root, LOG)} — {len(tasks)} tasks")
+    else:
+        print(text, end="")
 
 
 def cmd_today():
@@ -196,6 +346,8 @@ def main(argv):
         cmd_log(" ".join(rest))
     elif cmd == "report":
         cmd_report(by_agent="--by-agent" in rest)
+    elif cmd == "agentlog":
+        cmd_agentlog(write="--write" in rest)
     elif cmd == "today":
         cmd_today()
     else:

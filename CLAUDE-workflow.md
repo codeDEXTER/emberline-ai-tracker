@@ -76,19 +76,29 @@ This one is not bookkeeping for its own sake: it is how the user sees where
 spend goes, and the measurement that produced this rewrite came from it plus
 the session transcripts.
 
-Every task appends **one** entry when it lands, written by `bin/spend`:
+**It is generated, never written by hand:**
 
 ```
-common-rules/bin/spend log <issue-or-task-name>
+common-rules/bin/spend agentlog --write
 ```
 
-which records the date, the task, which agents were invoked and how many times,
-the output tokens the session spent, and the commits that landed. One entry per
-task, not one per step. `bin/spend report` totals it across a project, and
-`bin/spend report --by-agent` says which roles are expensive.
+which reads the session transcripts and writes one row per task — when it ran,
+what it cost, how many sessions, and which agents were invoked how many times.
+Regenerate it after a task lands; never edit it. `bin/spend report` totals cost
+per task, and `bin/spend report --by-agent` says which roles are expensive.
 
-If an entry would take longer to write than the work it describes, the entry is
-wrong, not the work.
+**Why generated, and not appended by hand.** The rule here used to be "append
+one entry when the task lands", with `bin/spend log`. Ten entries were written
+that way in finance-tracker and **not one carried the token figure the report
+needed** — so `spend report` answered 0 for every row for a week, and nothing
+noticed, because the tool had no test. A number that is only right when somebody
+remembers to type it is not a measurement.
+
+Generating it also takes the file off the merge surface. Every merge conflict on
+2026-08-05 was in a record file this framework invented, and hand-resolving one
+is what put conflict markers into `main.py` and left `main` unable to start.
+
+`spend log` still exists for a hand-written note, but nothing reads its numbers.
 
 ---
 

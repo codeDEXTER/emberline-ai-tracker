@@ -1,5 +1,47 @@
 # Changelog — common-rules
 
+## 2026-08-07 · AGENT-LOG.md is generated now, and forced delegation is not adopted
+
+Implements proposal 08 (`docs/proposals/08-proposal-workflow-bakeoff.html`),
+accepted after five workflow architectures built one frozen spec and all five
+scored 22/22 while cost varied 17×.
+
+**`AGENT-LOG.md` stops being hand-written.** The rule was "append one entry when
+the task lands" via `spend log`. Ten entries were written that way in
+finance-tracker and **none carried the token figure the report reads**, so
+`spend report` answered 0 for every row for a week — a number that is only right
+when somebody remembers to type it is not a measurement. `bin/spend report` and
+the new `bin/spend agentlog [--write]` now read `~/.claude/projects/*/*.jsonl`
+directly, group sessions into tasks by the worktree they ran in, and count agent
+dispatches from the actual `Agent` calls. finance-tracker reports 3,004,419
+output tokens across 8 tasks and 38 dispatches where it reported nothing.
+
+**`tests/test_spend.py` is the first test in this repo** — the other half of the
+lesson, since `spend` shipped without one. It fails if a report over transcripts
+carrying real usage ever comes back zero. Writing it immediately found a second
+defect: `_task_of` compared paths as strings, and macOS symlinks `/var` to
+`/private/var`, so a session's recorded `cwd` and git's toplevel could name one
+directory two ways and silently drop the task. Both sides are realpath'd now.
+
+**`AGENT-LOG.md` moves from `merge=union` to `merge=ours`** in
+`gitattributes-for-projects`. Union merge is right for an append-only record and
+wrong for generated output — it would interleave two generated tables into a
+file that is neither side's truth. Take ours, then regenerate.
+
+**Forced delegation is not adopted, and removes nothing.** The six-day review
+proposed a driving session holding no `Edit`/`Write`, structurally required to
+delegate all code. Two arms ran it; both scored the same 22/22 as a 37-line
+control at many times the cost. It was never written into these rules, so the
+retraction is a record rather than a deletion. Scope: this does **not** touch
+tool grants as applied to the *roles* — `quality-manager` having no write access
+is untested here and stays. What failed was extending the mechanism to the
+driving session.
+
+Behaviour change for adopted projects: **regenerate `AGENT-LOG.md`, do not edit
+it.** Existing hand-written logs stay valid until regenerated; the first
+regeneration replaces the prose narrative with the measured table, so anything
+in there worth keeping should move to `LESSONS.md` first.
+
 ## 2026-08-06 · The bake-off finished, and it mostly says keep the rules as they are
 
 Five arms built one frozen Swift spec — 22 EARS criteria, a fixed public API —
