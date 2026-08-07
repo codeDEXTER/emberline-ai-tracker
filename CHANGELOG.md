@@ -49,6 +49,76 @@ space), no forecast of any kind (proposal 08 refused an ETA on four days and #63
 held the line on six — cost and drift both invite "at this rate…"), and no new
 bookkeeping, since every figure above is derivable today and the logbook was
 rejected once already.
+## 2026-08-07 · Three ways to show the features, and the two he picked
+
+Proposal 11, a design exploration rather than a proposal with one answer.
+Building #65 is what made it necessary: the information was right and the
+layout it landed in was the one the deleted regions left behind. Measured on
+the running screen — five "no features declared" lines shouting over the one
+project with real features, every feature title truncating because the region
+sits in the 2fr half of a 3fr/2fr split despite being the spine, blocked
+features drawing an empty bar that reads as 0%, and no whole-product figure
+anywhere.
+
+Three structurally different answers were drawn, not three skins: **A** a
+cross-project feature ledger, **B** a board with columns by state, **C** a
+portfolio of one line per project with the whole-product figure first.
+
+**aashish chose A and B.** Recorded plainly, because it went against the
+recommendation: the paper argued for C first with A later, and argued against
+building B at all on the grounds that it has no home for a completion
+percentage and three of its four columns are empty on today's data. He read
+that and chose otherwise. It is his screen. The original reasoning is left
+unedited in the document so the disagreement stays visible rather than being
+tidied into agreement after the fact.
+
+Taking both raised two questions the options paper never had to answer, and
+both are settled in the document rather than left to be discovered mid-build.
+**The completion figure lives in A's header** — taking A alongside B resolves
+the objection to B instead of overriding it, and B gets no bolted-on figure.
+**The two views do not share one screen**: B is the region on the main screen,
+because "what is running, what is done" answered by position is the job that
+screen exists to do, and **A becomes its own `/features` route**, which is the
+same move the Tower already makes with `/pulse` and `/session/<id>`. A gets
+better as registers land without ever making the main screen taller, and the
+900px budget from #56 is untouched.
+
+Three fixes land with whichever option, since they are corrections rather than
+choices: a blocked feature gets no bar at all, the features region moves to the
+wider column, and undeclared projects collapse to one grouped statement.
+
+**Drawing the merged screen changed one of the two issues before either was
+built.** Assembled, A and B collide in two ways neither had alone. The board and
+the existing PIPELINE are the same widget at different altitudes — one counting
+issues by state, one counting features by state — which is the noise this
+redesign set out to remove, reintroduced somewhere new. And four columns in the
+wider half of a 3fr/2fr split are ~150px each, so titles would truncate *worse*
+than they do now, which is the defect #70 exists to fix.
+
+Both have one answer: **the feature board replaces PIPELINE rather than sitting
+beside it.** It follows from the ask — features, not issues, not branches — and
+it gives the board the full width four columns need. Issue-level flow moves to
+`/features`, where it is detail rather than noise. #70 was rewritten to say so
+before any code was written against it.
+
+**Then the sponsor chose tabs, and a measurement decided how to build them.**
+Both views now live in one full-width region where PIPELINE was, switched by a
+tab — and the obvious dependency-free implementation is broken here. The Tower
+re-requests itself every 10 seconds, and CSS tabs (hidden radios plus a
+`:checked` sibling) hold their state in a DOM that every reload destroys. Tested
+against a 3-second refresh: selecting LEDGER came back on BOARD, while a
+`?view=ledger` query string survived intact.
+
+So the tabs are **links**, and the server renders the chosen view —
+`/?view=board` and `/?view=ledger`. The meta refresh re-requests the current URL
+including its query string, so the choice sticks, and no JavaScript is involved,
+which keeps proposal 09's rule that the Tower's only interaction is a link. It
+also retires the separate `/features` route drafted an hour earlier: a query
+string already is one.
+
+Worth recording as a near miss. Building CSS tabs would have produced a screen
+that silently flipped back to BOARD every ten seconds, and the blame would have
+landed on the tab rather than on a refresh nobody was thinking about.
 ## 2026-08-07 · The Tower reads the features register, and names no branches
 
 Implements issue #65, the core of proposal 10. The screen's spine is now each
