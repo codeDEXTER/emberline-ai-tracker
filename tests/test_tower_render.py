@@ -482,6 +482,78 @@ class OnlyRealCollisionsAreContested(unittest.TestCase):
         self.assertEqual(files, {"real.py"})
 
 
+class TheBandCarriesTheDecisionQueue(unittest.TestCase):
+    """#75. Open PRs reached the band only from worktrees with a mapped issue,
+    so a PR from an unmapped branch was invisible — three were open during the
+    session that found this, one from an unrelated session."""
+
+    Q = {"count": 3, "oldest": 0, "projects": ["common-rules"], "numbers": [62, 69, 72]}
+
+    def test_the_queue_appears_and_names_the_prs(self):
+        out = T.render_needs_you([], {}, [], None, self.Q, [])
+        self.assertIn("3 decision(s) waiting", out)
+        self.assertIn("#62", out)
+
+    def test_the_queue_leads_the_band(self):
+        """It is the autopilot's blocking state, so it goes first."""
+        wt = [_wt("w", issue_title="a thing")]
+        out = T.render_needs_you(wt, {"w": {"why": "waiting on you", "age": "1m"}},
+                                 [], None, self.Q, [])
+        self.assertLess(out.index("decision(s) waiting"), out.index("a thing"))
+
+    def test_no_queue_means_no_row(self):
+        self.assertNotIn("decision(s) waiting", T.render_needs_you([], {}, [], None, None, []))
+
+
+class DriftEscalatesInsteadOfSitting(unittest.TestCase):
+    """#75. `5 behind: …` sat unchanged in the header through a whole working
+    day. A permanent warning at constant volume is decoration."""
+
+    def test_a_far_behind_project_earns_a_row(self):
+        out = T.render_needs_you([], {}, [], None, None,
+                                 [{"project": "pip", "behind": 17,
+                                   "stamped": 103, "current": 120}])
+        self.assertIn("17 rules versions behind", out)
+
+    def test_never_stamped_is_its_own_case_not_zero(self):
+        """Reporting a project that has never recorded a version as '0 behind'
+        would be the same lie as reporting undeclared scope as 0% done."""
+        out = T.render_needs_you([], {}, [], None, None,
+                                 [{"project": "idea-lab", "behind": None}])
+        self.assertIn("never recorded a rules version", out)
+        self.assertNotIn("0 rules versions", out)
+
+    def test_the_rows_are_capped_so_the_band_stays_scannable(self):
+        """Measured on the live estate every project was 8-17 versions behind,
+        so escalating all five put five rows in the band and recreated the
+        wallpaper one level up. The worst two get rows; the rest is a count."""
+        drift = [{"project": f"p{i}", "behind": 10 + i, "stamped": 100, "current": 120}
+                 for i in range(5)]
+        out = T.render_needs_you([], {}, [], None, None, drift)
+        self.assertEqual(out.count("rules versions behind"), T.DRIFT_ROWS_SHOWN)
+        self.assertIn("+3 more project(s) behind the rules", out)
+        # and the worst is the one that earns a row
+        self.assertIn("p4 is 14 rules versions behind", out)
+
+    def test_full_project_names_in_prose_not_the_compact_tag(self):
+        """project_tag is built for chips ("finance #41") and reads as a typo in
+        a sentence — "idea has never recorded a rules version"."""
+        out = T.render_needs_you([], {}, [], None, None,
+                                 [{"project": "idea-lab", "behind": None}])
+        self.assertIn("idea-lab has never recorded", out)
+
+    def test_below_the_threshold_nothing_escalates(self):
+        self.assertNotIn("rules versions behind",
+                         T.render_needs_you([], {}, [], None, None, []))
+
+    def test_an_empty_band_still_collapses_to_one_line(self):
+        """#51's rule, and the whole reason this proposal could add to the band
+        at all: reserving empty space is the failure mode proposal 09 fixed."""
+        out = T.render_needs_you([], {}, [], None, None, [])
+        self.assertIn("nothing needs you", out)
+        self.assertNotIn("you-row", out)
+
+
 class StillEscapes(unittest.TestCase):
     def test_markup_in_data_cannot_reach_the_page(self):
         """Retargeted in #64 from render_handovers, which no longer exists.

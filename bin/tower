@@ -498,6 +498,88 @@ def pipeline_data(worktrees):
             "issues_by_key": issues_by_key, "issue_to_prefix": issue_to_prefix}
 
 
+# A project this far behind has stopped being a header count and become
+# something the sponsor has to act on (#75). Named, not inline: it will need
+# tuning once it has been lived with, and a magic number in a conditional is
+# where tuning goes to die.
+DRIFT_ESCALATES_AT = 7          # rules versions
+DRIFT_ROWS_SHOWN = 2            # the rest is a count -- see render_needs_you
+
+
+def decision_queue(projs):
+    """Every open non-draft PR across every project, with how long the oldest
+    has waited (#75).
+
+    NOT derived from worktree mapping, which is what `open_gate_branches` does
+    and why the band under-reports: a PR opened from a branch with no mapped
+    issue is invisible to it. Three were open during the session that found
+    this, one of them from an unrelated session.
+
+    The age is the point. Four things waiting ten minutes is a working
+    autopilot; four waiting two days is a stalled one, and a bare count cannot
+    tell them apart.
+    """
+    def for_project(proj):
+        out = run(["gh", "pr", "list", "-R", proj["repo"], "--state", "open",
+                   "--json", "number,title,isDraft,createdAt", "--limit", "50"])
+        try:
+            rows = json.loads(out) if out else []
+        except json.JSONDecodeError:
+            return []
+        return [{"project": proj["name"], "number": r["number"], "title": r["title"],
+                 "created": r["createdAt"]}
+                for r in rows if not r.get("isDraft")]
+
+    prs = [r for rows in fan_out(for_project, [p for p in projs if p.get("repo")])
+           for r in rows]
+    if not prs:
+        return None
+    oldest = min(_epoch_iso(r["created"]) for r in prs if r["created"])
+    return {"count": len(prs), "oldest": oldest,
+            "projects": sorted({r["project"] for r in prs}),
+            "numbers": sorted(r["number"] for r in prs)}
+
+
+def _epoch_iso(ts):
+    try:
+        return datetime.datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+    except Exception:
+        return time.time()
+
+
+def rules_drift(projs):
+    """Projects far enough behind the shared rules to need the sponsor.
+
+    The header has carried `5 behind: …` unchanged through a whole working day
+    — a permanent warning at constant volume is indistinguishable from
+    decoration. Eleven versions behind is not the same fact as two, and the
+    screen rendered them identically, so the signal has to be able to escalate
+    or it gets tuned out again within a week.
+    """
+    current = PULSE.rules_state(RULES)[0]
+    try:
+        current_n = int(str(current).split("-")[0])
+    except (ValueError, IndexError):
+        return []
+    out = []
+    for proj in projs:
+        if (Path(proj["path"]) / "CLAUDE-workflow.md").exists():
+            continue                      # the rules repo is not behind itself
+        stamped = PULSE.rules_state(proj["path"])[1]
+        if not stamped:
+            # never stamped is its own case, not "0 behind"
+            out.append({"project": proj["name"], "behind": None})
+            continue
+        try:
+            n = int(str(stamped).split("-")[0])
+        except (ValueError, IndexError):
+            continue
+        if current_n - n >= DRIFT_ESCALATES_AT:
+            out.append({"project": proj["name"], "behind": current_n - n,
+                        "stamped": n, "current": current_n})
+    return out
+
+
 def open_gate_branches(projs):
     """(project, branch) pairs with an open, non-draft PR — awaiting a human
     merge decision by definition of what an open PR is. No separate "at the
@@ -736,6 +818,8 @@ def collect():
     pipeline, pipeline_err = safe(pipeline_data, worktrees)
     features, features_err = safe(feature_data, projs)
     stale, _stale_err = safe(staleness)   # silence is the failure mode; err unused
+    queue, queue_err = safe(decision_queue, projs)
+    drift, drift_err = safe(rules_drift, projs)
     gate_branches, gate_err = safe(open_gate_branches, projs)
 
     # Node labels (issue title, prefix stripped) — shared lookup from the
@@ -787,6 +871,8 @@ def collect():
         "pipeline": pipeline, "pipeline_err": pipeline_err,
         "features": features or [], "features_err": features_err,
         "stale": stale,
+        "queue": queue, "queue_err": queue_err,
+        "drift": drift or [], "drift_err": drift_err,
         "needs_input": needs_input, "gate_err": gate_err,
     }
     with _cache_lock:
@@ -1044,7 +1130,8 @@ def contested_notes(contested):
     return notes
 
 
-def render_needs_you(worktrees, needs_input, contested, features=None):
+def render_needs_you(worktrees, needs_input, contested, features=None,
+                     queue=None, drift=None):
     """The band, first and largest (issue #51).
 
     Of 23 session nodes on the live tree exactly two carried state, and they
@@ -1089,6 +1176,49 @@ def render_needs_you(worktrees, needs_input, contested, features=None):
             f'title="{e(f)}">Contested · {e(f)}</p>'
             f'<p class="you-meta clamp1">two sessions are both holding the '
             f'same uncommitted file</p></div>')
+
+    # Decisions waiting on him, counted from every open non-draft PR rather
+    # than from worktree mapping -- a PR from an unmapped branch was invisible.
+    if queue:
+        nums = ", ".join(f'#{n}' for n in queue["numbers"][:6])
+        more = f' +{len(queue["numbers"]) - 6}' if len(queue["numbers"]) > 6 else ""
+        rows.insert(0,
+            f'<div class="you-row"><p class="you-ttl clamp2">'
+            f'{queue["count"]} decision(s) waiting</p>'
+            f'<p class="you-meta clamp1">{e(nums)}{e(more)} · oldest waiting '
+            f'{e(ago(queue["oldest"]) or "now")} · '
+            f'{e(", ".join(queue["projects"]))}</p></div>')
+
+    # Rules drift graduates out of the header once it is far enough behind to
+    # be a thing to do rather than a thing to know.
+    #
+    # Capped, and the cap is the point. Measured on the live estate, every
+    # project was 8-17 versions behind, so escalating all of them put five rows
+    # in the band and recreated the wallpaper one level up -- the exact failure
+    # this was meant to fix. The worst two earn rows; the rest is a count, so
+    # the band stays scannable and the signal keeps its edge.
+    #
+    # Full project names here, not project_tag: the tag is built for compact
+    # chips ("finance #41") and reads as a typo in a sentence ("idea has never
+    # recorded a rules version").
+    worst = sorted(drift or [], key=lambda d: -(d["behind"] or 10 ** 6))
+    for d in worst[:DRIFT_ROWS_SHOWN]:
+        if d["behind"] is None:
+            head = f'{d["project"]} has never recorded a rules version'
+            meta = "run rulecheck --align there · it is not the same as 0 behind"
+        else:
+            head = f'{d["project"]} is {d["behind"]} rules versions behind'
+            meta = (f'stamped {d["stamped"]}, current is {d["current"]} · '
+                    f'escalated past {DRIFT_ESCALATES_AT}')
+        rows.append(f'<div class="you-row cont"><p class="you-ttl clamp2">{e(head)}</p>'
+                    f'<p class="you-meta clamp1">{e(meta)}</p></div>')
+    rest = len(worst) - DRIFT_ROWS_SHOWN
+    if rest > 0:
+        rows.append(f'<div class="you-row cont"><p class="you-ttl clamp2">'
+                    f'+{rest} more project(s) behind the rules</p>'
+                    f'<p class="you-meta clamp1">'
+                    f'{e(", ".join(d["project"] for d in worst[DRIFT_ROWS_SHOWN:]))}'
+                    f'</p></div>')
 
     if not rows:
         return ('<p class="you-none">nothing needs you · '
@@ -1392,12 +1522,18 @@ def render_page(view="board"):
     graph_err = (data["worktrees_err"] or data["contested_err"]
                  or data["gate_err"])
 
-    n_you = len(data["needs_input"]) + len(contested_notes(data["contested"])) // 2
+    drift_rows = min(len(data["drift"]), DRIFT_ROWS_SHOWN) + \
+        (1 if len(data["drift"]) > DRIFT_ROWS_SHOWN else 0)
+    n_you = (len(data["needs_input"]) + len(contested_notes(data["contested"])) // 2
+             + (1 if data["queue"] else 0) + drift_rows)
+    title = f'NEEDS YOU · {n_you}' if n_you else "NEEDS YOU"
+    if data["queue"]:
+        title += f' · OLDEST WAITING {(ago(data["queue"]["oldest"]) or "now").upper()}'
     needs_you = region(
-        f'NEEDS YOU · {n_you}' if n_you else "NEEDS YOU",
-        None,
+        title, None,
         render_needs_you(data["worktrees"], data["needs_input"],
-                         data["contested"], data["features"]),
+                         data["contested"], data["features"],
+                         data["queue"], data["drift"]),
         graph_err, "needs you")
 
     sessions = region(
