@@ -1,0 +1,349 @@
+<meta charset="utf-8">
+<title>common-rules · Five things the Tower should know and doesn't — Proposal</title>
+<meta name="proposal-id" content="12">
+<meta name="proposal-topic" content="tower-trust-cost-and-signal-quality">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="accepted">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
+    --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E;
+    --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0; --border:#26303C;
+            --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81; --warn:#D2A05A;
+            --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660;
+            --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B;
+            --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1060px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:33px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  h3 { font-size:18px; font-weight:640; margin:30px 0 4px; letter-spacing:-.01em; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:68ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  p { max-width:72ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:74ch; }
+  code, .mono { font-family:var(--mono); font-size:12.4px; }
+  a { color:var(--accent); }
+  .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+          padding:3px 9px; border-radius:4px; background:var(--dim); color:var(--chip-ink); }
+  .tablewrap { overflow-x:auto; margin-top:16px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:600px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.1px; white-space:nowrap; }
+  .lab { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+         display:inline-block; padding:2px 7px; border-radius:4px; white-space:nowrap; color:var(--chip-ink); }
+  .lab.ok { background:var(--gain); } .lab.mid { background:var(--warn); } .lab.no { background:var(--loss); }
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:20px 0; max-width:76ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.good { border-left-color:var(--gain); } .verdict.warn { border-left-color:var(--warn); }
+  .find { border:1px solid var(--border); border-radius:12px; padding:20px 24px; margin:22px 0;
+          background:var(--surface); }
+  .find .num { font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; color:var(--dim);
+               text-transform:uppercase; }
+  .ui { border-left:3px solid var(--you); padding-left:14px; margin-top:14px; }
+  .ui b { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+          color:var(--you); display:block; margin-bottom:4px; }
+  .mock { margin-top:20px; overflow-x:auto; border-radius:12px; }
+  .mock svg { width:100%; min-width:720px; height:auto; display:block; }
+  .cap { font-family:var(--mono); font-size:11px; color:var(--dim); margin-top:8px; }
+  ul { max-width:72ch; } li { margin-bottom:6px; }
+</style>
+
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · proposal 12</span>
+  <span><span class="chip" style="background:var(--gain)">accepted</span> &nbsp; 2026-08-07 · rules 114</span>
+</div>
+
+<h1>Five things the Tower should know, and doesn't</h1>
+<p class="standfirst">Every one of these was found by using the screen for a day
+rather than by thinking about dashboards. Two are trust bugs, one is a question
+nothing else in the estate can answer, and two are signals that have quietly
+stopped meaning anything.</p>
+
+<div class="verdict">
+  <b>Ordered by whether it changes what you do</b>
+  <p>Nothing here needs a new record file. Everything is derivable from git,
+  the transcripts, <code>gh</code>, and <code>bin/spend</code> — which matters,
+  because proposal 08's logbook was proposed and rejected, and the right response
+  to that is to stop asking for new bookkeeping rather than to ask again.</p>
+</div>
+
+<p class="eyebrow">1 · The Tower cannot tell you it is stale <span class="tag">trust bug</span></p>
+
+<div class="find">
+  <span class="num">Finding 1</span>
+  <p>Tower.app is a wrapper that runs <code>bin/tower</code> from a pinned
+  checkout, refreshed only by <code>build_towerapp.sh --install</code>. Measured
+  today, <b>two hours after I rebuilt it</b>:</p>
+  <div class="tablewrap"><table>
+    <tr><th></th><th>commit</th><th></th></tr>
+    <tr><td class="k">app is running</td><td class="k">208c789</td><td>2 hours ago</td></tr>
+    <tr><td class="k">main is at</td><td class="k">cd19f10</td><td>74 minutes ago</td></tr>
+  </table></div>
+  <p>It went stale again within the hour, and it will go stale on every merge.
+  Before that rebuild it had been <b>two days</b> behind, serving the pre-proposal-09
+  screen — the truncated names, the 310px void, all of it — while every session
+  reported those problems fixed.</p>
+  <p>This is the worst class of defect a status screen can have: it is confidently
+  wrong, and nothing on it hints that it might be. Everything else in this proposal
+  is an improvement; this one is a correction.</p>
+  <div class="ui"><b>UI</b>
+  A line in the header, beside the rules stamp. Silent when current; when behind,
+  it names the gap and what to do — <span class="mono">running 208c789 · main is
+  1 ahead · restart to update</span>. Amber, not red: it is stale, not broken.</div>
+</div>
+
+<p class="eyebrow">2 · Cost is measured and never shown <span class="tag">the question only the autopilot can answer</span></p>
+
+<div class="find">
+  <span class="num">Finding 2</span>
+  <p><code>bin/spend report</code> in finance-tracker, today:</p>
+  <div class="tablewrap"><table>
+    <tr><th>started</th><th>task</th><th>tokens</th><th>agents</th></tr>
+    <tr><td class="k">2026-08-05</td><td class="k">(main checkout)</td><td class="k">1,507,003</td><td class="k">20</td></tr>
+    <tr><td class="k">2026-08-04</td><td class="k">adoring-euler-ba942f</td><td class="k">751,954</td><td class="k">11</td></tr>
+    <tr><td class="k">2026-08-04</td><td class="k">compassionate-bassi-fd5327</td><td class="k">443,384</td><td class="k">4</td></tr>
+    <tr><td class="k"></td><td class="k"><b>TOTAL</b></td><td class="k"><b>4,018,382</b></td><td class="k"><b>49</b></td></tr>
+  </table></div>
+  <p><b>Four million tokens across eight tasks, and none of it reaches the Tower.</b>
+  Look at how <code>spend</code> labels those rows —
+  <span class="mono">adoring-euler-ba942f</span>,
+  <span class="mono">compassionate-bassi-fd5327</span>. That is exactly the
+  branch-name noise proposal 10 removed from the screen, which is precisely why
+  cost has never been useful: <em>cost per worktree is trivia</em>.</p>
+  <p>Cost <em>per feature</em> is a different object. “Milestone 0 has cost 1.5M
+  tokens and is not done” is a decision input — it is the only number that tells
+  you whether to keep going, cut scope, or change approach. Once #65's register
+  maps issues to features, the same mapping turns spend's per-task figures into
+  per-feature ones.</p>
+  <div class="ui"><b>UI</b>
+  A cost column in the LEDGER tab (#71), beside completion. Nothing on the BOARD
+  — a card is a glance and a number invites arithmetic. One estate total in the
+  ledger header beside the completion figure.</div>
+</div>
+
+<p class="eyebrow">3 · A warning that never resolves is wallpaper <span class="tag">signal decay</span></p>
+
+<div class="find">
+  <span class="num">Finding 3</span>
+  <p>The header has read <span class="mono">5 behind: finance-tracker, idea-lab,
+  mac-explorer +2</span> for this entire session — through a dozen merges, four
+  proposals and six issues. It never changed, so it stopped being read. Measured
+  against rules version <b>114</b>:</p>
+  <div class="tablewrap"><table>
+    <tr><th>project</th><th>stamped</th><th>versions behind</th></tr>
+    <tr><td class="k">pip</td><td class="k">103</td><td><span class="lab no">11</span></td></tr>
+    <tr><td class="k">mac-explorer</td><td class="k">105</td><td><span class="lab no">9</span></td></tr>
+    <tr><td class="k">finance-tracker</td><td class="k">106</td><td><span class="lab no">8</span></td></tr>
+    <tr><td class="k">pockets</td><td class="k">112</td><td><span class="lab mid">2</span></td></tr>
+    <tr><td class="k">idea-lab</td><td class="k">—</td><td><span class="lab no">never stamped</span></td></tr>
+  </table></div>
+  <p>Eleven versions is not the same fact as two, and the screen renders them
+  identically. A permanent warning at constant volume is indistinguishable from
+  decoration.</p>
+  <div class="ui"><b>UI</b>
+  The header keeps the count, but it <em>ages</em>: a project more than N versions
+  or N days behind graduates into the NEEDS YOU band as a row of its own, with the
+  distance named. Below the threshold it stays a quiet header count. The point is
+  that the signal has to be able to <em>escalate</em>, or it will be tuned out
+  again within a week.</div>
+</div>
+
+<p class="eyebrow">4 · The decision queue is under-reported <span class="tag">the autopilot's real blocking state</span></p>
+
+<div class="find">
+  <span class="num">Finding 4</span>
+  <p>Three PRs are open on the sponsor right now — and one of them, #62, came from
+  a session that is not the one writing this. NEEDS YOU surfaces an open PR only
+  when it belongs to a worktree with a <em>mapped issue</em>, so anything opened
+  from a branch without one is invisible.</p>
+  <p>“How many decisions are waiting, and how long has the oldest waited” is the
+  single number that says whether the autopilot can keep running without you. It
+  is not on the screen at all.</p>
+  <div class="ui"><b>UI</b>
+  A count in the NEEDS YOU header — <span class="mono">NEEDS YOU · 4 · oldest
+  waiting 4h</span> — derived from open non-draft PRs across every project rather
+  than from worktree mapping. The age is the part that matters: four things
+  waiting ten minutes is a working autopilot, four waiting two days is a stalled
+  one.</div>
+</div>
+
+<p class="eyebrow">5 · Three of five contested warnings are false by construction <span class="tag">signal quality</span></p>
+
+<div class="find">
+  <span class="num">Finding 5</span>
+  <p>The five contested pairs on the tree right now:</p>
+  <div class="tablewrap"><table>
+    <tr><th>pair</th><th>file</th><th></th></tr>
+    <tr><td class="k">agent-a2ebaf… ↔ backend-architecture</td><td class="k">16-research-backend-architecture.html</td><td><span class="lab ok">real</span></td></tr>
+    <tr><td class="k">agent-a2ebaf… ↔ agent-a4945f…</td><td class="k">privacy_mask.py</td><td><span class="lab ok">real</span></td></tr>
+    <tr><td class="k">arm-c-bare ↔ arm-f-full</td><td class="k">AGENT-LOG.md</td><td><span class="lab no">false</span></td></tr>
+    <tr><td class="k">arm-c-bare ↔ m0-stage2-v5</td><td class="k">AGENT-LOG.md</td><td><span class="lab no">false</span></td></tr>
+    <tr><td class="k">arm-f-full ↔ m0-stage2-v5</td><td class="k">AGENT-LOG.md</td><td><span class="lab no">false</span></td></tr>
+  </table></div>
+  <p><code>AGENT-LOG.md</code> carries <code>merge=ours</code> in
+  <code>.gitattributes</code> — confirmed in both pockets and finance-tracker.
+  <b>A file with a merge driver cannot produce a conflict</b>: that is the entire
+  purpose of the <code>derecord</code> work in #44, #45 and #57. So three of the
+  five warnings are false <em>by construction</em>, not by bad luck.</p>
+  <p>The contested check is <code>bin/whoelse</code>'s logic, and it predates the
+  merge drivers. It has simply never been told they exist.</p>
+  <div class="ui"><b>UI</b>
+  No new UI — a filter. Contested detection reads <code>.gitattributes</code> and
+  ignores any path whose merge driver resolves it. On today's tree that removes
+  three of five amber warnings. What remains says which file and why it matters,
+  because a warning that survives the filter deserves the space.</div>
+</div>
+
+<p class="eyebrow">Where it all lands</p>
+
+<div class="mock">
+<svg viewBox="0 0 1280 300" role="img" aria-label="Header and needs-you band with the new signals">
+  <style>
+    .b{fill:#0B0E13}.c{fill:#131820;stroke:#26303C}
+    .h{font-family:ui-monospace,monospace;font-size:11px;fill:#7C8594;letter-spacing:.12em;font-weight:700}
+    .t{font-family:-apple-system,sans-serif;font-size:17px;fill:#DFE3EA;font-weight:650}
+    .d{font-family:ui-monospace,monospace;font-size:10px;fill:#7C8594}
+    .a{fill:#D2A05A}.p{fill:#A98FD6}
+  </style>
+  <rect class="b" width="1280" height="300" rx="12"/>
+  <text class="h" x="28" y="32" font-size="13">TOWER · APPS AUTOPILOT · LIVE</text>
+  <text class="d" x="28" y="50">2026-08-07 18:40 · updates every 5s</text>
+  <text class="d" x="720" y="32">rules 114 · <tspan fill="#D2A05A">5 behind</tspan> · <tspan fill="#A98FD6">14%</tspan> of declared scope</text>
+  <text class="d" x="720" y="50" fill="#D2A05A">⚠ running 208c789 · main is 1 ahead · restart to update</text>
+  <line x1="24" y1="64" x2="1256" y2="64" stroke="#222B38"/>
+
+  <text class="h" x="28" y="92" fill="#A98FD6">NEEDS YOU · 4 · OLDEST WAITING 4H</text>
+  <rect class="c" x="24" y="104" width="400" height="76" rx="10" stroke="#A98FD6" fill="#171526"/>
+  <text class="t" x="42" y="132">3 decisions waiting</text>
+  <text class="d" x="42" y="152">PRs #62, #69, #72 · oldest opened 4h ago</text>
+  <text class="d" x="42" y="168">across 2 projects</text>
+
+  <rect class="c" x="440" y="104" width="400" height="76" rx="10" stroke="#D2A05A" fill="#1E1A12"/>
+  <text class="t" x="458" y="132">pip is 11 rules versions behind</text>
+  <text class="d" x="458" y="152">stamped 103, current is 114 · 4 days</text>
+  <text class="d" x="458" y="168">escalated from the header after 7 versions</text>
+
+  <rect class="c" x="856" y="104" width="400" height="76" rx="10" stroke="#D2A05A" fill="#1E1A12"/>
+  <text class="t" x="874" y="132">Contested · privacy_mask.py</text>
+  <text class="d" x="874" y="152">two sessions hold it uncommitted, and it has</text>
+  <text class="d" x="874" y="168">no merge driver — this one will conflict</text>
+
+  <text class="d" x="28" y="216" fill="#39434F">— 3 AGENT-LOG.md pairs filtered out: merge=ours resolves them, so they cannot conflict</text>
+  <text class="d" x="28" y="240" fill="#39434F">— the rules count stays in the header until a project crosses the threshold, then it earns a row here</text>
+</svg>
+</div>
+<p class="cap">Header carries the two facts that were missing — is this screen
+current, and how much of the product is done. The band gains the decision queue,
+escalated rules drift, and only the contested pairs that can actually conflict.</p>
+
+<div class="mock">
+<svg viewBox="0 0 1280 250" role="img" aria-label="Ledger tab with a cost column">
+  <style>
+    .b2{fill:#0B0E13}
+    .h2{font-family:ui-monospace,monospace;font-size:11px;fill:#7C8594;letter-spacing:.12em;font-weight:700}
+    .t2{font-family:-apple-system,sans-serif;font-size:13.5px;fill:#DFE3EA}
+    .d2{font-family:ui-monospace,monospace;font-size:10px;fill:#7C8594}
+    .g2{fill:#5FA985}.trk2{fill:#222B38}
+  </style>
+  <rect class="b2" width="1280" height="250" rx="12"/>
+  <text class="h2" x="28" y="32">FEATURES · LEDGER</text>
+  <text class="d2" x="640" y="32"><tspan fill="#DFE3EA" font-size="15">14%</tspan> of declared scope</text>
+  <text class="d2" x="900" y="32"><tspan fill="#DFE3EA" font-size="15">4.0M</tspan> tokens across the estate</text>
+  <line x1="24" y1="46" x2="1256" y2="46" stroke="#222B38"/>
+  <text class="d2" x="28" y="70">STATE</text><text class="d2" x="140" y="70">PROJECT</text>
+  <text class="d2" x="250" y="70">FEATURE</text><text class="d2" x="720" y="70">PROGRESS</text>
+  <text class="d2" x="920" y="70">COST</text><text class="d2" x="1050" y="70">NOTE</text>
+
+  <rect x="28" y="84" width="62" height="15" rx="3" fill="#2E6E8E"/><text class="d2" x="34" y="95" fill="#0B0E13">IN FLIGHT</text>
+  <text class="d2" x="140" y="95">pockets</text>
+  <text class="t2" x="250" y="96">Milestone 0: prove the classifier is good enough</text>
+  <rect class="trk2" x="720" y="88" width="150" height="8" rx="4"/>
+  <text class="d2" x="880" y="95">0/1</text>
+  <text class="t2" x="920" y="96">1.5M</text>
+  <text class="d2" x="1050" y="95">issue #1 open</text>
+
+  <rect x="28" y="116" width="62" height="15" rx="3" fill="#39434F"/><text class="d2" x="38" y="127" fill="#DFE3EA">BLOCKED</text>
+  <text class="d2" x="140" y="127">pockets</text>
+  <text class="t2" x="250" y="128">Capture a document and see it filed</text>
+  <text class="d2" x="720" y="127" fill="#D2A05A">— no percentage while blocked —</text>
+  <text class="d2" x="920" y="127">—</text>
+  <text class="d2" x="1050" y="127">by Milestone 0</text>
+
+  <text class="d2" x="28" y="176" fill="#39434F">— cost is per FEATURE, never per worktree: "adoring-euler-ba942f cost 751k" is trivia,</text>
+  <text class="d2" x="28" y="194" fill="#39434F">   "Milestone 0 has cost 1.5M and is not done" is a decision.</text>
+  <text class="d2" x="28" y="218" fill="#39434F">— work that maps to no feature is totalled once at the foot, not hidden.</text>
+</svg>
+</div>
+<p class="cap">Cost lands only on the ledger, beside completion. Nothing on the
+board: a card is a glance, and a number there invites arithmetic instead.</p>
+
+<p class="eyebrow">What I would resist</p>
+<ul>
+  <li><b>More regions.</b> 900px is already tight and #70 is about to take
+  PIPELINE's space. Everything above lands in the header, the band, or the ledger
+  — nothing here asks for a sixth region.</li>
+  <li><b>A forecast.</b> Cost and drift both invite “at this rate…”. Proposal 08
+  refused an ETA on four days of data and #63 held the same line on six. Nothing
+  here projects.</li>
+  <li><b>New bookkeeping.</b> Every figure above is derivable today. The logbook
+  was rejected once; the answer is to stop asking, not to ask again.</li>
+</ul>
+
+<p class="eyebrow">The work <span class="tag">cut into issues, 2026-08-07</span></p>
+<p>Two of these are corrections and wait for nothing. One queues behind a tab that
+does not exist yet. Two share a surface and so share an issue.</p>
+<div class="tablewrap">
+<table>
+  <tr><th>Issue</th><th>Finding</th><th>Blocked by</th></tr>
+  <tr><td class="k"><a href="https://github.com/github-owner/ai-common-rules/issues/73">#73</a><br>
+      say when the screen is stale</td><td>1 — the trust bug</td>
+      <td><span class="lab ok">nothing</span></td></tr>
+  <tr><td class="k"><a href="https://github.com/github-owner/ai-common-rules/issues/74">#74</a><br>
+      stop flagging files that cannot conflict</td><td>5 — 3 of 5 warnings are false</td>
+      <td><span class="lab ok">nothing</span></td></tr>
+  <tr><td class="k"><a href="https://github.com/github-owner/ai-common-rules/issues/75">#75</a><br>
+      decision queue, and rules drift that escalates</td><td>3 and 4 — both change the band</td>
+      <td>loosely after #73</td></tr>
+  <tr><td class="k"><a href="https://github.com/github-owner/ai-common-rules/issues/76">#76</a><br>
+      cost per feature on the ledger</td><td>2 — the question only the autopilot can answer</td>
+      <td>#71</td></tr>
+</table>
+</div>
+<p class="note">#73 and #74 are the ones to take first, and not because they are
+small: a screen that can be silently stale and an amber warning that is wrong
+three times in five both undermine every other number on the page. Neither
+depends on the feature work in flight.</p>
+
+<p class="note" style="margin-top:34px">Every figure measured on the live estate
+2026-08-07: app pinned at 208c789 against main cd19f10; 4,018,382 tokens across 8
+finance-tracker tasks; rules version 114 against stamps 103–112; 3 open PRs; 5
+contested pairs of which 3 are on a <code>merge=ours</code> file. Nothing in
+<code>common-rules</code> was modified to write this.</p>
+
+</div>
