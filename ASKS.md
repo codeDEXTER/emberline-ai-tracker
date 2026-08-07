@@ -320,3 +320,16 @@ his live Tower window after Stage Manager swapped it — window placement on
 this machine is load-bearing, not cosmetic. Ninth entry in the
 state-visible-at-a-glance family: he shouldn't have to hunt across three
 screens for the thing he was asked to look at.
+
+## 2026-08-07 · Use the in-app simulator panel, not Simulator.app
+Said in: pip (M1)
+
+"use the inbuilt sim" — minutes after asking for Simulator.app on the built-in
+screen. A reversal that supersedes the placement rule when the panel works:
+the built-in simulator panel (`attach`) is the preferred viewing surface, and
+Simulator.app-on-the-Mac-screen is the fallback for when the panel's tooling
+errors (it did all day yesterday; it works today). Two cautions learned on
+first use: the panel attaches to whatever is booted, and `screenshot` without
+an explicit udid can target a different booted device than the panel shows —
+always pass the udid. Another session's booted device (Pockets' Pro Max here)
+is its surface; attach Pip to its own device rather than borrowing.
