@@ -1,0 +1,513 @@
+<meta charset="utf-8">
+<title>common-rules · The Tower, made legible — Proposal</title>
+<meta name="proposal-id" content="09">
+<meta name="proposal-topic" content="tower-ui-legibility">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="accepted">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
+    --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E;
+    --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; --screen:#0B0E13; --scrink:#DFE3EA;
+    --scrdim:#7C8594; --scrline:#222B38;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0; --border:#26303C;
+            --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81; --warn:#D2A05A;
+            --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660;
+            --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B;
+            --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1030px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:34px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  h3 { font-size:17px; font-weight:640; margin:26px 0 4px; letter-spacing:-.01em; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:66ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  section > p { max-width:70ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:72ch; }
+  code, .mono { font-family:var(--mono); font-size:12.6px; }
+  a { color:var(--accent); }
+  .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+          padding:3px 9px; border-radius:4px; background:var(--dim); color:var(--chip-ink); }
+
+  .tablewrap { overflow-x:auto; margin-top:18px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:640px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.1px; white-space:nowrap; }
+  .lab { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+         display:inline-block; padding:2px 7px; border-radius:4px; white-space:nowrap; color:var(--chip-ink); }
+  .lab.ok { background:var(--gain); } .lab.mid { background:var(--warn); } .lab.no { background:var(--loss); }
+
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:22px 0; max-width:74ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.warn { border-left-color:var(--warn); }
+  .verdict.good { border-left-color:var(--gain); }
+  .verdict p:last-child { margin-bottom:0; }
+
+  .mock { margin-top:22px; overflow-x:auto; border-radius:14px; }
+  .mock svg { width:100%; min-width:760px; height:auto; display:block; }
+  .mockcap { font-family:var(--mono); font-size:11px; color:var(--dim); margin-top:8px;
+             letter-spacing:.04em; }
+  ul { max-width:72ch; } li { margin-bottom:7px; }
+  ol { max-width:72ch; } ol li { margin-bottom:9px; }
+  .q { background:var(--lane); border-radius:10px; padding:14px 18px; margin:14px 0; max-width:74ch; }
+  .q b { display:block; font-size:14.5px; margin-bottom:4px; }
+  .q p { margin:0; color:var(--dim); font-size:14px; }
+</style>
+
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · proposal 09</span>
+  <span><span class="chip" style="background:var(--gain)">accepted</span> &nbsp; 2026-08-07 · rules 106</span>
+</div>
+
+<h1>The Tower, made legible</h1>
+<p class="standfirst">The Tower is drawing the right data. It is drawing it as one
+hand-positioned SVG, and that single decision is the cause of nearly
+everything that looks wrong on it — the truncated names, the dead space, the
+23 identical circles, the 2,241-pixel page in a 900-pixel window.</p>
+
+<div class="verdict">
+  <b>The short version</b>
+  <p>The collectors (<code>bin/tower</code> lines 60–780) are the hard, good part and
+  I am not proposing to touch them. Everything I want to change lives in the
+  ~450 lines of <code>render_*</code> functions below them, which lay out an SVG by
+  computing absolute <span class="mono">x</span>/<span class="mono">y</span> in Python
+  and returning a running <span class="mono">bottom</span> to stack the next region on.
+  That technique cannot wrap text, cannot reflow, and cannot let two columns
+  agree on a height — so it truncates, voids, and overflows instead. I propose
+  moving the page to HTML/CSS and keeping SVG only where something is genuinely
+  <em>drawn</em>, then re-cutting what the screen shows so the two things that need
+  you are not the same size as the twenty-one that don't.</p>
+</div>
+
+<p class="eyebrow">What I looked at <span class="tag">measured, not eyeballed</span></p>
+<p>I ran <code>tower --port 8893</code> against your live tree, loaded it in a browser
+and read the rendered DOM back out. Numbers below are from that run
+(2026-08-07 15:18, 23 worktrees, 6 projects), not from reading the source.</p>
+
+<p class="eyebrow">Findings</p>
+
+<h3>1. The screen does not fit its own window</h3>
+<p>The rendered SVG is <b>1200 × 2241</b>. The Mac wrapper opens at
+<b>1280 × 900</b> (<code>tools/tower_window/towerwin.swift:168</code>). You see about
+40% of the Tower at a time and scroll for the rest. For a document that would be
+a non-issue; for a glanceable autopilot screen it is the whole problem. The
+regions you scroll <em>past</em> — the session grid — are the least informative,
+and the ones you scroll <em>to</em> — progress, handovers, ticker — are the most.</p>
+
+<h3>2. A 310-pixel void down the left column</h3>
+<p>Node circles run from <span class="mono">cy=190</span> to
+<span class="mono">cy=780</span> (bottom edge 805). The column divider and the
+next section boundary run to <span class="mono">y=1116</span>. The gap is empty
+black. Cause is <code>render_page</code>:</p>
+<p class="note"><code>main_bottom = max(graph_bottom, pipe_bottom)</code> — two columns
+are laid out independently and then the page is padded to the taller one. The
+pipeline column is ~310px taller today, so the graph column gets 310px of nothing.
+Add a worktree and the void moves; add a queued issue and it grows.</p>
+
+<h3>3. The "live graph" is not a graph</h3>
+<p>23 nodes on a fixed 4-column grid. Position is enumeration order — row and
+column carry no meaning. Size is constant (r=25). Fill is constant. There are no
+edges except one. So the region spends <b>615 vertical pixels</b> to communicate
+exactly what a 23-line list would, and it reads as a graph, which invites you to
+look for structure that isn't there.</p>
+
+<h3>4. Labels overflow their nodes, and truncate mid-word</h3>
+<p>Worktree names are cut at <code>[:11]</code>, which on your tree produces
+<span class="mono">arm-f-filin</span>, <span class="mono">arm-f-queri</span>,
+<span class="mono">arm-b-contr</span>, <span class="mono">arm-a-condu</span>,
+<span class="mono">backend-arc</span>, <span class="mono">m0-stage2-v</span> — six
+names cut to something that isn't a word and isn't unique-looking. Issue titles
+render at font-size 10 across a circle of radius 25, so
+<span class="mono">"Nothing in the app…"</span> visibly overruns its own ring.</p>
+<p>Hard character caps appear at <code>[:11] [:20] [:28] [:30] [:34] [:44] [:90] [:110]</code>.
+They exist because SVG <code>&lt;text&gt;</code> has no wrapping and no
+overflow handling — the only fit strategy available to the current design is to
+cut. The pipeline's top row reads
+<span class="mono">"finance #81 zero logging calls in 12,679 lin"</span>: cut at
+character 44, one character short of "lines".</p>
+
+<h3>5. The signal is drowned by uniform styling</h3>
+<p>Of 23 nodes, <b>two</b> carry state: one purple ("needs you"), one green (active).
+Twenty-one identical grey circles have the same size, weight and prominence as the
+two that require you. The pipeline repeats the pattern: the header says
+<span class="mono">IN FLIGHT · 19</span>, but 18 of those rows are
+<span class="mono">worktree-name · N ahead</span> — a git ahead-count, not work in
+flight — and they are styled almost identically to the one row that is a real
+mapped issue.</p>
+
+<h3>6. The contested edge crosses the whole grid</h3>
+<p>The one drawn edge is <code>M554,308 Q474,524 394,780</code> — a 470px dashed
+diagonal from a row-1 node to a row-6 node, sweeping across the label space of
+everything between. Its caption is placed at the curve's midpoint, which lands in
+empty grid, attached to neither end.</p>
+
+<h3>7. Duplicate rows presented as distinct events</h3>
+<p>Handovers rows 1 and 2 carry <em>identical</em> summary text. The event ticker
+shows four consecutive rows with the same body
+(<span class="mono">"## 2026-08-03 (continued) — v4: redesign personalId…"</span>)
+from four different agent logs, timestamped 15:10–15:11. Four lines of a
+nine-line ticker are one event. Nothing here is a rendering bug — it is a missing
+de-duplication step before rendering.</p>
+
+<h3>8. Four hardcoded columns of eye travel in the work packages</h3>
+<p><code>render_burnup</code> pins label at <span class="mono">x0</span>, bar at
+<span class="mono">x0+210</span>, percentage at <span class="mono">bar+bar_w+20</span>,
+note at <span class="mono">+60</span>. On the <span class="mono">pockets</span> row
+the eye travels roughly 700px from the app name to
+"5 / 14 items · 3 packages", across a bar, with no rule or tint connecting them.</p>
+
+<h3>9. No responsiveness, and inconsistent rhythm</h3>
+<p><code>WIDTH = 1200</code> is a Python constant. At a 985px browser width the page
+does not reflow — it clips. Vertical gaps are set by hand and disagree: 40px below
+the header rule, 20px below every other one. <code>cell_h = 118</code>,
+<code>y0 = 116</code>, <code>+30</code>, <code>+10</code> are magic numbers with no
+single source.</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>#</th><th>Finding</th><th>Cause</th><th>Severity</th></tr>
+  <tr><td class="k">1</td><td>2241px page in a 900px window</td><td>page grows with data; no viewport budget</td><td><span class="lab no">high</span></td></tr>
+  <tr><td class="k">2</td><td>310px void in left column</td><td><code>max(graph_bottom, pipe_bottom)</code></td><td><span class="lab no">high</span></td></tr>
+  <tr><td class="k">3</td><td>Graph carries no structure</td><td>grid position = enumeration order</td><td><span class="lab no">high</span></td></tr>
+  <tr><td class="k">4</td><td>Mid-word truncation everywhere</td><td>SVG text cannot wrap</td><td><span class="lab no">high</span></td></tr>
+  <tr><td class="k">5</td><td>2 urgent items look like 21 idle ones</td><td>uniform node/chip styling</td><td><span class="lab no">high</span></td></tr>
+  <tr><td class="k">6</td><td>470px edge across the grid</td><td>midpoint placement, no routing</td><td><span class="lab mid">medium</span></td></tr>
+  <tr><td class="k">7</td><td>Duplicate handovers and ticker rows</td><td>no de-dup before render</td><td><span class="lab mid">medium</span></td></tr>
+  <tr><td class="k">8</td><td>700px eye travel in burnup rows</td><td>four hardcoded x columns</td><td><span class="lab mid">medium</span></td></tr>
+  <tr><td class="k">9</td><td>Fixed width, inconsistent gaps</td><td>layout constants in Python</td><td><span class="lab mid">medium</span></td></tr>
+</table>
+</div>
+
+<p class="eyebrow">The root cause <span class="tag">one decision, most of the symptoms</span></p>
+<p>Every <code>render_*</code> function has the signature
+<code>(data, x0, y0, width) → (svg_string, bottom_y)</code>. The page calls them in
+order and threads <span class="mono">bottom</span> forward. This is a manual layout
+engine, and it is missing the three things a layout engine gives you for free:</p>
+<ul>
+  <li><b>Text measurement</b> — so every string is cut at a guessed character count instead of fitted or wrapped.</li>
+  <li><b>Intrinsic sizing</b> — so two columns can't agree on a height, hence the void.</li>
+  <li><b>Reflow</b> — so the width is a constant and the page can only ever be 1200px.</li>
+</ul>
+<p>Browsers ship that engine. The Tower is already served as HTML into a WebKit
+view; it is opting out of CSS and re-implementing a worse version in Python.</p>
+
+<p class="eyebrow">Options</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Option</th><th>What it fixes</th><th>What it leaves</th><th>Cost</th></tr>
+  <tr>
+    <td class="k">A · patch the SVG math</td>
+    <td>2, 6, 7, 8, 9 (partly)</td>
+    <td>Truncation and no-wrap are structural; still fixed-width; still 2000px+ tall</td>
+    <td>~half a day</td>
+  </tr>
+  <tr>
+    <td class="k">B · HTML/CSS page,<br>SVG only for drawings</td>
+    <td>1, 2, 4, 6, 7, 8, 9 — every layout symptom</td>
+    <td>The graph still shows no structure; the screen still shows everything equally</td>
+    <td>~1–2 days</td>
+  </tr>
+  <tr>
+    <td class="k">B + C · also re-cut<br>what the screen shows</td>
+    <td>All nine</td>
+    <td>—</td>
+    <td>~2–3 days</td>
+  </tr>
+</table>
+</div>
+
+<div class="verdict good">
+  <b>Recommendation — B + C</b>
+  <p>Do them together. B alone gives you a tidy screen that still asks you to scan
+  23 equal circles for the one that needs you; C alone can't be built cleanly on
+  absolute coordinates. The collectors don't change in either, which is what keeps
+  this a two-to-three day job rather than a rewrite.</p>
+</div>
+
+<p class="eyebrow">B · the page becomes HTML</p>
+<ol>
+  <li><b>One CSS grid, four regions.</b> <code>render_page</code> stops threading
+  <span class="mono">bottom</span> and emits a grid container. Column heights become
+  a grid concern — the void (finding 2) cannot recur by construction.</li>
+  <li><b>Every string renders in full or ellipsises visually.</b> Delete all eight
+  hardcoded <code>[:n]</code> caps and let CSS <code>text-overflow</code> and
+  <code>-webkit-line-clamp</code> do it. A clamped title still ends on a word and
+  still has a <code>title</code> attribute with the full text.</li>
+  <li><b>One spacing scale.</b> A small set of CSS custom properties
+  (<code>--gap-1</code>…<code>--gap-4</code>) replaces <code>+30</code>,
+  <code>+10</code>, <code>118</code>, <code>116</code>. Rhythm becomes consistent
+  because there is one place to set it.</li>
+  <li><b>Bars become CSS.</b> <code>render_burnup</code>'s four x-columns become a
+  four-column grid row; the bar is a <code>div</code> with a percentage width. The
+  numbers sit next to the bar, not 700px from the label.</li>
+  <li><b>Reflow.</b> Below ~1000px the two columns stack instead of clipping. The
+  Mac window becomes resizable without breaking the screen.</li>
+  <li><b>SVG stays where drawing is real</b> — if you keep a session graph at all
+  (see C), it is drawn, and it is the only <code>&lt;svg&gt;</code> on the page.</li>
+</ol>
+<p class="note">Not affected: <code>collect()</code>, every collector above it, the
+5s cache, the per-region failure isolation, apprun registration, the
+<code>/session/&lt;id&gt;</code> and <code>/pulse</code> routes. The
+"one collector fails → that region says unavailable" contract is preserved as a
+per-grid-cell empty state.</p>
+
+<p class="eyebrow">C · the screen stops showing everything equally</p>
+<p>Three cuts, in order of how much they buy:</p>
+<ol>
+  <li><b>A "needs you" band, first and largest.</b> Today the two items that require
+  you are two circles among 23. Promote them to a full-width band at the top with the
+  issue title, the project, and how long they have waited — and when nothing needs
+  you, the band says so in one line and gives its height back.</li>
+  <li><b>"In flight" means a mapped issue.</b> The 18
+  <span class="mono">worktree · N ahead</span> rows are a different fact from the one
+  real issue and should not share a list with it. Proposal: in-flight lists mapped
+  issues only; unmapped ahead-of-main worktrees collapse to one line —
+  <span class="mono">"18 worktrees ahead of main, no mapped issue"</span> — that
+  expands. The count stops overstating what is in flight.</li>
+  <li><b>The session grid is compressed.</b> <span class="lab ok">decided</span>
+  615px for 23 labels with no structure was the worst trade on the page. It becomes a
+  dense strip of state dots — one row, ~118px instead of 615px — with the worktree name
+  and its issue on hover, and a click through to <code>/session/&lt;id&gt;</code> exactly
+  as the nodes have today. The header carries the counts in words
+  (<span class="mono">23 · 1 active, 1 needs you, 21 idle</span>), which is the only
+  thing the grid was actually communicating.
+  <br><br>
+  This retires the graph from concept 07 rather than deferring it, and that is the
+  honest reading of the measurement: concept 07's own follow-up
+  (<code>message_edges()</code>, proposal 08) found that handover edges almost never
+  have both ends on screen, and today exactly one edge renders across 23 nodes. A graph
+  whose edges don't exist is a grid with extra ceremony. Contested pairs — the one real
+  edge — move up into the <b>needs you</b> band as a named row, which is where an
+  actionable collision belongs anyway.</li>
+  <li><b>De-duplicate before rendering.</b> Collapse identical handover summaries and
+  identical ticker bodies within a short window into one row with a
+  <span class="mono">×4</span> count. This is a collector-side change and the only
+  one in C that touches code above line 780.</li>
+</ol>
+
+<div class="mock">
+<svg viewBox="0 0 1280 900" role="img" aria-label="Proposed Tower screen, one window, no scroll">
+  <style>
+    .s-bg{fill:#0B0E13}
+    .s-card{fill:#131820;stroke:#26303C;stroke-width:1}
+    .s-you{fill:#171526;stroke:#A98FD6;stroke-width:1.5}
+    .s-ht{font-family:ui-monospace,monospace;font-size:11px;fill:#7C8594;letter-spacing:.12em;font-weight:700}
+    .s-t{font-family:-apple-system,sans-serif;font-size:14px;fill:#DFE3EA;font-weight:600}
+    .s-tb{font-family:-apple-system,sans-serif;font-size:19px;fill:#DFE3EA;font-weight:650}
+    .s-d{font-family:ui-monospace,monospace;font-size:10.5px;fill:#7C8594}
+    .s-p{fill:#A98FD6}.s-g{fill:#5FA985}.s-a{fill:#D2A05A}
+    .trk{fill:#222B38}
+  </style>
+  <rect class="s-bg" x="0" y="0" width="1280" height="900" rx="14"/>
+
+  <text class="s-ht" x="28" y="34" font-size="13">TOWER · APPS AUTOPILOT · LIVE</text>
+  <text class="s-d" x="28" y="52">15:18:53 · recollects every 5s</text>
+  <text class="s-d" x="980" y="34">rules 105–b04306d</text>
+  <text class="s-d" x="980" y="52"><tspan class="s-g">●</tspan> 2 aligned  <tspan class="s-a">△</tspan> 3 behind</text>
+  <line x1="24" y1="68" x2="1256" y2="68" stroke="#222B38"/>
+
+  <text class="s-ht" x="28" y="96" fill="#A98FD6">NEEDS YOU · 2</text>
+  <rect class="s-you" x="24" y="108" width="608" height="82" rx="10"/>
+  <text class="s-tb" x="44" y="140">Nothing in the app is checkable</text>
+  <text class="s-d" x="44" y="162">finance #81 · checklist-diagnostic · waiting 41m</text>
+  <circle class="s-p" cx="606" cy="128" r="4"/>
+  <rect class="s-you" x="648" y="108" width="608" height="82" rx="10"/>
+  <text class="s-tb" x="668" y="140">Contested: pulse.py</text>
+  <text class="s-d" x="668" y="162">m0-stage2-v ↔ arm-f-core · both editing · 12m</text>
+  <circle class="s-a" cx="1230" cy="128" r="4"/>
+
+  <rect class="s-card" x="24" y="212" width="608" height="268" rx="10"/>
+  <text class="s-ht" x="44" y="240">IN FLIGHT · 1 MAPPED ISSUE</text>
+  <rect x="44" y="254" width="568" height="46" rx="7" fill="#111A16" stroke="#5FA985"/>
+  <text class="s-t" x="60" y="274">zero logging calls in 12,679 lines</text>
+  <text class="s-d" x="60" y="291">finance #81 · adoring-euler · 20 commits ahead</text>
+  <text class="s-d" x="44" y="330">18 worktrees ahead of main with no mapped issue  ▸</text>
+  <line x1="44" y1="346" x2="612" y2="346" stroke="#222B38"/>
+  <text class="s-ht" x="44" y="374">QUEUED · 43</text>
+  <text class="s-d" x="44" y="396">finance #2   keep or revert the WT_ prefix</text>
+  <text class="s-d" x="44" y="416">finance #3   multi-choice disambiguation for merchants</text>
+  <text class="s-d" x="44" y="436">finance #5   weekly digest message copy</text>
+  <text class="s-d" x="44" y="458">+40 more  ▸</text>
+
+  <rect class="s-card" x="648" y="212" width="608" height="268" rx="10"/>
+  <text class="s-ht" x="668" y="240">APPS &amp; WORK PACKAGES</text>
+  <text class="s-t" x="668" y="272">pockets</text>
+  <rect class="trk" x="760" y="264" width="380" height="9" rx="4"/>
+  <rect class="s-g" x="760" y="264" width="137" height="9" rx="4"/>
+  <text class="s-t" x="1156" y="272">36%</text>
+  <text class="s-d" x="1200" y="272">5/14</text>
+  <text class="s-d" x="684" y="294">Now</text>
+  <rect class="trk" x="790" y="288" width="350" height="7" rx="4"/>
+  <rect class="s-g" x="790" y="288" width="280" height="7" rx="4"/>
+  <text class="s-d" x="1156" y="294">80%</text>
+  <text class="s-d" x="684" y="314">Later</text>
+  <rect class="trk" x="790" y="308" width="350" height="7" rx="4"/>
+  <rect class="s-a" x="790" y="308" width="88" height="7" rx="4"/>
+  <text class="s-d" x="1156" y="314">25%</text>
+  <text class="s-t" x="668" y="350">mac-explorer</text>
+  <rect class="trk" x="760" y="342" width="380" height="9" rx="4"/>
+  <rect class="s-g" x="760" y="342" width="46" height="9" rx="4"/>
+  <text class="s-t" x="1156" y="350">12%</text>
+  <text class="s-d" x="1200" y="350">1/8</text>
+  <text class="s-t" x="668" y="392">finance-tracker</text>
+  <rect class="trk" x="760" y="384" width="380" height="9" rx="4"/>
+  <rect class="s-g" x="760" y="384" width="205" height="9" rx="4"/>
+  <text class="s-t" x="1156" y="392">54%</text>
+  <text class="s-d" x="1200" y="392">7/13</text>
+  <text class="s-d" x="668" y="444">common-rules · idea-lab — no checklist file,</text>
+  <text class="s-d" x="668" y="460">so no declared scope to measure (not 0%)</text>
+
+  <rect class="s-card" x="24" y="500" width="608" height="230" rx="10"/>
+  <text class="s-ht" x="44" y="528">HANDOVERS · 17 · NEWEST FIRST</text>
+  <text class="s-t" x="44" y="556" font-size="12.5">Common Rules chat  →  adoring-euler</text>
+  <text class="s-d" x="44" y="574">Issue #41 has landed. PR #50 was squash-merged…</text>
+  <text class="s-d" x="580" y="556">15:02</text>
+  <line x1="44" y1="588" x2="612" y2="588" stroke="#222B38"/>
+  <text class="s-t" x="44" y="612" font-size="12.5">Common Rules chat  →  diagnostics-logger  <tspan class="s-d">×2</tspan></text>
+  <text class="s-d" x="44" y="630">The dev server opens a Safari tab on every start…</text>
+  <text class="s-d" x="580" y="612">14:47</text>
+  <line x1="44" y1="644" x2="612" y2="644" stroke="#222B38"/>
+  <text class="s-t" x="44" y="668" font-size="12.5">Tower app status  →  unruffled-chatterjee</text>
+  <text class="s-d" x="44" y="686">Handover on your Tower funnel outcome — no action…</text>
+  <text class="s-d" x="580" y="668">14:31</text>
+  <text class="s-d" x="44" y="714">+14 older  ▸</text>
+
+  <rect class="s-card" x="648" y="500" width="608" height="230" rx="10"/>
+  <text class="s-ht" x="668" y="528">EVENT TICKER · DE-DUPLICATED</text>
+  <text class="s-d" x="668" y="554">15:11  <tspan fill="#DFE3EA" font-weight="700">agent-log</tspan>  v4: redesign personalId  <tspan class="s-d">×4</tspan></text>
+  <text class="s-d" x="668" y="576">15:00  <tspan fill="#DFE3EA" font-weight="700">pockets</tspan>  Correct the rules stamp (#11)</text>
+  <text class="s-d" x="668" y="598">15:00  <tspan fill="#DFE3EA" font-weight="700">finance-tracker</tspan>  Correct the rules stamp (#80)</text>
+  <text class="s-d" x="668" y="620">14:57  <tspan fill="#DFE3EA" font-weight="700">common-rules</tspan>  workflow.html stamp is checkable (#49)</text>
+  <text class="s-d" x="668" y="642">10:19  <tspan fill="#DFE3EA" font-weight="700">pockets</tspan>  Record the common-rules version (#10)</text>
+
+  <rect class="s-card" x="24" y="750" width="1232" height="118" rx="10"/>
+  <text class="s-ht" x="44" y="778">SESSIONS · 23 · 1 ACTIVE, 1 NEEDS YOU, 21 IDLE</text>
+  <g>
+    <circle class="s-p" cx="48" cy="806" r="6"/><circle class="s-g" cx="72" cy="806" r="6"/>
+    <circle cx="96" cy="806" r="6" fill="#39434F"/><circle cx="120" cy="806" r="6" fill="#39434F"/>
+    <circle cx="144" cy="806" r="6" fill="#39434F"/><circle cx="168" cy="806" r="6" fill="#39434F"/>
+    <circle cx="192" cy="806" r="6" fill="#39434F"/><circle cx="216" cy="806" r="6" fill="#39434F"/>
+    <circle cx="240" cy="806" r="6" fill="#39434F"/><circle cx="264" cy="806" r="6" fill="#39434F"/>
+    <circle cx="288" cy="806" r="6" fill="#39434F"/><circle cx="312" cy="806" r="6" fill="#39434F"/>
+    <circle cx="336" cy="806" r="6" fill="#39434F"/><circle cx="360" cy="806" r="6" fill="#39434F"/>
+    <circle cx="384" cy="806" r="6" fill="#39434F"/><circle cx="408" cy="806" r="6" fill="#39434F"/>
+    <circle cx="432" cy="806" r="6" fill="#39434F"/><circle cx="456" cy="806" r="6" fill="#39434F"/>
+    <circle cx="480" cy="806" r="6" fill="#39434F"/><circle cx="504" cy="806" r="6" fill="#39434F"/>
+    <circle cx="528" cy="806" r="6" fill="#39434F"/><circle cx="552" cy="806" r="6" fill="#39434F"/>
+    <circle cx="576" cy="806" r="6" fill="#39434F"/>
+  </g>
+  <text class="s-d" x="44" y="840">hover a dot for the worktree and its issue · click to open the session</text>
+</svg>
+</div>
+<p class="mockcap">Proposed screen · 1280×900 · fits the shipped window with no scroll ·
+regions are CSS grid cells, not stacked coordinates · session grid compressed from
+615px to 118px, "needs you" promoted from a circle to the top band</p>
+
+<p class="eyebrow">What I am not proposing</p>
+<ul>
+  <li><b>No change to any collector or to what is measured.</b> Every number on the
+  screen comes from the same place it does today.</li>
+  <li><b>No new dependency.</b> HTML and CSS from the same stdlib
+  <code>http.server</code>; no build step, no framework, no CDN — the page is served
+  to a loopback WebKit view and must stay self-contained.</li>
+  <li><b>No change to the palette.</b> <code>PALETTE</code> at line 778 is good and
+  the screen's character comes from it.</li>
+  <li><b>No client-side interactivity beyond links.</b> The Tower is a served
+  document that refreshes; the disclosure triangles in the mock are
+  <code>&lt;details&gt;</code>, which needs no JavaScript.</li>
+  <li><b>No touching <code>pulse</code>.</b> The <code>/pulse</code> route keeps
+  rendering exactly what it renders now.</li>
+</ul>
+
+<p class="eyebrow">Decisions <span class="tag">what was open at draft, and how it closed</span></p>
+
+<div class="q">
+  <b>1. The session grid — compress, or make it a real graph? <span class="lab ok">sponsor · compress</span></b>
+  <p>Decided by aashish on 2026-08-07: compress. The graph was his concept in 07, and
+  retiring it is his call to make, not an implementation detail. Recorded in C3 above;
+  the ~500px it returns is what pays for the "needs you" band and the no-scroll budget.</p>
+</div>
+
+<div class="q">
+  <b>2. Is "no scrolling" the right constraint? <span class="lab ok">closed by acceptance</span></b>
+  <p>Yes — accepting this proposal accepts the 1280×900 budget, which is what every
+  cut in C is measured against. If the Tower is ever wanted as a long scrolling page
+  again, that is a new proposal, not a setting.</p>
+</div>
+
+<div class="q">
+  <b>3. The 18 unmapped worktrees — collapse, or leave them listed? <span class="lab mid">AI · collapse, not hide</span></b>
+  <p>Decided in-role rather than asked: per <code>CLAUDE-workflow.md</code>, "a question
+  to the user is a cost" and this one is downstream of an accepted direction. They
+  collapse into a <code>&lt;details&gt;</code> that expands in place — so
+  <span class="mono">IN FLIGHT · 1</span> stops overstating what is in flight, and
+  nothing becomes unreachable. If watching that list for stale worktrees turns out to
+  be a real use, it earns its own region and that is a small follow-up, not a rework.</p>
+</div>
+
+<p class="eyebrow">The work <span class="tag">cut into issues, 2026-08-07</span></p>
+<p>Every part of this proposal touches one surface — the <code>render_*</code> layer of
+<code>bin/tower</code>. Per <code>CLAUDE-workflow.md</code>, two issues that touch the
+same file are one issue or one queue, so these are a <b>dependency-ordered queue</b>,
+not parallel work.</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Issue</th><th>Covers</th><th>Blocked by</th></tr>
+  <tr>
+    <td class="k"><a href="https://github.com/codeDEXTER/ai-common-rules/issues/50">#50</a><br>
+      the screen fits its window, and no name is cut mid-word</td>
+    <td>B — findings 1, 2, 4, 6, 8, 9</td>
+    <td>—</td>
+  </tr>
+  <tr>
+    <td class="k"><a href="https://github.com/codeDEXTER/ai-common-rules/issues/51">#51</a><br>
+      what needs you comes first, and “in flight” means work in flight</td>
+    <td>C1, C2 — finding 5</td>
+    <td>#50</td>
+  </tr>
+  <tr>
+    <td class="k"><a href="https://github.com/codeDEXTER/ai-common-rules/issues/52">#52</a><br>
+      the session grid becomes a strip, and repeated events collapse</td>
+    <td>C3, C4 — findings 3, 7</td>
+    <td>#50</td>
+  </tr>
+</table>
+</div>
+
+<p class="note">#50 is independently mergeable and makes the screen materially better on
+its own — it is the one that fixes the window, the void and the truncation. #51 and #52
+both re-cut regions and would be work thrown away if built on absolute coordinates,
+which is why they queue behind rather than beside it.</p>
+
+<p class="note" style="margin-top:40px">Evidence for every number above is from a
+live <code>tower --port 8893</code> run on 2026-08-07 at 15:18 against 23 worktrees
+across 6 projects, read back from the rendered DOM. No files in
+<code>common-rules</code> were modified.</p>
+
+</div>
