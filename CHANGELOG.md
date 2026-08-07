@@ -1,5 +1,44 @@
 # Changelog — common-rules
 
+## 2026-08-07 · The Tower switches by project
+
+Implements #81. The tab bar is the project list now — `ALL · pockets ·
+finance-tracker · …` — and a project page carries everything about that app at
+once: its features by state, its burnup and velocity, its queued and merged
+work, its sessions. No second click, no filtering by eye.
+
+**The lenses are retired rather than re-cut.** BOARD / LEDGER / PROGRESS
+answered a real constraint — six projects' data does not fit in 900px. One
+project's does, so changing the axis removes the need for the split entirely.
+`render_ledger` is deleted with them: a cross-project feature table is exactly
+what a project-first screen does not want.
+
+**NEEDS YOU stays above the tabs and is never filtered**, and that is enforced
+rather than intended: `render_needs_you` takes no project argument, so it cannot
+be filtered by construction. A decision waiting in an app the sponsor is not
+looking at must still reach him, and filtering the band is the tempting
+simplification that would make the screen actively worse. Verified by
+reinjection — adding a `project` parameter turns the guard red.
+
+**The whole-product figure moved from the retired LEDGER to `ALL`.** A statement
+about every project cannot sit on a page showing one.
+
+`?project=` is URL-borne for the reason `?view=` was: the page re-requests
+itself every 10s and DOM state does not survive it. Verified in a browser again
+here — the stamp advanced 20:33:36 → 20:34:21 through a real reload with pockets
+still selected.
+
+Two things worth recording about the build. Deleting `render_ledger` also took
+`sparkline` with it, because that function sat between it and `render_progress`
+— caught by the tests immediately, restored from main, and a reminder that
+cutting by line range between two named functions is only safe if nothing has
+been inserted between them since.
+
+And the screen reported on itself mid-build: the staleness line from #73 read
+*"running 55cbe16 · main is 4 ahead"* while another session's spend work landed.
+That is exactly what #73 was for, and it prompted the merge before this was
+committed rather than a conflict at PR time.
+
 ## 2026-08-07
 
 - **`spend` was hiding 88% of what it measured, and now counts management
