@@ -913,6 +913,47 @@ class TheRegisterComesFromMainNotTheCheckout(unittest.TestCase):
         self.assertEqual(T.register_source(Path("/nonexistent-xyz")), "")
 
 
+class AFeatureIsNotAlsoATicket(unittest.TestCase):
+    """#93. A feature IS a GitHub issue — that is how the register identifies it
+    — so every declared feature also appeared as queued work. Measured: 32 of
+    103 open issues were features, and QUEUED read 95 when the real queue was
+    63. Per project it was every single one: 9 of 9, 9 of 9, 7 of 7, 7 of 7.
+
+    The same defect proposal 10 removed once already, from the other direction:
+    IN FLIGHT counted git ahead-counts as work; this counted features as
+    tickets. A feature is the thing tickets roll up into, and listing it as
+    queued invites picking it up as one."""
+
+    def _issue(self, n, title="a ticket"):
+        return {"project": "p", "number": n, "title": title}
+
+    def test_a_declared_feature_is_excluded_from_the_queue(self):
+        keys = frozenset([T.issue_key("p", 2)])
+        rows = [self._issue(1), self._issue(2, "A FEATURE"), self._issue(3)]
+        kept = [r for r in rows
+                if T.issue_key(r["project"], r["number"]) not in keys]
+        self.assertEqual([r["number"] for r in kept], [1, 3])
+
+    def test_pipeline_data_takes_the_feature_keys(self):
+        """The exclusion cannot happen unless the pipeline is told, and it is
+        told only because collect() computes features first — an ordering
+        dependency that is invisible in the code without this."""
+        import inspect
+        self.assertIn("feature_keys",
+                      inspect.signature(T.pipeline_data).parameters)
+
+    def test_features_are_computed_before_the_pipeline(self):
+        """If this order is ever swapped back, the exclusion silently stops
+        working and every feature reappears as queued work — with no error and
+        no failing assertion anywhere else."""
+        src = TOWER.read_text()
+        body = src[src.index("def _collect_now("):]
+        self.assertLess(body.index("safe(feature_data"),
+                        body.index("safe(pipeline_data"),
+                        "pipeline_data runs before feature_data, so it cannot "
+                        "be told which issues are features")
+
+
 class StillEscapes(unittest.TestCase):
     def test_markup_in_data_cannot_reach_the_page(self):
         """Retargeted in #64 from render_handovers, which no longer exists.

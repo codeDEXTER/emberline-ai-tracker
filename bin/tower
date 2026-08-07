@@ -440,7 +440,7 @@ def project_pipeline(proj):
     return {"project": proj["name"], "rows": rows, "groups": groups, "merged": closed}
 
 
-def pipeline_data(worktrees):
+def pipeline_data(worktrees, feature_keys=frozenset()):
     """The pipeline across every discovered project with a remote (issue #35).
 
     Was: the first project carrying a repo, full stop — one project's issues on
@@ -460,6 +460,15 @@ def pipeline_data(worktrees):
         for prefix, members in res["groups"]:
             for m in members:
                 issue_to_prefix[issue_key(name, m["number"])] = prefix
+    # A feature IS a GitHub issue -- that is how the register identifies it --
+    # so without this every declared feature also appears as queued work.
+    # Measured: 32 of 103 open issues were features, and QUEUED read 95 when the
+    # real queue was 63. A feature is not a ticket to work; it is the thing
+    # tickets roll up into, and listing it invites picking it up as one (#93).
+    all_issues = [r for r in all_issues
+                  if issue_key(r["project"], r["number"]) not in feature_keys]
+    merged = [r for r in merged
+              if issue_key(r["project"], r["number"]) not in feature_keys]
     all_issues.sort(key=lambda r: (r["project"], r["number"]))
     merged.sort(key=lambda r: (r["project"], r["number"]))
 
@@ -1085,10 +1094,17 @@ def _collect_now():
 
     header, header_err = safe(build_header)
 
+    # Features are computed BEFORE the pipeline and passed in, so the pipeline
+    # can exclude them from the issue lists. The ordering is load-bearing and
+    # invisible otherwise (#93).
+    features, features_err = safe(feature_data, projs)
+    feature_keys = frozenset(issue_key(r["project"], f["number"])
+                             for r in (features or [])
+                             for f in (r["features"] or []))
+
     contested, contested_err = safe(contested_pairs, worktrees)
     wall, wall_err = safe(wall_items, worktrees)
-    pipeline, pipeline_err = safe(pipeline_data, worktrees)
-    features, features_err = safe(feature_data, projs)
+    pipeline, pipeline_err = safe(pipeline_data, worktrees, feature_keys)
     # never inline: see cached_async. Absent on the first render, present on
     # the next -- which is why every one of these renders absence cleanly.
     stale = cached_async(_stale, _stale_lock, STALE_TTL, _staleness_now)

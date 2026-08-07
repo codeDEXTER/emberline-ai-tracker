@@ -1,5 +1,31 @@
 # Changelog — common-rules
 
+## 2026-08-07 · A feature stops being counted as a ticket too
+
+Implements #93, reported as the feature and issue lists being inconsistent —
+which they were, because the same thing was in both.
+
+A feature **is** a GitHub issue; that is how the register identifies it. So every
+declared feature also appeared in the pipeline's queued list. Measured: **32 of
+103 open issues were features**, and `QUEUED` read **95** when the real queue was
+63. Per project it was every single one — 9 of 9, 9 of 9, 7 of 7, 7 of 7.
+
+`pipeline_data` now excludes them from queued, merged and the in-flight mapping.
+`QUEUED` reads 64 (not 63 — filing #93 itself added one, which is the count
+moving correctly).
+
+This is the defect proposal 10 removed once already, arriving from the other
+direction. `IN FLIGHT · 19` counted eighteen git ahead-counts as work; this
+counted features as tickets. **A feature is not a ticket to work — it is the
+thing tickets roll up into**, and listing it as queued invites picking it up as
+one.
+
+The exclusion depends on `collect()` computing features *before* the pipeline, so
+the keys exist to pass in. That ordering is load-bearing and invisible, so a test
+reads the source and asserts it — verified by swapping the order and watching it
+go red. Swapped back silently, nothing else would fail: the queue would just
+quietly grow by 32 again.
+
 ## 2026-08-07 · The register is read from main, not from whatever the checkout is parked on
 
 Implements #91. All four registers were merged; the Tower reported three.
