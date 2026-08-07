@@ -15,6 +15,16 @@ changes the shared rules updates this page and its version stamp in the same
 PR**. A bird's-eye view that has drifted is worse than none: it is trusted at a
 glance and read without suspicion.
 
+**The stamp names the version at which `CLAUDE-workflow.md` last changed** —
+not the current HEAD count. That distinction is what keeps it fixable: a stamp
+defined against HEAD can never name the commit it is written in, so every
+correction lands one behind and needs correcting again. Defined against the
+rules file, a commit that only touches this page leaves the target still.
+
+`tests/test_workflow_stamp.py` enforces it, because this rule was maintained by
+memory until 2026-08-07 and the page had drifted to **version 62 while the rules
+were at 102**.
+
 Regenerate the PNG after any edit:
 
 ```

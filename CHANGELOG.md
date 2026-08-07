@@ -1,5 +1,29 @@
 # Changelog — common-rules
 
+## 2026-08-07 · The workflow.html stamp is checkable now, not remembered
+
+`docs/workflow.html` claimed **rules version 62** while the rules were at
+**102** — forty versions of drift on a page whose own README says a drifted
+bird's-eye view is worse than none, because it is trusted at a glance and read
+without suspicion. `rulecheck` surfaced it while implementing proposal 08.
+
+The first correction was wrong too: it predicted the count the PR would land at,
+two PRs merged, and the stamp landed one behind again. **A stamp defined against
+HEAD can never name the commit it is written in** — every correction lands one
+short and needs correcting.
+
+So the definition changed rather than the number. **The stamp names the version
+at which `CLAUDE-workflow.md` last changed**, not the current HEAD count. A
+commit that only touches the page leaves the target still, so the regress
+disappears. It now reads 104, which is where the rules actually are.
+
+`tests/test_workflow_stamp.py` enforces three things: the page is not older than
+the rules it describes, the stamp is not from the future (one ahead is legal — a
+stamp is written for a commit that does not exist yet), and `workflow.png` was
+not committed before the last change to `workflow.html`. Verified by running it
+against the drift first: it failed with `103 not greater than or equal to 104`
+before the fix, and passes after.
+
 ## 2026-08-07 · AGENT-LOG.md is generated now, and forced delegation is not adopted
 
 Implements proposal 08 (`docs/proposals/08-proposal-workflow-bakeoff.html`),
