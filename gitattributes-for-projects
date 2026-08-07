@@ -5,7 +5,12 @@
 #
 # Install into a project with:  common-rules/bin/derecord
 CHANGELOG.md      merge=union
-AGENT-LOG.md      merge=union
 LESSONS.md        merge=union
 CLAUDE-checklist.md merge=union
 .common-rules-version merge=ours
+
+# AGENT-LOG.md is GENERATED output (`bin/spend agentlog --write`), not an
+# append-only record. Union-merging it would interleave two generated tables
+# into a file that is neither side's truth, so take ours and regenerate after
+# the merge -- the transcripts, not the file, are the source.
+AGENT-LOG.md      merge=ours
