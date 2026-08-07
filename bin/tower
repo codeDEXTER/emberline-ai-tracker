@@ -827,6 +827,8 @@ def moved(points):
 
 _cache_lock = threading.Lock()
 _cache = {"ts": 0, "data": None}
+_refresh_lock = threading.Lock()
+_refresh = {"running": False}
 _stale_lock = threading.Lock()
 _stale = {"ts": 0, "data": None}
 
@@ -879,9 +881,56 @@ def staleness():
 
 
 def collect():
+    """The cached snapshot, refreshed in the background. Never blocks a render.
+
+    It used to collect inline whenever the cache had expired, which made every
+    page load wait for the whole sweep. Measured against the running app: ~4s
+    per recollect, with a 5s cache and a 10s auto-refresh — so the window was
+    frozen for four seconds out of every ten, and the visible clock ran up to
+    14s late. That read as "outdated data" when the data was in fact correct
+    and merely arriving late (#86).
+
+    The cost of not blocking is that a render can serve a snapshot up to one
+    refresh-cycle old. That is stated on the screen rather than hidden: see
+    `data_age()` and the footer. A number whose age is visible is honest; a
+    number that is silently late is the thing being fixed.
+    """
     with _cache_lock:
-        if _cache["data"] is not None and time.time() - _cache["ts"] < CACHE_TTL:
-            return _cache["data"]
+        data, ts = _cache["data"], _cache["ts"]
+    if data is not None:
+        if time.time() - ts >= CACHE_TTL:
+            _refresh_async()          # returns immediately
+        return data
+    # Nothing cached yet: the first render has to wait, because a page with no
+    # data at all is worse than a slow first page.
+    return _collect_now()
+
+
+def _refresh_async():
+    """Start one background refresh, never a second concurrent one."""
+    with _refresh_lock:
+        if _refresh["running"]:
+            return
+        _refresh["running"] = True
+
+    def run():
+        try:
+            _collect_now()
+        finally:
+            with _refresh_lock:
+                _refresh["running"] = False
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+def data_age():
+    """Seconds since the served snapshot was collected, or None if never."""
+    with _cache_lock:
+        ts = _cache["ts"]
+    return None if not ts else int(time.time() - ts)
+
+
+def _collect_now():
 
     def safe(fn, *a):
         try:
@@ -1804,6 +1853,16 @@ def render_header(header, wall_count, stale=None):
 def render_page(project=ALL):
     data = collect()
     now = datetime.datetime.now()
+    # State the data's age rather than implying it is current. A render never
+    # waits for a collection now (#86), so the snapshot can be a cycle old --
+    # and a silently late number is exactly what this was reported as.
+    age = data_age()
+    if age is None:
+        age_note = "collecting…"
+    elif age <= CACHE_TTL:
+        age_note = f"data is current · refreshes every {CACHE_TTL}s"
+    else:
+        age_note = f"data is {age}s old · refreshing in the background"
 
     # hulls_err used to be in here, so a failure inside compute_hulls blanked
     # both NEEDS YOU and SESSIONS for data neither of them showed (#65).
@@ -1868,7 +1927,7 @@ def render_page(project=ALL):
   <header class="hdr">
     <div>
       <h1>TOWER · APPS AUTOPILOT · LIVE</h1>
-      <p class="stamp">{e(now.strftime("%Y-%m-%d %H:%M:%S"))} · updates every {CACHE_TTL}s</p>
+      <p class="stamp">{e(now.strftime("%Y-%m-%d %H:%M:%S"))} · {age_note}</p>
     </div>
     {render_header(data["header"], len(data["wall"]), data["stale"])}
   </header>
