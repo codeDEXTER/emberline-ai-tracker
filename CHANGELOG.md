@@ -1,5 +1,52 @@
 # Changelog — common-rules
 
+## 2026-08-07 · The Tower is HTML now, and stops cutting words in half
+
+Implements issue #50, the first of proposal 09's three. The page was one
+hand-positioned SVG: every `render_*` had the shape
+`(data, x0, y0, width) -> (svg, bottom_y)` and `render_page` threaded `bottom`
+forward to stack regions. That is a layout engine missing text measurement,
+intrinsic sizing and reflow — and all three absences were visible on the live
+screen. It is CSS grid now. **198 absolute `x=` coordinates became 0.**
+
+**Nothing is cut mid-word any more.** Eight hardcoded `[:n]` slices existed only
+because SVG `<text>` cannot wrap; they produced `arm-f-filin`, `arm-b-contr`,
+and a pipeline row that stopped one character short of "lines". Fitting is CSS's
+job now — the card clamps visually and keeps the whole string in a `title`
+attribute, of which there are **85 where there were none**.
+
+**One collector change, and it was asked for rather than assumed.** Issue titles
+were cut to 22 characters inside `collect()`, so no amount of CSS would have
+shown them in full — "Tower: the screen fits its window..." rendered as "the
+screen fits its…". That cut existed because the label had to fit inside a
+25px-radius circle. aashish agreed to move it to CSS; nothing about what is
+*collected* changed, and `truncate_words` is gone with its only caller.
+
+**The 310px void is structurally impossible now, not merely fixed.** It came
+from `main_bottom = max(graph_bottom, pipe_bottom)` padding the shorter of two
+independently laid out columns. Column heights are a grid concern now. Work
+packages also moved under the sessions rather than full-width below both, because
+the pipeline column runs ~1.7× the sessions column and a two-column row is only
+as short as its taller cell — that left ~600px of empty column. Balanced: 1250 /
+1416.
+
+**`tests/test_tower_render.py` is new**, and the guard that matters is not the
+happy path: it fails if a `[:n]` ever reappears *inside an f-string
+interpolation*, which is the exact shape every old truncation had
+(`{e(w["short"][:11])}`). A plain `behind[:3]` choosing how many project names to
+list is not that bug, and the first version of the check could not tell the
+difference — it flagged it, which is how the distinction got drawn. Verified by
+reinjecting the bug: red with it, green without.
+
+**The no-scroll budget did not land here and was never going to.** "Fits
+1280×900" was written on #50 where the 615px session grid it depends on belongs
+to #52; it has moved there. The page measures **2,283px at 1280 wide**, against
+2,241px at 1200 wide before — the same order, because #50 cuts nothing. What it
+does is make the screen reflow (single column below 1000px, where the old page
+clipped), stop lying about names, and stop reserving empty space.
+
+No behaviour change for any adopted project: this is `bin/tower` and its tests.
+
 ## 2026-08-07 · The workflow.html stamp is checkable now, not remembered
 
 `docs/workflow.html` claimed **rules version 62** while the rules were at
