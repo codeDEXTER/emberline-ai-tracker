@@ -119,7 +119,8 @@ class OneRegionFailsAlone(unittest.TestCase):
 def _wt(name, **kw):
     base = {"name": name, "short": name, "project": "finance-tracker",
             "issue": None, "issue_title": None, "session": None,
-            "ahead": 0, "branch": name, "newest_transcript": None}
+            "ahead": 0, "branch": name, "newest_transcript": None,
+            "files": [], "path": Path("/tmp")}
     base.update(kw)
     return base
 
@@ -338,6 +339,85 @@ class UndeclaredScopeIsNotZero(unittest.TestCase):
                "closed": {1: True}}
         out = T.render_features([row])
         self.assertIn("awaiting your close", out)
+
+
+class TheScreenSaysWhenItIsStale(unittest.TestCase):
+    """Issue #73. Tower.app runs a pinned checkout refreshed only by
+    `build_towerapp.sh --install`, so it falls behind on every merge — measured
+    two hours after one rebuild, and two days behind before that, serving the
+    pre-proposal-09 screen while every session reported it fixed."""
+
+    HDR = {"rules": "114-abc1234", "chips": []}
+
+    def test_silent_when_current(self):
+        """A staleness line that is always present becomes wallpaper, which is
+        finding 3 of the same proposal. Absent, not 'up to date'."""
+        self.assertNotIn("stale", T.render_header(self.HDR, 0, None))
+        self.assertNotIn("restart", T.render_header(self.HDR, 0, None))
+
+    def test_names_the_gap_and_the_remedy_when_behind(self):
+        out = T.render_header(self.HDR, 0, {"here": "208c789", "behind": 5})
+        self.assertIn("208c789", out)
+        self.assertIn("5 ahead", out)
+        self.assertIn("restart to update", out)
+
+    def test_a_checkout_ahead_of_main_is_not_stale(self):
+        """A worktree ahead of main is a session doing its job. Calling that
+        stale would put the warning on precisely the screens most likely to be
+        read, which is how a signal dies."""
+        import subprocess
+        here = T.run([T.GIT, "-C", str(T.RULES), "rev-parse", "--abbrev-ref", "HEAD"])
+        counts = T.run([T.GIT, "-C", str(T.RULES), "rev-list", "--left-right",
+                        "--count", "HEAD...origin/main"])
+        if not counts:
+            self.skipTest("no origin/main to compare against")
+        ahead, behind = (int(n) for n in counts.split())
+        if behind:
+            self.skipTest(f"this checkout is genuinely {behind} behind")
+        self.assertIsNone(T.staleness(), f"branch {here} is {ahead} ahead, not stale")
+
+
+class OnlyRealCollisionsAreContested(unittest.TestCase):
+    """Issue #74. Before the filter, 3 of 5 contested pairs on the live tree
+    were AGENT-LOG.md, which carries merge=ours — they could not conflict by
+    construction. Three in five teaches a person to ignore amber, which costs
+    the two that are real."""
+
+    def _repo(self, gitattributes=None):
+        import subprocess, tempfile
+        d = tempfile.mkdtemp()
+        subprocess.run(["git", "init", "-q", d], check=True)
+        if gitattributes is not None:
+            (Path(d) / ".gitattributes").write_text(gitattributes)
+        return Path(d)
+
+    def test_a_driver_resolved_file_is_filtered(self):
+        r = self._repo("AGENT-LOG.md merge=ours\nCHANGELOG.md merge=union\n")
+        got = T.driver_resolved(r, {"AGENT-LOG.md", "CHANGELOG.md", "app.py"})
+        self.assertEqual(got, {"AGENT-LOG.md", "CHANGELOG.md"})
+
+    def test_glob_rules_are_honoured_not_just_literal_names(self):
+        """`*.md merge=union` must filter as reliably as a named file — which is
+        why this asks git rather than parsing .gitattributes by hand."""
+        r = self._repo("*.md merge=union\n")
+        self.assertEqual(T.driver_resolved(r, {"anything.md", "code.py"}), {"anything.md"})
+
+    def test_a_project_without_the_rule_still_reports_the_collision(self):
+        """The filter reflects what is *installed*, not what the shared template
+        says. #57 landed because four projects had drifted on exactly this."""
+        r = self._repo("")
+        self.assertEqual(T.driver_resolved(r, {"AGENT-LOG.md"}), set())
+
+    def test_failure_degrades_to_warning_not_to_silence(self):
+        """Over-warning is recoverable; under-warning hides a real collision."""
+        self.assertEqual(T.driver_resolved(Path("/nonexistent-repo-xyz"), {"a.md"}), set())
+
+    def test_contested_pairs_drops_the_resolved_file(self):
+        r = self._repo("AGENT-LOG.md merge=ours\n")
+        wts = [_wt("a", files=["AGENT-LOG.md", "real.py"], path=r),
+               _wt("b", files=["AGENT-LOG.md", "real.py"], path=r)]
+        files = {f for _, _, f in T.contested_pairs(wts)}
+        self.assertEqual(files, {"real.py"})
 
 
 class StillEscapes(unittest.TestCase):

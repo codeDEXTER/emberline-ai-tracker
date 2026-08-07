@@ -53,6 +53,7 @@ GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
                         "/usr/bin/git") if Path(g).exists()), "git")
 TRANSCRIPTS = Path.home() / ".claude" / "projects"
 CACHE_TTL = 5
+STALE_TTL = 600      # the staleness check fetches; it must not ride the 5s cadence
 DEFAULT_PORT = 8890
 
 # --- reuse pulse's collectors rather than re-deriving the same ground truth ---
@@ -302,9 +303,53 @@ def project_worktrees(proj):
     return result
 
 
+# Merge drivers that RESOLVE a file rather than conflicting on it. `union`
+# keeps both sides, `ours` keeps one -- either way git produces no conflict, so
+# two sessions holding such a file is not a collision (issue #74).
+RESOLVING_DRIVERS = {"union", "ours"}
+
+
+def driver_resolved(project_path, paths):
+    """Which of `paths` have a merge driver that resolves them, per git itself.
+
+    `git check-attr` rather than reading .gitattributes by hand: the patterns
+    are globs (`*.md merge=union` is as valid as a literal filename), and using
+    git's answer means this agrees with what git will actually do at merge
+    time -- which is the whole point of the check.
+
+    Asks the project's own installed file, never the shared template: #57
+    landed precisely because four projects had drifted on this rule, so
+    assuming the template is what is installed would reintroduce that bug.
+    """
+    if not paths:
+        return set()
+    try:
+        r = subprocess.run([GIT, "-C", str(project_path), "check-attr", "merge", "-z", "--"]
+                           + sorted(paths), capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return set()
+        # -z gives NUL-separated triples: path, attr, value
+        fields = r.stdout.split("\0")
+        out = set()
+        for i in range(0, len(fields) - 2, 3):
+            if fields[i + 2] in RESOLVING_DRIVERS:
+                out.add(fields[i])
+        return out
+    except Exception:
+        # Over-warning is recoverable; under-warning hides a real collision.
+        # So a failure here degrades to the old behaviour, not to silence.
+        return set()
+
+
 def contested_pairs(worktrees):
     """Pairs of worktrees (same project) holding an overlapping uncommitted
-    file — bin/whoelse's logic, scoped per project since paths are repo-relative."""
+    file — bin/whoelse's logic, scoped per project since paths are repo-relative.
+
+    Files whose merge driver resolves them are excluded (#74). Measured on the
+    live tree before this: 3 of 5 pairs were AGENT-LOG.md, which carries
+    merge=ours, so they could not conflict by construction. Three in five is
+    enough to teach a person to ignore amber, which costs the two that are real.
+    """
     by_project = {}
     for w in worktrees:
         by_project.setdefault(w["project"], []).append(w)
@@ -314,11 +359,19 @@ def contested_pairs(worktrees):
         for w in group:
             for f in w["files"]:
                 owners.setdefault(f, []).append(w["name"])
-        for f, names in owners.items():
-            if len(names) > 1:
-                for i in range(len(names)):
-                    for j in range(i + 1, len(names)):
-                        pairs.append((names[i], names[j], f))
+        shared = {f for f, names in owners.items() if len(names) > 1}
+        if not shared:
+            continue
+        # run inside a worktree of the project: it has the same .gitattributes
+        # checked out, and w["path"] is a real working directory
+        resolved = driver_resolved(group[0]["path"], shared)
+        for f in shared:
+            if f in resolved:
+                continue
+            names = owners[f]
+            for i in range(len(names)):
+                for j in range(i + 1, len(names)):
+                    pairs.append((names[i], names[j], f))
     return pairs
 
 
@@ -587,6 +640,55 @@ def feature_of_issue(features, issue):
 
 _cache_lock = threading.Lock()
 _cache = {"ts": 0, "data": None}
+_stale_lock = threading.Lock()
+_stale = {"ts": 0, "data": None}
+
+
+def staleness():
+    """Is the code rendering this page behind origin/main? (issue #73)
+
+    Tower.app runs bin/tower from a pinned checkout refreshed only by
+    `build_towerapp.sh --install`, so it falls behind on every merge. Measured
+    two hours after one rebuild: the app on 208c789, main on cd19f10. Before
+    that it had been two days behind, serving the pre-proposal-09 screen while
+    every session reported those problems fixed.
+
+    A status screen that is confidently wrong with nothing hinting at it is the
+    worst defect one can have, so this is a correction, not a feature.
+
+    Cached separately and for far longer than everything else: it needs a
+    `git fetch`, and the thing it measures changes on merge, not every 5s.
+    Returns None when current, or when anything at all goes wrong — silence is
+    the right failure mode for a check whose whole job is to be quiet until it
+    is not.
+    """
+    with _stale_lock:
+        if _stale["data"] is not None and time.time() - _stale["ts"] < STALE_TTL:
+            return _stale["data"]
+    out = None
+    try:
+        # RULES is the parent of the running bin/tower, so this measures the
+        # checkout actually serving the page -- the app's pinned copy, or a
+        # worktree if tower was started from one.
+        subprocess.run([GIT, "-C", str(RULES), "fetch", "origin", "--quiet"],
+                       capture_output=True, timeout=25)
+        here = run([GIT, "-C", str(RULES), "rev-parse", "--short", "HEAD"])
+        behind_ahead = run([GIT, "-C", str(RULES), "rev-list",
+                            "--left-right", "--count", "HEAD...origin/main"])
+        if here and behind_ahead:
+            ahead, behind = (int(n) for n in behind_ahead.split())
+            # Only "behind" is stale. A worktree ahead of main is a session
+            # doing its job, and calling that stale would make the line noise
+            # on precisely the screens most likely to be read.
+            if behind > 0:
+                out = {"here": here, "behind": behind}
+    except Exception:
+        out = None
+    with _stale_lock:
+        _stale["ts"] = time.time()
+        _stale["data"] = out
+    return out
+
 
 
 def collect():
@@ -632,6 +734,7 @@ def collect():
     wall, wall_err = safe(wall_items, worktrees)
     pipeline, pipeline_err = safe(pipeline_data, worktrees)
     features, features_err = safe(feature_data, projs)
+    stale, _stale_err = safe(staleness)   # silence is the failure mode; err unused
     gate_branches, gate_err = safe(open_gate_branches, projs)
 
     # Node labels (issue title, prefix stripped) — shared lookup from the
@@ -682,6 +785,7 @@ def collect():
         "wall": wall or [], "wall_err": wall_err,
         "pipeline": pipeline, "pipeline_err": pipeline_err,
         "features": features or [], "features_err": features_err,
+        "stale": stale,
         "needs_input": needs_input, "gate_err": gate_err,
     }
     with _cache_lock:
@@ -739,6 +843,7 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
          text-align:right; }
 .hdr-r p { margin:0 0 var(--gap-1); }
 .wall-hd { color:var(--purple); font-weight:700; letter-spacing:.1em; }
+.stale { color:var(--amber); }   /* stale is not broken -- amber, not red */
 
 /* --- the region grid: columns are a grid concern, so a short column can
    never be padded to a tall one. That padding was the 310px void. --- */
@@ -1159,7 +1264,7 @@ def render_pipeline(pipeline, wall):
     return "\n".join(out)
 
 
-def render_header(header, wall_count):
+def render_header(header, wall_count, stale=None):
     if header:
         behind = [c for c in header["chips"] if c["state"] != "aligned"]
         aligned = len(header["chips"]) - len(behind)
@@ -1177,9 +1282,16 @@ def render_header(header, wall_count):
         line1 = " ".join(bits)
     else:
         line1 = "rules unavailable"
-    return (f'<div class="hdr-r"><p>{line1}</p>'
-            f'<p><span class="wall-hd">THE WALL</span> · '
-            f'{wall_count} item(s) waiting</p></div>')
+    out = [f'<div class="hdr-r"><p>{line1}</p>',
+           f'<p><span class="wall-hd">THE WALL</span> · '
+           f'{wall_count} item(s) waiting</p>']
+    # Absent when current. A staleness line that is always there is finding 3 of
+    # proposal 12 all over again -- a permanent warning nobody reads.
+    if stale:
+        out.append(f'<p class="stale">⚠ running {e(stale["here"])} · main is '
+                   f'{stale["behind"]} ahead · restart to update</p>')
+    out.append('</div>')
+    return "".join(out)
 
 
 def render_page():
@@ -1239,7 +1351,7 @@ def render_page():
       <h1>TOWER · APPS AUTOPILOT · LIVE</h1>
       <p class="stamp">{e(now.strftime("%Y-%m-%d %H:%M:%S"))} · updates every {CACHE_TTL}s</p>
     </div>
-    {render_header(data["header"], len(data["wall"]))}
+    {render_header(data["header"], len(data["wall"]), data["stale"])}
   </header>
   <div class="band">{needs_you}</div>
   <!-- The order proposal 09's mockup locked: what needs him first and
