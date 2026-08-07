@@ -554,6 +554,62 @@ class DriftEscalatesInsteadOfSitting(unittest.TestCase):
         self.assertNotIn("you-row", out)
 
 
+class ProgressReportsWhatHappened(unittest.TestCase):
+    """#66 and #63. The history is recoverable from each checklist's own git
+    log, so no new record file and no revival of the logbook proposal 08
+    rejected."""
+
+    # the real finance-tracker shape: seven completed while the percentage FELL
+    FT = [("2026-08-03", 9, 25), ("2026-08-05", 16, 41), ("2026-08-07", 16, 51)]
+
+    def test_a_falling_percentage_while_work_completes_is_called_out(self):
+        """The case one number actively hides: 36% -> 31% while seven items
+        were completed, because scope grew by 26."""
+        out = T.render_progress([{"project": "finance-tracker", "points": self.FT}])
+        self.assertIn("36% → 31%", out)
+        self.assertIn("scope grew by 26", out)
+
+    def test_velocity_is_a_measurement_and_names_its_window(self):
+        got = T.velocity(self.FT)
+        self.assertEqual(got[1], 7)
+        out = T.render_progress([{"project": "f", "points": self.FT}])
+        self.assertIn("in the last 7 days", out)
+
+    def test_no_forecast_in_the_data_rows(self):
+        """Proposal 08 refused an ETA on four active days; #63 held the line on
+        six. A rate is a fact about the past, a date is a claim about a future
+        nothing here supports.
+
+        Scoped to the rows, not the whole page: the footnote says the words
+        "no ETA" deliberately, and a naive substring check flags the disclaimer
+        that exists to prevent the very thing it is checking for.
+        """
+        out = T.render_progress([{"project": "f", "points": self.FT}])
+        rows = out[out.index('<div class="prog">'):out.index("</div>", out.index('class="pnote"'))]
+        for word in ("ETA", "projected", "on track", "at this rate", "estimated",
+                     "remaining", "will be"):
+            self.assertNotIn(word, rows, f"forecast language {word!r} in the data")
+
+    def test_a_shrinking_total_is_shown_as_a_re_scope_not_smoothed(self):
+        """mac-explorer's total really went 8 -> 5. A dip is information."""
+        import datetime
+        today = datetime.date.today().isoformat()
+        pts = [("2026-08-05", 1, 8), (today, 1, 5)]
+        self.assertEqual(T.moved(pts), (1, 1, 8, 5))
+        self.assertIn("re-scoped", T.render_progress([{"project": "m", "points": pts}]))
+
+    def test_two_lines_are_drawn_not_one(self):
+        """A burnup, not a burndown: the gap between done and total is the
+        point, so a single line would defeat the whole region."""
+        svg = T.sparkline(self.FT)
+        self.assertEqual(svg.count("<polyline"), 2)
+        self.assertIn("sp-done", svg)
+        self.assertIn("sp-total", svg)
+
+    def test_too_little_history_says_so_rather_than_drawing_nothing(self):
+        self.assertIn("enough checklist history", T.render_progress([]))
+
+
 class StillEscapes(unittest.TestCase):
     def test_markup_in_data_cannot_reach_the_page(self):
         """Retargeted in #64 from render_handovers, which no longer exists.

@@ -719,6 +719,110 @@ def feature_of_issue(features, issue):
     return None
 
 
+# --- history: what moved, and how fast (issues #66, #63) ---
+#
+# No new record file, and no revival of proposal 08's logbook, which was
+# proposed and rejected. The history is already on disk and unread: the tick
+# count at any past commit of CLAUDE-checklist.md is recoverable directly.
+# Measured depth today: finance-tracker 20 revisions, pip 11, pockets 9,
+# mac-explorer 5, spanning six days.
+
+HISTORY_TTL = 900        # walks git log; must not ride the 5s cadence
+HISTORY_REVISIONS = 30
+
+
+def checklist_history(proj):
+    """[(date, done, total)] oldest first, from the checklist's own git log."""
+    path = proj["path"]
+    shas = run([GIT, "-C", path, "log", "--follow", "--format=%h %cs",
+                f"-{HISTORY_REVISIONS}", "--", "CLAUDE-checklist.md"])
+    if not shas:
+        return []
+    out = []
+    for line in reversed(shas.splitlines()):
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        sha, date = parts
+        blob = run([GIT, "-C", path, "show", f"{sha}:CLAUDE-checklist.md"])
+        if blob is None:
+            continue
+        done = len(re.findall(r"(?m)^- \[x\]", blob))
+        total = len(re.findall(r"(?m)^- \[[ x]\]", blob))
+        if total:
+            out.append((date, done, total))
+    return out
+
+
+_hist_lock = threading.Lock()
+_hist = {"ts": 0, "data": None}
+
+
+def history_data(projs):
+    """Per project history, cached hard: this is ~30 `git show` calls each."""
+    with _hist_lock:
+        if _hist["data"] is not None and time.time() - _hist["ts"] < HISTORY_TTL:
+            return _hist["data"]
+    out = []
+    for proj in projs:
+        h = checklist_history(proj)
+        if len(h) >= 2:
+            out.append({"project": proj["name"], "points": h})
+    with _hist_lock:
+        _hist["ts"] = time.time()
+        _hist["data"] = out
+    return out
+
+
+def velocity(points, days=7):
+    """Items completed over the last `days`, as a MEASUREMENT of what happened.
+
+    Explicitly not a forecast. Proposal 08 refused an ETA on four active days
+    and #63 held the same line on six; a rate is a fact about the past, a date
+    is a claim about the future, and only the first is supportable here.
+    """
+    if len(points) < 2:
+        return None
+    cutoff = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+    window = [p for p in points if p[0] >= cutoff] or points[-2:]
+    return window[-1][1] - window[0][1], days
+
+
+def moved(points):
+    """(done_from, done_to, total_from, total_to) for today, or None.
+
+    Scope growth is reported alongside completion because the two together are
+    the only honest summary: finance-tracker went 9/25 to 16/51, completing
+    seven items while its percentage FELL from 36% to 31%.
+    """
+    if len(points) < 2:
+        return None
+    today = datetime.date.today().isoformat()
+    todays = [p for p in points if p[0] == today]
+    if not todays:
+        return None
+    before = [p for p in points if p[0] < today]
+    base = before[-1] if before else points[0]
+    last = todays[-1]
+    if base[1] == last[1] and base[2] == last[2]:
+        return None
+    return base[1], last[1], base[2], last[2]
+
+
+# NOTE: cost per feature (#76) is NOT implemented here, deliberately.
+# `bin/spend` groups tasks via `_tasks_here()`, which derives the repo root from
+# the *current working directory* and takes no path. Reaching it from a
+# collector would mean chdir-ing inside a server that fans collectors out across
+# threads, and a process-global chdir is exactly the kind of race that produces
+# a wrong number occasionally rather than an obvious failure.
+#
+# #76 puts "changing bin/spend itself" out of scope and says it is its own
+# issue, so that is where this stops. The join it needs already exists here --
+# spend keys tasks by worktree name, and feature_of_issue() maps a worktree's
+# issue to a feature -- so once spend exposes a path-taking entry point this is
+# a small function, not a redesign.
+
+
 # --- collect everything, cached ---
 
 _cache_lock = threading.Lock()
@@ -820,6 +924,7 @@ def collect():
     stale, _stale_err = safe(staleness)   # silence is the failure mode; err unused
     queue, queue_err = safe(decision_queue, projs)
     drift, drift_err = safe(rules_drift, projs)
+    history, history_err = safe(history_data, projs)
     gate_branches, gate_err = safe(open_gate_branches, projs)
 
     # Node labels (issue title, prefix stripped) — shared lookup from the
@@ -873,6 +978,7 @@ def collect():
         "stale": stale,
         "queue": queue, "queue_err": queue_err,
         "drift": drift or [], "drift_err": drift_err,
+        "history": history or [], "history_err": history_err,
         "needs_input": needs_input, "gate_err": gate_err,
     }
     with _cache_lock:
@@ -1074,6 +1180,17 @@ a.dot:hover { outline:1px solid var(--ink); }
 .wp { font-family:var(--mono); font-size:11px; color:var(--dim); margin:var(--gap-2) 0 0; }
 .wp b { font-family:var(--sans); font-size:22px; color:var(--ink); }
 
+.prog { display:grid; grid-template-columns:minmax(110px,1fr) auto auto minmax(0,2.4fr);
+        gap:var(--gap-2) var(--gap-3); align-items:center; margin-top:var(--gap-2); }
+.pname { font-size:12.5px; font-weight:600; }
+.pchart { width:260px; }
+.pfig { font-family:var(--mono); font-size:11px; text-align:right; white-space:nowrap; }
+.pnote { font-family:var(--mono); font-size:9.5px; color:var(--dim); min-width:0; }
+.spark { width:260px; height:44px; display:block; }
+.spark polyline { fill:none; stroke-width:1.6; vector-effect:non-scaling-stroke; }
+.sp-total { stroke:var(--edge); }
+.sp-done { stroke:var(--green); }
+
 .f-fig { font-family:var(--mono); font-size:11px; white-space:nowrap; }
 .f-none { font-family:var(--mono); font-size:10px; color:var(--dim);
           margin:var(--gap-3) 0 0; }
@@ -1233,7 +1350,7 @@ def session_id_of(w):
     return t.stem if t else None
 
 
-VIEWS = ("board", "ledger")
+VIEWS = ("board", "ledger", "progress")
 
 STATE_ORDER = ("in flight", "next", "blocked", "later", "done")
 BOARD_COLUMNS = (("in flight", "IN FLIGHT", "var(--green)"),
@@ -1384,6 +1501,85 @@ def render_ledger(rows, pipeline):
     out.append(undeclared_line(rows))
     # issue-level flow, rehomed from the removed PIPELINE -- detail, not noise
     out.append(render_flow(pipeline))
+    return "\n".join(out)
+
+
+def sparkline(points, width=260, height=44):
+    """Two lines — done and total — over the checklist's own history (#63).
+
+    A burn*up*, not a burndown, and the gap between the lines is the point.
+    finance-tracker went 9/25 to 16/51: seven items completed while the
+    percentage FELL from 36% to 31%, because scope grew by 26. One number
+    cannot tell "nothing is happening" from "a lot is happening and scope is
+    outrunning it", and those need opposite responses.
+
+    Not smoothed and not clamped monotonic. The real data dips — mac-explorer's
+    total went 8 to 5 — and a dip is a re-scoping, which is information.
+    """
+    if len(points) < 2:
+        return ""
+    hi = max(t for _, _, t in points) or 1
+    n = len(points) - 1
+    def path(idx):
+        pts = []
+        for i, row in enumerate(points):
+            x = round(i / n * width, 1)
+            y = round(height - (row[idx] / hi) * height, 1)
+            pts.append(f'{x},{y}')
+        return " ".join(pts)
+    return (f'<svg class="spark" viewBox="0 0 {width} {height}" '
+            f'preserveAspectRatio="none" role="img" aria-label="burnup">'
+            f'<polyline points="{path(2)}" class="sp-total"/>'
+            f'<polyline points="{path(1)}" class="sp-done"/></svg>')
+
+
+def render_progress(history):
+    """PROGRESS — what moved, and how fast (#66, #63).
+
+    A third tab rather than a sixth region: the screen is 900px and already
+    holds the band, the features region and the strip. Measurement over time is
+    detail, and detail belongs behind a tab.
+    """
+    if not history:
+        return ('<p class="sub">no project has enough checklist history yet — '
+                'this reads the git log of CLAUDE-checklist.md, so a project '
+                'needs at least two revisions of one</p>')
+    out = ['<div class="prog">']
+    for h in history:
+        pts = h["points"]
+        d0, t0 = pts[0][1], pts[0][2]
+        d1, t1 = pts[-1][1], pts[-1][2]
+        v = velocity(pts)
+        mv = moved(pts)
+        pct0 = round(d0 / t0 * 100) if t0 else 0
+        pct1 = round(d1 / t1 * 100) if t1 else 0
+        out.append(f'<div class="pname">{e(h["project"])}</div>')
+        out.append(f'<div class="pchart">{sparkline(pts)}</div>')
+        out.append(f'<div class="pfig">{d1}/{t1}<br><span class="dim">{pct1}%</span></div>')
+        notes = [f'{pts[0][0]} → {pts[-1][0]} · {d0}/{t0} → {d1}/{t1}']
+        if pct1 < pct0:
+            # the case a single percentage actively hides
+            notes.append(f'{pct0}% → {pct1}% while completing {d1 - d0}: '
+                         f'scope grew by {t1 - t0}')
+        if v and v[0]:
+            notes.append(f'{v[0]} item(s) completed in the last {v[1]} days')
+        if mv:
+            b0, b1, s0, s1 = mv
+            bits = []
+            if b1 != b0:
+                bits.append(f'{b1 - b0:+d} done')
+            if s1 != s0:
+                bits.append(f'{s1 - s0:+d} scope' if s1 > s0
+                            else f'{s1 - s0:+d} scope (re-scoped)')
+            if bits:
+                notes.append("today: " + ", ".join(bits))
+        out.append(f'<div class="pnote">' +
+                   "<br>".join(f'<span class="clamp1">{e(x)}</span>' for x in notes) +
+                   "</div>")
+    out.append("</div>")
+    out.append('<p class="sub">measured from each checklist\'s own git history · '
+               'a rate is what happened, not a forecast — no ETA, by the same '
+               'rule proposal 08 set</p>')
     return "\n".join(out)
 
 
@@ -1551,13 +1747,18 @@ def render_page(view="board"):
     # would be two boards of one shape at different altitudes. The feature board
     # IS the pipeline, one altitude up, and it needs the full width for four
     # columns — at ~600px they were ~150px each and every title truncated.
-    body = (render_board(data["features"]) if view == "board"
-            else render_ledger(data["features"], data["pipeline"]))
+    if view == "board":
+        body = render_board(data["features"])
+    elif view == "progress":
+        body = render_progress(data["history"])
+    else:
+        body = render_ledger(data["features"], data["pipeline"])
     features = region("FEATURES · WHAT THE PRODUCT IS MADE OF",
                       None,
                       render_tabs(view) + body,
-                      data["features_err"] or
-                      (data["pipeline_err"] if view == "ledger" else None),
+                      (data["history_err"] if view == "progress" else
+                       data["features_err"] or
+                       (data["pipeline_err"] if view == "ledger" else None)),
                       "features")
 
     return f"""<!doctype html>
