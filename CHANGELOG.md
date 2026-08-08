@@ -1,5 +1,59 @@
 # Changelog — common-rules
 
+## 2026-08-07 · rulecheck reads whether a project adopts the rules instead of assuming it (#61)
+
+`bin/rulecheck` treated every directory under `apps/` as a project that follows
+these rules. `idea-lab` does not, and says so in its own words: it is **v2**,
+governing what happens *before* anything is agreed, and `LAB-RULES.md` opens
+with "deliberately separate from `../common-rules/`" while `CLAUDE.md` adds
+"no gates, no worktrees, no issues here — ideas are cheap on purpose."
+
+So rulecheck reported `idea-lab has NEVER recorded a rules version` and would
+have gone on reporting it forever. Two costs, and the second is the one that
+matters:
+
+- **Every session had to re-derive that it was a false alarm** and dismiss it.
+  A permanent warning that is always wrong trains sessions to skim the warnings
+  that are right.
+- **The only remedy it offered was `--align`, which would have written a false
+  record.** The stamp is load-bearing *because* it is trusted without
+  re-checking — the next session inherits it and skips reading the rules. A
+  wrong stamp is therefore worse than a missing one, and `--align` on a
+  non-adopting project now refuses and says why rather than complying.
+
+**Adoption is read from the declaration that already exists.** `README.md`,
+"How a project adopts this", says a project adopts by adding a pointer to
+`CLAUDE-workflow.md` near the top of its own `CLAUDE.md`. That pointer is now
+the check. Deriving it means there is no second roster to drift — and drift is
+not hypothetical: `CLAUDE-workflow.md:7` still reads "Adopted: **finance-tracker**
+(2026-08-02), **pockets** (2026-08-02)" after `pip` and `mac-explorer` had also
+adopted. A hand-maintained list of who follows the rules had already stopped
+being true. *(Left alone in this PR — that line is prose in the rules file and
+changing it is the user's call, not a side effect of a tool fix. Flagged in the
+PR body.)*
+
+Mentioning `common-rules` is deliberately **not** enough to count. idea-lab's
+CLAUDE.md names it in order to disown it; a substring match on the folder name
+would have kept the false alarm exactly as it was.
+
+Two cases the naive version got wrong and this one does not:
+
+- **An existing stamp counts as adoption on its own.** Rewording a project's
+  CLAUDE.md must not silently un-adopt a project that has aligned before.
+- **common-rules does not adopt itself.** Running rulecheck inside this repo —
+  the usual way this was hit — reported the rules as never having recorded a
+  version *of themselves*. It now says so plainly and exits 0.
+
+`tests/test_rulecheck.py` covers all of it: the idea-lab case, `--align`
+refusing to write the stamp (asserted on the filesystem, not on the message),
+the stamp-implies-adoption rule, `--quiet` staying silent for a non-adopter so
+the SessionStart hook does not print, common-rules never acquiring a stamp, and
+a guard that the four real adopting projects are still checked — so a fix that
+quietly stops checking everything fails the suite.
+
+Exit codes now read: 0 aligned **or not an adopting project** · 1 behind · 2
+cannot tell.
+
 ## 2026-08-08 · 7-DAY reads GitHub now, and REPORT is a live tab
 
 Asked directly: *"why do you measure checklist, why can't you use git to

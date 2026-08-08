@@ -12,11 +12,23 @@ something did.
   rulecheck --version       # print the current rules version and exit
   rulecheck --quiet         # print nothing when aligned (for hooks)
 
-Exit codes: 0 aligned · 1 behind (or never aligned) · 2 cannot tell.
+Exit codes: 0 aligned (or not an adopting project) · 1 behind (or never
+aligned) · 2 cannot tell.
 
 The version is `<commit-count>-<short-sha>` of common-rules — the count orders
 it, the sha identifies it exactly. A project records the one it last aligned
 with in `.common-rules-version` at its root, committed like any other record.
+
+Not every folder under apps/ adopts these rules. `idea-lab` deliberately does
+not — it is v2, governing what happens *before* anything is agreed, and its own
+rules say "no gates, no worktrees, no issues here". This tool used to treat any
+directory as an adopter and report it as never aligned, which left a permanent
+false alarm that every session had to re-derive and dismiss; the one action it
+offered would have stamped the project with a claim that is not true. So
+adoption is now read rather than assumed, from the pointer README.md already
+prescribes: a project adopts by referencing CLAUDE-workflow.md in its own
+CLAUDE.md. Deriving it from that pointer means there is no second list to drift
+out of date — the declaration and the check are the same fact.
 """
 
 import argparse
@@ -55,6 +67,32 @@ def find_project(start):
     return p
 
 
+def adopts_rules(proj):
+    """Does this project declare that it follows the shared rules?
+
+    README.md, "How a project adopts this": add a short pointer near the top of
+    the project's own CLAUDE.md. That pointer is the declaration, so it is also
+    the check — no separate roster to fall out of date. (CLAUDE-workflow.md's
+    own "Adopted:" line had done exactly that: it still named two projects after
+    four had adopted.)
+
+    An existing stamp also counts. A project that has aligned before has already
+    declared itself, and a check should never un-adopt a project because someone
+    reworded its CLAUDE.md.
+    """
+    if proj == RULES:
+        return False            # the rules do not adopt themselves
+    if (proj / STAMP).exists():
+        return True
+    claude_md = proj / "CLAUDE.md"
+    if not claude_md.exists():
+        return False
+    try:
+        return "CLAUDE-workflow.md" in claude_md.read_text(errors="replace")
+    except OSError:
+        return False
+
+
 def changes_since(old_sha):
     """Lines added to CHANGELOG.md since that commit — the actual delta."""
     diff = git("diff", f"{old_sha}..HEAD", "--", "CHANGELOG.md")
@@ -89,6 +127,29 @@ def main():
 
     proj = Path(a.project).resolve() if a.project else find_project(os.getcwd())
     stamp = proj / STAMP
+
+    if not adopts_rules(proj):
+        if proj == RULES:
+            # Running inside common-rules itself, which is the usual way this is
+            # hit: the rules are the thing being versioned, not a follower of it.
+            if not a.quiet:
+                print("common-rules is the rules themselves — nothing to align "
+                      f"against. Current version: {cur}.")
+            return 0
+        if a.align:
+            # Refusing is the point. The stamp is a claim that a session read
+            # these rules and that this project follows them; writing one into a
+            # project that does not is a false record, and the next session
+            # inherits it and skips the check.
+            print(f"{proj.name} does not adopt the shared rules — not stamping it.",
+                  file=sys.stderr)
+            print(f"Nothing in {proj.name}/CLAUDE.md points at CLAUDE-workflow.md. "
+                  f"If it should adopt them, add that pointer first (README.md, "
+                  f"'How a project adopts this'), then align.", file=sys.stderr)
+            return 2
+        if not a.quiet:
+            print(f"{proj.name} does not adopt the shared rules — nothing to check.")
+        return 0
 
     if a.align:
         stamp.write_text(cur + "\n")
