@@ -794,17 +794,70 @@ def checklist_history(proj):
     return out
 
 
+def issue_close_history(row):
+    """[(date, done, total)] oldest first, built from the register's own
+    implementing issues' `closedAt` — GitHub's record, not a hand-ticked
+    checkbox (the sponsor's "why do you measure checklist, why can't you use
+    git" question).
+
+    `done` counts distinct implementing issues closed by each date, out of
+    every implementing issue any declared feature names; `total` is that same
+    denominator throughout. These are exactly the issues feature_pct() already
+    scores the DONE bar from, so this series and that bar are answers to the
+    same question and cannot drift apart the way checklist ticks and issue
+    closures used to -- a session could tick a box with no issue behind it, or
+    close an issue and never touch the checklist, and 7-DAY reported the
+    first while DONE reported the second.
+
+    None where a project has declared features but none of their implementing
+    issues has ever closed -- there is no history to plot yet, not a zero one.
+    """
+    feats = row.get("features") or []
+    impl = sorted({n for f in feats for n in f["implements"]})
+    if not impl:
+        return None
+    closed_at = row.get("closed_at") or {}
+    per_date = {}
+    for n in impl:
+        d = closed_at.get(n)
+        if d:
+            per_date[d] = per_date.get(d, 0) + 1
+    if not per_date:
+        return None
+    total = len(impl)
+    points, running = [], 0
+    for date in sorted(per_date):
+        running += per_date[date]
+        points.append((date, running, total))
+    today = datetime.date.today().isoformat()
+    if points[-1][0] != today:
+        points.append((today, running, total))
+    return points
+
+
 _hist_lock = threading.Lock()
 _hist = {"ts": 0, "data": None}
 
 
-def _history_now(projs):
-    """Per project history, cached hard: this is ~30 `git show` calls each."""
+def _history_now(projs, features):
+    """Per project history: GitHub issue closures where a register names them,
+    the checklist's own git log only where it doesn't (a project with no
+    declared features has no implementing issues to measure against).
+
+    Cached hard alongside the checklist fallback: the fallback path alone is
+    ~30 `git show` calls per project.
+    """
+    by_name = {r["project"]: r for r in (features or [])}
     out = []
     for proj in projs:
-        h = checklist_history(proj)
+        row = by_name.get(proj["name"])
+        h = issue_close_history(row) if row else None
+        source = "issues"
+        if h is None or len(h) < 2:
+            h = checklist_history(proj)
+            source = "checklist"
         if len(h) >= 2:
-            out.append({"project": proj["name"], "points": h})
+            out.append({"project": proj["name"], "points": h, "source": source})
     return out
 
 
@@ -1112,7 +1165,7 @@ def _collect_now():
     stale = cached_async(_stale, _stale_lock, STALE_TTL, _staleness_now)
     queue, queue_err = safe(decision_queue, projs)
     drift, drift_err = safe(rules_drift, projs)
-    history = cached_async(_hist, _hist_lock, HISTORY_TTL, _history_now, projs)
+    history = cached_async(_hist, _hist_lock, HISTORY_TTL, _history_now, projs, features)
     history_err = None
     cost = cached_async(_cost, _cost_lock, COST_TTL, _cost_now, projs)
     cost_err = None
@@ -1399,6 +1452,16 @@ a.dot:hover { outline:1px solid var(--ink); }
 .spark polyline { fill:none; stroke-width:1.6; vector-effect:non-scaling-stroke; }
 .sp-total { stroke:var(--edge); }
 .sp-done { stroke:var(--green); }
+
+.report { display:grid; grid-template-columns:repeat(auto-fit,minmax(128px,1fr));
+          gap:var(--gap-2); margin-top:var(--gap-2); }
+.rcard { background:var(--card); border:1px solid var(--edge); border-radius:9px;
+         padding:var(--gap-2); min-width:0; }
+.rcard .n { font-family:var(--sans); font-size:21px; font-weight:700; color:var(--ink); }
+.rcard .k { font-family:var(--mono); font-size:9.5px; color:var(--dim);
+            margin-top:4px; }
+.rchart { margin-top:var(--gap-3); }
+.rchart .spark { width:100%; height:64px; }
 
 .f-fig { font-family:var(--mono); font-size:11px; white-space:nowrap; }
 .f-none { font-family:var(--mono); font-size:10px; color:var(--dim);
@@ -1787,28 +1850,33 @@ def render_progress(history, cost=None):
     detail, and detail belongs behind a tab.
     """
     if not history:
-        return ('<p class="sub">no project has enough checklist history yet — '
-                'this reads the git log of CLAUDE-checklist.md, so a project '
-                'needs at least two revisions of one</p>')
+        return ('<p class="sub">no project has enough history yet — a '
+                'declared feature needs at least one implementing issue '
+                'that has closed, or (with no register) a checklist with '
+                'two revisions</p>')
     out = ['<div class="prog">']
     for h in history:
         pts = h["points"]
+        src = h.get("source", "checklist")
         d0, t0 = pts[0][1], pts[0][2]
         d1, t1 = pts[-1][1], pts[-1][2]
         v = velocity(pts)
         mv = moved(pts)
         pct0 = round(d0 / t0 * 100) if t0 else 0
         pct1 = round(d1 / t1 * 100) if t1 else 0
-        out.append(f'<div class="pname">{e(h["project"])}</div>')
+        unit = "issue" if src == "issues" else "item"
+        out.append(f'<div class="pname">{e(h["project"])}'
+                   f'{"" if src == "issues" else " <span class=\"warn\">checklist</span>"}'
+                   f'</div>')
         out.append(f'<div class="pchart">{sparkline(pts)}</div>')
         out.append(f'<div class="pfig">{d1}/{t1}<br><span class="dim">{pct1}%</span></div>')
-        notes = [f'{pts[0][0]} → {pts[-1][0]} · {d0}/{t0} → {d1}/{t1}']
+        notes = [f'{pts[0][0]} → {pts[-1][0]} · {d0}/{t0} → {d1}/{t1} {unit}(s)']
         if pct1 < pct0:
             # the case a single percentage actively hides
             notes.append(f'{pct0}% → {pct1}% while completing {d1 - d0}: '
                          f'scope grew by {t1 - t0}')
         if v and v[0]:
-            notes.append(f'{v[0]} item(s) completed in the last {v[1]} days')
+            notes.append(f'{v[0]} {unit}(s) completed in the last {v[1]} days')
         c = (cost or {}).get(h["project"])
         if c and c["week"]:
             # "what did this week cost, and what moved" -- the two on one line,
@@ -1829,9 +1897,81 @@ def render_progress(history, cost=None):
                    "<br>".join(f'<span class="clamp1">{e(x)}</span>' for x in notes) +
                    "</div>")
     out.append("</div>")
-    out.append('<p class="sub">measured from each checklist\'s own git history · '
-               'a rate is what happened, not a forecast — no ETA, by the same '
-               'rule proposal 08 set</p>')
+    out.append('<p class="sub">measured from declared features\' implementing '
+               'issues closing on GitHub · <span class="warn">checklist</span> '
+               'marks a project with no register, falling back to its own '
+               'checkbox history · a rate is what happened, not a forecast — '
+               'no ETA, by the same rule proposal 08 set</p>')
+    return "\n".join(out)
+
+
+def render_report(name, data):
+    """REPORT — the completion snapshot for one project, recomputed on every
+    collect rather than written once and left to rot ("that's what I want to
+    be tracked live"). Every figure here is already collected for BOARD and
+    PROGRESS; this is a rollup of them, not a new fetch, so it refreshes on
+    the same cadence as the rest of the screen.
+
+    Deliberately does NOT attempt the narrative half of a one-off completion
+    report (a wrong metric caught, dead code found, a missing test named).
+    Those came from a session actually reading code -- that is investigation,
+    not a query, and nothing here can re-run it unattended. This tab reports
+    what git and GitHub already know; it does not go looking for a bug.
+    """
+    row = next((r for r in data["features"] if r["project"] == name), None)
+    if not row or not row["features"]:
+        return ('<p class="sub">no register declared for this project — '
+                'REPORT rolls up declared features and their issues, so '
+                'there is nothing to compute yet</p>')
+
+    feats = row["features"]
+    closed_map = row.get("closed") or {}
+    closed_at = row.get("closed_at") or {}
+    pct = project_completion(row)
+    named = sum(1 for f in feats if f["implements"])
+    done_feats = sum(1 for f in feats if feature_pct(f, closed_map)[0] == 100)
+    open_issues = sum(1 for v in closed_map.values() if not v)
+    cutoff = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+    closed_7d = sum(1 for d in closed_at.values() if d and d >= cutoff)
+    unclaimed_7d = unclaimed_closed(row)
+
+    hist_row = next((h for h in data["history"] if h["project"] == name), None)
+    v = velocity(hist_row["points"]) if hist_row else None
+    v_src = hist_row.get("source") if hist_row else None
+    cost_row = data["cost"].get(name)
+
+    cards = [
+        (f'{pct}%' if pct is not None else '—', 'of declared scope closed'),
+        (f'{done_feats}/{len(feats)}', 'features closed'),
+        (f'{named}/{len(feats)}', 'features naming an issue'),
+        (str(open_issues), 'issues open'),
+        (str(closed_7d), 'issues closed, last 7 days'),
+        (f'{v[0]:+d}' if v else '—',
+         (f'items/{v[1]}d, GitHub' if v_src == "issues"
+          else f'items/{v[1]}d, checklist') if v else 'no history yet'),
+    ]
+    if cost_row and cost_row["week"]:
+        cards.append((human_tokens(cost_row["week"]),
+                     f'tokens, last {COST_WINDOW_DAYS} days'))
+
+    out = ['<div class="report">']
+    for n, k in cards:
+        out.append(f'<div class="rcard"><div class="n">{e(str(n))}</div>'
+                   f'<div class="k">{e(k)}</div></div>')
+    out.append('</div>')
+
+    if hist_row:
+        out.append(f'<div class="rchart">{sparkline(hist_row["points"], width=520, height=64)}</div>')
+
+    if unclaimed_7d:
+        out.append(f'<p class="sub"><span class="warn">{unclaimed_7d}</span> of '
+                   f'those {closed_7d} closed with no declared feature to claim '
+                   f'them — either they belong in the register, or it is right '
+                   f'to exclude them</p>')
+    out.append('<p class="sub">every figure above is recomputed each refresh '
+               'from git and GitHub · narrative findings — a wrong metric, '
+               'dead code, a missing test — still take a person or an agent '
+               'actually reading the code; they are not re-derived here</p>')
     return "\n".join(out)
 
 
@@ -1863,6 +2003,9 @@ def render_project(name, data):
         d, t = row["items"]
         head.append(f'{d}/{t} items · {round(d / t * 100) if t else 0}%')
     out = [f'<p class="phead">{e(" · ".join(head))}</p>']
+
+    out.append('<p class="psec">REPORT</p>')
+    out.append(render_report(name, data))
 
     out.append(render_board(feats))
     if hist:

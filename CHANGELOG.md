@@ -1,5 +1,37 @@
 # Changelog — common-rules
 
+## 2026-08-08 · 7-DAY reads GitHub now, and REPORT is a live tab
+
+Asked directly: *"why do you measure checklist, why can't you use git to
+measure progress"* — and separately, that the one-off narrative completion
+reports written for a few projects should be "in the app... tracked live."
+
+**7-DAY was still checklist ticks after DONE moved off them.** The previous
+entry fixed the DONE bar to score feature completion from issue closures, but
+PROGRESS's 7-DAY figure kept reading the git log of hand-ticked `- [x]` boxes
+in `CLAUDE-checklist.md` — a session could tick a box with no issue behind it,
+or close an issue and never touch the checklist, and the two numbers on the
+same screen told different stories about the same project. `7-DAY` now builds
+its burnup from the register's own implementing issues' `closedAt`: the same
+denominator `project_completion` already scores DONE from, so the two cannot
+drift apart. A project whose register has no closed implementing issue yet
+still falls back to the checklist history — labelled `checklist` on screen,
+never blended silently with GitHub-sourced numbers.
+
+**REPORT is a new section on every project's page**, sitting above BOARD:
+completion %, features closed, features naming an issue, issues open, issues
+closed in the last 7 days (with an unclaimed-issues callout), velocity, and
+weekly token cost, plus the burnup chart. It costs no new fetches — every
+figure is a rollup of what BOARD and PROGRESS already collect — so it
+refreshes on the same cadence as the rest of the screen.
+
+What it deliberately does not do: the narrative half of those one-off reports
+(a wrong metric caught, dead code found, a missing test named) came from a
+session actually reading code. That is investigation, not a query, and
+nothing in a 5-second collector can re-run it unattended. REPORT says so in
+its own footer rather than implying it replaces the written reports — those
+stay as the historical record; REPORT is the thing that stays current.
+
 ## 2026-08-08 · The bar follows features now, and unclaimed closures are visible
 
 Reported: *"in financial tracker i am closing issue, but the progress bar does
