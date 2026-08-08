@@ -295,3 +295,64 @@ rule ("relaying means showing, not summarising").
 honest read is one rule that keeps being rediscovered in a new context, which
 by the guidance above makes it an amendment candidate rather than a fourth
 independent statement of it.
+
+## 2026-08-07 · If there is a bug, create an issue, but continue
+Said in: mac-explorer (phase 1 build)
+
+"and in parallel continue the implementation if there is a bug, create an
+issue, but continue." Bugs found during a build must not stall the pipeline:
+each becomes a formal issue at once (per the 2026-08-06 issues ask) and the
+implementation keeps moving. Said while phase 1 was mid-build, the same day
+issue #5's bug rounds had consumed most of a working day — read against that
+backdrop. Note what it does not say: it does not say broken work should land;
+it says finding a bug is not a reason to stop building.
+
+## 2026-08-07 · The Simulator window goes on the Mac's built-in screen
+Said in: pip (M1)
+
+"please open iphone simulator on macs screen only, i have a multi screen
+setup." A machine-level placement rule, not a one-off: when a session opens
+Simulator.app for him to watch, the window goes on the built-in display
+(currently origin (1920,0), 1728×1117 — verify via CGDisplayBounds, don't
+hard-code), not whichever external Chrome/Tower lives on. Backdrop: the same
+day, a gate's cliclick tap aimed at a remembered Simulator position landed in
+his live Tower window after Stage Manager swapped it — window placement on
+this machine is load-bearing, not cosmetic. Ninth entry in the
+state-visible-at-a-glance family: he shouldn't have to hunt across three
+screens for the thing he was asked to look at.
+
+## 2026-08-07 · Use the in-app simulator panel, not Simulator.app
+Said in: pip (M1)
+
+"use the inbuilt sim" — minutes after asking for Simulator.app on the built-in
+screen. A reversal that supersedes the placement rule when the panel works:
+the built-in simulator panel (`attach`) is the preferred viewing surface, and
+Simulator.app-on-the-Mac-screen is the fallback for when the panel's tooling
+errors (it did all day yesterday; it works today). Two cautions learned on
+first use: the panel attaches to whatever is booted, and `screenshot` without
+an explicit udid can target a different booted device than the panel shows —
+always pass the udid. Another session's booted device (Pockets' Pro Max here)
+is its surface; attach Pip to its own device rather than borrowing.
+
+## 2026-08-07 · Screen work goes on the non-main LG display
+Said in: mac-explorer (phase 1 validation)
+
+Agent screenshots and any app window we launch go on **the LG that is not the
+main display** — currently `LG HDR 4K (2)`, origin (-1920,0). Stay off the main
+display (`LG HDR 4K (1)`, origin (0,0), which holds the Claude window
+full-screen) and off the built-in Retina display (which holds Tower and the
+Simulator's Stage Manager strip).
+
+Recorded as a description rather than a number on purpose: he answered "(2)",
+corrected to "(1)", then on learning (1) is the main display said "oh sorry then
+lg 2 / not the main lg screen". The number moved twice; the intent never did —
+agent windows belong off the screen he is reading and off the one with Tower.
+Re-derive by geometry (`NSScreen.screens` origins) rather than trusting an index.
+
+Capturing by window id (`screencapture -l <id>`) is still preferred where it
+works — it sidesteps both the display and the Space question. We can only ever
+see the *currently active* Space on a display and cannot switch Spaces.
+
+Gotcha: with two same-named processes running, `System Events ... process "X"`
+targets an arbitrary one and can fail with "Can't get window 1". Map windows to
+PIDs via `CGWindowListCopyWindowInfo` and act on the PID.

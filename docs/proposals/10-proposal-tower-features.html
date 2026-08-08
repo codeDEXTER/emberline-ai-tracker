@@ -1,0 +1,342 @@
+<meta charset="utf-8">
+<title>common-rules · The Tower reports the product, not the plumbing — Proposal</title>
+<meta name="proposal-id" content="10">
+<meta name="proposal-topic" content="tower-features-not-plumbing">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="accepted">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
+    --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E;
+    --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; --screen:#0B0E13; --scrink:#DFE3EA;
+    --scrdim:#7C8594; --scrline:#222B38;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0; --border:#26303C;
+            --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81; --warn:#D2A05A;
+            --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660;
+            --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B;
+            --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; }
+
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1030px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:34px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  h3 { font-size:17px; font-weight:640; margin:26px 0 4px; letter-spacing:-.01em; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:66ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  section > p { max-width:70ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:72ch; }
+  code, .mono { font-family:var(--mono); font-size:12.6px; }
+  a { color:var(--accent); }
+  .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+          padding:3px 9px; border-radius:4px; background:var(--dim); color:var(--chip-ink); }
+
+  .tablewrap { overflow-x:auto; margin-top:18px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:640px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.1px; white-space:nowrap; }
+  .lab { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+         display:inline-block; padding:2px 7px; border-radius:4px; white-space:nowrap; color:var(--chip-ink); }
+  .lab.ok { background:var(--gain); } .lab.mid { background:var(--warn); } .lab.no { background:var(--loss); }
+
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:22px 0; max-width:74ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.warn { border-left-color:var(--warn); }
+  .verdict.good { border-left-color:var(--gain); }
+  .verdict p:last-child { margin-bottom:0; }
+
+  .mock { margin-top:22px; overflow-x:auto; border-radius:14px; }
+  .mock svg { width:100%; min-width:760px; height:auto; display:block; }
+  .mockcap { font-family:var(--mono); font-size:11px; color:var(--dim); margin-top:8px;
+             letter-spacing:.04em; }
+  ul { max-width:72ch; } li { margin-bottom:7px; }
+  ol { max-width:72ch; } ol li { margin-bottom:9px; }
+  .q { background:var(--lane); border-radius:10px; padding:14px 18px; margin:14px 0; max-width:74ch; }
+  .q b { display:block; font-size:14.5px; margin-bottom:4px; }
+  .q p { margin:0; color:var(--dim); font-size:14px; }
+  .quote { border-left:3px solid var(--you); padding-left:16px; margin:18px 0; max-width:70ch;
+           font-size:16px; }
+</style>
+
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · proposal 10</span>
+  <span><span class="chip" style="background:var(--gain)">accepted</span> &nbsp; 2026-08-07 · rules 112</span>
+</div>
+
+<h1>The Tower reports the product, not the plumbing</h1>
+<p class="standfirst">Three of the four things you asked for are straightforward and
+mostly involve deleting. The fourth — the degree of completion of the whole
+product — cannot be computed honestly today, and the reason is not the Tower.</p>
+
+<div class="quote">
+  “What features are done, what is the degree of completion of the whole product,
+  and what things are running. I don't want to know what internal communication is
+  going on or what branch names they are naming. That's not my problem.”
+</div>
+
+<div class="verdict">
+  <b>The short version</b>
+  <p>Features are already a first-class idea in your own rules — <em>“the user owns
+  features, the AI owns issues”</em> — and <b>pockets already declares seven of them</b>
+  in a proper register with states. The Tower simply never reads it. It reads issue
+  <em>title prefixes</em> and <code>##</code> headings instead, which in three of four
+  projects are priority buckets like “Now” and “Later”. That is why the screen talks
+  like a filing system.</p>
+  <p><b>The blocker:</b> only pockets has declared what its features are.
+  finance-tracker, pip and mac-explorer have not. So “degree of completion of the
+  whole product” has no honest denominator, and I am not going to invent one — that
+  is the same lie proposal 08 refused when it insisted a project with no checklist
+  reads “no declared scope”, never 0%.</p>
+</div>
+
+<p class="eyebrow">What the screen shows you today, and why it reads as noise</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>You see</th><th>Because the Tower reads</th><th>Which is</th></tr>
+  <tr>
+    <td class="k">arm-f-filing · 4 ahead</td>
+    <td>the git worktree directory name</td>
+    <td>a folder on disk. Not a feature, not even a ticket.</td>
+  </tr>
+  <tr>
+    <td class="k">FEATURE · TOWER · 3 tickets</td>
+    <td><code>title.split(":")[0]</code> — the issue title's prefix</td>
+    <td>a naming convention. Two issues share a “feature” only if someone typed the same words before the colon.</td>
+  </tr>
+  <tr>
+    <td class="k">Now — small, ready to pick up · 7/12</td>
+    <td>a <code>##</code> heading in <code>CLAUDE-checklist.md</code></td>
+    <td>a priority bucket. “Now” is not a feature and never finishes.</td>
+  </tr>
+  <tr>
+    <td class="k">Common Rules chat v1 → adoring-euler</td>
+    <td>cross-session messages in the transcripts</td>
+    <td>two AI sessions talking. Explicitly not your problem.</td>
+  </tr>
+</table>
+</div>
+
+<p>Measured across the estate just now:</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Project</th><th>Declares features?</th><th>What its <code>##</code> headings actually are</th></tr>
+  <tr><td class="k">pockets</td><td><span class="lab ok">yes — 7</span></td>
+      <td>a real <code>## Features</code> table: name, state, linked issue</td></tr>
+  <tr><td class="k">finance-tracker</td><td><span class="lab no">no</span></td>
+      <td>9 headings — <span class="mono">Now</span>, <span class="mono">Later</span>,
+      <span class="mono">Diagnostics</span>, <span class="mono">Research gaps</span></td></tr>
+  <tr><td class="k">pip</td><td><span class="lab no">no</span></td>
+      <td>2 headings — <span class="mono">Now</span>, <span class="mono">Later</span></td></tr>
+  <tr><td class="k">mac-explorer</td><td><span class="lab no">no</span></td>
+      <td>4 headings — <span class="mono">Done</span>, <span class="mono">Now</span>,
+      <span class="mono">Later</span>, <span class="mono">Process</span></td></tr>
+  <tr><td class="k">idea-lab, photo-vault,<br>activity-manager, geospatial</td><td><span class="lab no">no file</span></td>
+      <td>no checklist at all</td></tr>
+</table>
+</div>
+<p class="note">There are also no GitHub milestones in any repo, so features are not
+hiding there either. pockets' register is the only declaration of “what this product
+is made of” that exists anywhere in the estate.</p>
+
+<p class="eyebrow">What I propose to build</p>
+
+<h3>1. The Tower reads the Features register, not title prefixes</h3>
+<p>pockets' shape becomes the contract: a <code>## Features</code> table of
+<em>sponsor-owned</em> features, each with a state and a linked issue. The Tower reads
+that. <code>compute_hulls()</code> and its title-prefix guessing are deleted — it is
+currently dead code anyway, collected on every pass and rendered nowhere.</p>
+
+<h3>2. A session says what feature it is on. Never a branch name.</h3>
+<p>Today a session is labelled by its worktree directory. Instead: the feature it
+belongs to, then the issue title. Where an issue maps to no feature, the screen says
+<span class="mono">unmapped work</span> and counts it — an honest gap is more useful
+than a directory name dressed up as information. <b>No branch or worktree name appears
+anywhere on the screen</b>, including in hovers.</p>
+
+<h3>3. Handovers and the commit ticker go</h3>
+<p>Handovers are two AI sessions coordinating. The ticker is commit subjects. Both are
+plumbing. Deleting them also returns roughly 640px, which is most of why the pipeline
+currently has room for four rows.</p>
+
+<h3>4. Progress is measured, and movement is called out</h3>
+<p>“Highlight when progress is made” needs history, and proposal 08's logbook — the
+obvious way to get it — was proposed and <b>not accepted</b>. It is not needed:
+the history already exists and nobody is reading it.</p>
+<ul>
+  <li><b>Feature and item completion over time</b> from <code>git log</code> of each
+  <code>CLAUDE-checklist.md</code>: the tick count at any past commit is recoverable,
+  so “+3 items since yesterday” is a measurement, not a guess.</li>
+  <li><b>Features closed</b> from the GitHub issues the register links to, with their
+  real close timestamps.</li>
+</ul>
+<p>So a <b>MOVED TODAY</b> region can say <span class="mono">pockets · Milestone 0 —
+classifier · 7/12 → 9/12</span> rather than listing commits. No new file, no standing
+obligation on any session, nothing to remember to write.</p>
+
+<div class="mock">
+<svg viewBox="0 0 1280 760" role="img" aria-label="Proposed feature-led Tower screen">
+  <style>
+    .b{fill:#0B0E13}.c{fill:#131820;stroke:#26303C}
+    .h{font-family:ui-monospace,monospace;font-size:11px;fill:#7C8594;letter-spacing:.12em;font-weight:700}
+    .t{font-family:-apple-system,sans-serif;font-size:14px;fill:#DFE3EA;font-weight:600}
+    .tb{font-family:-apple-system,sans-serif;font-size:16px;fill:#DFE3EA;font-weight:650}
+    .d{font-family:ui-monospace,monospace;font-size:10px;fill:#7C8594}
+    .g{fill:#5FA985}.a{fill:#D2A05A}.p{fill:#A98FD6}.trk{fill:#222B38}
+  </style>
+  <rect class="b" x="0" y="0" width="1280" height="760" rx="14"/>
+  <text class="h" x="28" y="32" font-size="13">TOWER · APPS AUTOPILOT · LIVE</text>
+  <text class="d" x="1010" y="32">whole product · 34% of declared scope</text>
+  <line x1="24" y1="48" x2="1256" y2="48" stroke="#222B38"/>
+
+  <text class="h" x="28" y="76" fill="#A98FD6">NEEDS YOU · 1</text>
+  <rect class="c" x="24" y="86" width="1232" height="52" rx="10" stroke="#A98FD6" fill="#171526"/>
+  <text class="tb" x="44" y="110">Milestone 0: prove the classifier is good enough</text>
+  <text class="d" x="44" y="128">pockets · open PR awaiting your merge · 41m</text>
+
+  <text class="h" x="28" y="170">FEATURES · WHAT THE PRODUCT IS MADE OF</text>
+  <text class="d" x="28" y="192">pockets · 7 declared</text>
+  <text class="t" x="28" y="222">Milestone 0 — classifier good enough</text>
+  <rect class="trk" x="470" y="214" width="420" height="9" rx="4"/><rect class="g" x="470" y="214" width="315" height="9" rx="4"/>
+  <text class="t" x="910" y="222">75%</text>
+  <text class="d" x="965" y="222">9/12 items</text>
+  <text class="g" x="1090" y="222" font-family="ui-monospace" font-size="10">▲ +2 today</text>
+  <text class="t" x="28" y="248">Capture a document and see it filed</text>
+  <rect class="trk" x="470" y="240" width="420" height="9" rx="4"/>
+  <text class="d" x="910" y="248">blocked by Milestone 0</text>
+  <text class="t" x="28" y="274">Import the WhatsApp backlog</text>
+  <rect class="trk" x="470" y="266" width="420" height="9" rx="4"/>
+  <text class="d" x="910" y="274">blocked</text>
+  <text class="d" x="28" y="300">+ 4 more features · 1 deferred to version 2</text>
+
+  <text class="d" x="28" y="336">finance-tracker · <tspan fill="#D2A05A">no features declared</tspan> — 17/54 items ticked, but against no product definition</text>
+  <text class="d" x="28" y="356">pip · <tspan fill="#D2A05A">no features declared</tspan> · mac-explorer · <tspan fill="#D2A05A">no features declared</tspan></text>
+
+  <line x1="24" y1="380" x2="1256" y2="380" stroke="#222B38"/>
+  <text class="h" x="28" y="408">RUNNING NOW · 2</text>
+  <rect class="c" x="24" y="420" width="604" height="58" rx="10" stroke="#5FA985"/>
+  <text class="t" x="44" y="444">Milestone 0 — classifier good enough</text>
+  <text class="d" x="44" y="462">pockets · validate on stratified sample · active now</text>
+  <rect class="c" x="652" y="420" width="604" height="58" rx="10"/>
+  <text class="t" x="672" y="444">Show mounted volumes in the sidebar</text>
+  <text class="d" x="672" y="462">mac-explorer · no feature declared · active 12m ago</text>
+  <text class="d" x="28" y="500">17 other sessions on work that maps to no declared feature</text>
+
+  <line x1="24" y1="524" x2="1256" y2="524" stroke="#222B38"/>
+  <text class="h" x="28" y="552">MOVED TODAY</text>
+  <text class="d" x="28" y="578"><tspan fill="#5FA985">▲</tspan>  pockets · Milestone 0 — classifier · 7/12 → 9/12</text>
+  <text class="d" x="28" y="600"><tspan fill="#5FA985">▲</tspan>  common-rules · proposal 09 built · 4 issues closed</text>
+  <text class="d" x="28" y="622"><tspan fill="#7C8594">–</tspan>  finance-tracker · no change in 2 days</text>
+
+  <line x1="24" y1="650" x2="1256" y2="650" stroke="#222B38"/>
+  <text class="h" x="28" y="678">SESSIONS · 21 · GROUPED BY FEATURE</text>
+  <text class="d" x="28" y="702">Milestone 0 — classifier</text>
+  <circle class="g" cx="240" cy="698" r="6"/><circle cx="258" cy="698" r="6" fill="#39434F"/>
+  <text class="d" x="28" y="724">no declared feature</text>
+  <circle cx="240" cy="720" r="6" fill="#39434F"/><circle cx="258" cy="720" r="6" fill="#39434F"/>
+  <circle cx="276" cy="720" r="6" fill="#39434F"/><circle cx="294" cy="720" r="6" fill="#39434F"/>
+  <circle cx="312" cy="720" r="6" fill="#39434F"/><circle cx="330" cy="720" r="6" fill="#39434F"/>
+</svg>
+</div>
+<p class="mockcap">Proposed screen · no branch name anywhere · handovers and commit
+ticker deleted · features are the spine · “no features declared” is stated, never
+filled in with a guess</p>
+
+<p class="eyebrow">What this needs from you <span class="tag">the part that is not code</span></p>
+
+<div class="verdict warn">
+  <b>The honest blocker</b>
+  <p>“Degree of completion of the whole product” is a fraction. Today the denominator
+  exists for <b>one</b> of four active projects. I can build every region above, and
+  for finance-tracker, pip and mac-explorer the FEATURES region will say
+  <em>“no features declared”</em> — correct, and not what you asked to see.</p>
+  <p>Making it answer properly means those three projects each declaring their
+  features, the way pockets already has. That is a sponsor act, not an AI one: your
+  own rules say <b>creating, scoping and closing a feature is reserved to you</b>. I
+  can draft candidate feature lists from what is already in each checklist for you to
+  correct — that is the cheap version — but I should not invent the product's shape
+  and then report progress against my own invention.</p>
+</div>
+
+<p class="eyebrow">Decisions <span class="tag">what was open at draft, and how it closed</span></p>
+
+<div class="q">
+  <b>1. Draft the missing feature registers, or wait? <span class="lab ok">sponsor · draft them</span></b>
+  <p>Decided 2026-08-07: draft them. Done the same day — 9 candidates for
+  finance-tracker, 9 for pip, 7 for mac-explorer, each phrased as something the sponsor
+  could watch work and then close, with the open issues that roll up into it. They are
+  <b>awaiting his correction</b>, and nothing has been written into any project. The
+  registers are the gate on the whole-product figure, not on the rest of this proposal.</p>
+</div>
+
+<div class="q">
+  <b>2. Is a feature “done” when its issues close, or when the sponsor says so? <span class="lab mid">AI · split the two</span></b>
+  <p>Taken in-role rather than asked, because proposal 05 already answers it: the
+  sponsor closes features. So the <em>percentage</em> is derived from issues — it is a
+  measurement and nobody needs to maintain it — while <b>done</b> comes only from the
+  register's State column, written by hand. A feature whose tickets are all shut but
+  which the sponsor has not closed renders as <span class="mono">100% · awaiting your
+  close</span>, which is the honest state and also a useful prompt.</p>
+</div>
+
+<div class="q">
+  <b>3. Keep the wall and the per-package bars? <span class="lab mid">AI · wall stays, bars go</span></b>
+  <p>The per-package bars are dropped: with features as the spine they measure the
+  filing structure again — <span class="mono">Now</span> and <span class="mono">Later</span>
+  are not things that finish. Depth inside a big feature is better served by issue #63's
+  burnup chart, which shows scope growth the bars cannot. The wall <em>stays</em>, but
+  not as a region: it already feeds NEEDS YOU, which is where something waiting on the
+  sponsor belongs.</p>
+</div>
+
+<p class="eyebrow">The work <span class="tag">cut into issues, 2026-08-07</span></p>
+<p>One surface again — <code>bin/tower</code>'s render layer and its collectors — so a
+dependency-ordered queue rather than parallel branches, for the same reason proposal 09
+was.</p>
+
+<div class="tablewrap">
+<table>
+  <tr><th>Issue</th><th>Covers</th><th>Blocked by</th></tr>
+  <tr><td class="k"><a href="https://github.com/codeDEXTER/ai-common-rules/issues/64">#64</a><br>
+      handovers and the commit ticker come off the screen</td>
+      <td>change 3 — pure removal, returns ~640px</td><td>—</td></tr>
+  <tr><td class="k"><a href="https://github.com/codeDEXTER/ai-common-rules/issues/65">#65</a><br>
+      a session says what feature it is on, never a branch name</td>
+      <td>changes 1 and 2 — the core</td><td>#64</td></tr>
+  <tr><td class="k"><a href="https://github.com/codeDEXTER/ai-common-rules/issues/66">#66</a><br>
+      what moved today</td>
+      <td>change 4 — progress from git history</td><td>#65</td></tr>
+  <tr><td class="k"><a href="https://github.com/codeDEXTER/ai-common-rules/issues/63">#63</a><br>
+      burnup chart and velocity per project</td>
+      <td>depth inside a feature; replaces the dropped bars</td><td>independent</td></tr>
+</table>
+</div>
+
+<p class="note" style="margin-top:40px">Measured 2026-08-07 against the live estate:
+8 project directories, 4 with a checklist, 1 with a features register, 0 GitHub
+milestones. Nothing in <code>common-rules</code> was modified to write this.</p>
+
+</div>

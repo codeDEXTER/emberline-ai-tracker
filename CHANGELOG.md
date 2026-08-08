@@ -54,6 +54,827 @@ quietly stops checking everything fails the suite.
 Exit codes now read: 0 aligned **or not an adopting project** · 1 behind · 2
 cannot tell.
 
+## 2026-08-08 · 7-DAY reads GitHub now, and REPORT is a live tab
+
+Asked directly: *"why do you measure checklist, why can't you use git to
+measure progress"* — and separately, that the one-off narrative completion
+reports written for a few projects should be "in the app... tracked live."
+
+**7-DAY was still checklist ticks after DONE moved off them.** The previous
+entry fixed the DONE bar to score feature completion from issue closures, but
+PROGRESS's 7-DAY figure kept reading the git log of hand-ticked `- [x]` boxes
+in `CLAUDE-checklist.md` — a session could tick a box with no issue behind it,
+or close an issue and never touch the checklist, and the two numbers on the
+same screen told different stories about the same project. `7-DAY` now builds
+its burnup from the register's own implementing issues' `closedAt`: the same
+denominator `project_completion` already scores DONE from, so the two cannot
+drift apart. A project whose register has no closed implementing issue yet
+still falls back to the checklist history — labelled `checklist` on screen,
+never blended silently with GitHub-sourced numbers.
+
+**REPORT is a new section on every project's page**, sitting above BOARD:
+completion %, features closed, features naming an issue, issues open, issues
+closed in the last 7 days (with an unclaimed-issues callout), velocity, and
+weekly token cost, plus the burnup chart. It costs no new fetches — every
+figure is a rollup of what BOARD and PROGRESS already collect — so it
+refreshes on the same cadence as the rest of the screen.
+
+What it deliberately does not do: the narrative half of those one-off reports
+(a wrong metric caught, dead code found, a missing test named) came from a
+session actually reading code. That is investigation, not a query, and
+nothing in a 5-second collector can re-run it unattended. REPORT says so in
+its own footer rather than implying it replaces the written reports — those
+stay as the historical record; REPORT is the thing that stays current.
+
+## 2026-08-08 · The bar follows features now, and unclaimed closures are visible
+
+Reported: *"in financial tracker i am closing issue, but the progress bar does
+not increase."* Two separate causes, and fixing only one would not have
+satisfied the report.
+
+**The bar showed checklist ticks.** Closing a GitHub issue moves a feature's
+percentage and never ticks a `- [x]` box in `CLAUDE-checklist.md`, so the most
+prominent number on the row measured something the sponsor was not doing. It
+now shows feature completion — the same arithmetic `whole_product` uses across
+the estate, computed once in `project_completion` so the two cannot drift apart.
+Checklist ticks remain the fallback for a project with no register, labelled
+`% items` so it is never read as the same number.
+
+**Measured before fixing anything**, because a bar reading the right thing
+would still barely move: **18 issues closed on finance-tracker in a day, and 17
+of them belong to no declared feature.** Only #127 was inside the register.
+That is why the bar moved to 1% and stayed there — it was correct, and silent
+about almost everything that happened.
+
+So the estate view now says how much work the register does not cover:
+`44 issue(s) closed in the last 7 days that no declared feature claims`. Neither
+this proposal nor this fix decides whether those 44 belong inside a feature or
+are legitimately excluded housekeeping — that is the sponsor's call, per
+`CLAUDE-workflow.md`, and it could not be made while the number was invisible.
+
+One test guards the render path specifically, not just the arithmetic: the unit
+test on `project_completion` passed even when the bar was reverted to checklist
+ticks, because nothing forced `render_all`'s actual HTML to use it. A second test
+against the rendered output catches that regression — verified red before the
+fix, green after.
+
+## 2026-08-08 · Cap the strip, not the table
+
+The previous fix capped `.cell.wide` to stop the sessions strip crowding out the
+estate table. Both regions are wide, so it capped the table as well — the ALL
+view then rendered **3 of 6 projects above a large empty gap**, which is worse
+than the inverted priority it was meant to fix.
+
+A CSS selector matching more than intended fails silently and looks like a
+layout decision. The strip now carries its own class, and a test asserts the
+bare `.cell.wide` rule constrains no height — verified by putting the over-broad
+cap back and watching it go red.
+
+Third fix in a row on the same screen, and the third one that only a screenshot
+could have caught.
+
+## 2026-08-08 · Fits the window it actually ships in
+
+Opening the app — properly, at its real size, for the first time — showed three
+more defects that every check I had run was blind to. The window is roughly
+1180x760 of content; I had designed and verified everything at 1280x900.
+
+**The estate table rendered 3 of 6 projects.** The sessions strip took ~240px
+while the table showing every project got ~80px, so mac-explorer, pip and
+pockets were simply not on screen — on the view whose entire job is "which app
+is stuck". The priority was exactly inverted: the strip is a footnote and was
+being treated as content. It is capped now and the table gets what is left.
+
+**The header said `NEEDS YOU · 8` above five rows**, because drift was still
+counted per project after being consolidated into one line. A header that
+disagrees with the thing directly under it is worse than no header: it makes the
+reader distrust both, which is roughly what "I don't know what to do" sounds
+like.
+
+**A band row was sliced mid-word** — "worst is pip at 34" cut in half at the
+cap. Smaller cap.
+
+None of this was visible to `curl`, to the test suite, or to rendering the same
+HTML at a size the app never uses. The only thing that found it was looking at
+the window.
+
+## 2026-08-08 · The screen was working and useless, which is not the same thing
+
+aashish: *"this app doesnt work. i dont know what to do."*
+
+I had verified every change with `curl` and never once opened the window. It
+renders fine. It is also useless, in three specific ways, all of which I built.
+
+**The headline read `0% of declared scope`** while four features were declared
+**done**. Completion came only from closed implementing issues, and a `built`
+feature names none — the work predates the register. Proposal 05 already settles
+this: the sponsor closes features and his State column is the authority. It now
+reads **13%**. This was the first number on the screen and the one he asked for
+by name.
+
+**The NEEDS YOU band held 8 items, of which 1 was a decision.** The rest were
+rules-drift rows and contested notes. Worse, the drift was largely
+self-inflicted: every merge to common-rules bumps the version, so a day of work
+in this repo pushed every project 28–31 versions behind and the band filled with
+nagging about a number I had moved. #75 capped it at two rows plus a count,
+which was not nearly enough. Drift is a *state*, the header already carries it,
+and one line here says how bad it is and what to run.
+
+That is the second time this exact failure has been built and the second time it
+had to be measured on a live screen to be seen — a signal that never resolves
+becomes wallpaper, and I keep re-creating it one level up.
+
+**A footnote was being sliced in half** by the scrolling region's boundary,
+which reads as a rendering fault. It also cited a closed issue number, which is
+developer chatter on the sponsor's screen. Shortened.
+
+The lesson is not any of the three fixes. It is that "the tests pass and curl
+returns 200" answered a different question from "is this screen any use", and I
+reported the first as though it settled the second, repeatedly, for a day.
+
+## 2026-08-07 · A feature stops being counted as a ticket too
+
+Implements #93, reported as the feature and issue lists being inconsistent —
+which they were, because the same thing was in both.
+
+A feature **is** a GitHub issue; that is how the register identifies it. So every
+declared feature also appeared in the pipeline's queued list. Measured: **32 of
+103 open issues were features**, and `QUEUED` read **95** when the real queue was
+63. Per project it was every single one — 9 of 9, 9 of 9, 7 of 7, 7 of 7.
+
+`pipeline_data` now excludes them from queued, merged and the in-flight mapping.
+`QUEUED` reads 64 (not 63 — filing #93 itself added one, which is the count
+moving correctly).
+
+This is the defect proposal 10 removed once already, arriving from the other
+direction. `IN FLIGHT · 19` counted eighteen git ahead-counts as work; this
+counted features as tickets. **A feature is not a ticket to work — it is the
+thing tickets roll up into**, and listing it as queued invites picking it up as
+one.
+
+The exclusion depends on `collect()` computing features *before* the pipeline, so
+the keys exist to pass in. That ordering is load-bearing and invisible, so a test
+reads the source and asserts it — verified by swapping the order and watching it
+go red. Swapped back silently, nothing else would fail: the queue would just
+quietly grow by 32 again.
+
+## 2026-08-07 · The register is read from main, not from whatever the checkout is parked on
+
+Implements #91. All four registers were merged; the Tower reported three.
+
+pip's register was on `origin/main` while its working checkout sat a commit
+behind, with another session mid-work in it. `feature_data` read
+`proj["path"]/CLAUDE-checklist.md` — the working file — saw no table, and
+reported **"no features declared"** for a project that had declared nine.
+
+**A feature is declared when its register is merged.** Whether a particular
+working copy has pulled is an accident of who is working where, and the answer
+to "what is this product made of" must not move because of it. Same class of
+defect as #73: an answer that quietly depends on local state it does not
+mention.
+
+`origin/main` first, then `main`, then the working file. The order matters and
+is commented, because a *local* main can itself be behind — which is exactly the
+case that produced this. The working file is a last resort rather than an error:
+degrading to *less* scope than exists is the failure mode here, so an
+unreachable remote must not drop a project to zero.
+
+Reading from git also means an uncommitted register edit does not count yet.
+That is correct rather than unfortunate, and it matches the rule the State
+column already follows.
+
+The estate now reports **32 features in 4 of 6 projects**, with pip's checkout
+untouched — the overlap rule says do not reach into a surface another session
+is holding, and fixing the Tower was the better answer than fixing their
+checkout.
+
+**One inconsistency is left open deliberately.** `checklist_progress` — item
+counts, and so the burnup — still reads the working file, so a project can now
+show features from `main` and item counts from a checkout that is behind.
+Aligning them would make declared scope wholly a merged fact; leaving items on
+the working tree keeps them a live signal of what a session is doing. That
+changes what the burnup measures, so it is recorded on #91 for the sponsor
+rather than decided in passing.
+
+## 2026-08-07 · workflow.html catches up with the feature-register rule
+
+#88 changed `CLAUDE-workflow.md` and did not update `docs/workflow.html` in the
+same PR, which is exactly what `docs/README.md` requires and what
+`tests/test_workflow_stamp.py` exists to enforce. **It merged red**: the stamp
+said version 104 against rules at 130.
+
+That test was written this morning, in this repo, for this failure mode — and
+the rule it protects was still broken by the next rules change, by me, hours
+later. The test did its job; the process around it did not, because the PR was
+merged without the suite being run against the merge result rather than against
+the branch.
+
+The page now describes the register rule and is stamped 130.
+
+## 2026-08-07 · Every project keeps a feature register, and the board stops losing features
+
+Two things, found together because landing the first real registers is what
+exposed the second.
+
+**The rule.** `CLAUDE-workflow.md` now requires a `## Features` table in every
+project's `CLAUDE-checklist.md`, in the shape pockets already used and the Tower
+already parses. It is the only answer to "what is this product made of, and how
+much of it is done" — a question the sponsor asked by name and which the estate
+could answer for one project in six.
+
+Worth being explicit about the tension, because it looks like a rule that was
+already refused: **this is not proposal 08's logbook.** That was rejected for
+imposing a per-task append on every session. A register changes when the sponsor
+adds, renames or closes a feature — rare, and his act rather than a session's.
+Nothing here asks a session to write anything when work lands. A project with no
+register still reports "no features declared", never 0%.
+
+**The bug.** Landing the registers immediately showed the board undercounting:
+pockets declares **7** features and the board rendered **6**. The `version 2` one
+parsed as kind `later`, there was no LATER column, and the grouping dropped it —
+silently, since #70 merged. Any state the parser produced without a matching
+column disappeared the same way, and a state the register did not spell out fell
+through to `declared`, which had no column either.
+
+There is now a LATER column, an unstated state parses as `next` rather than into
+nothing, and an unrecognised state is parked in NEXT rather than lost — a
+register can be hand-edited, so an unexpected value is something to correct, not
+a reason for a feature to stop existing. Verified across all four registers:
+7 + 9 + 9 + 7 declared, 32 rendered.
+
+A quiet undercount is worse than a wrong column: the board is meant to answer
+what the product is made of, and an undercount makes it a wrong answer that
+looks right. The guard is verified by removing the LATER column and watching it
+go red.
+
+## 2026-08-07 · The heavy collectors stop blocking the first page too
+
+Follow-on to #86, found by merging #76's cost work into it and measuring the
+combination rather than assuming the two composed.
+
+#86 stopped a render waiting for a *recollect*, but the **first** render is
+deliberately synchronous — a page with no data is worse than a slow first page.
+With cost added, that first page took **57 seconds**. The app looked hung on
+launch, which is a worse defect than the one #86 fixed.
+
+So the three collectors with their own long TTLs — `staleness` (fetches),
+`history_data` and `cost_data` (walk git and every transcript, 26.8s cold) —
+now go through `cached_async`: return whatever is cached immediately, refresh in
+the background. They return None on the very first call, which every one of
+their renderers already treats as absence: no staleness line, no history yet, no
+cost note.
+
+Cold first page: **57s → 5.2s**. Warm: ~2ms. History appears at ~24s, cost at
+~56s, and the window is responsive the whole time. A region arriving a few
+seconds late is far better than a window that will not open.
+
+Their private cache blocks were removed rather than left alongside — two caches
+over one value is how a number ends up stale in a way nobody can reproduce.
+
+One test failure here was the test's fault, not the code's: the single-refresh
+assertion saw two because the previous test's background thread was still alive.
+Fixed with a release event and a join in `tearDown`, since a test that fails
+from its own leftovers teaches the next person to distrust the suite.
+
+## 2026-08-07 · Cost is per week, because per feature attributes nothing
+
+Implements #76, rescoped by measurement rather than by preference.
+
+**Per feature attributes 0%.** Measured across the estate: of 67,393,007 tokens,
+**96.8%** sit in `(main checkout)` and `(management)` pseudo-tasks and **3.1%**
+in worktrees that have since been deleted. Zero was attributable to a declared
+feature. Two structural reasons, neither fixable in the Tower: most work never
+happens in a task worktree at all, and the ones that do have their key —
+the worktree directory — destroyed by the act of landing. Built as originally
+specified, #76 would have shipped a column of dashes and a footer holding all
+the spend. That was reported before writing any of it.
+
+So the unit is the week. **"What did this week cost, and what moved"** sits on
+one line of the PROGRESS section beside the burnup, and a 7-DAY COST column on
+`ALL` makes it comparable across projects. On the live estate that immediately
+reads: finance-tracker **27.6M tokens for +14 items**, common-rules **18.2M**
+against no checklist to move at all.
+
+**`spend` now carries per-day tokens through `tasks_for`.** `_read` already
+counted them and the aggregation dropped them. This matters more than it looks:
+summing whole task totals for tasks that merely *touch* the window overstates
+the estate's week by **4,492,100 tokens — 7.1%** — because a task spanning the
+boundary gets counted entire. That is a wrong answer rather than a rounded one,
+and it was measured by building the tempting version and comparing.
+
+A test asserts **no cost appears against any individual feature**, which is the
+number the data cannot support and therefore the one most likely to be added
+back by someone who has not seen the 0%.
+## 2026-08-07 · A render never waits for a collection
+
+Implements #86, reported by aashish as *"this app is slow and time
+non-responsive. it also shows outdated data."*
+
+**The slowness was real and reproducible.** Measured against the running app:
+every recollect blocked the HTTP response for **~4 seconds**, and with a 5s
+cache against a 10s auto-refresh that meant the window froze for four seconds
+out of every ten.
+
+**The "outdated data" was not.** Checked against ground truth, the rules stamp,
+the decision count and the absent staleness line were all correct. What was
+wrong was *lateness*: the visible page ran up to 14s behind because each refresh
+took 4s to arrive. It read as stale because it was late — a useful distinction,
+because the fix for one is not the fix for the other.
+
+`collect()` now serves the cached snapshot immediately and refreshes in a
+background thread, one at a time. Requests went from ~4s every other hit to
+**~2ms**, warm or cold. The first render still waits, deliberately: a page with
+no data at all is worse than a slow first page.
+
+The cost of not blocking is that a snapshot can be a cycle old, so **the page
+now states its own age** — `data is current` or `data is 9s old · refreshing in
+the background`. A number whose age is visible is honest; a number that is
+silently late is the thing that was reported.
+
+**A far worse defect turned up while measuring.** In the unmerged #76 branch,
+`cost_data` declared `COST_TTL`, `_cost_lock` and `_cost` and never referenced
+them, so it rescanned every transcript on every 5-second collect. Cold, that
+call takes **26.8 seconds**. It would have shipped with #85 and made the app
+close to unusable. Fixed on that branch, and it is the honest argument for
+measuring rather than reviewing: nothing about reading the code made it obvious,
+and the app being slow is what led to it.
+
+The no-blocking guarantee is pinned by tests, verified by reinjecting the old
+inline collect and watching them go red — including one asserting only a single
+background refresh runs at a time, since otherwise a slow sweep spawns a thread
+per request and does the same expensive work many times over.
+
+## 2026-08-07 · The Tower switches by project
+
+Implements #81. The tab bar is the project list now — `ALL · pockets ·
+finance-tracker · …` — and a project page carries everything about that app at
+once: its features by state, its burnup and velocity, its queued and merged
+work, its sessions. No second click, no filtering by eye.
+
+**The lenses are retired rather than re-cut.** BOARD / LEDGER / PROGRESS
+answered a real constraint — six projects' data does not fit in 900px. One
+project's does, so changing the axis removes the need for the split entirely.
+`render_ledger` is deleted with them: a cross-project feature table is exactly
+what a project-first screen does not want.
+
+**NEEDS YOU stays above the tabs and is never filtered**, and that is enforced
+rather than intended: `render_needs_you` takes no project argument, so it cannot
+be filtered by construction. A decision waiting in an app the sponsor is not
+looking at must still reach him, and filtering the band is the tempting
+simplification that would make the screen actively worse. Verified by
+reinjection — adding a `project` parameter turns the guard red.
+
+**The whole-product figure moved from the retired LEDGER to `ALL`.** A statement
+about every project cannot sit on a page showing one.
+
+`?project=` is URL-borne for the reason `?view=` was: the page re-requests
+itself every 10s and DOM state does not survive it. Verified in a browser again
+here — the stamp advanced 20:33:36 → 20:34:21 through a real reload with pockets
+still selected.
+
+Two things worth recording about the build. Deleting `render_ledger` also took
+`sparkline` with it, because that function sat between it and `render_progress`
+— caught by the tests immediately, restored from main, and a reminder that
+cutting by line range between two named functions is only safe if nothing has
+been inserted between them since.
+
+And the screen reported on itself mid-build: the staleness line from #73 read
+*"running 55cbe16 · main is 4 ahead"* while another session's spend work landed.
+That is exactly what #73 was for, and it prompted the merge before this was
+committed rather than a conflict at PR time.
+
+## 2026-08-07
+
+- **`spend` was hiding 88% of what it measured, and now counts management
+  separately.** Reported as "pockets shows zero tasks"; the cause was much
+  wider. Attribution read the **first** `cwd` in a transcript — the launch
+  directory — and a management session launches from `apps/` and only enters a
+  project later via `EnterWorktree`. Every one of them was therefore dropped
+  from every project. `spend today` had been saying management chats are 88% of
+  all spend the whole time; the per-project figures simply excluded them.
+  Measured: pockets reported **0 tasks** on a day it spent 836k output tokens
+  across four agents; finance-tracker reported **4M** against a real **31.7M**.
+
+  Two fixes were tried and rejected before this one, and both are recorded
+  because the reasoning matters more than the patch. *Any cwd inside the
+  project* counts a one-line `cd` in a bash command as a session's work — it
+  put five sessions in two projects at once. *The dominant cwd* stops the
+  double-counting but silently loses a task, because a session that spent more
+  records elsewhere stops being that task at all.
+
+  The accepted split is the sponsor's call: **task rows measure worktree
+  sessions only, and orchestration gets its own row.** A session that spent all
+  its time in exactly one worktree is that task; one that never left the main
+  checkout stays `(main checkout)` as before; one that moved between worktrees
+  is `(management)`. The point is that no single label is honest for a session
+  that legitimately spans ten worktrees — charging it to one over-claims that
+  task and hides nine others.
+
+  What this does not do: split a management session's cost across the tasks it
+  served. That would make every task row a fraction with no session behind it,
+  and it was rejected for the same reason the hand-written log was — a number
+  nobody can trace is not a measurement. Management cost is now visible and
+  attributed to a project; which task inside it consumed what is still unknown.
+## 2026-08-07 · The Tower switches by project, not by lens
+
+Proposal 13, from the sponsor looking at what had just been built: *"rather than
+switching board, ledger and progress, I should be able to switch between
+projects with all details."*
+
+He is right, and the interesting part is why the lenses existed at all. BOARD /
+LEDGER / PROGRESS answered a real constraint — six projects' features, history
+and flow do not fit in 900px, so the estate view had to be cut three ways. But
+**one project's data fits easily**: the largest is pockets at 7 features, 6
+sessions and 9 history points; finance-tracker is 3 sessions and 21 history
+points. Change the axis to project and the split stops being necessary at all,
+rather than needing re-cutting per project. The lenses were the answer to a
+volume problem that disappears when the question changes from "show me a way of
+looking" to "show me one app".
+
+So the tab bar becomes the project list, a project page composes everything that
+already exists filtered to one app, and `ALL` becomes a one-line-per-project
+estate summary.
+
+**NEEDS YOU stays above the tabs and is never filtered.** It is the autopilot's
+blocking state: a decision waiting in an app the sponsor is not currently
+looking at must still reach him, and filtering it is the one change that would
+make the screen actively worse rather than better.
+
+Worth recording plainly: the `ALL` page is almost exactly the **Portfolio**
+option from proposal 11 — the one recommended then and turned down in favour of
+Ledger and Board. That recommendation was wrong *at the time*: as the only view
+it hid individual features behind an expand, and with one register declared it
+had nothing to compare. As a summary above per-project pages it is the right
+shape, because comparison is what a top level is for. Rejecting it as the answer
+and adopting it as the roof are both correct, a day apart.
+
+The costs are stated in the document rather than discovered later: the
+cross-project feature table goes, "everything blocked anywhere" becomes six tab
+visits, and the tab bar grows with the estate — six fit, twelve would need
+grouping.
+
+Cut as #81. #76 (cost per feature) was unblocked by #78 the same hour and
+immediately re-queued behind #81, because cost is a column on a feature list and
+#81 moves where that list lives.
+
+## 2026-08-07 · spend can be asked about a project by path
+
+Implements #78, which exists only to unblock #76 (cost per feature on the
+Tower).
+
+`bin/spend` measured everything through `_tasks_here()`, which derived the repo
+root from the **current working directory** and took no path. The Tower cannot
+use that: its collectors run in a thread pool, and a process-global `chdir`
+there is the kind of race that produces a wrong number occasionally rather than
+an obvious failure — the worst way for a cost figure to be wrong.
+
+So `_repo_root()` takes an optional path, `tasks_for(path=None)` is the public
+form, and `_tasks_here()` is now a thin wrapper over it. **An access change, not
+a measurement one**: task grouping, token counting and the CLI are untouched.
+Checked project by project — the path form and the CLI agree on all five,
+including finance-tracker's 4,018,382 tokens and the two that legitimately have
+none.
+
+**The first version of the no-chdir test was useless and passed anyway.** It
+called `tasks_for(repo)` from inside that same repo, so a reinjected `chdir` to
+that directory changed nothing observable and the guard went green against the
+exact bug it existed to catch. It now runs from outside the project, and
+reinjecting the chdir turns it red.
+
+## 2026-08-07 · The Tower's whole open queue, in one pass
+
+Implements #73, #74, #70, #71, #75, #66 and #63 — every open Tower issue but
+one. All seven touch `bin/tower`, so they went through as a queue on one branch
+rather than as parallel branches racing on a single surface.
+
+**The two corrections came first, and not because they were small.** A screen
+that can be silently stale and an amber warning that is wrong three times in
+five undermine every other number on it.
+
+`#73` — Tower.app runs a pinned checkout refreshed only by
+`build_towerapp.sh --install`, so it falls behind on every merge. Against the
+live pinned copy it was **5 commits behind**; two days behind before today's
+rebuild, serving the pre-proposal-09 screen while every session reported those
+problems fixed. The header says so now, and says nothing when current — a
+permanent line would be the wallpaper problem #75 exists to fix. A checkout
+*ahead* of main is not stale: that is a session working, and warning there would
+put the line on the screens most likely to be read.
+
+`#74` — three of five contested pairs were `AGENT-LOG.md`, which carries
+`merge=ours`. A file with a merge driver cannot conflict; that is the point of
+#44, #45 and #57. It asks `git check-attr` rather than parsing `.gitattributes`,
+so glob rules work and the answer is the one git will use at merge time. A
+failure degrades to warning rather than silence: over-warning is recoverable,
+under-warning hides a real collision.
+
+**PIPELINE is gone, replaced by BOARD / LEDGER / PROGRESS tabs** (#70, #71, #66,
+#63). It replaces rather than joins: PIPELINE was already a board of work by
+state, and a board of *features* by state beside it would have been two boards
+of one shape at different altitudes.
+
+The tabs are links, not CSS state, because the page re-requests itself every
+10 seconds and the DOM does not survive that — measured, then verified in a
+browser by watching the timestamp advance through a real reload with LEDGER
+still selected.
+
+`PROGRESS` is a third tab rather than a sixth region, because the screen is
+900px and detail belongs behind a tab. It draws a burn**up** — two lines, done
+and total — from each checklist's own git log. No new record file and no
+revival of proposal 08's rejected logbook. The gap between the lines is the
+whole point: finance-tracker really went `4/24 → 18/51`, completing 14 items
+in seven days while its percentage fell, because scope grew faster. Nothing is
+smoothed or clamped monotonic — mac-explorer's total genuinely went 8 → 5, and
+a dip is a re-scoping, which is information. Velocity names its window; there is
+no ETA, no projection, no "on track", by the rule proposal 08 set.
+
+**Two things were found by looking rather than by reasoning.** Escalating rules
+drift put *five* rows in the band, because every project is 8–18 versions
+behind — recreating the wallpaper one level up, which is the exact failure #75
+was meant to fix. The worst two get rows and the rest is a count. And
+`project_tag` shortened names into the prose: "idea has never recorded a rules
+version". The tag is built for compact chips, so the band uses full names.
+
+**One test was wrong and the test was fixed, not the code.** A branch name typed
+into the sponsor's own State column is his prose, and rendering it is faithful;
+the defect #65 fixed was the Tower *deriving* labels from directory names. The
+guard now asserts the board and ledger take no worktree argument at all — they
+cannot leak a name by construction.
+
+**#76 is deliberately not implemented, and the reason is recorded in the code.**
+Cost per feature needs `bin/spend`, whose `_tasks_here()` derives the repo root
+from the *current working directory* and takes no path. Reaching it from a
+collector would mean a process-global `chdir` inside a server that fans
+collectors across threads — the kind of race that yields a wrong number
+occasionally rather than an obvious failure. #76 puts changing `spend` out of
+scope and says it is its own issue, so that is where this stops. The join it
+needs already exists: spend keys tasks by worktree name, and `feature_of_issue`
+maps a worktree's issue to a feature.
+
+Tests: 34 → **73 passing**. The new guards were verified by reinjection —
+putting the staleness line back on permanently, and removing the contested
+filter — not by trusting a green run.
+
+## 2026-08-07 · Five things the Tower should know, and doesn't
+
+Proposal 12. Every finding came from using the screen for a day rather than from
+thinking about dashboards, and two of them sharpened under checking.
+
+**The Tower cannot tell you it is stale, and it is stale constantly.** Tower.app
+runs `bin/tower` from a pinned checkout refreshed only by
+`build_towerapp.sh --install`. Measured two hours after a rebuild: the app on
+`208c789`, main on `cd19f10`. It falls behind on every merge. Before that
+rebuild it had been two days behind, serving the pre-proposal-09 screen — the
+truncated names, the 310px void — while every session reported those fixed. A
+status screen that is confidently wrong with no hint that it might be is the
+worst defect one can have, so this is a correction rather than a feature (#73).
+
+**Three of five contested warnings are false by construction.** All three are on
+`AGENT-LOG.md`, which carries `merge=ours` — confirmed in pockets and
+finance-tracker. A file with a merge driver cannot conflict; that is the entire
+point of #44, #45 and #57. `contested_pairs()` is `whoelse`'s logic, predates
+the merge drivers, and has never been told they exist. Three in five is enough
+to teach a person to ignore amber, which costs the two that are real (#74).
+
+**Four million tokens are measured and none reach the screen.** `bin/spend`
+reports 4,018,382 across 8 finance-tracker tasks. Note how it labels them —
+`adoring-euler-ba942f`, `compassionate-bassi-fd5327` — which is exactly the
+branch-name noise proposal 10 removed, and exactly why cost has never been
+useful here. Cost per worktree is trivia; cost per *feature* is a decision.
+#65's register plus `worktree_issue()` is the join that turns one into the
+other (#76).
+
+**A warning that never resolves is wallpaper.** `5 behind: finance-tracker,
+idea-lab, mac-explorer +2` sat unchanged in the header through a dozen merges,
+four proposals and six issues. Against version 114 the real spread is pip 11
+behind, mac-explorer 9, finance-tracker 8, pockets 2, idea-lab never stamped —
+and the screen renders all of them identically. It has to be able to escalate or
+it will be tuned out again within a week (#75).
+
+**The decision queue is under-reported.** Open PRs reach NEEDS YOU only when
+they belong to a worktree with a mapped issue, so a PR from an unmapped branch
+is invisible. How many decisions are waiting, and how long the oldest has
+waited, is the number that says whether the autopilot can keep going without the
+sponsor. The age is the part that matters: four things waiting ten minutes is a
+working autopilot, four waiting two days is a stalled one (#75).
+
+Three things are ruled out in the document rather than left to drift back in:
+no new region (900px is already tight and #70 is about to take PIPELINE's
+space), no forecast of any kind (proposal 08 refused an ETA on four days and #63
+held the line on six — cost and drift both invite "at this rate…"), and no new
+bookkeeping, since every figure above is derivable today and the logbook was
+rejected once already.
+## 2026-08-07 · Three ways to show the features, and the two he picked
+
+Proposal 11, a design exploration rather than a proposal with one answer.
+Building #65 is what made it necessary: the information was right and the
+layout it landed in was the one the deleted regions left behind. Measured on
+the running screen — five "no features declared" lines shouting over the one
+project with real features, every feature title truncating because the region
+sits in the 2fr half of a 3fr/2fr split despite being the spine, blocked
+features drawing an empty bar that reads as 0%, and no whole-product figure
+anywhere.
+
+Three structurally different answers were drawn, not three skins: **A** a
+cross-project feature ledger, **B** a board with columns by state, **C** a
+portfolio of one line per project with the whole-product figure first.
+
+**aashish chose A and B.** Recorded plainly, because it went against the
+recommendation: the paper argued for C first with A later, and argued against
+building B at all on the grounds that it has no home for a completion
+percentage and three of its four columns are empty on today's data. He read
+that and chose otherwise. It is his screen. The original reasoning is left
+unedited in the document so the disagreement stays visible rather than being
+tidied into agreement after the fact.
+
+Taking both raised two questions the options paper never had to answer, and
+both are settled in the document rather than left to be discovered mid-build.
+**The completion figure lives in A's header** — taking A alongside B resolves
+the objection to B instead of overriding it, and B gets no bolted-on figure.
+**The two views do not share one screen**: B is the region on the main screen,
+because "what is running, what is done" answered by position is the job that
+screen exists to do, and **A becomes its own `/features` route**, which is the
+same move the Tower already makes with `/pulse` and `/session/<id>`. A gets
+better as registers land without ever making the main screen taller, and the
+900px budget from #56 is untouched.
+
+Three fixes land with whichever option, since they are corrections rather than
+choices: a blocked feature gets no bar at all, the features region moves to the
+wider column, and undeclared projects collapse to one grouped statement.
+
+**Drawing the merged screen changed one of the two issues before either was
+built.** Assembled, A and B collide in two ways neither had alone. The board and
+the existing PIPELINE are the same widget at different altitudes — one counting
+issues by state, one counting features by state — which is the noise this
+redesign set out to remove, reintroduced somewhere new. And four columns in the
+wider half of a 3fr/2fr split are ~150px each, so titles would truncate *worse*
+than they do now, which is the defect #70 exists to fix.
+
+Both have one answer: **the feature board replaces PIPELINE rather than sitting
+beside it.** It follows from the ask — features, not issues, not branches — and
+it gives the board the full width four columns need. Issue-level flow moves to
+`/features`, where it is detail rather than noise. #70 was rewritten to say so
+before any code was written against it.
+
+**Then the sponsor chose tabs, and a measurement decided how to build them.**
+Both views now live in one full-width region where PIPELINE was, switched by a
+tab — and the obvious dependency-free implementation is broken here. The Tower
+re-requests itself every 10 seconds, and CSS tabs (hidden radios plus a
+`:checked` sibling) hold their state in a DOM that every reload destroys. Tested
+against a 3-second refresh: selecting LEDGER came back on BOARD, while a
+`?view=ledger` query string survived intact.
+
+So the tabs are **links**, and the server renders the chosen view —
+`/?view=board` and `/?view=ledger`. The meta refresh re-requests the current URL
+including its query string, so the choice sticks, and no JavaScript is involved,
+which keeps proposal 09's rule that the Tower's only interaction is a link. It
+also retires the separate `/features` route drafted an hour earlier: a query
+string already is one.
+
+Worth recording as a near miss. Building CSS tabs would have produced a screen
+that silently flipped back to BOARD every ten seconds, and the blame would have
+landed on the tab rather than on a refresh nobody was thinking about.
+## 2026-08-07 · The Tower reads the features register, and names no branches
+
+Implements issue #65, the core of proposal 10. The screen's spine is now each
+project's declared `## Features` table. Nothing is inferred.
+
+**What was actually wrong.** Three sources, all of them the wrong thing:
+worktree directory names, issue title prefixes (`title.split(":")[0]` — two
+issues shared a "feature" only if somebody typed the same words before a
+colon), and `##` headings, which in three of four projects are priority
+buckets. `Now` is not a feature and never finishes.
+
+**No worktree or branch name is rendered anywhere now** — not in a label, not
+in a hover, not in a disclosure. `tests/test_tower_render.py` pins it across
+every renderer that takes a worktree, verified by reinjecting a name into the
+strip's hover and watching the guard go red. The `<details>` listing 18
+worktree names from #51 is a count instead: a worktree with no mapped issue has
+nothing to identify it *by* except its directory.
+
+**The parsing subtlety that would have corrupted every percentage.** A register
+row reads either `in flight — issue #1` or `blocked by #2`. Those are opposite
+facts. Reading every `#N` in the row would have made each blocked feature
+inherit its blocker's progress, so `IMPLEMENTS` and `BLOCKED_BY` are separate
+patterns and only the first ever reaches a figure. On the live register that is
+the difference between "0/1 issues" and five features silently claiming
+Milestone 0's completion.
+
+**Completion is split, per proposal 05.** The percentage is derived from issues
+— a measurement nobody maintains. **Done** comes only from the sponsor's State
+column. A feature whose tickets are all shut but which he has not closed reads
+`100% · awaiting your close`, which is the honest state and a useful prompt.
+
+**Undeclared scope is still not zero.** Only pockets has a register, so
+finance-tracker, pip and mac-explorer read "no features declared — 18/54
+checklist items ticked, against no product definition". Proposal 08's rule, and
+it binds harder here because a completion figure is the thing the sponsor asked
+for by name: a number over an invented denominator would be worse than none.
+`feature_data` calls `PULSE.checklist_progress` rather than counting ticks with
+a local regex, specifically so the "lines that look like items but could not be
+parsed" warning survives instead of being quietly dropped.
+
+**Deleted:** `compute_hulls` (dead since #52), `burnup_data`, `render_burnup`
+and the per-package bars, and the `groups`/`prefix_total` payload that existed
+only to feed the hulls. `AT THE WALL` also went — it named worktrees and said a
+second time what the NEEDS YOU band says first and larger.
+
+Fixed on the way, having been recorded on this issue during #64: the sessions
+summary did not sum. `22 · 0 active, 1 needs you, 4 idle` left 17 of 22
+sessions in no bucket, because the contested branch assigned a class and
+counted nothing. Every session now lands in exactly one bucket and the line
+reads `11 · 1 needs you, 5 contested, 5 idle`.
+
+Also fixed: `graph_err` included `hulls_err`, so a failure inside a collector
+rendered nowhere would have blanked both NEEDS YOU and SESSIONS.
+
+## 2026-08-07 · Handovers and the commit ticker come off the Tower
+
+Implements issue #64, the first of proposal 10's queue. Two regions gone:
+HANDOVERS was two AI sessions coordinating, the EVENT TICKER was commit
+subjects. Neither is something the sponsor needs at a glance — *"I don't want
+to know what internal communication is going on."*
+
+**The point was the space.** At 1280×900 the two regions were 453px and 186px.
+Removing them, and correcting a row template that still declared a row for them,
+**doubled the pipeline's visible height from 211px to 425px** — the region that
+had room for about four rows since #56. Work packages went from 211px to 425px
+against 478px of content, so it now very nearly fits without scrolling at all.
+
+**What was deliberately kept.** `/session/<id>` survives: it is reached from the
+sessions strip, and it still shows what a session last said *and what was handed
+to it*, so the cross-session-message parsing (`_XSM`, `_first_sentence`,
+`resolve_cwd`) stays. Only the region that listed those messages is gone. This
+was checked rather than assumed — the issue asked for exactly that check, and
+`_first_sentence` turned out to be shared between `message_edges` and
+`session_digest`.
+
+**What went with them, which is worth naming.** `collapse_repeats()`, `times()`,
+`_epoch` and `DEDUP_WINDOW` — the byte-identical de-duplication built in #52 —
+had no subject left once both regions went, so they are deleted. That is #52's
+work being removed two commits after it landed, deliberately: the regions it
+made honest are not on the screen any more. Git keeps it if #66 wants it back.
+`session_owner_dirs()` also went; it had already been dead on main.
+
+**Test coverage was retargeted rather than dropped.** The de-duplication tests
+are gone with their subject, but the escaping test — which happened to use
+`render_handovers` — now runs against `render_strip` and `render_needs_you`
+with a payload that also tries to break out of a `title` attribute. Losing that
+guard because the renderer it happened to be written against was deleted would
+have been the quiet kind of regression.
+
+Found while verifying, not fixed here: `render_strip`'s summary line does not
+sum (`22 · 0 active, 1 needs you, 4 idle`) because the contested branch
+increments no counter. Mine, from #52, invisible until many worktrees were
+contested at once. Recorded on #65, which rewrites that function.
+
+## 2026-08-07 · Proposal 10: the Tower has been reporting the plumbing
+
+aashish, on the screen proposal 09 had just finished: *"it doesn't help when you
+are saying some random branch name. What features are done, what is the degree of
+completion of the whole product, and what things are running. I don't want to
+know what internal communication is going on."*
+
+He is right, and the cause is that the Tower reads three things that are all the
+wrong thing: **worktree directory names**, **issue title prefixes**
+(`title.split(":")[0]` — two issues share a "feature" only if someone typed the
+same words before a colon), and **`##` headings in `CLAUDE-checklist.md`**, which
+in three of four projects are priority buckets. `Now` is not a feature and never
+finishes.
+
+**Features already exist as a first-class idea in these very rules** — "the user
+owns features, the AI owns issues" — and **pockets already declares seven** in a
+register with states and linked issues. The Tower has never read it. That is the
+whole diagnosis: not a labelling bug, a wrong source.
+
+**The honest blocker, and it is not the Tower's.** "Degree of completion of the
+whole product" is a fraction, and the denominator exists for **one of four**
+active projects. finance-tracker, pip and mac-explorer have never declared what
+their features are, and there are no GitHub milestones anywhere. A percentage
+across the estate would be a number over an invented denominator — the same lie
+proposal 08 refused when it insisted a project with no checklist reads "no
+declared scope", never 0%. So those three render "no features declared" until
+their registers land.
+
+Draft registers for all three were written the same day and are with the sponsor
+for correction. Creating and scoping features is reserved to him, so they are
+proposals: 9 candidates for finance-tracker, 9 for pip, 7 for mac-explorer, each
+listing the open issues that roll up into it — which is what makes a percentage
+computable, and also the honest test of whether a feature is real.
+
+**Progress does not need the logbook proposal 08 rejected.** The history is
+already on disk and unread: the tick count at any past commit is recoverable from
+`git log` of each checklist, and the register's issues carry real close
+timestamps. finance-tracker has 20 such revisions, pockets 9, pip 11.
+
+Two decisions taken in-role rather than asked. **A feature's percentage comes
+from its issues; "done" comes only from the sponsor's State column** — proposal 05
+already says he closes features, so a feature whose tickets are all shut reads
+"100% · awaiting your close". And **the per-package bars are dropped**: with
+features as the spine they measure the filing structure again.
+
+Cut into a queue on one surface — #64 (handovers and ticker off, pure removal),
+#65 (features as the spine, no branch names anywhere), #66 (what moved today) —
+plus #63 for burnup and velocity, which is independent of all of it.
 
 ## 2026-08-07 · derecord corrects a changed rule instead of freezing it (#57)
 

@@ -3,10 +3,9 @@
 
 Step 2 of concept 07 (`docs/proposals/07-concept-tower.html`, accepted
 2026-08-05): the drawn screen, not just pulse re-rendered behind a port.
-One window, six regions — header, live graph, pipeline, work packages,
-handovers, event ticker —
-built from the same ground truth `pulse` already reads, plus worktree
-file lists (for contested surfaces) and transcript tails (for the wall).
+One window, four regions — header, needs-you band, pipeline, work packages,
+sessions strip — built from the same ground truth `pulse` already reads, plus
+worktree file lists (for contested surfaces) and transcript tails (for the wall).
 
   tower                # serve on 127.0.0.1:8890
   tower --port N       # serve on a different port
@@ -24,11 +23,12 @@ when run inside an agent session; a plain-terminal run prints one line
 saying registration was skipped, since apprun refuses an ownerless entry
 by design.
 
-Step 3 (issue #22) is in: cross-session messages are read from the
-transcripts and listed as HANDOVERS, and every row links through to
-`/session/<id>` — what that session last said, and what was handed to it.
-They are a list rather than edges drawn between graph nodes, which is a
-measurement and not a shortcut; see message_edges() for the numbers.
+HANDOVERS and the EVENT TICKER were removed by issue #64 (proposal 10): two
+AI sessions coordinating, and commit subjects, are plumbing rather than
+anything the sponsor needs at a glance. `/session/<id>` survives them — it is
+reached from the sessions strip now, and still shows what a session last said
+and what was handed to it, which is why the cross-session-message parsing
+below is still here.
 """
 
 import atexit
@@ -44,6 +44,7 @@ import signal
 import string
 import subprocess
 import sys
+import urllib.parse
 import threading
 import time
 from pathlib import Path
@@ -53,6 +54,7 @@ GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
                         "/usr/bin/git") if Path(g).exists()), "git")
 TRANSCRIPTS = Path.home() / ".claude" / "projects"
 CACHE_TTL = 5
+STALE_TTL = 600      # the staleness check fetches; it must not ride the 5s cadence
 DEFAULT_PORT = 8890
 
 # --- reuse pulse's collectors rather than re-deriving the same ground truth ---
@@ -173,10 +175,11 @@ def worktree_issue(path):
     return int(m.group(1)) if m else None
 
 
-# --- handovers: who told what to whom (issue #22, concept 07 step 3) ---
+# --- cross-session messages: read only by the /session/<id> page now.
+# The HANDOVERS region that used to list them came off the screen in #64;
+# session_digest() still reports what was handed to one named session. ---
 
 _XSM = re.compile(r'<cross-session-message\s+from="([^"]*)"\s+name="([^"]*)"[^>]*>', re.S)
-MAX_HANDOVERS = 6
 
 
 def _first_sentence(body, limit=96):
@@ -216,89 +219,6 @@ def resolve_cwd(slug):
             if str(cand).replace("/", "-").replace(".", "-") == slug:
                 return str(cand).replace(str(Path.home()), "~")
     return slug
-
-
-def session_owner_dirs():
-    """sessionId -> the transcript directory holding it. The directory name is
-    the session's cwd with separators flattened, which is how a message is tied
-    back to the worktree that received it."""
-    out = {}
-    if not TRANSCRIPTS.is_dir():
-        return out
-    for d in TRANSCRIPTS.iterdir():
-        if not d.is_dir():
-            continue
-        for f in d.glob("*.jsonl"):
-            out[f.stem] = d.name
-    return out
-
-
-def message_edges(worktrees):
-    """Cross-session messages, newest first.
-
-    Delivered messages are recorded as a `queue-operation` line whose content
-    opens with a `<cross-session-message from="local_<id>" name="<title>">`
-    tag, so both ends and the sender's human title are on the record itself.
-
-    **The sender's title comes from the tag, never from resolving its id.**
-    Measured across the real corpus on 2026-08-06: 15 messages, and only 6
-    senders still had a transcript on disk — the rest were sessions whose
-    worktree and transcript are gone. The tag outlives them, so a handover
-    stays readable ("who found it, who took it, when") after the session that
-    sent it no longer exists. Resolving ids would have lost nine of fifteen.
-
-    That same measurement is why these are a list and not edges drawn between
-    graph nodes, as concept 07 sketched: every message had a worktree at the
-    *receiving* end, but not one had a drawn node at both ends — senders were
-    either gone or were management sessions running at the apps root, which is
-    not a worktree and has no node. Edges would have rendered almost never.
-    """
-    by_dir = {}
-    for w in worktrees:
-        slug = str(w["path"]).replace("/", "-").replace(".", "-")
-        by_dir[slug] = w
-
-    rows = []
-    if not TRANSCRIPTS.is_dir():
-        return rows
-    for d in TRANSCRIPTS.iterdir():
-        if not d.is_dir():
-            continue
-        for f in d.glob("*.jsonl"):
-            try:
-                text = f.read_text(errors="replace")
-            except OSError:
-                continue
-            if "cross-session-message" not in text:
-                continue
-            for line in text.splitlines():
-                if "cross-session-message" not in line:
-                    continue
-                try:
-                    rec = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                content = rec.get("content")
-                if not isinstance(content, str):
-                    continue
-                m = _XSM.search(content)
-                if not m:
-                    continue
-                target = by_dir.get(d.name)
-                rows.append({
-                    "ts": rec.get("timestamp") or "",
-                    "sender": m.group(2) or "(untitled session)",
-                    "sender_id": m.group(1).removeprefix("local_"),
-                    "to_session": rec.get("sessionId") or f.stem,
-                    # The receiving worktree, when it is one this screen draws.
-                    # A message into a checkout with no worktree still shows —
-                    # it happened — it just names the directory instead.
-                    "to_node": target["short"] if target else None,
-                    "to_label": target["short"] if target else d.name.split("--")[0].split("-apps-")[-1],
-                    "summary": _first_sentence(content[m.end():].strip()),
-                })
-    rows.sort(key=lambda r: r["ts"], reverse=True)
-    return rows
 
 
 def session_digest(session_id, max_chars=1400):
@@ -384,9 +304,53 @@ def project_worktrees(proj):
     return result
 
 
+# Merge drivers that RESOLVE a file rather than conflicting on it. `union`
+# keeps both sides, `ours` keeps one -- either way git produces no conflict, so
+# two sessions holding such a file is not a collision (issue #74).
+RESOLVING_DRIVERS = {"union", "ours"}
+
+
+def driver_resolved(project_path, paths):
+    """Which of `paths` have a merge driver that resolves them, per git itself.
+
+    `git check-attr` rather than reading .gitattributes by hand: the patterns
+    are globs (`*.md merge=union` is as valid as a literal filename), and using
+    git's answer means this agrees with what git will actually do at merge
+    time -- which is the whole point of the check.
+
+    Asks the project's own installed file, never the shared template: #57
+    landed precisely because four projects had drifted on this rule, so
+    assuming the template is what is installed would reintroduce that bug.
+    """
+    if not paths:
+        return set()
+    try:
+        r = subprocess.run([GIT, "-C", str(project_path), "check-attr", "merge", "-z", "--"]
+                           + sorted(paths), capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return set()
+        # -z gives NUL-separated triples: path, attr, value
+        fields = r.stdout.split("\0")
+        out = set()
+        for i in range(0, len(fields) - 2, 3):
+            if fields[i + 2] in RESOLVING_DRIVERS:
+                out.add(fields[i])
+        return out
+    except Exception:
+        # Over-warning is recoverable; under-warning hides a real collision.
+        # So a failure here degrades to the old behaviour, not to silence.
+        return set()
+
+
 def contested_pairs(worktrees):
     """Pairs of worktrees (same project) holding an overlapping uncommitted
-    file — bin/whoelse's logic, scoped per project since paths are repo-relative."""
+    file — bin/whoelse's logic, scoped per project since paths are repo-relative.
+
+    Files whose merge driver resolves them are excluded (#74). Measured on the
+    live tree before this: 3 of 5 pairs were AGENT-LOG.md, which carries
+    merge=ours, so they could not conflict by construction. Three in five is
+    enough to teach a person to ignore amber, which costs the two that are real.
+    """
     by_project = {}
     for w in worktrees:
         by_project.setdefault(w["project"], []).append(w)
@@ -396,11 +360,19 @@ def contested_pairs(worktrees):
         for w in group:
             for f in w["files"]:
                 owners.setdefault(f, []).append(w["name"])
-        for f, names in owners.items():
-            if len(names) > 1:
-                for i in range(len(names)):
-                    for j in range(i + 1, len(names)):
-                        pairs.append((names[i], names[j], f))
+        shared = {f for f, names in owners.items() if len(names) > 1}
+        if not shared:
+            continue
+        # run inside a worktree of the project: it has the same .gitattributes
+        # checked out, and w["path"] is a real working directory
+        resolved = driver_resolved(group[0]["path"], shared)
+        for f in shared:
+            if f in resolved:
+                continue
+            names = owners[f]
+            for i in range(len(names)):
+                for j in range(i + 1, len(names)):
+                    pairs.append((names[i], names[j], f))
     return pairs
 
 
@@ -468,7 +440,7 @@ def project_pipeline(proj):
     return {"project": proj["name"], "rows": rows, "groups": groups, "merged": closed}
 
 
-def pipeline_data(worktrees):
+def pipeline_data(worktrees, feature_keys=frozenset()):
     """The pipeline across every discovered project with a remote (issue #35).
 
     Was: the first project carrying a repo, full stop — one project's issues on
@@ -476,26 +448,33 @@ def pipeline_data(worktrees):
     """
     projs = [p for p in projects() if p.get("repo")]
     if not projs:
-        return {"groups": [], "in_flight": [], "in_flight_worktrees": [],
+        return {"in_flight": [], "in_flight_worktrees": [],
                 "queued": [], "queued_more": 0, "merged": [],
-                "issues_by_key": {}, "issue_to_prefix": {}, "prefix_total": {}}
+                "issues_by_key": {}, "issue_to_prefix": {}}
 
-    all_issues, groups, prefix_total, issue_to_prefix, merged = [], [], {}, {}, []
+    all_issues, issue_to_prefix, merged = [], {}, []
     for res in fan_out(project_pipeline, projs):
         name = res["project"]
         all_issues.extend(res["rows"])
         merged.extend(res["merged"])
         for prefix, members in res["groups"]:
-            groups.append((prefix, members))
-            prefix_total[(name, prefix)] = len(members)
             for m in members:
                 issue_to_prefix[issue_key(name, m["number"])] = prefix
+    # A feature IS a GitHub issue -- that is how the register identifies it --
+    # so without this every declared feature also appears as queued work.
+    # Measured: 32 of 103 open issues were features, and QUEUED read 95 when the
+    # real queue was 63. A feature is not a ticket to work; it is the thing
+    # tickets roll up into, and listing it invites picking it up as one (#93).
+    all_issues = [r for r in all_issues
+                  if issue_key(r["project"], r["number"]) not in feature_keys]
+    merged = [r for r in merged
+              if issue_key(r["project"], r["number"]) not in feature_keys]
     all_issues.sort(key=lambda r: (r["project"], r["number"]))
     merged.sort(key=lambda r: (r["project"], r["number"]))
 
     keys = {issue_key(r["project"], r["number"]) for r in all_issues}
     # worktree_issue() (first "#<digits>" in ahead-of-main commit subjects) is
-    # the single mapping — shared with compute_hulls. No branch-name digit
+    # the single mapping. No branch-name digit
     # matching: "stage2"/"v5"/hex worktree suffixes read as #2/#5/etc under
     # that approach, a false-match bug found on the live screen (issue #24).
     # The worktree's own project now scopes that match too, so a worktree in
@@ -516,17 +495,98 @@ def pipeline_data(worktrees):
               if issue_key(r["project"], r["number"]) not in in_flight_keys]
     queued_shown, queued_more = queued[:8], max(0, len(queued) - 8)
 
-    # Shared with the live graph: issue titles (for node labels) and each
-    # issue's feature prefix (for stripping "Prefix: " already shown by the
-    # node's hull, and for compute_hulls itself) — one lookup, built once.
+    # Issue titles by key, for labelling. issue_to_prefix survives only to
+    # strip a redundant "Prefix: " off a title for display — it is NOT a
+    # feature source any more; #65 made the declared register the only one.
     issues_by_key = {issue_key(r["project"], r["number"]): r for r in all_issues}
 
-    return {"groups": groups, "in_flight": in_flight,
+    return {"in_flight": in_flight,
             "in_flight_worktrees": in_flight_worktrees,
             "queued": queued_shown, "queued_more": queued_more,
             "merged": merged[:4],
-            "issues_by_key": issues_by_key, "issue_to_prefix": issue_to_prefix,
-            "prefix_total": prefix_total}
+            "issues_by_key": issues_by_key, "issue_to_prefix": issue_to_prefix}
+
+
+# A project this far behind has stopped being a header count and become
+# something the sponsor has to act on (#75). Named, not inline: it will need
+# tuning once it has been lived with, and a magic number in a conditional is
+# where tuning goes to die.
+DRIFT_ESCALATES_AT = 7          # rules versions
+DRIFT_ROWS_SHOWN = 2            # the rest is a count -- see render_needs_you
+
+
+def decision_queue(projs):
+    """Every open non-draft PR across every project, with how long the oldest
+    has waited (#75).
+
+    NOT derived from worktree mapping, which is what `open_gate_branches` does
+    and why the band under-reports: a PR opened from a branch with no mapped
+    issue is invisible to it. Three were open during the session that found
+    this, one of them from an unrelated session.
+
+    The age is the point. Four things waiting ten minutes is a working
+    autopilot; four waiting two days is a stalled one, and a bare count cannot
+    tell them apart.
+    """
+    def for_project(proj):
+        out = run(["gh", "pr", "list", "-R", proj["repo"], "--state", "open",
+                   "--json", "number,title,isDraft,createdAt", "--limit", "50"])
+        try:
+            rows = json.loads(out) if out else []
+        except json.JSONDecodeError:
+            return []
+        return [{"project": proj["name"], "number": r["number"], "title": r["title"],
+                 "created": r["createdAt"]}
+                for r in rows if not r.get("isDraft")]
+
+    prs = [r for rows in fan_out(for_project, [p for p in projs if p.get("repo")])
+           for r in rows]
+    if not prs:
+        return None
+    oldest = min(_epoch_iso(r["created"]) for r in prs if r["created"])
+    return {"count": len(prs), "oldest": oldest,
+            "projects": sorted({r["project"] for r in prs}),
+            "numbers": sorted(r["number"] for r in prs)}
+
+
+def _epoch_iso(ts):
+    try:
+        return datetime.datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+    except Exception:
+        return time.time()
+
+
+def rules_drift(projs):
+    """Projects far enough behind the shared rules to need the sponsor.
+
+    The header has carried `5 behind: …` unchanged through a whole working day
+    — a permanent warning at constant volume is indistinguishable from
+    decoration. Eleven versions behind is not the same fact as two, and the
+    screen rendered them identically, so the signal has to be able to escalate
+    or it gets tuned out again within a week.
+    """
+    current = PULSE.rules_state(RULES)[0]
+    try:
+        current_n = int(str(current).split("-")[0])
+    except (ValueError, IndexError):
+        return []
+    out = []
+    for proj in projs:
+        if (Path(proj["path"]) / "CLAUDE-workflow.md").exists():
+            continue                      # the rules repo is not behind itself
+        stamped = PULSE.rules_state(proj["path"])[1]
+        if not stamped:
+            # never stamped is its own case, not "0 behind"
+            out.append({"project": proj["name"], "behind": None})
+            continue
+        try:
+            n = int(str(stamped).split("-")[0])
+        except (ValueError, IndexError):
+            continue
+        if current_n - n >= DRIFT_ESCALATES_AT:
+            out.append({"project": proj["name"], "behind": current_n - n,
+                        "stamped": n, "current": current_n})
+    return out
 
 
 def open_gate_branches(projs):
@@ -555,126 +615,505 @@ def open_gate_branches(projs):
     return pairs
 
 
-# --- event ticker ---
+# --- the features register: what the product is made of ---
+#
+# Proposal 10. The Tower used to infer "features" from issue title prefixes
+# (`title.split(":")[0]`), which made two issues share a feature only if
+# somebody typed the same words before a colon, and it labelled sessions with
+# worktree directory names. Neither is a fact about the product. Features are
+# already first-class in CLAUDE-workflow.md -- "the user owns features, the AI
+# owns issues" -- and a project declares them in a `## Features` table. That
+# table is the source now; nothing is inferred.
 
-def last_heading(path, max_len=70):
-    """The last "## ..." markdown heading line in a file, truncated."""
+FEATURE_ROW = re.compile(r"^\|\s*\[?#(\d+)\]?[^|]*\|\s*([^|]+?)\s*\|\s*([^|]*?)\s*\|")
+# "issue #1" / "issues #1, #2" -- an issue that IMPLEMENTS the feature.
+IMPLEMENTS = re.compile(r"issues?\s+((?:#\d+[,\s]*)+)")
+# "blocked by #2, #3" -- a dependency. Counting these as implementing issues
+# would make every blocked feature inherit its blocker's progress, which is
+# the opposite of true, so the two patterns are read separately and only the
+# first ever reaches a percentage.
+BLOCKED_BY = re.compile(r"blocked\s+by\s+((?:#\d+[,\s]*)+)")
+
+
+def _refs(text):
+    return [int(n) for n in re.findall(r"#(\d+)", text or "")]
+
+
+def parse_features(md):
+    """The `## Features` table of a CLAUDE-checklist.md, or [] if it has none.
+
+    Reads only until the next `##`, so a `#123` in a later section cannot be
+    mistaken for a feature row."""
+    lines = md.splitlines()
     try:
-        text = path.read_text(errors="replace")
-    except OSError:
-        return None
-    heading = None
-    for line in text.splitlines():
-        if line.startswith("## "):
-            heading = line.rstrip()
-    if heading is None:
-        return None
-    return heading if len(heading) <= max_len else heading[:max_len - 1] + "…"
-
-
-def agent_log_events(worktrees):
-    """One ticker event per AGENT-LOG.md — main checkouts and every worktree —
-    scope item, silently dropped in the first pass: this is a live signal of
-    recorded decisions, not just commits."""
-    checkouts = [(p["name"], Path(p["path"])) for p in projects()]
-    checkouts += [(w["short"], w["path"]) for w in worktrees]
-    events = []
-    for name, path in checkouts:
-        f = path / "AGENT-LOG.md"
-        if not f.exists():
-            continue
-        heading = last_heading(f)
-        if heading is None:
-            continue
-        try:
-            mtime = f.stat().st_mtime
-        except OSError:
-            continue
-        events.append((mtime, f"agent-log · {name}", "", heading))
-    return events
-
-
-def ticker_data(worktrees):
-    # common-rules used to be appended by hand here because it was absent from
-    # the hardcoded PROJECTS list; discovery finds it like any other app, so
-    # appending it again would double every one of its commits in the ticker.
-    repos = [(p["name"], p["path"]) for p in projects()]
-    events = []
-    for name, path in repos:
-        out = run([GIT, "-C", path, "log", "-4", "--pretty=%ct|%h|%s"])
-        if not out:
-            continue
-        for line in out.splitlines():
-            parts = line.split("|", 2)
-            if len(parts) == 3 and parts[0].isdigit():
-                events.append((int(parts[0]), name, parts[1], parts[2]))
-    events += agent_log_events(worktrees)
-    events.sort(key=lambda e: -e[0])
-    return events[:8]
-
-
-# --- feature hulls (locked concept: group graph nodes by feature) ---
-
-def compute_hulls(worktrees, pipeline):
-    """Worktrees grouped by the same title-prefix feature groups the
-    pipeline uses — mapped only via worktree_issue()'s real match, never
-    invented. Two honest cases render a hull: >=2 mapped nodes sharing a
-    feature (a collision or a team effort), and a single mapped node whose
-    feature has other open issues not currently in flight — a "1 active"
-    hull, so a feature is visible even when only one ticket on it is being
-    worked right now, per issue #25 (a single-mapped feature with no other
-    open issues stays hull-less; there's nothing else on it to show)."""
-    if not pipeline or not pipeline.get("groups"):
+        start = next(i for i, l in enumerate(lines)
+                     if re.match(r"^##\s+Features\b", l))
+    except StopIteration:
         return []
-    issue_to_prefix = pipeline.get("issue_to_prefix", {})
-    # Keyed (project, prefix): the same feature prefix in two repos is two
-    # features, and merging them would draw one hull around unrelated work.
-    prefix_total = pipeline.get("prefix_total", {})
-    by_prefix = {}
-    for w in worktrees:
-        prefix = issue_to_prefix.get(issue_key(w["project"], w.get("issue")))
-        if prefix is None:
+    out = []
+    for line in lines[start + 1:]:
+        if line.startswith("## "):
+            break
+        m = FEATURE_ROW.match(line)
+        if not m:
             continue
-        by_prefix.setdefault((w["project"], prefix), []).append(w["name"])
-    hulls = []
-    for (proj, prefix), names in by_prefix.items():
-        total = prefix_total.get((proj, prefix), len(names))
-        if len(names) >= 2:
-            hulls.append({"prefix": prefix, "total": total, "members": names, "single": False})
-        elif total > 1:
-            hulls.append({"prefix": prefix, "total": total, "members": names, "single": True})
-    return hulls
+        number, title, state = int(m.group(1)), m.group(2).strip(), m.group(3).strip()
+        if title.lower() == "feature":          # the header row
+            continue
+        plain = re.sub(r"\*\*|\[|\]\([^)]*\)", "", state)
+        impl = _refs(IMPLEMENTS.search(plain).group(1)) if IMPLEMENTS.search(plain) else []
+        blocked = _refs(BLOCKED_BY.search(plain).group(1)) if BLOCKED_BY.search(plain) else []
+        low = plain.lower()
+        if "in flight" in low:
+            kind = "in flight"
+        elif blocked:
+            kind = "blocked"
+        elif "version" in low or "later" in low:
+            kind = "later"
+        elif "done" in low or "built" in low or "shipped" in low:
+            kind = "done"
+        elif "next" in low:
+            kind = "next"
+        else:
+            # Declared but unstated: it is queued, not invisible. Falling
+            # through to a kind with no column is how a feature disappears.
+            kind = "next"
+        out.append({"number": number, "title": title, "state": plain,
+                    "kind": kind, "implements": impl, "blocked_by": blocked})
+    return out
 
 
-def burnup_data(projs):
-    """Per-app completion from each project's own CLAUDE-checklist.md.
+def register_source(path):
+    """The checklist as *merged*, not as whatever this checkout is parked on.
 
-    An app without a checklist goes in `undeclared`, never into the figures as
-    a zero — no declared scope is a different statement from none of it done.
+    A feature is declared when its register is merged. Whether a particular
+    working copy has pulled yet is an accident of who is working where, and the
+    answer to "what is this product made of" must not move because of it —
+    measured 2026-08-07, pip's register was merged and on origin/main while its
+    checkout sat a commit behind with another session mid-work, so the Tower
+    reported "no features declared" for a project that had declared nine.
+
+    Same class of defect as #73: an answer that quietly depends on local state
+    it does not mention.
+
+    origin/main first, because a *local* main can itself be behind — which is
+    exactly the case that produced this. The working file is the last resort,
+    for a repo with no remote or no commits yet, and it is a resort rather than
+    an error: degrading to less scope than exists is the failure mode here.
     """
-    apps, undeclared, unparsed = [], [], 0
+    for ref in ("origin/main", "main"):
+        out = run([GIT, "-C", str(path), "show", f"{ref}:CLAUDE-checklist.md"])
+        if out:
+            return out
+    f = Path(path) / "CLAUDE-checklist.md"
+    return f.read_text(errors="replace") if f.exists() else ""
+
+
+def feature_data(projs):
+    """Per project: its declared features, and -- only where a feature names the
+    issues that implement it -- how many of those are closed.
+
+    A project with no register reports `features: None`. It is NOT 0% and not an
+    empty list: proposal 08's rule, that undeclared scope is reported as
+    undeclared rather than as zero, and it matters more here because the whole
+    point of the region is a completion figure the sponsor asked for by name.
+    """
+    out = []
     for proj in projs:
+        feats = parse_features(register_source(proj["path"]))
+        row = {"project": proj["name"], "features": feats or None,
+               "items": None, "unparsed": 0, "closed": {}, "closed_at": {}}
+        # The checklist's own tick count, kept as the honest fallback signal for
+        # a project that has not declared features -- labelled as what it is.
+        # PULSE.checklist_progress rather than a local regex, because it also
+        # reports lines that LOOK like items and could not be parsed, and
+        # proposal 08's rule is that such a line is named rather than allowed to
+        # vanish into a smaller denominator.
         prog = PULSE.checklist_progress(proj["path"])
-        if not prog:
-            undeclared.append(proj["name"])
+        if prog:
+            row["items"] = (prog["done"], prog["total"])
+            row["unparsed"] = prog.get("unparsed", 0)
+        if feats and proj.get("repo"):
+            wanted = sorted({n for f in feats for n in f["implements"]})
+            if wanted:
+                raw = run(["gh", "issue", "list", "-R", proj["repo"], "--state", "all",
+                           "--json", "number,state,closedAt", "--limit", "300"])
+                try:
+                    for r in json.loads(raw) if raw else []:
+                        row["closed"][r["number"]] = r["state"] == "CLOSED"
+                        if r["state"] == "CLOSED":
+                            row["closed_at"][r["number"]] = (r.get("closedAt") or "")[:10]
+                except json.JSONDecodeError:
+                    pass
+        out.append(row)
+    return out
+
+
+def feature_of_issue(features, issue):
+    """The feature an issue implements, or None. Never guessed from a name."""
+    if issue is None:
+        return None
+    for f in features or []:
+        if issue in f["implements"]:
+            return f
+    return None
+
+
+# --- history: what moved, and how fast (issues #66, #63) ---
+#
+# No new record file, and no revival of proposal 08's logbook, which was
+# proposed and rejected. The history is already on disk and unread: the tick
+# count at any past commit of CLAUDE-checklist.md is recoverable directly.
+# Measured depth today: finance-tracker 20 revisions, pip 11, pockets 9,
+# mac-explorer 5, spanning six days.
+
+HISTORY_TTL = 900        # walks git log; must not ride the 5s cadence
+HISTORY_REVISIONS = 30
+
+
+def checklist_history(proj):
+    """[(date, done, total)] oldest first, from the checklist's own git log."""
+    path = proj["path"]
+    shas = run([GIT, "-C", path, "log", "--follow", "--format=%h %cs",
+                f"-{HISTORY_REVISIONS}", "--", "CLAUDE-checklist.md"])
+    if not shas:
+        return []
+    out = []
+    for line in reversed(shas.splitlines()):
+        parts = line.split()
+        if len(parts) != 2:
             continue
-        unparsed += prog["unparsed"]
-        apps.append({"name": proj["name"], "done": prog["done"],
-                     "total": prog["total"], "packages": prog["packages"]})
-    apps.sort(key=lambda a: -a["total"])
-    return {"apps": apps, "undeclared": undeclared, "unparsed": unparsed}
+        sha, date = parts
+        blob = run([GIT, "-C", path, "show", f"{sha}:CLAUDE-checklist.md"])
+        if blob is None:
+            continue
+        done = len(re.findall(r"(?m)^- \[x\]", blob))
+        total = len(re.findall(r"(?m)^- \[[ x]\]", blob))
+        if total:
+            out.append((date, done, total))
+    return out
+
+
+def issue_close_history(row):
+    """[(date, done, total)] oldest first, built from the register's own
+    implementing issues' `closedAt` — GitHub's record, not a hand-ticked
+    checkbox (the sponsor's "why do you measure checklist, why can't you use
+    git" question).
+
+    `done` counts distinct implementing issues closed by each date, out of
+    every implementing issue any declared feature names; `total` is that same
+    denominator throughout. These are exactly the issues feature_pct() already
+    scores the DONE bar from, so this series and that bar are answers to the
+    same question and cannot drift apart the way checklist ticks and issue
+    closures used to -- a session could tick a box with no issue behind it, or
+    close an issue and never touch the checklist, and 7-DAY reported the
+    first while DONE reported the second.
+
+    None where a project has declared features but none of their implementing
+    issues has ever closed -- there is no history to plot yet, not a zero one.
+    """
+    feats = row.get("features") or []
+    impl = sorted({n for f in feats for n in f["implements"]})
+    if not impl:
+        return None
+    closed_at = row.get("closed_at") or {}
+    per_date = {}
+    for n in impl:
+        d = closed_at.get(n)
+        if d:
+            per_date[d] = per_date.get(d, 0) + 1
+    if not per_date:
+        return None
+    total = len(impl)
+    points, running = [], 0
+    for date in sorted(per_date):
+        running += per_date[date]
+        points.append((date, running, total))
+    today = datetime.date.today().isoformat()
+    if points[-1][0] != today:
+        points.append((today, running, total))
+    return points
+
+
+_hist_lock = threading.Lock()
+_hist = {"ts": 0, "data": None}
+
+
+def _history_now(projs, features):
+    """Per project history: GitHub issue closures where a register names them,
+    the checklist's own git log only where it doesn't (a project with no
+    declared features has no implementing issues to measure against).
+
+    Cached hard alongside the checklist fallback: the fallback path alone is
+    ~30 `git show` calls per project.
+    """
+    by_name = {r["project"]: r for r in (features or [])}
+    out = []
+    for proj in projs:
+        row = by_name.get(proj["name"])
+        h = issue_close_history(row) if row else None
+        source = "issues"
+        if h is None or len(h) < 2:
+            h = checklist_history(proj)
+            source = "checklist"
+        if len(h) >= 2:
+            out.append({"project": proj["name"], "points": h, "source": source})
+    return out
+
+
+def velocity(points, days=7):
+    """Items completed over the last `days`, as a MEASUREMENT of what happened.
+
+    Explicitly not a forecast. Proposal 08 refused an ETA on four active days
+    and #63 held the same line on six; a rate is a fact about the past, a date
+    is a claim about the future, and only the first is supportable here.
+    """
+    if len(points) < 2:
+        return None
+    cutoff = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+    window = [p for p in points if p[0] >= cutoff] or points[-2:]
+    return window[-1][1] - window[0][1], days
+
+
+def moved(points):
+    """(done_from, done_to, total_from, total_to) for today, or None.
+
+    Scope growth is reported alongside completion because the two together are
+    the only honest summary: finance-tracker went 9/25 to 16/51, completing
+    seven items while its percentage FELL from 36% to 31%.
+    """
+    if len(points) < 2:
+        return None
+    today = datetime.date.today().isoformat()
+    todays = [p for p in points if p[0] == today]
+    if not todays:
+        return None
+    before = [p for p in points if p[0] < today]
+    base = before[-1] if before else points[0]
+    last = todays[-1]
+    if base[1] == last[1] and base[2] == last[2]:
+        return None
+    return base[1], last[1], base[2], last[2]
+
+
+# NOTE: cost per feature (#76) is NOT implemented here, deliberately.
+# `bin/spend` groups tasks via `_tasks_here()`, which derives the repo root from
+# the *current working directory* and takes no path. Reaching it from a
+# collector would mean chdir-ing inside a server that fans collectors out across
+# threads, and a process-global chdir is exactly the kind of race that produces
+# a wrong number occasionally rather than an obvious failure.
+#
+# #76 puts "changing bin/spend itself" out of scope and says it is its own
+# issue, so that is where this stops. The join it needs already exists here --
+# spend keys tasks by worktree name, and feature_of_issue() maps a worktree's
+# issue to a feature -- so once spend exposes a path-taking entry point this is
+# a small function, not a redesign.
+
+
+# --- cost, by week (issue #76) ---
+#
+# NOT per feature. Measured 2026-08-07 across the whole estate: of 67,393,007
+# tokens, 96.8% sit in `(main checkout)` and `(management)` pseudo-tasks and
+# 3.1% in worktrees that have since been deleted -- **0% was attributable to a
+# declared feature**, and structurally so: most work never happens in a task
+# worktree, and the ones that do have their key destroyed when they land.
+#
+# So the unit is the week, not the feature. "What did this week cost, and what
+# moved" is answerable from data that exists, and it pairs with the burnup
+# rather than needing a durable per-task key that nothing writes.
+
+COST_TTL = 900
+COST_WINDOW_DAYS = 7
+
+_cost_lock = threading.Lock()
+_cost = {"ts": 0, "data": None}
+
+
+def load_spend():
+    path = RULES / "bin" / "spend"
+    loader = importlib.machinery.SourceFileLoader("tower_spend", str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def _cost_now(projs):
+    """Tokens per project: the last COST_WINDOW_DAYS, and all time.
+
+    Reads `spend.tasks_for(path)` -- no chdir, per #78 -- and sums the per-day
+    counters it now carries. Summing task totals inside a date window would
+    count a task that merely *spans* the window whole, which is a wrong answer
+    rather than a rounded one.
+    """
+    try:
+        spend = load_spend()
+    except Exception:
+        return None
+    cutoff = (datetime.date.today()
+              - datetime.timedelta(days=COST_WINDOW_DAYS)).isoformat()
+    out = {}
+    for proj in projs:
+        try:
+            _, tasks = spend.tasks_for(proj["path"])
+        except Exception:
+            continue
+        week = total = 0
+        for t in tasks:
+            total += t.get("out") or 0
+            for day, tok in (t.get("days") or {}).items():
+                if day >= cutoff:
+                    week += tok
+        if total:
+            out[proj["name"]] = {"week": week, "total": total}
+    return out
+
+
+def human_tokens(n):
+    if n >= 1_000_000:
+        return f'{n / 1_000_000:.1f}M'
+    if n >= 1_000:
+        return f'{n // 1000}k'
+    return str(n)
 
 
 # --- collect everything, cached ---
 
 _cache_lock = threading.Lock()
 _cache = {"ts": 0, "data": None}
+_refresh_lock = threading.Lock()
+_refresh = {"running": False}
+_stale_lock = threading.Lock()
+_stale = {"ts": 0, "data": None}
+
+
+def _staleness_now():
+    """Is the code rendering this page behind origin/main? (issue #73)
+
+    Tower.app runs bin/tower from a pinned checkout refreshed only by
+    `build_towerapp.sh --install`, so it falls behind on every merge. Measured
+    two hours after one rebuild: the app on 208c789, main on cd19f10. Before
+    that it had been two days behind, serving the pre-proposal-09 screen while
+    every session reported those problems fixed.
+
+    A status screen that is confidently wrong with nothing hinting at it is the
+    worst defect one can have, so this is a correction, not a feature.
+
+    Cached separately and for far longer than everything else: it needs a
+    `git fetch`, and the thing it measures changes on merge, not every 5s.
+    Returns None when current, or when anything at all goes wrong — silence is
+    the right failure mode for a check whose whole job is to be quiet until it
+    is not.
+    """
+    out = None
+    try:
+        # RULES is the parent of the running bin/tower, so this measures the
+        # checkout actually serving the page -- the app's pinned copy, or a
+        # worktree if tower was started from one.
+        subprocess.run([GIT, "-C", str(RULES), "fetch", "origin", "--quiet"],
+                       capture_output=True, timeout=25)
+        here = run([GIT, "-C", str(RULES), "rev-parse", "--short", "HEAD"])
+        behind_ahead = run([GIT, "-C", str(RULES), "rev-list",
+                            "--left-right", "--count", "HEAD...origin/main"])
+        if here and behind_ahead:
+            ahead, behind = (int(n) for n in behind_ahead.split())
+            # Only "behind" is stale. A worktree ahead of main is a session
+            # doing its job, and calling that stale would make the line noise
+            # on precisely the screens most likely to be read.
+            if behind > 0:
+                out = {"here": here, "behind": behind}
+    except Exception:
+        out = None
+    return out
+
 
 
 def collect():
+    """The cached snapshot, refreshed in the background. Never blocks a render.
+
+    It used to collect inline whenever the cache had expired, which made every
+    page load wait for the whole sweep. Measured against the running app: ~4s
+    per recollect, with a 5s cache and a 10s auto-refresh — so the window was
+    frozen for four seconds out of every ten, and the visible clock ran up to
+    14s late. That read as "outdated data" when the data was in fact correct
+    and merely arriving late (#86).
+
+    The cost of not blocking is that a render can serve a snapshot up to one
+    refresh-cycle old. That is stated on the screen rather than hidden: see
+    `data_age()` and the footer. A number whose age is visible is honest; a
+    number that is silently late is the thing being fixed.
+    """
     with _cache_lock:
-        if _cache["data"] is not None and time.time() - _cache["ts"] < CACHE_TTL:
-            return _cache["data"]
+        data, ts = _cache["data"], _cache["ts"]
+    if data is not None:
+        if time.time() - ts >= CACHE_TTL:
+            _refresh_async()          # returns immediately
+        return data
+    # Nothing cached yet: the first render has to wait, because a page with no
+    # data at all is worse than a slow first page.
+    return _collect_now()
+
+
+def cached_async(store, lock, ttl, fn, *args):
+    """Whatever is cached, right now — and a background refresh if it is stale.
+
+    For the collectors with their own long TTLs: `staleness` fetches, and
+    `history_data` and `cost_data` walk git and every transcript. Measured cold,
+    cost alone is 26.8s, and running all three inside the first synchronous
+    collect made the app's very first page load **57 seconds** — it looked hung
+    on launch.
+
+    Returns None the first time, which every caller already renders as absence:
+    no staleness line, no history yet, no cost note. A region that appears a few
+    seconds late is far better than a window that does not open.
+    """
+    with lock:
+        data, ts, running = store["data"], store["ts"], store.get("running")
+    if data is None or time.time() - ts >= ttl:
+        if not running:
+            with lock:
+                if store.get("running"):
+                    return data
+                store["running"] = True
+
+            def run():
+                try:
+                    got = fn(*args)
+                    with lock:
+                        store["data"], store["ts"] = got, time.time()
+                finally:
+                    with lock:
+                        store["running"] = False
+
+            threading.Thread(target=run, daemon=True).start()
+    return data
+
+
+def _refresh_async():
+    """Start one background refresh, never a second concurrent one."""
+    with _refresh_lock:
+        if _refresh["running"]:
+            return
+        _refresh["running"] = True
+
+    def run():
+        try:
+            _collect_now()
+        finally:
+            with _refresh_lock:
+                _refresh["running"] = False
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+def data_age():
+    """Seconds since the served snapshot was collected, or None if never."""
+    with _cache_lock:
+        ts = _cache["ts"]
+    return None if not ts else int(time.time() - ts)
+
+
+def _collect_now():
 
     def safe(fn, *a):
         try:
@@ -710,13 +1149,26 @@ def collect():
 
     header, header_err = safe(build_header)
 
+    # Features are computed BEFORE the pipeline and passed in, so the pipeline
+    # can exclude them from the issue lists. The ordering is load-bearing and
+    # invisible otherwise (#93).
+    features, features_err = safe(feature_data, projs)
+    feature_keys = frozenset(issue_key(r["project"], f["number"])
+                             for r in (features or [])
+                             for f in (r["features"] or []))
+
     contested, contested_err = safe(contested_pairs, worktrees)
     wall, wall_err = safe(wall_items, worktrees)
-    pipeline, pipeline_err = safe(pipeline_data, worktrees)
-    ticker, ticker_err = safe(ticker_data, worktrees)
-    burnup, burnup_err = safe(burnup_data, projs)
-    handovers, handovers_err = safe(message_edges, worktrees)
-    hulls, hulls_err = safe(compute_hulls, worktrees, pipeline)
+    pipeline, pipeline_err = safe(pipeline_data, worktrees, feature_keys)
+    # never inline: see cached_async. Absent on the first render, present on
+    # the next -- which is why every one of these renders absence cleanly.
+    stale = cached_async(_stale, _stale_lock, STALE_TTL, _staleness_now)
+    queue, queue_err = safe(decision_queue, projs)
+    drift, drift_err = safe(rules_drift, projs)
+    history = cached_async(_hist, _hist_lock, HISTORY_TTL, _history_now, projs, features)
+    history_err = None
+    cost = cached_async(_cost, _cost_lock, COST_TTL, _cost_now, projs)
+    cost_err = None
     gate_branches, gate_err = safe(open_gate_branches, projs)
 
     # Node labels (issue title, prefix stripped) — shared lookup from the
@@ -766,10 +1218,12 @@ def collect():
         "contested": contested or [], "contested_err": contested_err,
         "wall": wall or [], "wall_err": wall_err,
         "pipeline": pipeline, "pipeline_err": pipeline_err,
-        "ticker": ticker or [], "ticker_err": ticker_err,
-        "burnup": burnup, "burnup_err": burnup_err,
-        "handovers": handovers, "handovers_err": handovers_err,
-        "hulls": hulls or [], "hulls_err": hulls_err,
+        "features": features or [], "features_err": features_err,
+        "stale": stale,
+        "queue": queue, "queue_err": queue_err,
+        "drift": drift or [], "drift_err": drift_err,
+        "history": history or [], "history_err": history_err,
+        "cost": cost or {}, "cost_err": cost_err,
         "needs_input": needs_input, "gate_err": gate_err,
     }
     with _cache_lock:
@@ -827,6 +1281,7 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
          text-align:right; }
 .hdr-r p { margin:0 0 var(--gap-1); }
 .wall-hd { color:var(--purple); font-weight:700; letter-spacing:.1em; }
+.stale { color:var(--amber); }   /* stale is not broken -- amber, not red */
 
 /* --- the region grid: columns are a grid concern, so a short column can
    never be padded to a tall one. That padding was the 310px void. --- */
@@ -841,7 +1296,9 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
    1,792px in half an hour purely because worktrees were added. Cutting lists
    to fit only moves that number, it does not stop it moving — measured, even
    deleting the whole pipeline left 1,196px against a 900px budget, because
-   work packages and handovers set the floor.
+   work packages and handovers set the floor. (Handovers came off in #64,
+   which is why there is headroom now — the cap stays: the point was never
+   those particular regions, it was that height tracked the size of the tree.)
    So the regions are capped and scroll inside themselves instead. The page
    fits by construction and stops tracking the size of the tree. Nothing is
    dropped and nothing is hidden behind a disclosure.
@@ -854,10 +1311,16 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
   /* The band is the most important thing on the screen and still must not own
      it: unbounded, three waiting items took 28% of the height and squeezed the
      pipeline to 165px. Capped, it scrolls like everything else. */
-  .band { flex:0 0 auto; max-height:22vh; overflow-y:auto; }
+  /* Small enough that the region below is usable, and the rows inside are a
+     grid so a partly-scrolled row is a whole card rather than a sliced one. */
+  .band { flex:0 0 auto; max-height:19vh; overflow-y:auto; }
   .grid { flex:1 1 auto; min-height:0;
-          /* the work and its progress get more room than the two logs below */
-          grid-template-rows:minmax(0,1.5fr) minmax(0,1fr) auto;
+          /* Two rows now, not three: #64 took handovers and the ticker off, and
+             a template still declaring their row left the sessions strip in a
+             1fr track it does not need (211px for 123px of dots) plus an empty
+             third track. The work takes everything left over; the strip sizes
+             to its content. */
+          grid-template-rows:minmax(0,1fr) auto;
           /* stretch, not start: with align-items:start a grid item sizes to
              its content and simply overflows its track, so the cap never
              binds and the overflow lands back on the page. */
@@ -865,7 +1328,12 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
   /* min-height:0 is the load-bearing half — without it a grid item refuses to
      shrink below its content and the overflow moves back onto the page. */
   .grid > .cell { overflow-y:auto; min-height:0; }
-  .grid > .cell.wide { overflow:hidden; }   /* the strip row sizes to content */
+  /* Cap the STRIP only. Capping `.cell.wide` capped the projects table too —
+     both are wide — so the estate view rendered 3 of 6 projects above a large
+     empty gap, which is worse than the inverted priority it was meant to fix.
+     The strip is a footnote; the table is the content and takes what is left. */
+  .grid > .cell.wide { overflow-y:auto; }
+  .grid > .cell.strip-cell { max-height:20vh; }
   .foot { flex:0 0 auto; margin-top:var(--gap-2); }
   /* the region title stays put while its list scrolls under it */
   .cell > .rgn > .ht { position:sticky; top:0; z-index:1;
@@ -932,41 +1400,82 @@ a.dot:hover { outline:1px solid var(--ink); }
 .more > summary { font-family:var(--mono); font-size:10px; color:var(--dim);
                   cursor:pointer; padding:var(--gap-1) 0; }
 .more > summary:hover { color:var(--ink); }
-.xn { color:var(--dim); }
 
-/* --- work packages: one grid, so the figure sits beside its own bar
-   instead of at a hardcoded x 700px from the label --- */
-.pkgs { display:grid; grid-template-columns:minmax(120px,1.4fr) 3fr auto auto;
-        gap:var(--gap-1) var(--gap-2); align-items:center; margin-top:var(--gap-2); }
-.pkgs .nm { font-size:12.5px; font-weight:600; min-width:0; }
-.pkgs .nm.sub2 { font-family:var(--mono); font-size:10px; font-weight:400;
-                 color:var(--dim); padding-left:var(--gap-2); }
-.pkgs .fig { font-family:var(--mono); font-size:11px; text-align:right; white-space:nowrap; }
-.pkgs .note { font-family:var(--mono); font-size:9.5px; color:var(--dim); white-space:nowrap; }
+/* --- features: the spine, full width, two tabs --- */
+.tabs { display:flex; gap:var(--gap-1); margin:var(--gap-2) 0; }
+.tab { font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+       padding:5px 14px; border:1px solid var(--edge); border-radius:6px;
+       color:var(--dim); text-decoration:none; }
+.tab.on { color:var(--ink); border-color:var(--green); background:var(--card-2); }
+.tab:hover { color:var(--ink); }
+
+.board { display:grid; grid-template-columns:repeat(4,1fr); gap:var(--gap-3);
+         align-items:start; margin-top:var(--gap-2); }
+.board .col { min-width:0; }
+.fcard { background:var(--card); border:1px solid var(--edge); border-radius:9px;
+         padding:var(--gap-2); margin-bottom:var(--gap-1); min-width:0; }
+.fc-t { font-size:12.5px; font-weight:600; margin:0; }
+.fc-m { font-family:var(--mono); font-size:9.5px; color:var(--dim);
+        margin:var(--gap-1) 0 0; }
+
+.ledger { display:grid; gap:var(--gap-1) var(--gap-2); margin-top:var(--gap-2);
+          grid-template-columns:auto auto minmax(200px,2.4fr) minmax(140px,1fr) minmax(0,1.1fr);
+          align-items:center; }
+.lh { font-family:var(--mono); font-size:9.5px; letter-spacing:.09em; color:var(--dim); }
+.lst { font-family:var(--mono); font-size:9px; letter-spacing:.06em;
+       padding:2px 6px; border-radius:3px; background:var(--edge);
+       color:var(--ink); white-space:nowrap; }
+.lst.in-flight { background:var(--green); color:var(--bg); }
+.lst.blocked { background:var(--amber); color:var(--bg); }
+.lst.later { background:var(--purple); color:var(--bg); }
+.lprog { display:flex; align-items:center; gap:var(--gap-1); min-width:0; }
+.wp { font-family:var(--mono); font-size:11px; color:var(--dim); margin:var(--gap-2) 0 0; }
+.wp b { font-family:var(--sans); font-size:22px; color:var(--ink); }
+
+.phead { font-family:var(--mono); font-size:11px; letter-spacing:.08em;
+         color:var(--ink); margin:var(--gap-3) 0 var(--gap-1); }
+.estate { display:grid; gap:var(--gap-1) var(--gap-3); margin-top:var(--gap-2);
+          grid-template-columns:minmax(120px,1fr) minmax(160px,2fr)
+                                minmax(130px,1.2fr) auto auto auto minmax(0,1fr);
+          align-items:center; }
+.estate .pname { font-size:13px; font-weight:600; text-decoration:none;
+                 color:var(--ink); }
+.estate .pname:hover { color:var(--purple); }
+
+.prog { display:grid; grid-template-columns:minmax(110px,1fr) auto auto minmax(0,2.4fr);
+        gap:var(--gap-2) var(--gap-3); align-items:center; margin-top:var(--gap-2); }
+.pname { font-size:12.5px; font-weight:600; }
+.pchart { width:260px; }
+.pfig { font-family:var(--mono); font-size:11px; text-align:right; white-space:nowrap; }
+.pnote { font-family:var(--mono); font-size:9.5px; color:var(--dim); min-width:0; }
+.spark { width:260px; height:44px; display:block; }
+.spark polyline { fill:none; stroke-width:1.6; vector-effect:non-scaling-stroke; }
+.sp-total { stroke:var(--edge); }
+.sp-done { stroke:var(--green); }
+
+.report { display:grid; grid-template-columns:repeat(auto-fit,minmax(128px,1fr));
+          gap:var(--gap-2); margin-top:var(--gap-2); }
+.rcard { background:var(--card); border:1px solid var(--edge); border-radius:9px;
+         padding:var(--gap-2); min-width:0; }
+.rcard .n { font-family:var(--sans); font-size:21px; font-weight:700; color:var(--ink); }
+.rcard .k { font-family:var(--mono); font-size:9.5px; color:var(--dim);
+            margin-top:4px; }
+.rchart { margin-top:var(--gap-3); }
+.rchart .spark { width:100%; height:64px; }
+
+.f-fig { font-family:var(--mono); font-size:11px; white-space:nowrap; }
+.f-none { font-family:var(--mono); font-size:10px; color:var(--dim);
+          margin:var(--gap-3) 0 0; }
+.warn { color:var(--amber); }
+.await { color:var(--purple); font-family:var(--mono); font-size:10px; }
+.dim { color:var(--dim); }
+.strip-grp { font-family:var(--mono); font-size:10px; color:var(--dim);
+             margin:var(--gap-2) 0 var(--gap-1); }
 .bar { background:var(--trk); border-radius:4px; height:9px; width:100%; overflow:hidden; }
 .bar.thin { height:7px; }
 .bar > i { display:block; height:100%; border-radius:4px; background:var(--green); }
 .bar > i.warn { background:var(--amber); }
 .bar > i.soft { opacity:.8; }
-
-/* --- handovers --- */
-.hand { display:block; text-decoration:none; color:inherit;
-        background:var(--card-2); border:1px solid var(--edge);
-        border-radius:5px; padding:var(--gap-2); margin-bottom:var(--gap-1); }
-.hand:hover { border-color:var(--purple); }
-.hand .top { display:flex; justify-content:space-between; gap:var(--gap-2);
-             font-family:var(--mono); font-size:10.5px; }
-.hand .who { min-width:0; }
-.hand .when { color:var(--dim); white-space:nowrap; }
-.hand .smry { font-family:var(--mono); font-size:9.5px; color:var(--dim);
-              margin-top:var(--gap-1); }
-
-/* --- ticker --- */
-.tick { display:grid; grid-template-columns:auto auto 1fr; gap:var(--gap-2);
-        font-family:var(--mono); font-size:10.5px; color:var(--dim);
-        padding:3px 0; align-items:baseline; }
-.tick .repo { color:var(--ink); font-weight:700; white-space:nowrap; }
-.tick .t { white-space:nowrap; }
 
 .foot { font-family:var(--mono); font-size:10.5px; color:var(--dim);
         margin-top:var(--gap-4); padding-top:var(--gap-2);
@@ -1010,7 +1519,8 @@ def contested_notes(contested):
     return notes
 
 
-def render_needs_you(worktrees, needs_input, contested):
+def render_needs_you(worktrees, needs_input, contested, features=None,
+                     queue=None, drift=None):
     """The band, first and largest (issue #51).
 
     Of 23 session nodes on the live tree exactly two carried state, and they
@@ -1027,11 +1537,15 @@ def render_needs_you(worktrees, needs_input, contested):
         w = by_name.get(name)
         if not w:
             continue
-        title = w.get("issue_title") or w["short"]
+        title = w.get("issue_title") or f'{project_tag(w["project"])} work'
         meta = [info["why"]]
         if w.get("issue_title"):
             meta.insert(0, f'{project_tag(w["project"])} #{w["issue"]}')
-        meta.append(e(w["short"]))
+        # the feature it moves, where one is declared — never the worktree (#65)
+        by_project = {r["project"]: r["features"] for r in (features or [])}
+        feat = feature_of_issue(by_project.get(w["project"]), w.get("issue"))
+        if feat:
+            meta.insert(0, feat["title"])
         if info.get("age"):
             meta.append(f'{info["age"]}')
         rows.append(
@@ -1049,8 +1563,58 @@ def render_needs_you(worktrees, needs_input, contested):
         rows.append(
             f'<div class="you-row cont"><p class="you-ttl clamp2" '
             f'title="{e(f)}">Contested · {e(f)}</p>'
-            f'<p class="you-meta clamp1">{e(short_name(a))} ↔ {e(short_name(b))} '
-            f'· both holding the same uncommitted file</p></div>')
+            f'<p class="you-meta clamp1">two sessions are both holding the '
+            f'same uncommitted file</p></div>')
+
+    # Decisions waiting on him, counted from every open non-draft PR rather
+    # than from worktree mapping -- a PR from an unmapped branch was invisible.
+    if queue:
+        nums = ", ".join(f'#{n}' for n in queue["numbers"][:6])
+        more = f' +{len(queue["numbers"]) - 6}' if len(queue["numbers"]) > 6 else ""
+        rows.insert(0,
+            f'<div class="you-row"><p class="you-ttl clamp2">'
+            f'{queue["count"]} decision(s) waiting</p>'
+            f'<p class="you-meta clamp1">{e(nums)}{e(more)} · oldest waiting '
+            f'{e(ago(queue["oldest"]) or "now")} · '
+            f'{e(", ".join(queue["projects"]))}</p></div>')
+
+    # Rules drift graduates out of the header once it is far enough behind to
+    # be a thing to do rather than a thing to know.
+    #
+    # Capped, and the cap is the point. Measured on the live estate, every
+    # project was 8-17 versions behind, so escalating all of them put five rows
+    # in the band and recreated the wallpaper one level up -- the exact failure
+    # this was meant to fix. The worst two earn rows; the rest is a count, so
+    # the band stays scannable and the signal keeps its edge.
+    #
+    # Full project names here, not project_tag: the tag is built for compact
+    # chips ("finance #41") and reads as a typo in a sentence ("idea has never
+    # recorded a rules version").
+    # ONE row for all rules drift, never one per project.
+    #
+    # #75 gave each drifted project a row and capped it at two plus a count.
+    # On the live estate that still filled the band: 8 items, of which 6 were
+    # drift and contested notes, and exactly 1 was a decision. Worse, the
+    # drift is largely self-inflicted -- every merge to common-rules bumps the
+    # version, so a day of work here pushed every project 28-31 versions
+    # behind and the band filled with nagging about it.
+    #
+    # Drift is a *state*, and the header already carries it. What belongs here
+    # is the one line that says how bad it has got and what to run.
+    worst = sorted(drift or [], key=lambda d: -(d["behind"] or 10 ** 6))
+    if worst:
+        never = [d["project"] for d in worst if d["behind"] is None]
+        numbered = [d for d in worst if d["behind"] is not None]
+        if numbered:
+            head = (f'{len(worst)} project(s) behind the rules · worst is '
+                    f'{numbered[0]["project"]} at {numbered[0]["behind"]}')
+        else:
+            head = f'{len(worst)} project(s) have never recorded a rules version'
+        meta = "run rulecheck --align in each"
+        if never:
+            meta += f' · never stamped: {", ".join(never)}'
+        rows.append(f'<div class="you-row cont"><p class="you-ttl clamp2">{e(head)}</p>'
+                    f'<p class="you-meta clamp1">{e(meta)}</p></div>')
 
     if not rows:
         return ('<p class="you-none">nothing needs you · '
@@ -1065,97 +1629,572 @@ def session_id_of(w):
     return t.stem if t else None
 
 
-def render_strip(worktrees, needs_input, contested):
-    """SESSIONS as one dense row of state dots (issue #52).
+ALL = "all"     # the estate summary tab
 
-    This retires the graph from concept 07 rather than deferring it. Position
-    in the old 4-column grid was enumeration order, size and fill were
-    constant, and across 23 nodes exactly one edge ever rendered — proposal
-    08's own message_edges() had already measured why. 615px for 23 labels was
-    the worst trade on the page; this is ~118px, and every worktree is still
-    reachable by hover and click.
+
+def tab_projects(data):
+    """Tab order: ALL first, then projects by how much is going on in them —
+    a project with work in flight is the one being asked about."""
+    counts = {}
+    for w in data["worktrees"]:
+        counts[w["project"]] = counts.get(w["project"], 0) + 1
+    names = sorted({r["project"] for r in data["features"]} | set(counts),
+                   key=lambda n: (-counts.get(n, 0), n))
+    return [ALL] + names
+
+STATE_ORDER = ("in flight", "next", "blocked", "later", "done")
+BOARD_COLUMNS = (("in flight", "IN FLIGHT", "var(--green)"),
+                 ("next", "NEXT", None),
+                 ("blocked", "BLOCKED", "var(--amber)"),
+                 ("later", "LATER", None),
+                 ("done", "DONE", None))
+
+# Every kind parse_features can produce must have a column, or features vanish.
+# Measured after the first registers landed: pockets declared 7 features and the
+# board rendered 6 — the `version 2` one fell through, silently, since #70.
+assert {k for k, _, _ in BOARD_COLUMNS} >= {"in flight", "next", "blocked",
+                                            "later", "done", "declared"} - {"declared"}
+
+
+def feature_pct(feature, closed):
+    """(percent, note) for a feature, or (None, note) where no percentage is
+    honest — which is most of them.
+
+    A blocked feature gets no number and no bar. An empty track reads as 0%,
+    and 0% is a claim about progress that nothing supports (#70).
+    """
+    impl = feature["implements"]
+    # Proposal 05: the sponsor closes features, and his State column is the
+    # authority. A feature he marked `built`/`done` is complete whether or not
+    # it names implementing issues -- most do not, because the work predates
+    # the register. Without this the headline read **0% of declared scope**
+    # while four features were declared done, which is the number he asked for
+    # by name and the first thing anyone looks at.
+    if feature["kind"] == "done":
+        return 100, "done — you closed it"
+    if feature["kind"] == "blocked":
+        by = ", ".join(f'#{n}' for n in feature["blocked_by"])
+        return None, f'blocked by {by}' if by else "blocked"
+    if not impl or not closed:
+        return None, feature["state"] or ""
+    done = sum(1 for n in impl if closed.get(n))
+    return round(done / len(impl) * 100), f'{done}/{len(impl)} issues'
+
+
+def undeclared_line(rows):
+    """One grouped statement, not one apology per project (#70). Five separate
+    'no features declared' lines shouted over the single project that had any."""
+    none = [r for r in rows if not r["features"]]
+    if not none:
+        return ""
+    names = ", ".join(r["project"] for r in none)
+    done = sum(r["items"][0] for r in none if r["items"])
+    total = sum(r["items"][1] for r in none if r["items"])
+    tail = (f' {done}/{total} checklist items ticked between them, against no '
+            f'product definition.' if total else "")
+    return (f'<p class="f-none">{e(names)} — <span class="warn">no features '
+            f'declared</span>.{e(tail)}</p>')
+
+
+def unclaimed_closed(row, days=7):
+    """Issues closed recently that NO declared feature claims.
+
+    Without this the feature view is silent about most of the work. Measured on
+    finance-tracker: 18 issues closed in a day, **17 of them inside no
+    feature**, while the bar moved 1% — which is exactly the report "I am
+    closing issues but the progress bar does not increase". The bar was right;
+    it was just silent about everything it does not cover.
+
+    Either those issues should be inside a feature, or they are housekeeping and
+    the register is correct to exclude them. Both are decisions for the sponsor,
+    and neither can be made while the number is invisible.
+    """
+    claimed = {n for f in (row["features"] or []) for n in f["implements"]}
+    feats = {f["number"] for f in (row["features"] or [])}
+    cutoff = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+    n = 0
+    for num, info in (row.get("closed_at") or {}).items():
+        if info and info >= cutoff and num not in claimed and num not in feats:
+            n += 1
+    return n
+
+
+def project_completion(row):
+    """One project's completion over its DECLARED FEATURES, or None if it has
+    no register. Same arithmetic whole_product does across the estate, so the
+    per-project bars and the headline figure cannot drift apart."""
+    feats = row["features"] or []
+    if not feats:
+        return None
+    scored = [feature_pct(f, row["closed"])[0] for f in feats]
+    return round(sum(x for x in scored if x is not None) / len(feats))
+
+
+def whole_product(rows):
+    """(percent, declared, projects_with_registers, total_projects) or None.
+
+    The denominator is stated, never implied. A figure that silently averages
+    over projects which declared nothing is the failure mode proposal 08 named,
+    and it binds hardest here because this is the number asked for by name.
+    """
+    feats = [(f, r["closed"]) for r in rows for f in (r["features"] or [])]
+    if not feats:
+        return None
+    with_reg = sum(1 for r in rows if r["features"])
+    pcts = [feature_pct(f, c)[0] for f, c in feats]
+    scored = [x for x in pcts if x is not None]
+    # unscored features count as 0 toward the product, not as absent: a blocked
+    # feature is undone, and dropping it would flatter the figure
+    pct = round(sum(scored) / len(feats)) if feats else 0
+    return pct, len(feats), with_reg, len(rows)
+
+
+def render_tabs(names, current):
+    """Tabs are links carrying ?project=, not DOM state.
+
+    The page re-requests itself every 10s via <meta refresh>, and DOM state does
+    not survive that -- measured when the view tabs were built: a CSS :checked
+    tab reverted to its default on every reload, while a query string survived.
+    The constraint is unchanged, so the mechanism is too.
+    """
+    out = []
+    for name in names:
+        cls = "tab on" if name == current else "tab"
+        label = "ALL" if name == ALL else name
+        out.append(f'<a class="{cls}" href="/?project={e(name)}">{e(label)}</a>')
+    return f'<div class="tabs">{"".join(out)}</div>'
+
+
+def render_board(rows):
+    """Features in columns by state (#70). Replaces PIPELINE rather than sitting
+    beside it: PIPELINE was already a board of work by state, and two boards of
+    the same shape at different altitudes is the noise proposal 10 removed."""
+    if rows is None:
+        return unavailable("features")
+    by_kind = {}
+    for r in rows:
+        for f in r["features"] or []:
+            by_kind.setdefault(f["kind"], []).append((r, f))
+    # A kind with no column would drop its features off the screen entirely.
+    # Park them in NEXT rather than lose them: an unexpected state is a
+    # register that needs correcting, not a feature that stops existing.
+    known = {k for k, _, _ in BOARD_COLUMNS}
+    for kind in [k for k in by_kind if k not in known]:
+        by_kind.setdefault("next", []).extend(by_kind.pop(kind))
+    out = ['<div class="board">']
+    for kind, label, colour in BOARD_COLUMNS:
+        items = by_kind.get(kind, [])
+        style = f' style="color:{colour}"' if colour else ""
+        out.append(f'<div class="col"><p class="psec"{style}>{label} · {len(items)}</p>')
+        if not items:
+            out.append(f'<p class="sub">{e(EMPTY_COLUMN.get(kind, "none"))}</p>')
+        for r, f in items:
+            pct, note = feature_pct(f, r["closed"])
+            fig = f'<span class="f-fig">{pct}%</span>' if pct is not None else ""
+            out.append(f'<div class="fcard"><p class="fc-t clamp2" '
+                       f'title="{e(f["title"])}">{e(f["title"])}</p>'
+                       f'<p class="fc-m clamp1">{e(project_tag(r["project"]))} · '
+                       f'{e(note)}</p>{fig}</div>')
+        out.append("</div>")
+    out.append("</div>")
+    out.append(undeclared_line(rows))
+    return "\n".join(out)
+
+
+# An empty column is a fact, and DONE·0 is an uncomfortable one. Say why rather
+# than hiding it: proposal 05 means a feature is done when the sponsor closes
+# it, not when its tickets are shut.
+EMPTY_COLUMN = {
+    "in flight": "nothing in flight",
+    "next": "nothing queued behind what is in flight",
+    "blocked": "nothing blocked",
+    "done": "nothing closed yet — a feature is done when you close it, "
+            "not when its issues are",
+}
+
+
+def sparkline(points, width=260, height=44):
+    """Two lines — done and total — over the checklist's own history (#63).
+
+    A burn*up*, not a burndown, and the gap between the lines is the point.
+    finance-tracker went 9/25 to 16/51: seven items completed while the
+    percentage FELL from 36% to 31%, because scope grew by 26. One number
+    cannot tell "nothing is happening" from "a lot is happening and scope is
+    outrunning it", and those need opposite responses.
+
+    Not smoothed and not clamped monotonic. The real data dips — mac-explorer's
+    total went 8 to 5 — and a dip is a re-scoping, which is information.
+    """
+    if len(points) < 2:
+        return ""
+    hi = max(t for _, _, t in points) or 1
+    n = len(points) - 1
+    def path(idx):
+        pts = []
+        for i, row in enumerate(points):
+            x = round(i / n * width, 1)
+            y = round(height - (row[idx] / hi) * height, 1)
+            pts.append(f'{x},{y}')
+        return " ".join(pts)
+    return (f'<svg class="spark" viewBox="0 0 {width} {height}" '
+            f'preserveAspectRatio="none" role="img" aria-label="burnup">'
+            f'<polyline points="{path(2)}" class="sp-total"/>'
+            f'<polyline points="{path(1)}" class="sp-done"/></svg>')
+
+
+def render_progress(history, cost=None):
+    """PROGRESS — what moved, and how fast (#66, #63).
+
+    A third tab rather than a sixth region: the screen is 900px and already
+    holds the band, the features region and the strip. Measurement over time is
+    detail, and detail belongs behind a tab.
+    """
+    if not history:
+        return ('<p class="sub">no project has enough history yet — a '
+                'declared feature needs at least one implementing issue '
+                'that has closed, or (with no register) a checklist with '
+                'two revisions</p>')
+    out = ['<div class="prog">']
+    for h in history:
+        pts = h["points"]
+        src = h.get("source", "checklist")
+        d0, t0 = pts[0][1], pts[0][2]
+        d1, t1 = pts[-1][1], pts[-1][2]
+        v = velocity(pts)
+        mv = moved(pts)
+        pct0 = round(d0 / t0 * 100) if t0 else 0
+        pct1 = round(d1 / t1 * 100) if t1 else 0
+        unit = "issue" if src == "issues" else "item"
+        out.append(f'<div class="pname">{e(h["project"])}'
+                   f'{"" if src == "issues" else " <span class=\"warn\">checklist</span>"}'
+                   f'</div>')
+        out.append(f'<div class="pchart">{sparkline(pts)}</div>')
+        out.append(f'<div class="pfig">{d1}/{t1}<br><span class="dim">{pct1}%</span></div>')
+        notes = [f'{pts[0][0]} → {pts[-1][0]} · {d0}/{t0} → {d1}/{t1} {unit}(s)']
+        if pct1 < pct0:
+            # the case a single percentage actively hides
+            notes.append(f'{pct0}% → {pct1}% while completing {d1 - d0}: '
+                         f'scope grew by {t1 - t0}')
+        if v and v[0]:
+            notes.append(f'{v[0]} {unit}(s) completed in the last {v[1]} days')
+        c = (cost or {}).get(h["project"])
+        if c and c["week"]:
+            # "what did this week cost, and what moved" -- the two on one line,
+            # which is the pairing that makes either of them worth reading
+            notes.append(f'{human_tokens(c["week"])} tokens in the last '
+                         f'{COST_WINDOW_DAYS} days · {human_tokens(c["total"])} all time')
+        if mv:
+            b0, b1, s0, s1 = mv
+            bits = []
+            if b1 != b0:
+                bits.append(f'{b1 - b0:+d} done')
+            if s1 != s0:
+                bits.append(f'{s1 - s0:+d} scope' if s1 > s0
+                            else f'{s1 - s0:+d} scope (re-scoped)')
+            if bits:
+                notes.append("today: " + ", ".join(bits))
+        out.append(f'<div class="pnote">' +
+                   "<br>".join(f'<span class="clamp1">{e(x)}</span>' for x in notes) +
+                   "</div>")
+    out.append("</div>")
+    out.append('<p class="sub">measured from declared features\' implementing '
+               'issues closing on GitHub · <span class="warn">checklist</span> '
+               'marks a project with no register, falling back to its own '
+               'checkbox history · a rate is what happened, not a forecast — '
+               'no ETA, by the same rule proposal 08 set</p>')
+    return "\n".join(out)
+
+
+def render_report(name, data):
+    """REPORT — the completion snapshot for one project, recomputed on every
+    collect rather than written once and left to rot ("that's what I want to
+    be tracked live"). Every figure here is already collected for BOARD and
+    PROGRESS; this is a rollup of them, not a new fetch, so it refreshes on
+    the same cadence as the rest of the screen.
+
+    Deliberately does NOT attempt the narrative half of a one-off completion
+    report (a wrong metric caught, dead code found, a missing test named).
+    Those came from a session actually reading code -- that is investigation,
+    not a query, and nothing here can re-run it unattended. This tab reports
+    what git and GitHub already know; it does not go looking for a bug.
+    """
+    row = next((r for r in data["features"] if r["project"] == name), None)
+    if not row or not row["features"]:
+        return ('<p class="sub">no register declared for this project — '
+                'REPORT rolls up declared features and their issues, so '
+                'there is nothing to compute yet</p>')
+
+    feats = row["features"]
+    closed_map = row.get("closed") or {}
+    closed_at = row.get("closed_at") or {}
+    pct = project_completion(row)
+    named = sum(1 for f in feats if f["implements"])
+    done_feats = sum(1 for f in feats if feature_pct(f, closed_map)[0] == 100)
+    open_issues = sum(1 for v in closed_map.values() if not v)
+    cutoff = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+    closed_7d = sum(1 for d in closed_at.values() if d and d >= cutoff)
+    unclaimed_7d = unclaimed_closed(row)
+
+    hist_row = next((h for h in data["history"] if h["project"] == name), None)
+    v = velocity(hist_row["points"]) if hist_row else None
+    v_src = hist_row.get("source") if hist_row else None
+    cost_row = data["cost"].get(name)
+
+    cards = [
+        (f'{pct}%' if pct is not None else '—', 'of declared scope closed'),
+        (f'{done_feats}/{len(feats)}', 'features closed'),
+        (f'{named}/{len(feats)}', 'features naming an issue'),
+        (str(open_issues), 'issues open'),
+        (str(closed_7d), 'issues closed, last 7 days'),
+        (f'{v[0]:+d}' if v else '—',
+         (f'items/{v[1]}d, GitHub' if v_src == "issues"
+          else f'items/{v[1]}d, checklist') if v else 'no history yet'),
+    ]
+    if cost_row and cost_row["week"]:
+        cards.append((human_tokens(cost_row["week"]),
+                     f'tokens, last {COST_WINDOW_DAYS} days'))
+
+    out = ['<div class="report">']
+    for n, k in cards:
+        out.append(f'<div class="rcard"><div class="n">{e(str(n))}</div>'
+                   f'<div class="k">{e(k)}</div></div>')
+    out.append('</div>')
+
+    if hist_row:
+        out.append(f'<div class="rchart">{sparkline(hist_row["points"], width=520, height=64)}</div>')
+
+    if unclaimed_7d:
+        out.append(f'<p class="sub"><span class="warn">{unclaimed_7d}</span> of '
+                   f'those {closed_7d} closed with no declared feature to claim '
+                   f'them — either they belong in the register, or it is right '
+                   f'to exclude them</p>')
+    out.append('<p class="sub">every figure above is recomputed each refresh '
+               'from git and GitHub · narrative findings — a wrong metric, '
+               'dead code, a missing test — still take a person or an agent '
+               'actually reading the code; they are not re-derived here</p>')
+    return "\n".join(out)
+
+
+def render_project(name, data):
+    """Everything about one project, on one screen (#81).
+
+    The lenses existed because six projects' features, history and flow do not
+    fit in 900px. One project's do -- measured, the largest is 7 features, 6
+    sessions and 9 history points -- so the split is not re-cut per project, it
+    is retired.
+    """
+    feats = [r for r in data["features"] if r["project"] == name]
+    hist = [h for h in data["history"] if h["project"] == name]
+    wts = [w for w in data["worktrees"] if w["project"] == name]
+    pipe = data["pipeline"]
+    if pipe:
+        pipe = {**pipe,
+                "queued": [r for r in pipe["queued"] if r.get("project") == name],
+                "merged": [r for r in pipe["merged"] if r.get("project") == name]}
+        # queued_more counts issues beyond the shown slice across every project,
+        # so it cannot be filtered honestly -- drop it rather than misattribute
+        pipe["queued_more"] = 0
+
+    row = feats[0] if feats else None
+    head = [name]
+    if row and row["features"]:
+        head.append(f'{len(row["features"])} features')
+    if row and row.get("items"):
+        d, t = row["items"]
+        head.append(f'{d}/{t} items · {round(d / t * 100) if t else 0}%')
+    out = [f'<p class="phead">{e(" · ".join(head))}</p>']
+
+    out.append('<p class="psec">REPORT</p>')
+    out.append(render_report(name, data))
+
+    out.append(render_board(feats))
+    if hist:
+        out.append('<p class="psec">PROGRESS</p>')
+        out.append(render_progress(hist, data["cost"]))
+    out.append(render_flow(pipe))
+    out.append('<p class="psec">SESSIONS</p>')
+    out.append(render_strip(wts, data["needs_input"], data["contested"], feats))
+    return "\n".join(out)
+
+
+def render_all(data):
+    """One line per project, comparable down each column (#81).
+
+    This is where "which app is stuck" is answerable, which is the only
+    question a top level needs to answer.
+    """
+    feats = {r["project"]: r for r in data["features"]}
+    hist = {h["project"]: h for h in data["history"]}
+    drift = {d["project"]: d for d in data["drift"]}
+    counts = {}
+    for w in data["worktrees"]:
+        counts[w["project"]] = counts.get(w["project"], 0) + 1
+    names = sorted(set(feats) | set(counts))
+    if not names:
+        return unavailable("projects")
+    # The whole-product figure moves here from the retired LEDGER (#81). The
+    # estate summary is where it belongs: it is a statement about every project,
+    # so it cannot sit on a page showing one. Denominator stated, never implied.
+    out = []
+    wp = whole_product(data["features"])
+    if wp:
+        pct, n, with_reg, total = wp
+        out.append(f'<p class="wp"><b>{pct}%</b> of declared scope · {n} features '
+                   f'in {with_reg} of {total} projects</p>')
+    else:
+        out.append('<p class="sub">no project has declared its features yet, so '
+                   'there is no whole-product figure to report</p>')
+    out.append('<div class="estate">')
+    out.append('<div class="lh">PROJECT</div><div class="lh">FEATURES</div>'
+               '<div class="lh">DONE</div><div class="lh">7-DAY</div>'
+               '<div class="lh">7-DAY COST</div>'
+               '<div class="lh">SESSIONS</div><div class="lh">RULES</div>')
+    for n in names:
+        r = feats.get(n)
+        if r and r["features"]:
+            by_kind = {}
+            for f in r["features"]:
+                by_kind[f["kind"]] = by_kind.get(f["kind"], 0) + 1
+            fcell = " · ".join(f'{v} {k}' for k, v in sorted(by_kind.items()))
+        else:
+            fcell = '<span class="warn">no features declared</span>'
+        # The bar shows FEATURE completion where a register exists.
+        #
+        # It used to show checklist ticks, which is what made "I am closing
+        # issues but the progress bar does not increase" true: closing a GitHub
+        # issue moves a feature's percentage and never ticks a `- [x]` box, so
+        # the most prominent thing on the row measured something the sponsor
+        # was not doing. Features are the spine (proposal 10); the bar follows.
+        #
+        # Checklist ticks stay as the fallback for a project with no register,
+        # labelled as what they are so the two are never read as one number.
+        fpct = project_completion(r) if r else None
+        items = r.get("items") if r else None
+        if fpct is not None:
+            icell = (f'<div class="bar"><i style="width:{fpct}%"></i></div>'
+                     f'<span class="f-fig">{fpct}%</span>')
+        elif items and items[1]:
+            pct = round(items[0] / items[1] * 100)
+            icell = (f'<div class="bar"><i class="soft" style="width:{pct}%"></i></div>'
+                     f'<span class="f-fig dim">{pct}% items</span>')
+        else:
+            icell = '<span class="dim">no checklist</span>'
+        v = velocity(hist[n]["points"]) if n in hist else None
+        vcell = f'{v[0]:+d}' if v else "—"
+        d = drift.get(n)
+        if d is None:
+            rcell = '<span class="dim">aligned</span>'
+        elif d["behind"] is None:
+            rcell = '<span class="warn">never stamped</span>'
+        else:
+            rcell = f'<span class="warn">{d["behind"]} behind</span>'
+        c = data["cost"].get(n)
+        ccell = human_tokens(c["week"]) if c and c["week"] else "—"
+        out.append(f'<a class="pname" href="/?project={e(n)}">{e(n)}</a>'
+                   f'<div class="clamp1">{fcell}</div>'
+                   f'<div class="lprog">{icell}</div>'
+                   f'<div class="f-fig">{vcell}</div>'
+                   f'<div class="f-fig">{e(ccell)}</div>'
+                   f'<div class="f-fig">{counts.get(n, 0)}</div>'
+                   f'<div class="clamp1">{rcell}</div>')
+    out.append("</div>")
+    orphans = sum(unclaimed_closed(r) for r in data["features"])
+    if orphans:
+        out.append(f'<p class="sub"><span class="warn">{orphans}</span> issue(s) '
+                   f'closed in the last 7 days that no declared feature claims — '
+                   f'so they moved no bar above. Either they belong in a feature, '
+                   f'or the register is right to exclude them.</p>')
+    week_total = sum(v["week"] for v in data["cost"].values())
+    if week_total:
+        out.append(f'<p class="wp"><b>{human_tokens(week_total)}</b> tokens across '
+                   f'the estate in the last {COST_WINDOW_DAYS} days</p>')
+    # Short, because it sits at a scroll boundary and a long line gets sliced
+    # in half by the cap, which reads as a rendering fault. It also referenced a
+    # closed issue number, which is developer chatter on the sponsor's screen.
+    out.append('<p class="sub">click a project for everything about it · '
+               '7-day figures are measurements, not forecasts</p>')
+    return "\n".join(out)
+
+
+def render_flow(pipeline):
+    """QUEUED and MERGED TODAY, moved here when PIPELINE came off the main
+    screen (#71). Issue-level flow is detail; the board is the altitude the
+    sponsor asked for."""
+    if not pipeline:
+        return ""
+    out = ['<p class="psec">QUEUED · '
+           f'{len(pipeline["queued"]) + pipeline["queued_more"]}</p>']
+    for r in pipeline["queued"]:
+        out.append(chip(issue_label(r, strip_prefix(r["title"]))))
+    if pipeline["queued_more"]:
+        out.append(f'<p class="sub">+{pipeline["queued_more"]} more</p>')
+    out.append(f'<p class="psec">MERGED TODAY · {len(pipeline["merged"])}</p>')
+    if pipeline["merged"]:
+        for r in pipeline["merged"]:
+            out.append(chip(issue_label(r, r["title"])))
+    else:
+        out.append('<p class="sub">none yet</p>')
+    return "\n".join(out)
+
+
+def render_strip(worktrees, needs_input, contested, features):
+    """SESSIONS, grouped by the feature each one is moving (#65).
+
+    Two things changed from #52. It groups by *declared feature* rather than
+    showing one flat row -- the grouping concept 07 drew as dashed hulls, which
+    #52 dropped and nothing replaced. And **no worktree or branch name appears
+    anywhere**, including in the hover: a folder on disk is not a fact about the
+    product, and naming one was the whole of the sponsor's complaint.
     """
     if not worktrees:
         return unavailable("no worktrees found")
     cont = contested_notes(contested)
+    by_project = {r["project"]: r["features"] for r in (features or [])}
 
-    dots, n_live, n_you, n_idle = [], 0, 0, 0
+    groups, counts = {}, {"active": 0, "needs you": 0, "contested": 0, "idle": 0}
     for w in sorted(worktrees, key=lambda x: (x["project"], x["short"])):
         age_s = (time.time() - w["session"]) if w["session"] else None
+        # Every session lands in exactly one bucket. In #52 the contested branch
+        # assigned a class and counted nothing, so the summary read
+        # "22 · 0 active, 1 needs you, 4 idle" and 17 sessions vanished from
+        # their own total.
         if w["name"] in needs_input:
-            cls, n_you = "you", n_you + 1
+            cls, bucket = "you", "needs you"
         elif w["name"] in cont:
-            cls = "cont"
+            cls, bucket = "cont", "contested"
         elif age_s is not None and age_s < 1800:
-            cls, n_live = "live", n_live + 1
+            cls, bucket = "live", "active"
         else:
-            cls, n_idle = "idle", n_idle + 1
-        # The hover carries what the node label used to, in full: no
-        # truncation, because a title attribute has no width to fit.
-        bits = [w["short"]]
+            cls, bucket = "idle", "idle"
+        counts[bucket] += 1
+
+        feat = feature_of_issue(by_project.get(w["project"]), w.get("issue"))
+        key = (f'{project_tag(w["project"])} · {feat["title"]}' if feat
+               else "no declared feature")
+        # The hover names the feature and the issue. Never the worktree.
+        bits = [key]
         if w.get("issue_title"):
-            bits.append(f'{project_tag(w["project"])} #{w["issue"]}: '
-                        f'{w["issue_title"]}')
+            bits.append(f'{project_tag(w["project"])} #{w["issue"]}: {w["issue_title"]}')
         if age_s is not None:
             bits.append(f'last active {ago(w["session"])}')
-        tip = " — ".join(bits)
         sid = session_id_of(w)
-        if sid:
-            dots.append(f'<a class="dot {cls}" href="/session/{e(sid)}" '
-                        f'title="{e(tip)}"><span></span></a>')
-        else:
-            dots.append(f'<span class="dot {cls}" title="{e(tip)}"><span></span></span>')
+        tip = " — ".join(bits)
+        dot = (f'<a class="dot {cls}" href="/session/{e(sid)}" title="{e(tip)}">'
+               f'<span></span></a>' if sid else
+               f'<span class="dot {cls}" title="{e(tip)}"><span></span></span>')
+        groups.setdefault(key, []).append(dot)
 
-    counts = f'{len(worktrees)} · {n_live} active, {n_you} needs you, {n_idle} idle'
-    return (f'<p class="strip-count">{e(counts)}</p>'
-            f'<div class="strip">{"".join(dots)}</div>'
-            f'<p class="sub">hover a dot for the worktree and its issue · '
-            f'click to open the session</p>')
-
-
-DEDUP_WINDOW = 900  # seconds
-
-
-def _epoch(ts):
-    """Best-effort ISO timestamp -> epoch. An unparseable stamp returns 0,
-    which puts the row outside every window and so leaves it uncollapsed —
-    the safe direction: a duplicate shown twice is untidy, a distinct event
-    silently folded into another is a lie."""
-    try:
-        return datetime.datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
-    except Exception:
-        return 0.0
-
-
-def collapse_repeats(items, key_of, ts_of, window):
-    """Fold byte-identical entries within `window` seconds into one, counted.
-
-    Measured on the live screen: four of nine ticker lines were the same event
-    (`## 2026-08-03 (continued) — v4: redesign personalId…`, four agent logs,
-    15:10–15:11), and two handover rows carried identical summaries. Nothing
-    was rendering wrong; there was simply no de-duplication step.
-
-    Only *byte-identical* keys collapse. Two rows differing by one character
-    stay two rows — the claim being made is "these are literally the same
-    event recorded N times", and anything looser would hide real events.
-    Returns [(item, count)] preserving input order.
-    """
-    out = []
-    for it in items:
-        k, t = key_of(it), ts_of(it)
-        for prev in out:
-            if prev["k"] == k and abs(prev["t"] - t) <= window:
-                prev["n"] += 1
-                break
-        else:
-            out.append({"k": k, "t": t, "item": it, "n": 1})
-    return [(o["item"], o["n"]) for o in out]
-
-
-def times(n):
-    """The count is always shown when a row stands for more than one event —
-    a collapsed row that looks like a single row is the failure mode."""
-    return f' <span class="xn">×{n}</span>' if n > 1 else ""
+    total = len(worktrees)
+    parts = [f'{total} · ' + ", ".join(f'{n} {k}' for k, n in counts.items() if n)]
+    out = [f'<p class="strip-count">{e(parts[0])}</p>']
+    # declared features first, the unmapped remainder last: it is a gap, not a group
+    for key in sorted(groups, key=lambda k: (k == "no declared feature", k)):
+        dots = groups[key]
+        out.append(f'<p class="strip-grp">{e(key)} · {len(dots)}</p>'
+                   f'<div class="strip">{"".join(dots)}</div>')
+    out.append('<p class="sub">hover a dot for the feature and issue · '
+               'click to open the session</p>')
+    return "\n".join(out)
 
 
 def issue_label(row, title):
@@ -1173,152 +2212,7 @@ def strip_prefix(title):
     return title.split(":", 1)[-1].strip() if ":" in title else title
 
 
-def render_pipeline(pipeline, wall):
-    out = []
-    if pipeline is None:
-        out.append(unavailable("pipeline"))
-    else:
-        # In flight means a *mapped issue* (issue #51). The count used to add
-        # the ahead-of-main worktrees to it and read "IN FLIGHT · 19" when one
-        # of those nineteen was work and eighteen were git ahead-counts — an
-        # 18x overstatement of the only number on this region anyone reads.
-        mapped = pipeline["in_flight"]
-        unmapped = pipeline["in_flight_worktrees"]
-        out.append(f'<p class="psec">IN FLIGHT · {len(mapped)}</p>')
-        if mapped:
-            for r in mapped:
-                out.append(chip(issue_label(r, strip_prefix(r["title"])), "done"))
-        else:
-            out.append('<p class="sub">none</p>')
-        if unmapped:
-            # Collapsed, not hidden: <details> expands in place, so nothing
-            # becomes unreachable and no JavaScript is involved. Still never an
-            # invented issue chip for a worktree that has no mapped issue —
-            # the honest-mapping rule from #24 and #25.
-            rows = "".join(chip(f'{w["short"]} · {w["ahead"]} ahead')
-                           for w in unmapped)
-            out.append(
-                f'<details class="more"><summary>{len(unmapped)} worktree(s) '
-                f'ahead of main, no mapped issue</summary>{rows}</details>')
-
-        out.append(f'<p class="psec">QUEUED · '
-                   f'{len(pipeline["queued"]) + pipeline["queued_more"]}</p>')
-        for r in pipeline["queued"]:
-            out.append(chip(issue_label(r, strip_prefix(r["title"]))))
-        if pipeline["queued_more"]:
-            out.append(f'<p class="sub">+{pipeline["queued_more"]} more</p>')
-
-        out.append(f'<p class="psec">MERGED TODAY · {len(pipeline["merged"])}</p>')
-        if pipeline["merged"]:
-            for r in pipeline["merged"]:
-                out.append(chip(issue_label(r, r["title"])))
-        else:
-            out.append('<p class="sub">none yet</p>')
-
-    out.append('<p class="psec" style="color:var(--purple)">'
-               'AT THE WALL · YOURS · likely waiting (heuristic)</p>')
-    if wall:
-        for item in wall:
-            out.append(chip(f'{item["worktree"]} · waiting ~{item["age"]}', "wall"))
-    else:
-        out.append('<p class="sub">nothing waiting</p>')
-    return "\n".join(out)
-
-
-MAX_PACKAGES_SHOWN = 4
-
-
-def render_burnup(burnup):
-    """APPS & WORK PACKAGES — how much of each app's declared scope is done
-    (issue #38, proposal 08 step 1b).
-
-    Reads what the projects already write. No ETA column: that needs the
-    logbook, which was proposed and not accepted, and a forecast drawn from
-    four active days would be a slope through noise.
-    """
-    if burnup is None:
-        return unavailable("work packages")
-    rows = ['<div class="pkgs">']
-    for row in burnup["apps"]:
-        pct = row["done"] / row["total"]
-        rows.append(
-            f'<div class="nm clamp1">{e(row["name"])}</div>'
-            f'<div class="bar"><i style="width:{round(pct * 100)}%"></i></div>'
-            f'<div class="fig">{round(pct * 100)}%</div>'
-            f'<div class="note">{row["done"]} / {row["total"]} items · '
-            f'{len(row["packages"])} packages</div>')
-        shown = sorted(row["packages"], key=lambda p: -p["total"])[:MAX_PACKAGES_SHOWN]
-        for p in shown:
-            frac = p["done"] / p["total"]
-            # amber under a third: the eye should find the stalled package
-            # without reading the numbers, and green-for-everything hides it.
-            cls = "soft" if frac >= 0.34 else "warn"
-            rows.append(
-                f'<div class="nm sub2 clamp1" title="{e(p["name"])}">{e(p["name"])}</div>'
-                f'<div class="bar thin"><i class="{cls}" style="width:{round(frac * 100)}%"></i></div>'
-                f'<div class="fig">{p["done"]}/{p["total"]}</div>'
-                f'<div class="note">{round(frac * 100)}%</div>')
-        rest = len(row["packages"]) - len(shown)
-        if rest > 0:
-            rows.append(f'<div class="nm sub2">+ {rest} more package(s)</div>'
-                        f'<div></div><div></div><div></div>')
-    rows.append("</div>")
-    if burnup["undeclared"]:
-        rows.append(f'<p class="sub">{e(" · ".join(burnup["undeclared"]))} — no '
-                    f'checklist file, so no declared scope to measure (not 0%)</p>')
-    if burnup["unparsed"]:
-        # Never let a line vanish into a lower denominator — see
-        # PULSE.checklist_progress and proposal 08's load-bearing-prose limit.
-        rows.append(f'<p class="sub" style="color:var(--amber)">{burnup["unparsed"]} '
-                    f'line(s) look like items but could not be parsed, and are '
-                    f'not counted above</p>')
-    return "\n".join(rows)
-
-
-def render_handovers(rows):
-    """HANDOVERS — who told what to whom, and when (issue #22).
-
-    Concept 07 drew these as edges between session nodes. They are a list
-    instead, and that is a finding rather than a shortcut: measured over the
-    real corpus, no message had a drawn node at *both* ends, so edges would
-    have rendered almost never. See message_edges() for the numbers.
-    """
-    if rows is None:
-        return unavailable("handovers")
-    if not rows:
-        return '<p class="sub">no messages between sessions yet</p>'
-    collapsed = collapse_repeats(rows, lambda r: (r["sender"], r["summary"]),
-                                 lambda r: _epoch(r["ts"]), DEDUP_WINDOW)
-    out = []
-    for r, n in collapsed[:MAX_HANDOVERS]:
-        when = r["ts"][11:16] if len(r["ts"]) > 15 else ""
-        arrow = f'{r["sender"]}  →  {r["to_label"]}'
-        out.append(
-            f'<a class="hand" href="/session/{e(r["to_session"])}">'
-            f'<span class="top"><span class="who clamp1" title="{e(arrow)}">{e(arrow)}'
-            f'{times(n)}</span>'
-            f'<span class="when">{e(when)}</span></span>'
-            f'<span class="smry clamp2">{e(r["summary"])}</span></a>')
-    rest = len(collapsed) - MAX_HANDOVERS
-    if rest > 0:
-        out.append(f'<p class="sub">+{rest} older</p>')
-    return "\n".join(out)
-
-
-def render_ticker(ticker):
-    if not ticker:
-        return unavailable("ticker")
-    out = []
-    for (ts, repo, sha, subj), n in collapse_repeats(
-            ticker, lambda r: r[3], lambda r: r[0], DEDUP_WINDOW):
-        t = datetime.datetime.fromtimestamp(ts).strftime("%H:%M")
-        out.append(f'<div class="tick"><span class="t">{e(t)}</span>'
-                   f'<span class="repo">{e(repo)}</span>'
-                   f'<span class="clamp1" title="{e(subj)}">{e(subj)}{times(n)}</span></div>')
-    return "\n".join(out)
-
-
-def render_header(header, wall_count):
+def render_header(header, wall_count, stale=None):
     if header:
         behind = [c for c in header["chips"] if c["state"] != "aligned"]
         aligned = len(header["chips"]) - len(behind)
@@ -1336,56 +2230,82 @@ def render_header(header, wall_count):
         line1 = " ".join(bits)
     else:
         line1 = "rules unavailable"
-    return (f'<div class="hdr-r"><p>{line1}</p>'
-            f'<p><span class="wall-hd">THE WALL</span> · '
-            f'{wall_count} item(s) waiting</p></div>')
+    out = [f'<div class="hdr-r"><p>{line1}</p>',
+           f'<p><span class="wall-hd">THE WALL</span> · '
+           f'{wall_count} item(s) waiting</p>']
+    # Absent when current. A staleness line that is always there is finding 3 of
+    # proposal 12 all over again -- a permanent warning nobody reads.
+    if stale:
+        out.append(f'<p class="stale">⚠ running {e(stale["here"])} · main is '
+                   f'{stale["behind"]} ahead · restart to update</p>')
+    out.append('</div>')
+    return "".join(out)
 
 
-def render_page():
+def render_page(project=ALL):
     data = collect()
     now = datetime.datetime.now()
+    # State the data's age rather than implying it is current. A render never
+    # waits for a collection now (#86), so the snapshot can be a cycle old --
+    # and a silently late number is exactly what this was reported as.
+    age = data_age()
+    if age is None:
+        age_note = "collecting…"
+    elif age <= CACHE_TTL:
+        age_note = f"data is current · refreshes every {CACHE_TTL}s"
+    else:
+        age_note = f"data is {age}s old · refreshing in the background"
 
+    # hulls_err used to be in here, so a failure inside compute_hulls blanked
+    # both NEEDS YOU and SESSIONS for data neither of them showed (#65).
     graph_err = (data["worktrees_err"] or data["contested_err"]
-                 or data["hulls_err"] or data["gate_err"])
+                 or data["gate_err"])
 
-    n_you = len(data["needs_input"]) + len(contested_notes(data["contested"])) // 2
+    # Count what is actually rendered. It read "NEEDS YOU · 8" above five rows,
+    # because drift was still counted per project after being consolidated into
+    # one line. A header that disagrees with the thing under it is worse than no
+    # header: it makes the reader distrust both.
+    n_you = (len(data["needs_input"]) + len(contested_notes(data["contested"])) // 2
+             + (1 if data["queue"] else 0) + (1 if data["drift"] else 0))
+    title = f'NEEDS YOU · {n_you}' if n_you else "NEEDS YOU"
+    if data["queue"]:
+        title += f' · OLDEST WAITING {(ago(data["queue"]["oldest"]) or "now").upper()}'
     needs_you = region(
-        f'NEEDS YOU · {n_you}' if n_you else "NEEDS YOU",
-        None,
+        title, None,
         render_needs_you(data["worktrees"], data["needs_input"],
-                         data["contested"]),
+                         data["contested"], data["features"],
+                         data["queue"], data["drift"]),
         graph_err, "needs you")
 
-    sessions = region(
-        "SESSIONS",
+    sessions_all = region(
+        "SESSIONS · EVERY PROJECT",
         '<span style="color:var(--green)">green</span> active · '
         '<span style="color:var(--dim)">grey</span> idle · '
         '<span style="color:var(--amber)">amber</span> contested · '
         '<span style="color:var(--purple)">purple</span> needs you',
         render_strip(data["worktrees"], data["needs_input"],
-                     data["contested"]),
+                     data["contested"], data["features"]),
         graph_err, "sessions")
 
-    pipeline = region("PIPELINE", None,
-                      render_pipeline(data["pipeline"], data["wall"]),
-                      data["pipeline_err"] or data["wall_err"], "pipeline")
+    # The features region replaces PIPELINE outright (#70). PIPELINE was
+    # already a board of work by state; a board of *features* by state beside it
+    # would be two boards of one shape at different altitudes. The feature board
+    # IS the pipeline, one altitude up, and it needs the full width for four
+    # columns — at ~600px they were ~150px each and every title truncated.
+    tabs = tab_projects(data)
+    if project not in tabs:
+        project = ALL          # unknown or stale project name falls back
+    body = (render_all(data) if project == ALL
+            else render_project(project, data))
+    body_err = (data["features_err"] or data["history_err"]
+                or (data["pipeline_err"] if project != ALL else None))
+    features = region("PROJECTS", None, render_tabs(tabs, project) + body,
+                      body_err, "projects")
 
-    burnup = region("APPS &amp; WORK PACKAGES",
-                    "degree of completion · ticked over declared items, "
-                    "not guessed size",
-                    render_burnup(data["burnup"]), data["burnup_err"],
-                    "work packages")
-
-    hand_sub = None
-    if data["handovers"]:
-        hand_sub = (f'{len(data["handovers"])} recorded · newest first · '
-                    f'click a row to open the receiving session')
-    handovers = region("HANDOVERS · WHO TOLD WHAT TO WHOM", hand_sub,
-                       render_handovers(data["handovers"]),
-                       data["handovers_err"], "handovers")
-
-    ticker = region("EVENT TICKER", None, render_ticker(data["ticker"]),
-                    data["ticker_err"], "ticker")
+    # The estate-wide strip belongs on ALL only: a project page has its own,
+    # already filtered, and showing both would say the same thing twice.
+    sessions_block = (f'<div class="cell wide strip-cell">{sessions_all}</div>'
+                      if project == ALL else "")
 
     return f"""<!doctype html>
 <html lang="en">
@@ -1401,9 +2321,9 @@ def render_page():
   <header class="hdr">
     <div>
       <h1>TOWER · APPS AUTOPILOT · LIVE</h1>
-      <p class="stamp">{e(now.strftime("%Y-%m-%d %H:%M:%S"))} · updates every {CACHE_TTL}s</p>
+      <p class="stamp">{e(now.strftime("%Y-%m-%d %H:%M:%S"))} · {age_note}</p>
     </div>
-    {render_header(data["header"], len(data["wall"]))}
+    {render_header(data["header"], len(data["wall"]), data["stale"])}
   </header>
   <div class="band">{needs_you}</div>
   <!-- The order proposal 09's mockup locked: what needs him first and
@@ -1412,11 +2332,8 @@ def render_page():
        the two items that required him were below the fold of their own
        screen. -->
   <main class="grid">
-    <div class="cell">{pipeline}</div>
-    <div class="cell">{burnup}</div>
-    <div class="cell">{handovers}</div>
-    <div class="cell">{ticker}</div>
-    <div class="cell wide">{sessions}</div>
+    <div class="cell wide">{features}</div>
+    {sessions_block}
   </main>
   <p class="foot">tower · loopback only · recollects every {CACHE_TTL}s ·
     <a href="/pulse">/pulse</a> for the plain-page view</p>
@@ -1581,8 +2498,15 @@ def serve(port):
                     self._send(f"<pre>session view failed: {html.escape(str(exc))}</pre>")
                 return
             if self.path == "/" or self.path.startswith("/?"):
+                # The tab is a query parameter, not DOM state (#70, #81). The
+                # page re-requests itself every 10s via <meta refresh>, which
+                # throws the DOM away -- measured: a CSS :checked tab reverted on
+                # every reload, while a query string survived. An unknown or
+                # missing project falls back to ALL rather than erroring.
+                q = urllib.parse.urlparse(self.path).query
+                project = urllib.parse.parse_qs(q).get("project", [ALL])[0]
                 try:
-                    self._send(render_page())
+                    self._send(render_page(project))
                 except Exception as exc:
                     self._send(f"<pre>tower render failed: {html.escape(str(exc))}</pre>")
                 return

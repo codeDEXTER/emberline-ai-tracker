@@ -111,10 +111,71 @@ class TestReport(SpendHarness):
         self.assertIn("task-one", out)
         self.assertIn("(main checkout)", out)
 
+    def test_a_session_spanning_worktrees_is_management_not_a_task(self):
+        """A management session enters several worktrees; charging it to one
+        of them over-claims that task and hides the rest. Regression guard for
+        2026-08-07, when attribution by first-cwd hid 88% of all spend."""
+        (self.repo / ".claude" / "worktrees" / "task-two").mkdir(parents=True)
+        path = self.projects / "manager.jsonl"
+        with open(path, "w") as fh:
+            for cwd in (str(self.repo / ".claude" / "worktrees" / "task-one"),
+                        str(self.repo / ".claude" / "worktrees" / "task-two")):
+                fh.write(json.dumps({
+                    "cwd": cwd, "timestamp": "2026-08-07T10:00:00Z",
+                    "message": {"usage": {"output_tokens": 700}},
+                }) + "\n")
+        out = self.report()
+        self.assertIn("(management)", out)
+        self.assertIn("1,400", out, "both worktrees' spend lands on one management row")
+
     def test_by_agent_counts_dispatches_from_transcripts(self):
         out = self.report(by_agent=True)
         self.assertRegex(out, r"code-engineer\s+1")
         self.assertRegex(out, r"test-engineer\s+1")
+
+
+class TestTasksForPath(SpendHarness):
+    """#78. The Tower needs a project's cost without changing the process's
+    working directory: its collectors run in a thread pool, and a global chdir
+    there is the kind of race that yields a wrong number occasionally rather
+    than an obvious failure."""
+
+    def test_by_path_matches_the_current_directory_form(self):
+        """The whole promise: an access change, not a measurement one."""
+        here_root, here = self.spend.tasks_for()
+        os.chdir(self.cwd)                      # deliberately leave the project
+        there_root, there = self.spend.tasks_for(str(self.repo))
+        self.assertEqual(os.path.realpath(there_root), os.path.realpath(here_root))
+        self.assertEqual([(t["task"], t["out"]) for t in there],
+                         [(t["task"], t["out"]) for t in here])
+
+    def test_it_does_not_change_the_working_directory(self):
+        """If this ever regresses to a chdir, the race comes back silently.
+
+        Deliberately called from OUTSIDE the project: the first version of this
+        test ran from inside it, so a chdir to that same directory changed
+        nothing observable and the guard passed against the very bug it exists
+        to catch.
+        """
+        os.chdir(self.cwd)
+        before = os.getcwd()
+        self.spend.tasks_for(str(self.repo))
+        self.assertEqual(os.getcwd(), before,
+                         "tasks_for changed the process working directory")
+
+    def test_sessions_from_elsewhere_are_still_excluded(self):
+        """The harness plants a 99,999-token session outside the project. It
+        must not be attributed by the path form any more than by the CLI."""
+        os.chdir(self.cwd)
+        _, tasks = self.spend.tasks_for(str(self.repo))
+        self.assertNotIn(99999, [t["out"] for t in tasks])
+
+    def test_tasks_here_is_still_the_current_directory(self):
+        """The CLI path must be untouched — every existing caller goes through
+        _tasks_here()."""
+        root, tasks = self.spend._tasks_here()
+        self.assertEqual(os.path.realpath(root), os.path.realpath(self.repo))
+        self.assertTrue(tasks)
 
 
 class TestAgentLog(SpendHarness):
