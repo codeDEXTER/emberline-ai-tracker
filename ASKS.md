@@ -352,3 +352,17 @@ window. Partitioning the machine removes that whole class of accident.
 Capturing by window id (`screencapture -l <id>`) is still preferred where it
 works — it sidesteps both the display and the Space question. Note we can only
 ever see the *currently active* Space on a display and cannot switch Spaces.
+
+## 2026-08-07 · Never launch Simulator.app — the panel is the only simulator UI
+Said in: pip (M1)
+
+"why are you laiunching an external sim. oly use internal" — said when the
+test engineer's `xcodebuild test` popped Simulator.app. Third sim instruction
+today and the pattern is now clear: he never wants to see the macOS Simulator
+window at all; the in-app panel is the one viewing surface. Operational
+consequences, learned the hard way in the same minute: quitting Simulator.app
+took down every booted device on the machine (it owned the boots), killing a
+test run mid-suite and two other sessions' devices. So: boot headless with
+`xcrun simctl boot` (CLI boots don't need and don't die with the viewer), run
+xcodebuild tests headless, and if a tool opens Simulator.app as a side effect,
+close it immediately — after checking which devices it owns.
