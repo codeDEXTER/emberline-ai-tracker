@@ -1007,6 +1007,31 @@ class TheHeaderCountMatchesTheRows(unittest.TestCase):
                          "header arithmetic and rendered rows disagree")
 
 
+class TheEstateTableIsNotCapped(unittest.TestCase):
+    """Capping `.cell.wide` to make room for the estate table capped the estate
+    table too — both regions are wide — so the ALL view rendered 3 of 6 projects
+    above a large empty gap. Worse than the inverted priority it was meant to
+    fix, and only visible by opening the window.
+
+    A CSS selector that matches more than intended fails silently and looks like
+    a layout choice, so it is pinned here rather than left to the eye."""
+
+    def test_only_the_strip_carries_the_cap(self):
+        css = T.CSS
+        self.assertIn(".cell.strip-cell", css)
+        # the bare .cell.wide rule must not constrain height
+        import re
+        m = re.search(r"\.grid > \.cell\.wide \{([^}]*)\}", css)
+        self.assertIsNotNone(m, "the .cell.wide rule went missing")
+        self.assertNotIn("max-height", m.group(1),
+                         "capping .cell.wide also caps the projects table")
+
+    def test_the_strip_cell_is_the_one_marked(self):
+        src = TOWER.read_text()
+        self.assertIn('class="cell wide strip-cell"', src)
+        self.assertIn('<div class="cell wide">{features}</div>', src)
+
+
 class StillEscapes(unittest.TestCase):
     def test_markup_in_data_cannot_reach_the_page(self):
         """Retargeted in #64 from render_handovers, which no longer exists.
