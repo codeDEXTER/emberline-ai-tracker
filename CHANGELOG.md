@@ -1,5 +1,39 @@
 # Changelog — common-rules
 
+## 2026-08-08 · The screen was working and useless, which is not the same thing
+
+aashish: *"this app doesnt work. i dont know what to do."*
+
+I had verified every change with `curl` and never once opened the window. It
+renders fine. It is also useless, in three specific ways, all of which I built.
+
+**The headline read `0% of declared scope`** while four features were declared
+**done**. Completion came only from closed implementing issues, and a `built`
+feature names none — the work predates the register. Proposal 05 already settles
+this: the sponsor closes features and his State column is the authority. It now
+reads **13%**. This was the first number on the screen and the one he asked for
+by name.
+
+**The NEEDS YOU band held 8 items, of which 1 was a decision.** The rest were
+rules-drift rows and contested notes. Worse, the drift was largely
+self-inflicted: every merge to common-rules bumps the version, so a day of work
+in this repo pushed every project 28–31 versions behind and the band filled with
+nagging about a number I had moved. #75 capped it at two rows plus a count,
+which was not nearly enough. Drift is a *state*, the header already carries it,
+and one line here says how bad it is and what to run.
+
+That is the second time this exact failure has been built and the second time it
+had to be measured on a live screen to be seen — a signal that never resolves
+becomes wallpaper, and I keep re-creating it one level up.
+
+**A footnote was being sliced in half** by the scrolling region's boundary,
+which reads as a rendering fault. It also cited a closed issue number, which is
+developer chatter on the sponsor's screen. Shortened.
+
+The lesson is not any of the three fixes. It is that "the tests pass and curl
+returns 200" answered a different question from "is this screen any use", and I
+reported the first as though it settled the second, repeatedly, for a day.
+
 ## 2026-08-07 · A feature stops being counted as a ticket too
 
 Implements #93, reported as the feature and issue lists being inconsistent —

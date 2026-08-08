@@ -510,53 +510,75 @@ class TheBandCarriesTheDecisionQueue(unittest.TestCase):
         self.assertNotIn("decision(s) waiting", T.render_needs_you([], {}, [], None, None, []))
 
 
-class DriftEscalatesInsteadOfSitting(unittest.TestCase):
-    """#75. `5 behind: …` sat unchanged in the header through a whole working
-    day. A permanent warning at constant volume is decoration."""
+class DriftIsOneLineNotAQueue(unittest.TestCase):
+    """#75 gave each drifted project a band row, capped at two plus a count. On
+    the live estate that still filled the band: 8 items, 6 of them drift and
+    contested notes, exactly 1 an actual decision.
 
-    def test_a_far_behind_project_earns_a_row(self):
-        out = T.render_needs_you([], {}, [], None, None,
-                                 [{"project": "pip", "behind": 17,
-                                   "stamped": 103, "current": 120}])
-        self.assertIn("17 rules versions behind", out)
+    And the drift was largely self-inflicted — every merge to common-rules bumps
+    the version, so a day of work there pushed every project 28–31 behind and
+    the band filled with nagging about it. Drift is a *state*; the header
+    already carries it. One line here, saying how bad and what to run."""
 
-    def test_never_stamped_is_its_own_case_not_zero(self):
-        """Reporting a project that has never recorded a version as '0 behind'
+    DRIFT = [{"project": f"p{i}", "behind": 30 - i, "stamped": 100, "current": 130}
+             for i in range(5)]
+
+    def test_five_drifted_projects_produce_one_row(self):
+        out = T.render_needs_you([], {}, [], None, None, self.DRIFT)
+        self.assertEqual(out.count("you-row"), 1)
+
+    def test_it_names_how_bad_and_what_to_run(self):
+        out = T.render_needs_you([], {}, [], None, None, self.DRIFT)
+        self.assertIn("5 project(s) behind the rules", out)
+        self.assertIn("worst is p0 at 30", out)
+        self.assertIn("rulecheck --align", out)
+
+    def test_never_stamped_is_still_called_out_by_name(self):
+        """It is a different fact from "behind", and reporting it as 0 behind
         would be the same lie as reporting undeclared scope as 0% done."""
-        out = T.render_needs_you([], {}, [], None, None,
-                                 [{"project": "idea-lab", "behind": None}])
-        self.assertIn("never recorded a rules version", out)
-        self.assertNotIn("0 rules versions", out)
-
-    def test_the_rows_are_capped_so_the_band_stays_scannable(self):
-        """Measured on the live estate every project was 8-17 versions behind,
-        so escalating all five put five rows in the band and recreated the
-        wallpaper one level up. The worst two get rows; the rest is a count."""
-        drift = [{"project": f"p{i}", "behind": 10 + i, "stamped": 100, "current": 120}
-                 for i in range(5)]
+        drift = self.DRIFT + [{"project": "idea-lab", "behind": None}]
         out = T.render_needs_you([], {}, [], None, None, drift)
-        self.assertEqual(out.count("rules versions behind"), T.DRIFT_ROWS_SHOWN)
-        self.assertIn("+3 more project(s) behind the rules", out)
-        # and the worst is the one that earns a row
-        self.assertIn("p4 is 14 rules versions behind", out)
+        self.assertIn("never stamped: idea-lab", out)
 
-    def test_full_project_names_in_prose_not_the_compact_tag(self):
-        """project_tag is built for chips ("finance #41") and reads as a typo in
-        a sentence — "idea has never recorded a rules version"."""
-        out = T.render_needs_you([], {}, [], None, None,
-                                 [{"project": "idea-lab", "behind": None}])
-        self.assertIn("idea-lab has never recorded", out)
-
-    def test_below_the_threshold_nothing_escalates(self):
-        self.assertNotIn("rules versions behind",
+    def test_no_drift_means_no_row(self):
+        self.assertNotIn("behind the rules",
                          T.render_needs_you([], {}, [], None, None, []))
 
     def test_an_empty_band_still_collapses_to_one_line(self):
-        """#51's rule, and the whole reason this proposal could add to the band
-        at all: reserving empty space is the failure mode proposal 09 fixed."""
         out = T.render_needs_you([], {}, [], None, None, [])
         self.assertIn("nothing needs you", out)
         self.assertNotIn("you-row", out)
+
+
+class ASponsorClosedFeatureIsDone(unittest.TestCase):
+    """The headline read **0% of declared scope** while four features were
+    declared done. Completion came only from closed implementing issues, and a
+    `built` feature names none — the work predates the register.
+
+    Proposal 05 already settles it: the sponsor closes features, and his State
+    column is the authority. This was the first number on the screen and the one
+    he asked for by name."""
+
+    def _f(self, kind, implements=()):
+        return {"number": 1, "title": "t", "state": kind, "kind": kind,
+                "implements": list(implements), "blocked_by": []}
+
+    def test_a_done_feature_counts_as_complete_without_issues(self):
+        pct, note = T.feature_pct(self._f("done"), {})
+        self.assertEqual(pct, 100)
+        self.assertIn("you closed it", note)
+
+    def test_the_whole_product_figure_reflects_them(self):
+        rows = [{"project": "p", "items": None, "unparsed": 0, "closed": {},
+                 "features": [self._f("done"), self._f("done"),
+                              self._f("blocked"), self._f("blocked")]}]
+        self.assertEqual(T.whole_product(rows)[0], 50)
+
+    def test_a_blocked_feature_still_counts_as_undone(self):
+        """Unchanged: dropping unscored features would flatter the figure."""
+        rows = [{"project": "p", "items": None, "unparsed": 0, "closed": {},
+                 "features": [self._f("blocked")]}]
+        self.assertEqual(T.whole_product(rows)[0], 0)
 
 
 class ProgressReportsWhatHappened(unittest.TestCase):
