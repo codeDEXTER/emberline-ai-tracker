@@ -1,0 +1,294 @@
+<meta charset="utf-8">
+<title>common-rules · A coupling graph, read from git — Proposal</title>
+<meta name="proposal-id" content="14">
+<meta name="proposal-topic" content="tower-coupling-graph">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="built">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
+    --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E;
+    --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0; --border:#26303C;
+            --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81; --warn:#D2A05A;
+            --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660;
+            --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B;
+            --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; }
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1060px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:33px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  h3 { font-size:18px; font-weight:640; margin:30px 0 4px; letter-spacing:-.01em; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:68ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  p { max-width:72ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:74ch; }
+  code, .mono { font-family:var(--mono); font-size:12.4px; }
+  a { color:var(--accent); }
+  .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+          padding:3px 9px; border-radius:4px; background:var(--dim); color:var(--chip-ink); }
+  .tablewrap { overflow-x:auto; margin-top:16px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:600px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.1px; white-space:nowrap; }
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:20px 0; max-width:76ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.good { border-left-color:var(--gain); } .verdict.warn { border-left-color:var(--warn); }
+  .mock { margin-top:20px; overflow-x:auto; border-radius:12px; }
+  .mock svg { width:100%; min-width:720px; height:auto; display:block; }
+  .cap { font-family:var(--mono); font-size:11px; color:var(--dim); margin-top:8px; }
+  ul { max-width:72ch; } li { margin-bottom:6px; }
+  .quote { border-left:3px solid var(--you); padding-left:16px; margin:18px 0; max-width:70ch;
+           font-size:16px; }
+</style>
+
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · proposal 14</span>
+  <span><span class="chip" style="background:var(--accent)">built</span> &nbsp; 2026-08-08 · rules 143</span>
+</div>
+
+<h1>A coupling graph, read from git — what's actually tangled, not just what changed</h1>
+<p class="standfirst">REPORT answers "how much, how fast." It says nothing about
+<em>where the risk lives</em> — which files a change to one thing is statistically
+likely to drag along with it. That's a different question, and it's the one
+this proposal answers, for finance-tracker first.</p>
+
+<div class="quote">
+  "put in a metric pulled from git and graph analytics. basically git analytics
+  for financial tracker."
+</div>
+
+<div class="verdict">
+  <b>What the data already says, before any code is written</b>
+  <p>Pulled from finance-tracker's last 300 commits, no new tooling — plain
+  <code>git log --name-only</code>:</p>
+  <div class="tablewrap"><table>
+    <tr><th>file</th><th>touches</th></tr>
+    <tr><td class="k">nicegui_app/main.py</td><td class="k">28</td></tr>
+    <tr><td class="k">nicegui_app/theme.py</td><td class="k">22</td></tr>
+    <tr><td class="k">nicegui_app/pages/ledger.py</td><td class="k">20</td></tr>
+    <tr><td class="k">finance_tracker/reports.py</td><td class="k">17</td></tr>
+    <tr><td class="k">nicegui_app/session.py</td><td class="k">15</td></tr>
+  </table></div>
+  <p>Churn alone says these five are hot. The co-change graph says something a
+  churn count can't: <strong>they aren't five separate hotspots, they're one</strong>.
+  Every pair among <code>main.py</code>, <code>theme.py</code>,
+  <code>session.py</code>, <code>ledger.py</code> and <code>reports.py</code>
+  co-changes 7–15 times — a change to any one of them has, historically, come
+  with a change to at least one other almost every time. <code>reports.py</code>
+  additionally pulls in <code>tests/test_reports.py</code> (10) and
+  <code>charts.py</code> (7). <code>finance_tracker/money.py</code> — the
+  actual currency arithmetic — has been touched <strong>once</strong> in the same window:
+  either it's stable because it's simple and correct, or it's stable because
+  nobody has gone back to it. The graph can't tell you which; it can tell you
+  where to ask the question.</p>
+</div>
+
+<p class="eyebrow">What changes</p>
+
+<h3>A new COUPLING section, per project</h3>
+<p>Sits on the project page below PROGRESS, above BOARD — REPORT and PROGRESS
+already answer "how much, how fast"; COUPLING answers "what moves together."
+Same page, same live cadence, a different question.</p>
+
+<h3>How the graph gets built</h3>
+<p>Walk <code>git log --name-only</code> over the project's full history —
+<b>all-time</b>, not a rolling window, because the question is structural
+coupling ("do these files always move together") rather than this week's
+activity, and a decision already made this way. Every pair of files touched by
+the same commit increments a weighted edge. Two corrections against real noise
+found in the data pulled for this proposal: a commit touching more than ~15–20
+files (a mass reformat, a checklist regeneration) is skipped outright rather
+than contributing <code>n·(n-1)/2</code> near-meaningless edges from one event,
+and files that co-change with nearly everything by nature —
+<code>CHANGELOG.md</code>, <code>CLAUDE-checklist.md</code>,
+<code>AGENT-LOG.md</code> — are stoplisted before the walk starts.</p>
+
+<h3>Cutting it down to something legible</h3>
+<p>A graph of every file the repo has ever touched is not readable and not
+useful. Only the top ~25–30 edges by weight survive; nodes are whatever files
+those edges touch. That's the set the layout below actually has to draw.</p>
+
+<h3>The layout itself</h3>
+<p>A real node-link graph, not a table — a Fruchterman-Reingold spring
+embedder, hand-written in pure Python (<code>math</code> + <code>random</code>
+only; Tower is deliberately stdlib-only, per <code>build_towerapp.sh</code>'s
+own stated philosophy, so this doesn't reach for <code>networkx</code> or
+<code>numpy</code> even where they happen to be on the machine). Nodes repel
+each other, edges pull their endpoints together with force proportional to
+co-change weight, positions cool and settle over a few hundred iterations,
+then get clamped into the SVG canvas. For ~25–30 nodes this runs in a fraction
+of a second — the cost here is implementation correctness (a naive spring
+layout can fling nodes off-canvas or collapse into an overlapping knot), not
+runtime.</p>
+
+<h3>Why it won't jitter every 10 seconds</h3>
+<p>The page auto-refreshes every 10s. A layout re-seeded from fresh randomness
+on every refresh would visibly rearrange itself constantly, which reads as
+broken rather than alive. Two fixes, both cheap: <code>random.seed()</code> a
+fixed value so identical input always produces identical output, and compute
+the layout inside the same <code>cached_async</code> TTL-bucket pattern
+already driving <code>history</code> and <code>cost</code> — it only
+recomputes when the underlying git data is actually stale, not every collect.</p>
+
+<div class="mock">
+<svg viewBox="0 0 1280 620" role="img" aria-label="The COUPLING section on finance-tracker's project page">
+  <style>
+    .b{fill:#0B0E13}
+    .h{font-family:ui-monospace,monospace;font-size:11px;fill:#7C8594;letter-spacing:.12em;font-weight:700}
+    .t{font-family:-apple-system,sans-serif;font-size:12px;fill:#DFE3EA;font-weight:600}
+    .d{font-family:ui-monospace,monospace;font-size:10px;fill:#7C8594}
+    .lbl{font-family:ui-monospace,monospace;font-size:10.5px;fill:#DFE3EA}
+    .e1{stroke:#5FA985}.e2{stroke:#39434F}
+  </style>
+  <rect class="b" width="1280" height="620" rx="14"/>
+  <text class="h" x="28" y="34">FINANCE-TRACKER · 9 FEATURES</text>
+  <line x1="24" y1="50" x2="1256" y2="50" stroke="#222B38"/>
+
+  <text class="h" x="28" y="80">COUPLING · TOP 9 FILES, BY CO-CHANGE</text>
+  <text class="d" x="1256" y="80" text-anchor="end">all-time · 300 commits walked</text>
+
+  <!-- dense core cluster -->
+  <line class="e1" x1="520" y1="240" x2="640" y2="200" stroke-width="4"/>  <!-- main-session 15 -->
+  <line class="e1" x1="520" y1="240" x2="470" y2="330" stroke-width="3.6"/> <!-- main-theme 13 -->
+  <line class="e1" x1="640" y1="200" x2="470" y2="330" stroke-width="2.8"/> <!-- session-theme 9 -->
+  <line class="e1" x1="470" y1="330" x2="590" y2="360" stroke-width="2.8"/> <!-- theme-ledger 8 -->
+  <line class="e1" x1="590" y1="360" x2="750" y2="330" stroke-width="2.8"/> <!-- ledger-reports 9 -->
+  <line class="e2" x1="590" y1="360" x2="640" y2="200" stroke-width="2.4"/> <!-- ledger-session 7 -->
+  <line class="e2" x1="750" y1="330" x2="470" y2="330" stroke-width="2.4"/> <!-- reports-theme 8 -->
+  <line class="e2" x1="750" y1="330" x2="520" y2="240" stroke-width="2.2"/> <!-- reports-main 7 -->
+  <line class="e2" x1="590" y1="360" x2="520" y2="240" stroke-width="2.2"/> <!-- ledger-main 7 -->
+  <!-- satellites -->
+  <line class="e2" x1="750" y1="330" x2="900" y2="290" stroke-width="3.2"/> <!-- reports-test_reports 10 -->
+  <line class="e2" x1="750" y1="330" x2="880" y2="420" stroke-width="2.4"/> <!-- reports-charts 7 -->
+  <line class="e2" x1="470" y1="330" x2="900" y2="290" stroke-width="2"/>  <!-- theme-test_reports 6 -->
+  <line class="e2" x1="470" y1="330" x2="380" y2="440" stroke-width="1.8"/> <!-- theme-dashboard 5 -->
+
+  <!-- core nodes, sized by touch count -->
+  <circle cx="520" cy="240" r="17" fill="#1A2230" stroke="#5FA985" stroke-width="2"/>
+  <text class="lbl" x="544" y="236">main.py</text><text class="d" x="544" y="250">28 touches</text>
+
+  <circle cx="470" cy="330" r="15" fill="#1A2230" stroke="#5FA985" stroke-width="2"/>
+  <text class="lbl" x="360" y="326" text-anchor="end">theme.py</text><text class="d" x="360" y="340" text-anchor="end">22</text>
+
+  <circle cx="640" cy="200" r="14" fill="#1A2230" stroke="#5FA985" stroke-width="2"/>
+  <text class="lbl" x="662" y="196">session.py</text><text class="d" x="662" y="210">15</text>
+
+  <circle cx="590" cy="360" r="15" fill="#1A2230" stroke="#5FA985" stroke-width="2"/>
+  <text class="lbl" x="590" y="392" text-anchor="middle">pages/ledger.py</text><text class="d" x="590" y="406" text-anchor="middle">20</text>
+
+  <circle cx="750" cy="330" r="15" fill="#1A2230" stroke="#7FB2CE" stroke-width="2"/>
+  <text class="lbl" x="774" y="326">reports.py</text><text class="d" x="774" y="340">17</text>
+
+  <!-- satellites -->
+  <circle cx="900" cy="290" r="11" fill="#131820" stroke="#39434F" stroke-width="1.6"/>
+  <text class="lbl" x="920" y="286">test_reports.py</text><text class="d" x="920" y="300">10</text>
+
+  <circle cx="880" cy="420" r="10" fill="#131820" stroke="#39434F" stroke-width="1.6"/>
+  <text class="lbl" x="900" y="424">charts.py</text><text class="d" x="900" y="438">7 co-changes w/ reports.py</text>
+
+  <circle cx="380" cy="440" r="9" fill="#131820" stroke="#39434F" stroke-width="1.6"/>
+  <text class="lbl" x="330" y="462" text-anchor="end">dashboard.py</text>
+
+  <!-- isolated node -->
+  <circle cx="1120" cy="500" r="7" fill="#131820" stroke="#39434F" stroke-width="1.4" stroke-dasharray="2,2"/>
+  <text class="lbl" x="1120" y="524" text-anchor="middle">money.py</text>
+  <text class="d" x="1120" y="538" text-anchor="middle" fill="#D2A05A">1 touch, no edges &gt; threshold</text>
+
+  <text class="d" x="28" y="570" fill="#39434F">— five files that read as separate hotspots in a churn count turn out to be one unit: touch any one, and history says you'll likely touch at least one more</text>
+  <text class="d" x="28" y="590" fill="#39434F">— money.py sits apart, untouched by the cluster — worth a look, not a verdict: stable-because-correct and stable-because-forgotten look identical from here</text>
+</svg>
+</div>
+<p class="cap">COUPLING · finance-tracker · real weights, hand-placed layout — the shipped version runs the spring embedder, this is illustrative</p>
+
+<p class="eyebrow">What this costs</p>
+<ul>
+  <li><b>A new TTL bucket.</b> The git walk plus layout computation is heavier
+  than anything on the 5s cadence — needs its own long-poll cache
+  (<code>GRAPH_TTL</code>, alongside <code>HISTORY_TTL</code> and
+  <code>COST_TTL</code>), background-refreshed, served stale while
+  recomputing. Exact interval still open — 30–60 minutes is the range worth
+  starting from; structural coupling doesn't move fast.</li>
+  <li><b>New render surface.</b> Everything else on the project page is CSS
+  grid and small SVG sparklines. This is the first hand-laid-out SVG graph
+  Tower draws — more surface area for something to look wrong than a table
+  would have been, which is the trade already made in choosing this over the
+  ranked-table alternative.</li>
+  <li><b>Renames are not tracked.</b> A file that moved shows up as two
+  separate low-weight nodes rather than one continuous history. Worth stating
+  rather than quietly wrong — full rename-tracking across a multi-file log
+  walk is its own piece of work, out of scope here.</li>
+</ul>
+
+<p class="eyebrow">What does not change</p>
+<ul>
+  <li>REPORT and PROGRESS are untouched — this is an addition, not a
+  reshuffle, unlike the REPORT/PROGRESS merge that just landed.</li>
+  <li>No new dependency. <code>math</code> and <code>random</code> only, same
+  as everything else in <code>bin/tower</code>.</li>
+  <li>Scoped to one project at a time, same as REPORT — no cross-project
+  coupling graph is proposed here.</li>
+</ul>
+
+<div class="verdict good">
+  <b>Shipped with the proposed defaults, plus one found in the building</b>
+  <p>Commit-size cap landed at 18 files, top-N edges at 28, <code>GRAPH_TTL</code>
+  at 40 minutes — the values proposed above, taken as confirmed rather than
+  re-litigated. One thing the proposal didn't anticipate: the stoplist named
+  three bookkeeping files, but building against finance-tracker's real history
+  surfaced a bigger source of noise — several commits touch 11–13 files under
+  <code>docs/proposals/</code> at once (an index or README regenerated
+  alongside the doc it lists), all under the 18-file cap, filling 21 of the
+  top 28 edges with documentation cross-links and crowding out every real
+  code coupling this graph exists to show. <code>COUPLING_STOPLIST_DIRS</code>
+  excludes <code>docs/</code> wholesale as a result — caught by inspecting the
+  first real graph before wiring it into the page, not assumed correct
+  because the code ran without error.</p>
+</div>
+
+<p class="eyebrow">Build order</p>
+<div class="tablewrap">
+<table>
+  <tr><th>Phase</th><th>Covers</th></tr>
+  <tr><td class="k">1 — collector</td>
+      <td>the git walk, noise filtering (commit-size cap, stoplist), weighted
+      adjacency, top-N edge cutoff — runs and is inspectable before any
+      layout code exists</td></tr>
+  <tr><td class="k">2 — layout</td>
+      <td>the spring embedder, seeded deterministically, tested against a
+      synthetic graph for the degenerate cases (single node, disconnected
+      components, a graph that's just two nodes and one edge)</td></tr>
+  <tr><td class="k">3 — render + wire in</td>
+      <td>SVG in Tower's existing palette, <code>GRAPH_TTL</code> caching via
+      <code>cached_async</code>, the COUPLING section on the project page</td></tr>
+</table>
+</div>
+<p class="note">Built directly, all three phases in one pass — no issues filed.
+The numbers in the verdict box above are real, pulled from
+finance-tracker's own history on 2026-08-08; nothing in finance-tracker itself was
+changed to write this.</p>
+
+</div>

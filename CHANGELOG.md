@@ -53,6 +53,40 @@ quietly stops checking everything fails the suite.
 
 Exit codes now read: 0 aligned **or not an adopting project** · 1 behind · 2
 cannot tell.
+## 2026-08-08 · A coupling graph, read straight from git (proposal 14)
+
+Asked directly for "git analytics" and "graph analytics" for finance-tracker.
+REPORT and PROGRESS already answer *how much, how fast*; neither says where
+the risk concentrates — which files a change to one thing has, historically,
+dragged along with it. That's a graph question, and it's now on every
+project's page as **COUPLING**, below PROGRESS.
+
+Built from a plain `git log --name-only` walk, all-time (a structural
+question, not a this-week one, per the proposal): every pair of files touched
+by the same commit gets a weighted edge. Two noise corrections, one proposed
+in advance and one found while building. Proposed: a commit touching more
+than 18 files (a mass reformat) is skipped outright rather than contributing
+`n·(n-1)/2` near-meaningless edges from one event. Found live against
+finance-tracker's real history: several commits touch 11–13 files under
+`docs/proposals/` at once — an index or README regenerated alongside the doc
+it lists — all under the 18-file cap, and they filled **21 of the top 28
+edges** with documentation cross-links before `docs/` was excluded wholesale.
+Caught by inspecting the first real graph before wiring it into the page, not
+by assuming the collector was right because it ran without error.
+
+The layout itself is a hand-written Fruchterman-Reingold spring embedder —
+`math` and `random` only, no `networkx`, no `numpy`, per this repo's own
+stdlib-only rule for the Tower — seeded deterministically so the graph
+doesn't visibly rearrange itself on every 10-second auto-refresh. Computed
+once per 40-minute window (`GRAPH_TTL`, alongside `HISTORY_TTL`/`COST_TTL`)
+and cached, never recomputed on a request.
+
+What it found on finance-tracker, once the doc noise was gone: `main.py`,
+`theme.py`, `session.py`, `pages/ledger.py` and `reports.py` co-change 7–15
+times with each other — five files that read as separate hotspots by churn
+count alone turn out to function as one unit. `money.py`, the actual currency
+arithmetic, sits apart from the cluster entirely.
+
 ## 2026-08-08 · REPORT loses its own chart, gains PROGRESS as a neighbor
 
 Looked at the REPORT tab just shipped and it had three problems, not one:
