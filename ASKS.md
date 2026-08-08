@@ -334,35 +334,25 @@ an explicit udid can target a different booted device than the panel shows —
 always pass the udid. Another session's booted device (Pockets' Pro Max here)
 is its surface; attach Pip to its own device rather than borrowing.
 
-## 2026-08-07 · Screen work goes on "LG HDR 4K (1)"
+## 2026-08-07 · Screen work goes on the non-main LG display
 Said in: mac-explorer (phase 1 validation)
 
-Asked which of his three displays was ours to use, he answered "use LG HDR 4K
-(2)" and corrected it within minutes to **"LG HDR 4K (1)"**. That display is the
-agent surface: take screenshots there, put any app window we launch there, stay
-off "LG HDR 4K (2)" and the built-in Retina display. `switch_display` accepts
-the name verbatim. (The first answer is recorded here only so nobody
-re-derives it from a stale transcript — (1) is the instruction.)
+Agent screenshots and any app window we launch go on **the LG that is not the
+main display** — currently `LG HDR 4K (2)`, origin (-1920,0). Stay off the main
+display (`LG HDR 4K (1)`, origin (0,0), which holds the Claude window
+full-screen) and off the built-in Retina display (which holds Tower and the
+Simulator's Stage Manager strip).
 
-Why it matters beyond tidiness: he runs ~16 Spaces across three displays with
-live work open, and a gate the same day logged a Stage Manager gotcha where a
-click aimed at remembered window bounds plausibly landed in his live Tower
-window. Partitioning the machine removes that whole class of accident.
+Recorded as a description rather than a number on purpose: he answered "(2)",
+corrected to "(1)", then on learning (1) is the main display said "oh sorry then
+lg 2 / not the main lg screen". The number moved twice; the intent never did —
+agent windows belong off the screen he is reading and off the one with Tower.
+Re-derive by geometry (`NSScreen.screens` origins) rather than trusting an index.
 
 Capturing by window id (`screencapture -l <id>`) is still preferred where it
-works — it sidesteps both the display and the Space question. Note we can only
-ever see the *currently active* Space on a display and cannot switch Spaces.
+works — it sidesteps both the display and the Space question. We can only ever
+see the *currently active* Space on a display and cannot switch Spaces.
 
-## 2026-08-07 · Never launch Simulator.app — the panel is the only simulator UI
-Said in: pip (M1)
-
-"why are you laiunching an external sim. oly use internal" — said when the
-test engineer's `xcodebuild test` popped Simulator.app. Third sim instruction
-today and the pattern is now clear: he never wants to see the macOS Simulator
-window at all; the in-app panel is the one viewing surface. Operational
-consequences, learned the hard way in the same minute: quitting Simulator.app
-took down every booted device on the machine (it owned the boots), killing a
-test run mid-suite and two other sessions' devices. So: boot headless with
-`xcrun simctl boot` (CLI boots don't need and don't die with the viewer), run
-xcodebuild tests headless, and if a tool opens Simulator.app as a side effect,
-close it immediately — after checking which devices it owns.
+Gotcha: with two same-named processes running, `System Events ... process "X"`
+targets an arbitrary one and can fail with "Can't get window 1". Map windows to
+PIDs via `CGWindowListCopyWindowInfo` and act on the PID.
