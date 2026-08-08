@@ -1273,11 +1273,12 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
   /* min-height:0 is the load-bearing half — without it a grid item refuses to
      shrink below its content and the overflow moves back onto the page. */
   .grid > .cell { overflow-y:auto; min-height:0; }
-  /* The strip is capped and the estate table gets what is left. Measured in
-     the real 1180x760 window: the strip took ~240px while the table showing
-     every project got ~80px and rendered 3 of 6 — on the screen whose entire
-     job is "which app is stuck". Priority was exactly inverted. */
-  .grid > .cell.wide { overflow-y:auto; max-height:22vh; }
+  /* Cap the STRIP only. Capping `.cell.wide` capped the projects table too —
+     both are wide — so the estate view rendered 3 of 6 projects above a large
+     empty gap, which is worse than the inverted priority it was meant to fix.
+     The strip is a footnote; the table is the content and takes what is left. */
+  .grid > .cell.wide { overflow-y:auto; }
+  .grid > .cell.strip-cell { max-height:20vh; }
   .foot { flex:0 0 auto; margin-top:var(--gap-2); }
   /* the region title stays put while its list scrolls under it */
   .cell > .rgn > .ht { position:sticky; top:0; z-index:1;
@@ -2104,7 +2105,7 @@ def render_page(project=ALL):
 
     # The estate-wide strip belongs on ALL only: a project page has its own,
     # already filtered, and showing both would say the same thing twice.
-    sessions_block = (f'<div class="cell wide">{sessions_all}</div>'
+    sessions_block = (f'<div class="cell wide strip-cell">{sessions_all}</div>'
                       if project == ALL else "")
 
     return f"""<!doctype html>

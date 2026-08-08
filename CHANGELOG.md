@@ -1,5 +1,20 @@
 # Changelog — common-rules
 
+## 2026-08-08 · Cap the strip, not the table
+
+The previous fix capped `.cell.wide` to stop the sessions strip crowding out the
+estate table. Both regions are wide, so it capped the table as well — the ALL
+view then rendered **3 of 6 projects above a large empty gap**, which is worse
+than the inverted priority it was meant to fix.
+
+A CSS selector matching more than intended fails silently and looks like a
+layout decision. The strip now carries its own class, and a test asserts the
+bare `.cell.wide` rule constrains no height — verified by putting the over-broad
+cap back and watching it go red.
+
+Third fix in a row on the same screen, and the third one that only a screenshot
+could have caught.
+
 ## 2026-08-08 · Fits the window it actually ships in
 
 Opening the app — properly, at its real size, for the first time — showed three
