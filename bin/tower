@@ -38,7 +38,9 @@ import html
 import importlib.machinery
 import importlib.util
 import json
+import math
 import os
+import random
 import re
 import signal
 import string
@@ -977,6 +979,167 @@ def human_tokens(n):
     return str(n)
 
 
+# --- coupling: what moves together, read from the commit graph (proposal 14) ---
+#
+# REPORT and PROGRESS answer "how much, how fast." Neither says where the risk
+# concentrates -- which files a change to one thing has, historically, dragged
+# along with it. That is a graph question, not a count, and it is answered
+# here from the same kind of ground truth as everything else on the screen:
+# git itself, not a new dependency.
+
+GRAPH_TTL = 2400                  # 40min -- structural coupling does not move fast
+COUPLING_LOG_COMMITS = 300
+COUPLING_MAX_COMMIT_FILES = 18    # a commit past this is a mass edit, not coupling
+COUPLING_TOP_EDGES = 28
+COUPLING_STOPLIST = {"CHANGELOG.md", "CLAUDE-checklist.md", "AGENT-LOG.md",
+                      "LESSONS.md"}
+# A whole directory, not filenames: measured on finance-tracker while
+# building this, several commits touch 11-13 files under docs/proposals/ at
+# once -- an index or README regenerated alongside the doc it lists, not code
+# moving together -- and at 18 files or fewer per commit those slipped past
+# COUPLING_MAX_COMMIT_FILES and filled 21 of the top 28 edges, crowding out
+# every real coupling this graph exists to show. Documentation that links to
+# itself is not the risk map this proposal is for.
+COUPLING_STOPLIST_DIRS = ("docs/",)
+COUPLING_W, COUPLING_H = 1180, 460
+
+
+def coupling_graph(proj):
+    """(nodes, edges) -- the weighted co-change graph for one project, or
+    None where there is not enough history to say anything.
+
+    nodes carry real file-touch counts, the same number a churn figure
+    elsewhere would show, not graph degree -- so a node's size means the same
+    thing everywhere on the screen. edges are the top COUPLING_TOP_EDGES
+    co-change pairs by weight: a graph of every file the repo has ever
+    touched is not readable, and is not what "what's tangled" is asking.
+
+    All-time, not a rolling window -- proposal 14's question is structural
+    coupling, not this week's activity. Two corrections against real noise
+    measured while writing that proposal: a commit touching more than
+    COUPLING_MAX_COMMIT_FILES files (a mass reformat, a checklist
+    regeneration) is skipped for coupling purposes entirely rather than
+    contributing n*(n-1)/2 near-meaningless edges from one event, and files
+    that co-change with nearly everything by nature -- CHANGELOG.md,
+    CLAUDE-checklist.md, AGENT-LOG.md, LESSONS.md, and anything under docs/
+    (see COUPLING_STOPLIST_DIRS) -- never enter the graph. Renames are not
+    tracked: a moved file starts a new node rather than continuing its
+    history, stated rather than quietly wrong.
+    """
+    out = run([GIT, "-C", proj["path"], "log", "--format=%x00", "--name-only",
+               "-n", str(COUPLING_LOG_COMMITS)])
+    if not out:
+        return None
+
+    def keep(f):
+        if Path(f).name in COUPLING_STOPLIST:
+            return False
+        return not f.startswith(COUPLING_STOPLIST_DIRS)
+
+    touches, edge_w = {}, {}
+    for block in out.split("\x00"):
+        files = [ln.strip() for ln in block.splitlines()
+                if ln.strip() and keep(ln.strip())]
+        for f in files:
+            touches[f] = touches.get(f, 0) + 1
+        if 1 < len(files) <= COUPLING_MAX_COMMIT_FILES:
+            for i in range(len(files)):
+                for j in range(i + 1, len(files)):
+                    a, b = sorted((files[i], files[j]))
+                    edge_w[(a, b)] = edge_w.get((a, b), 0) + 1
+    if not edge_w:
+        return None
+    top = sorted(edge_w.items(), key=lambda kv: -kv[1])[:COUPLING_TOP_EDGES]
+    node_names = sorted({f for (a, b), _ in top for f in (a, b)})
+    if len(node_names) < 2:
+        return None
+    nodes = [{"name": n, "touches": touches.get(n, 0)} for n in node_names]
+    edges = [{"a": a, "b": b, "w": w} for (a, b), w in top]
+    return {"nodes": nodes, "edges": edges}
+
+
+def force_layout(nodes, edges, width=COUPLING_W, height=COUPLING_H,
+                 iterations=300, seed=42):
+    """A Fruchterman-Reingold spring embedder, hand-written: nodes repel each
+    other, edges pull their endpoints together with force proportional to
+    co-change weight, positions cool and settle over `iterations` steps then
+    clamp into the canvas. Pure math/random -- Tower is deliberately
+    stdlib-only (build_towerapp.sh's own stated philosophy), so this does not
+    reach for networkx or numpy even where they happen to be on the machine.
+
+    Seeded and deterministic on purpose. The page auto-refreshes every 10s;
+    a layout reseeded from fresh randomness each call would visibly rearrange
+    itself on every reload, which reads as broken rather than alive. This is
+    also why the caller runs it once per GRAPH_TTL window via cached_async
+    rather than on every render.
+    """
+    names = [n["name"] for n in nodes]
+    count = len(names)
+    if count == 0:
+        return {}
+    rnd = random.Random(seed)
+    k = math.sqrt((width * height) / count)
+    margin = 40
+    pos = {name: [rnd.uniform(width * 0.3, width * 0.7),
+                  rnd.uniform(height * 0.3, height * 0.7)] for name in names}
+    max_w = max((e["w"] for e in edges), default=1)
+    t0 = width * 0.05
+
+    for it in range(iterations):
+        disp = {name: [0.0, 0.0] for name in names}
+        for i in range(count):
+            for j in range(i + 1, count):
+                a, b = names[i], names[j]
+                dx = pos[a][0] - pos[b][0]
+                dy = pos[a][1] - pos[b][1]
+                dist = math.hypot(dx, dy) or 0.01
+                f = (k * k) / dist
+                ux, uy = dx / dist, dy / dist
+                disp[a][0] += ux * f; disp[a][1] += uy * f
+                disp[b][0] -= ux * f; disp[b][1] -= uy * f
+        for edge in edges:
+            a, b, w = edge["a"], edge["b"], edge["w"]
+            if a not in pos or b not in pos:
+                continue
+            dx = pos[a][0] - pos[b][0]
+            dy = pos[a][1] - pos[b][1]
+            dist = math.hypot(dx, dy) or 0.01
+            # weight scales the pull -- a heavily co-changed pair should end
+            # up closer, not just connected by a thicker line
+            strength = 0.4 + 0.6 * (w / max_w)
+            f = (dist * dist) / k * strength
+            ux, uy = dx / dist, dy / dist
+            disp[a][0] -= ux * f; disp[a][1] -= uy * f
+            disp[b][0] += ux * f; disp[b][1] += uy * f
+        t = max(t0 * (1 - it / iterations), 0.5)
+        for name in names:
+            dx, dy = disp[name]
+            dist = math.hypot(dx, dy) or 0.01
+            capped = min(dist, t)
+            pos[name][0] = min(width - margin, max(margin, pos[name][0] + dx / dist * capped))
+            pos[name][1] = min(height - margin, max(margin, pos[name][1] + dy / dist * capped))
+    return pos
+
+
+_coupling_lock = threading.Lock()
+_coupling = {"ts": 0, "data": None}
+
+
+def _coupling_now(projs):
+    """Every project's coupling graph, laid out once and cached (#GRAPH_TTL).
+    Absence (no repo, too little history) is silent here -- the render layer
+    says why, per project, the same way PROGRESS already does."""
+    out = []
+    for proj in projs:
+        g = coupling_graph(proj)
+        if not g:
+            continue
+        pos = force_layout(g["nodes"], g["edges"])
+        out.append({"project": proj["name"], "nodes": g["nodes"],
+                    "edges": g["edges"], "pos": pos})
+    return out
+
+
 # --- collect everything, cached ---
 
 _cache_lock = threading.Lock()
@@ -1169,6 +1332,7 @@ def _collect_now():
     history_err = None
     cost = cached_async(_cost, _cost_lock, COST_TTL, _cost_now, projs)
     cost_err = None
+    coupling = cached_async(_coupling, _coupling_lock, GRAPH_TTL, _coupling_now, projs)
     gate_branches, gate_err = safe(open_gate_branches, projs)
 
     # Node labels (issue title, prefix stripped) — shared lookup from the
@@ -1224,6 +1388,7 @@ def _collect_now():
         "drift": drift or [], "drift_err": drift_err,
         "history": history or [], "history_err": history_err,
         "cost": cost or {}, "cost_err": cost_err,
+        "coupling": coupling or [],
         "needs_input": needs_input, "gate_err": gate_err,
     }
     with _cache_lock:
@@ -1460,6 +1625,14 @@ a.dot:hover { outline:1px solid var(--ink); }
 .rcard .n { font-family:var(--sans); font-size:21px; font-weight:700; color:var(--ink); }
 .rcard .k { font-family:var(--mono); font-size:9.5px; color:var(--dim);
             margin-top:4px; }
+
+.coup { width:100%; height:360px; display:block; margin-top:var(--gap-2);
+        background:var(--card); border:1px solid var(--edge); border-radius:10px; }
+.c-edge { stroke:var(--edge); opacity:.55; }
+.c-edge.c-strong { stroke:var(--green); opacity:.8; }
+.c-node { fill:var(--card-2); stroke:var(--green); stroke-width:1.6; }
+.c-lbl { font-family:var(--mono); font-size:9px; fill:var(--dim); }
+
 .f-fig { font-family:var(--mono); font-size:11px; white-space:nowrap; }
 .f-none { font-family:var(--mono); font-size:10px; color:var(--dim);
           margin:var(--gap-3) 0 0; }
@@ -1902,6 +2075,64 @@ def render_progress(history, cost=None):
     return "\n".join(out)
 
 
+def render_coupling(coup):
+    """COUPLING — what moves together, read from the commit graph itself
+    (proposal 14). Sits below PROGRESS: REPORT and PROGRESS answer "how much,
+    how fast"; this answers "what's actually tangled" — a different
+    question, the same kind of ground truth. A spring-embedded node-link
+    graph, not a table — positions come from force_layout(), computed once
+    per GRAPH_TTL window by _coupling_now() and cached, never recomputed on
+    a request.
+    """
+    nodes, edges, pos = coup["nodes"], coup["edges"], coup["pos"]
+    max_touch = max((n["touches"] for n in nodes), default=1) or 1
+    max_w = max((ed["w"] for ed in edges), default=1)
+    strong_cut = sorted((ed["w"] for ed in edges), reverse=True)
+    strong_cut = strong_cut[max(0, len(strong_cut) // 3 - 1)] if strong_cut else 0
+
+    def radius(t):
+        return 7 + 11 * (t / max_touch) ** 0.5
+
+    parts = [f'<svg class="coup" viewBox="0 0 {COUPLING_W} {COUPLING_H}" '
+             f'preserveAspectRatio="xMidYMid meet" role="img" '
+             f'aria-label="{e(coup["project"])} coupling graph">']
+    for ed in edges:
+        a, b, w = ed["a"], ed["b"], ed["w"]
+        if a not in pos or b not in pos:
+            continue
+        x1, y1 = pos[a]
+        x2, y2 = pos[b]
+        sw = 0.8 + 3.0 * (w / max_w)
+        strong = " c-strong" if w >= strong_cut else ""
+        parts.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
+                     f'class="c-edge{strong}" stroke-width="{sw:.2f}">'
+                     f'<title>{e(a)} ↔ {e(b)} · {w} co-changes</title></line>')
+    for nd in nodes:
+        name = nd["name"]
+        if name not in pos:
+            continue
+        x, y = pos[name]
+        r = radius(nd["touches"])
+        label = name.rsplit("/", 1)[-1]
+        parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" class="c-node">'
+                     f'<title>{e(name)} · {nd["touches"]} touches</title></circle>')
+        parts.append(f'<text x="{x:.1f}" y="{y + r + 13:.1f}" text-anchor="middle" '
+                     f'class="c-lbl">{e(label)}</text>')
+    parts.append("</svg>")
+
+    top3 = sorted(edges, key=lambda ed: -ed["w"])[:3]
+    if top3:
+        lead = "; ".join(
+            f'{ed["a"].rsplit("/", 1)[-1]} ↔ {ed["b"].rsplit("/", 1)[-1]} ({ed["w"]})'
+            for ed in top3)
+        parts.append(f'<p class="sub">strongest coupling: {e(lead)} · measured '
+                     f'over the last {COUPLING_LOG_COMMITS} commits, all-time · '
+                     f'commits touching more than {COUPLING_MAX_COMMIT_FILES} files '
+                     f'are skipped as noise, not coupling · node size is real '
+                     f'touch count</p>')
+    return "\n".join(parts)
+
+
 def render_report(name, data):
     """REPORT — the completion snapshot for one project, recomputed on every
     collect rather than written once and left to rot ("that's what I want to
@@ -2012,6 +2243,14 @@ def render_project(name, data):
     if hist:
         out.append('<p class="psec">PROGRESS</p>')
         out.append(render_progress(hist, data["cost"]))
+
+    coup = next((c for c in data["coupling"] if c["project"] == name), None)
+    out.append('<p class="psec">COUPLING</p>')
+    out.append(render_coupling(coup) if coup else
+               '<p class="sub">not enough co-change history yet — this walks '
+               f'the last {COUPLING_LOG_COMMITS} commits for files that '
+               'changed together, filtered for noise; a fresh or very small '
+               'project may not have enough yet</p>')
 
     out.append(render_board(feats))
     out.append(render_flow(pipe))
