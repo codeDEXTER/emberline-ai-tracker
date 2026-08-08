@@ -1518,24 +1518,31 @@ def render_needs_you(worktrees, needs_input, contested, features=None,
     # Full project names here, not project_tag: the tag is built for compact
     # chips ("finance #41") and reads as a typo in a sentence ("idea has never
     # recorded a rules version").
+    # ONE row for all rules drift, never one per project.
+    #
+    # #75 gave each drifted project a row and capped it at two plus a count.
+    # On the live estate that still filled the band: 8 items, of which 6 were
+    # drift and contested notes, and exactly 1 was a decision. Worse, the
+    # drift is largely self-inflicted -- every merge to common-rules bumps the
+    # version, so a day of work here pushed every project 28-31 versions
+    # behind and the band filled with nagging about it.
+    #
+    # Drift is a *state*, and the header already carries it. What belongs here
+    # is the one line that says how bad it has got and what to run.
     worst = sorted(drift or [], key=lambda d: -(d["behind"] or 10 ** 6))
-    for d in worst[:DRIFT_ROWS_SHOWN]:
-        if d["behind"] is None:
-            head = f'{d["project"]} has never recorded a rules version'
-            meta = "run rulecheck --align there · it is not the same as 0 behind"
+    if worst:
+        never = [d["project"] for d in worst if d["behind"] is None]
+        numbered = [d for d in worst if d["behind"] is not None]
+        if numbered:
+            head = (f'{len(worst)} project(s) behind the rules · worst is '
+                    f'{numbered[0]["project"]} at {numbered[0]["behind"]}')
         else:
-            head = f'{d["project"]} is {d["behind"]} rules versions behind'
-            meta = (f'stamped {d["stamped"]}, current is {d["current"]} · '
-                    f'escalated past {DRIFT_ESCALATES_AT}')
+            head = f'{len(worst)} project(s) have never recorded a rules version'
+        meta = "run rulecheck --align in each"
+        if never:
+            meta += f' · never stamped: {", ".join(never)}'
         rows.append(f'<div class="you-row cont"><p class="you-ttl clamp2">{e(head)}</p>'
                     f'<p class="you-meta clamp1">{e(meta)}</p></div>')
-    rest = len(worst) - DRIFT_ROWS_SHOWN
-    if rest > 0:
-        rows.append(f'<div class="you-row cont"><p class="you-ttl clamp2">'
-                    f'+{rest} more project(s) behind the rules</p>'
-                    f'<p class="you-meta clamp1">'
-                    f'{e(", ".join(d["project"] for d in worst[DRIFT_ROWS_SHOWN:]))}'
-                    f'</p></div>')
 
     if not rows:
         return ('<p class="you-none">nothing needs you · '
@@ -1585,6 +1592,14 @@ def feature_pct(feature, closed):
     and 0% is a claim about progress that nothing supports (#70).
     """
     impl = feature["implements"]
+    # Proposal 05: the sponsor closes features, and his State column is the
+    # authority. A feature he marked `built`/`done` is complete whether or not
+    # it names implementing issues -- most do not, because the work predates
+    # the register. Without this the headline read **0% of declared scope**
+    # while four features were declared done, which is the number he asked for
+    # by name and the first thing anyone looks at.
+    if feature["kind"] == "done":
+        return 100, "done — you closed it"
     if feature["kind"] == "blocked":
         by = ", ".join(f'#{n}' for n in feature["blocked_by"])
         return None, f'blocked by {by}' if by else "blocked"
@@ -1887,9 +1902,11 @@ def render_all(data):
     if week_total:
         out.append(f'<p class="wp"><b>{human_tokens(week_total)}</b> tokens across '
                    f'the estate in the last {COST_WINDOW_DAYS} days</p>')
-    out.append('<p class="sub">click a project, or its tab, for everything about '
-               'it · 7-day figures are measurements of what happened, not '
-               'forecasts · cost is per project, not per feature — see #76</p>')
+    # Short, because it sits at a scroll boundary and a long line gets sliced
+    # in half by the cap, which reads as a rendering fault. It also referenced a
+    # closed issue number, which is developer chatter on the sponsor's screen.
+    out.append('<p class="sub">click a project for everything about it · '
+               '7-day figures are measurements, not forecasts</p>')
     return "\n".join(out)
 
 
