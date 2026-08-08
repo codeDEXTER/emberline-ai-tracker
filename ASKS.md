@@ -333,3 +333,20 @@ first use: the panel attaches to whatever is booted, and `screenshot` without
 an explicit udid can target a different booted device than the panel shows —
 always pass the udid. Another session's booted device (Pockets' Pro Max here)
 is its surface; attach Pip to its own device rather than borrowing.
+
+## 2026-08-07 · Screen work goes on "LG HDR 4K (2)"
+Said in: mac-explorer (phase 1 validation)
+
+Asked which of his three displays was ours to use, he answered "use LG HDR 4K
+(2)". That display is the agent surface: take screenshots there, put any app
+window we launch there, stay off "LG HDR 4K (1)" and the built-in Retina
+display. `switch_display` accepts the name verbatim.
+
+Why it matters beyond tidiness: he runs ~16 Spaces across three displays with
+live work open, and a gate the same day logged a Stage Manager gotcha where a
+click aimed at remembered window bounds plausibly landed in his live Tower
+window. Partitioning the machine removes that whole class of accident.
+
+Capturing by window id (`screencapture -l <id>`) is still preferred where it
+works — it sidesteps both the display and the Space question. Note we can only
+ever see the *currently active* Space on a display and cannot switch Spaces.
