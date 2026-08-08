@@ -1,5 +1,30 @@
 # Changelog — common-rules
 
+## 2026-08-08 · Fits the window it actually ships in
+
+Opening the app — properly, at its real size, for the first time — showed three
+more defects that every check I had run was blind to. The window is roughly
+1180x760 of content; I had designed and verified everything at 1280x900.
+
+**The estate table rendered 3 of 6 projects.** The sessions strip took ~240px
+while the table showing every project got ~80px, so mac-explorer, pip and
+pockets were simply not on screen — on the view whose entire job is "which app
+is stuck". The priority was exactly inverted: the strip is a footnote and was
+being treated as content. It is capped now and the table gets what is left.
+
+**The header said `NEEDS YOU · 8` above five rows**, because drift was still
+counted per project after being consolidated into one line. A header that
+disagrees with the thing directly under it is worse than no header: it makes the
+reader distrust both, which is roughly what "I don't know what to do" sounds
+like.
+
+**A band row was sliced mid-word** — "worst is pip at 34" cut in half at the
+cap. Smaller cap.
+
+None of this was visible to `curl`, to the test suite, or to rendering the same
+HTML at a size the app never uses. The only thing that found it was looking at
+the window.
+
 ## 2026-08-08 · The screen was working and useless, which is not the same thing
 
 aashish: *"this app doesnt work. i dont know what to do."*

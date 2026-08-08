@@ -1256,7 +1256,9 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
   /* The band is the most important thing on the screen and still must not own
      it: unbounded, three waiting items took 28% of the height and squeezed the
      pipeline to 165px. Capped, it scrolls like everything else. */
-  .band { flex:0 0 auto; max-height:22vh; overflow-y:auto; }
+  /* Small enough that the region below is usable, and the rows inside are a
+     grid so a partly-scrolled row is a whole card rather than a sliced one. */
+  .band { flex:0 0 auto; max-height:19vh; overflow-y:auto; }
   .grid { flex:1 1 auto; min-height:0;
           /* Two rows now, not three: #64 took handovers and the ticker off, and
              a template still declaring their row left the sessions strip in a
@@ -1271,7 +1273,11 @@ body { background:var(--bg); color:var(--ink); font-family:var(--sans);
   /* min-height:0 is the load-bearing half — without it a grid item refuses to
      shrink below its content and the overflow moves back onto the page. */
   .grid > .cell { overflow-y:auto; min-height:0; }
-  .grid > .cell.wide { overflow:hidden; }   /* the strip row sizes to content */
+  /* The strip is capped and the estate table gets what is left. Measured in
+     the real 1180x760 window: the strip took ~240px while the table showing
+     every project got ~80px and rendered 3 of 6 — on the screen whose entire
+     job is "which app is stuck". Priority was exactly inverted. */
+  .grid > .cell.wide { overflow-y:auto; max-height:22vh; }
   .foot { flex:0 0 auto; margin-top:var(--gap-2); }
   /* the region title stays put while its list scrolls under it */
   .cell > .rgn > .ht { position:sticky; top:0; z-index:1;
@@ -2055,10 +2061,12 @@ def render_page(project=ALL):
     graph_err = (data["worktrees_err"] or data["contested_err"]
                  or data["gate_err"])
 
-    drift_rows = min(len(data["drift"]), DRIFT_ROWS_SHOWN) + \
-        (1 if len(data["drift"]) > DRIFT_ROWS_SHOWN else 0)
+    # Count what is actually rendered. It read "NEEDS YOU · 8" above five rows,
+    # because drift was still counted per project after being consolidated into
+    # one line. A header that disagrees with the thing under it is worse than no
+    # header: it makes the reader distrust both.
     n_you = (len(data["needs_input"]) + len(contested_notes(data["contested"])) // 2
-             + (1 if data["queue"] else 0) + drift_rows)
+             + (1 if data["queue"] else 0) + (1 if data["drift"] else 0))
     title = f'NEEDS YOU · {n_you}' if n_you else "NEEDS YOU"
     if data["queue"]:
         title += f' · OLDEST WAITING {(ago(data["queue"]["oldest"]) or "now").upper()}'
