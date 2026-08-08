@@ -334,13 +334,15 @@ an explicit udid can target a different booted device than the panel shows —
 always pass the udid. Another session's booted device (Pockets' Pro Max here)
 is its surface; attach Pip to its own device rather than borrowing.
 
-## 2026-08-07 · Screen work goes on "LG HDR 4K (2)"
+## 2026-08-07 · Screen work goes on "LG HDR 4K (1)"
 Said in: mac-explorer (phase 1 validation)
 
 Asked which of his three displays was ours to use, he answered "use LG HDR 4K
-(2)". That display is the agent surface: take screenshots there, put any app
-window we launch there, stay off "LG HDR 4K (1)" and the built-in Retina
-display. `switch_display` accepts the name verbatim.
+(2)" and corrected it within minutes to **"LG HDR 4K (1)"**. That display is the
+agent surface: take screenshots there, put any app window we launch there, stay
+off "LG HDR 4K (2)" and the built-in Retina display. `switch_display` accepts
+the name verbatim. (The first answer is recorded here only so nobody
+re-derives it from a stale transcript — (1) is the instruction.)
 
 Why it matters beyond tidiness: he runs ~16 Spaces across three displays with
 live work open, and a gate the same day logged a Stage Manager gotcha where a
