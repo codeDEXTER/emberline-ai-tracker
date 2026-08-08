@@ -1460,9 +1460,6 @@ a.dot:hover { outline:1px solid var(--ink); }
 .rcard .n { font-family:var(--sans); font-size:21px; font-weight:700; color:var(--ink); }
 .rcard .k { font-family:var(--mono); font-size:9.5px; color:var(--dim);
             margin-top:4px; }
-.rchart { margin-top:var(--gap-3); }
-.rchart .spark { width:100%; height:64px; }
-
 .f-fig { font-family:var(--mono); font-size:11px; white-space:nowrap; }
 .f-none { font-family:var(--mono); font-size:10px; color:var(--dim);
           margin:var(--gap-3) 0 0; }
@@ -1960,9 +1957,6 @@ def render_report(name, data):
                    f'<div class="k">{e(k)}</div></div>')
     out.append('</div>')
 
-    if hist_row:
-        out.append(f'<div class="rchart">{sparkline(hist_row["points"], width=520, height=64)}</div>')
-
     if unclaimed_7d:
         out.append(f'<p class="sub"><span class="warn">{unclaimed_7d}</span> of '
                    f'those {closed_7d} closed with no declared feature to claim '
@@ -1999,7 +1993,11 @@ def render_project(name, data):
     head = [name]
     if row and row["features"]:
         head.append(f'{len(row["features"])} features')
-    if row and row.get("items"):
+    # Checklist items% only stands in for REPORT's own completion figure when
+    # there is no register to compute one from -- showing both here is the
+    # same two-numbers-disagree failure #97 fixed for DONE vs 7-DAY, one
+    # section higher on the same page.
+    if row and row.get("items") and not row["features"]:
         d, t = row["items"]
         head.append(f'{d}/{t} items · {round(d / t * 100) if t else 0}%')
     out = [f'<p class="phead">{e(" · ".join(head))}</p>']
@@ -2007,10 +2005,15 @@ def render_project(name, data):
     out.append('<p class="psec">REPORT</p>')
     out.append(render_report(name, data))
 
-    out.append(render_board(feats))
+    # PROGRESS sits directly under REPORT's counters, not after BOARD: the two
+    # are one story (how much, how fast) and belong together on the screen.
+    # REPORT no longer carries its own chart -- see render_report -- this is
+    # its only burnup now.
     if hist:
         out.append('<p class="psec">PROGRESS</p>')
         out.append(render_progress(hist, data["cost"]))
+
+    out.append(render_board(feats))
     out.append(render_flow(pipe))
     out.append('<p class="psec">SESSIONS</p>')
     out.append(render_strip(wts, data["needs_input"], data["contested"], feats))
