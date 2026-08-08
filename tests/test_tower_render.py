@@ -976,6 +976,37 @@ class AFeatureIsNotAlsoATicket(unittest.TestCase):
                         "be told which issues are features")
 
 
+class TheHeaderCountMatchesTheRows(unittest.TestCase):
+    """It read "NEEDS YOU · 8" above five rows, because drift was still counted
+    per project after being consolidated into one line.
+
+    A header that disagrees with the thing directly under it is worse than no
+    header — it makes the reader distrust both, which is what "I don't know what
+    to do" sounds like."""
+
+    def test_consolidated_drift_counts_as_one(self):
+        drift = [{"project": f"p{i}", "behind": 30, "stamped": 100,
+                  "current": 130} for i in range(5)]
+        out = T.render_needs_you([], {}, [], None, None, drift)
+        self.assertEqual(out.count("you-row"), 1,
+                         "five drifted projects should render one row")
+
+    def test_the_rendered_row_count_is_derivable_without_rendering(self):
+        """render_page computes the header number separately from the body, so
+        the two can drift apart. This pins the arithmetic they must share."""
+        drift = [{"project": f"p{i}", "behind": 30, "stamped": 100,
+                  "current": 130} for i in range(5)]
+        queue = {"count": 1, "oldest": 0, "projects": ["x"], "numbers": [62]}
+        contested = [("a", "b", "f.py")]
+        wts = [_wt("a"), _wt("b"), _wt("c", issue_title="waiting thing")]
+        needs = {"c": {"why": "waiting on you", "age": "1m"}}
+        out = T.render_needs_you(wts, needs, contested, None, queue, drift)
+        expected = (len(needs) + len(T.contested_notes(contested)) // 2
+                    + (1 if queue else 0) + (1 if drift else 0))
+        self.assertEqual(out.count("you-row"), expected,
+                         "header arithmetic and rendered rows disagree")
+
+
 class StillEscapes(unittest.TestCase):
     def test_markup_in_data_cannot_reach_the_page(self):
         """Retargeted in #64 from render_handovers, which no longer exists.
