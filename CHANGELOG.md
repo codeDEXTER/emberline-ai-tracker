@@ -53,6 +53,24 @@ quietly stops checking everything fails the suite.
 
 Exit codes now read: 0 aligned **or not an adopting project** · 1 behind · 2
 cannot tell.
+## 2026-08-08 · REPORT loses its own chart, gains PROGRESS as a neighbor
+
+Looked at the REPORT tab just shipped and it had three problems, not one:
+its own burnup chart rendered as a bare, unlabelled line stretched across
+the full width with no gridlines or dates -- it read as broken, not as a
+chart. It also duplicated the existing PROGRESS chart lower on the same
+page, same project, same data, two different treatments of one story. And
+the project header above it still printed checklist-item completion
+(`24/58 items · 41%`) right next to REPORT's feature-register completion
+(`9%`) -- the same two-numbers-disagree failure the previous entry fixed
+for DONE vs 7-DAY, reintroduced one section up.
+
+Fix was subtraction, not more chart code: REPORT dropped its own sparkline
+entirely, PROGRESS moved up to sit directly under REPORT's counters instead
+of after BOARD, and the header's checklist-items figure now only prints
+when a project has no feature register to compute REPORT's number from.
+One burnup chart per project page, one completion percentage, and it is the
+one with gridlines, date labels, and a note explaining what moved.
 
 ## 2026-08-08 · 7-DAY reads GitHub now, and REPORT is a live tab
 
