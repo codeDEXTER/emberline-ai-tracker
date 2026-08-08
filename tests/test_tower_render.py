@@ -1032,6 +1032,76 @@ class TheEstateTableIsNotCapped(unittest.TestCase):
         self.assertIn('<div class="cell wide">{features}</div>', src)
 
 
+class TheBarFollowsTheFeatures(unittest.TestCase):
+    """Reported as "I am closing issues but the progress bar does not
+    increase". Two separate causes, both real.
+
+    The bar showed **checklist ticks**. Closing a GitHub issue moves a
+    feature's percentage and never ticks a `- [x]` box, so the most prominent
+    thing on the row measured something the sponsor was not doing.
+
+    And 18 issues were closed in a day with **17 inside no feature**, so even a
+    correct bar stays nearly still. That is not a bug in the bar — it is work
+    the register does not claim, and it has to be visible to be decided on."""
+
+    def _row(self, feats, closed, items=(20, 53)):
+        return {"project": "p", "items": items, "unparsed": 0,
+                "features": feats, "closed": closed, "closed_at": {}}
+
+    def test_completion_comes_from_features_not_checklist_ticks(self):
+        f = [{"number": 2, "title": "t", "state": "in flight — issue #1",
+              "kind": "in flight", "implements": [1], "blocked_by": []}]
+        row = self._row(f, {1: True}, items=(20, 53))   # ticks would say 38%
+        self.assertEqual(T.project_completion(row), 100)
+
+    def test_closing_an_implementing_issue_moves_it(self):
+        f = [{"number": 2, "title": "t", "state": "in flight — issue #1",
+              "kind": "in flight", "implements": [1, 3], "blocked_by": []}]
+        self.assertEqual(T.project_completion(self._row(f, {1: False, 3: False})), 0)
+        self.assertEqual(T.project_completion(self._row(f, {1: True, 3: False})), 50)
+
+    def test_a_project_with_no_register_falls_back_to_ticks(self):
+        self.assertIsNone(T.project_completion(self._row(None, {})))
+
+    def test_the_bar_and_the_headline_use_the_same_arithmetic(self):
+        """They are computed in different functions and would otherwise drift."""
+        f = [{"number": 2, "title": "t", "state": "in flight — issue #1",
+              "kind": "in flight", "implements": [1, 3], "blocked_by": []}]
+        row = self._row(f, {1: True, 3: False})
+        self.assertEqual(T.project_completion(row), T.whole_product([row])[0])
+
+    def test_closures_no_feature_claims_are_counted(self):
+        """Otherwise the screen is silent about most of the work done."""
+        import datetime
+        today = datetime.date.today().isoformat()
+        f = [{"number": 2, "title": "t", "state": "in flight — issue #1",
+              "kind": "in flight", "implements": [1], "blocked_by": []}]
+        row = self._row(f, {1: True, 9: True, 10: True})
+        row["closed_at"] = {1: today, 9: today, 10: today}
+        self.assertEqual(T.unclaimed_closed(row), 2, "#1 is claimed; #9 and #10 are not")
+
+    def test_a_feature_issue_itself_is_not_unclaimed_work(self):
+        import datetime
+        today = datetime.date.today().isoformat()
+        f = [{"number": 2, "title": "t", "state": "done", "kind": "done",
+              "implements": [], "blocked_by": []}]
+        row = self._row(f, {2: True})
+        row["closed_at"] = {2: today}
+        self.assertEqual(T.unclaimed_closed(row), 0)
+
+    def test_render_all_shows_the_feature_percentage_not_the_ticks(self):
+        """The unit test on project_completion cannot fail from the render path
+        alone reverting to ticks -- this exercises the actual HTML."""
+        f = [{"number": 2, "title": "t", "state": "in flight — issue #1",
+              "kind": "in flight", "implements": [1], "blocked_by": []}]
+        row = self._row(f, {1: True}, items=(20, 53))   # ticks would render 38%
+        data = {"features": [row], "history": [], "drift": [], "worktrees": [],
+                "needs_input": {}, "contested": [], "pipeline": None, "cost": {}}
+        out = T.render_all(data)
+        self.assertIn("100%", out)
+        self.assertNotIn("38%", out)
+
+
 class StillEscapes(unittest.TestCase):
     def test_markup_in_data_cannot_reach_the_page(self):
         """Retargeted in #64 from render_handovers, which no longer exists.
