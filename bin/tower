@@ -722,7 +722,7 @@ def feature_data(projs):
     for proj in projs:
         feats = parse_features(register_source(proj["path"]))
         row = {"project": proj["name"], "features": feats or None,
-               "items": None, "unparsed": 0, "closed": {}}
+               "items": None, "unparsed": 0, "closed": {}, "closed_at": {}}
         # The checklist's own tick count, kept as the honest fallback signal for
         # a project that has not declared features -- labelled as what it is.
         # PULSE.checklist_progress rather than a local regex, because it also
@@ -737,10 +737,12 @@ def feature_data(projs):
             wanted = sorted({n for f in feats for n in f["implements"]})
             if wanted:
                 raw = run(["gh", "issue", "list", "-R", proj["repo"], "--state", "all",
-                           "--json", "number,state", "--limit", "200"])
+                           "--json", "number,state,closedAt", "--limit", "300"])
                 try:
                     for r in json.loads(raw) if raw else []:
                         row["closed"][r["number"]] = r["state"] == "CLOSED"
+                        if r["state"] == "CLOSED":
+                            row["closed_at"][r["number"]] = (r.get("closedAt") or "")[:10]
                 except json.JSONDecodeError:
                     pass
         out.append(row)
@@ -1631,6 +1633,40 @@ def undeclared_line(rows):
             f'declared</span>.{e(tail)}</p>')
 
 
+def unclaimed_closed(row, days=7):
+    """Issues closed recently that NO declared feature claims.
+
+    Without this the feature view is silent about most of the work. Measured on
+    finance-tracker: 18 issues closed in a day, **17 of them inside no
+    feature**, while the bar moved 1% — which is exactly the report "I am
+    closing issues but the progress bar does not increase". The bar was right;
+    it was just silent about everything it does not cover.
+
+    Either those issues should be inside a feature, or they are housekeeping and
+    the register is correct to exclude them. Both are decisions for the sponsor,
+    and neither can be made while the number is invisible.
+    """
+    claimed = {n for f in (row["features"] or []) for n in f["implements"]}
+    feats = {f["number"] for f in (row["features"] or [])}
+    cutoff = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+    n = 0
+    for num, info in (row.get("closed_at") or {}).items():
+        if info and info >= cutoff and num not in claimed and num not in feats:
+            n += 1
+    return n
+
+
+def project_completion(row):
+    """One project's completion over its DECLARED FEATURES, or None if it has
+    no register. Same arithmetic whole_product does across the estate, so the
+    per-project bars and the headline figure cannot drift apart."""
+    feats = row["features"] or []
+    if not feats:
+        return None
+    scored = [feature_pct(f, row["closed"])[0] for f in feats]
+    return round(sum(x for x in scored if x is not None) / len(feats))
+
+
 def whole_product(rows):
     """(percent, declared, projects_with_registers, total_projects) or None.
 
@@ -1867,7 +1903,7 @@ def render_all(data):
                    'there is no whole-product figure to report</p>')
     out.append('<div class="estate">')
     out.append('<div class="lh">PROJECT</div><div class="lh">FEATURES</div>'
-               '<div class="lh">ITEMS</div><div class="lh">7-DAY</div>'
+               '<div class="lh">DONE</div><div class="lh">7-DAY</div>'
                '<div class="lh">7-DAY COST</div>'
                '<div class="lh">SESSIONS</div><div class="lh">RULES</div>')
     for n in names:
@@ -1879,11 +1915,25 @@ def render_all(data):
             fcell = " · ".join(f'{v} {k}' for k, v in sorted(by_kind.items()))
         else:
             fcell = '<span class="warn">no features declared</span>'
+        # The bar shows FEATURE completion where a register exists.
+        #
+        # It used to show checklist ticks, which is what made "I am closing
+        # issues but the progress bar does not increase" true: closing a GitHub
+        # issue moves a feature's percentage and never ticks a `- [x]` box, so
+        # the most prominent thing on the row measured something the sponsor
+        # was not doing. Features are the spine (proposal 10); the bar follows.
+        #
+        # Checklist ticks stay as the fallback for a project with no register,
+        # labelled as what they are so the two are never read as one number.
+        fpct = project_completion(r) if r else None
         items = r.get("items") if r else None
-        if items and items[1]:
+        if fpct is not None:
+            icell = (f'<div class="bar"><i style="width:{fpct}%"></i></div>'
+                     f'<span class="f-fig">{fpct}%</span>')
+        elif items and items[1]:
             pct = round(items[0] / items[1] * 100)
-            icell = (f'<div class="bar"><i style="width:{pct}%"></i></div>'
-                     f'<span class="f-fig">{pct}%</span>')
+            icell = (f'<div class="bar"><i class="soft" style="width:{pct}%"></i></div>'
+                     f'<span class="f-fig dim">{pct}% items</span>')
         else:
             icell = '<span class="dim">no checklist</span>'
         v = velocity(hist[n]["points"]) if n in hist else None
@@ -1905,6 +1955,12 @@ def render_all(data):
                    f'<div class="f-fig">{counts.get(n, 0)}</div>'
                    f'<div class="clamp1">{rcell}</div>')
     out.append("</div>")
+    orphans = sum(unclaimed_closed(r) for r in data["features"])
+    if orphans:
+        out.append(f'<p class="sub"><span class="warn">{orphans}</span> issue(s) '
+                   f'closed in the last 7 days that no declared feature claims — '
+                   f'so they moved no bar above. Either they belong in a feature, '
+                   f'or the register is right to exclude them.</p>')
     week_total = sum(v["week"] for v in data["cost"].values())
     if week_total:
         out.append(f'<p class="wp"><b>{human_tokens(week_total)}</b> tokens across '

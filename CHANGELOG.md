@@ -1,5 +1,37 @@
 # Changelog — common-rules
 
+## 2026-08-08 · The bar follows features now, and unclaimed closures are visible
+
+Reported: *"in financial tracker i am closing issue, but the progress bar does
+not increase."* Two separate causes, and fixing only one would not have
+satisfied the report.
+
+**The bar showed checklist ticks.** Closing a GitHub issue moves a feature's
+percentage and never ticks a `- [x]` box in `CLAUDE-checklist.md`, so the most
+prominent number on the row measured something the sponsor was not doing. It
+now shows feature completion — the same arithmetic `whole_product` uses across
+the estate, computed once in `project_completion` so the two cannot drift apart.
+Checklist ticks remain the fallback for a project with no register, labelled
+`% items` so it is never read as the same number.
+
+**Measured before fixing anything**, because a bar reading the right thing
+would still barely move: **18 issues closed on finance-tracker in a day, and 17
+of them belong to no declared feature.** Only #127 was inside the register.
+That is why the bar moved to 1% and stayed there — it was correct, and silent
+about almost everything that happened.
+
+So the estate view now says how much work the register does not cover:
+`44 issue(s) closed in the last 7 days that no declared feature claims`. Neither
+this proposal nor this fix decides whether those 44 belong inside a feature or
+are legitimately excluded housekeeping — that is the sponsor's call, per
+`CLAUDE-workflow.md`, and it could not be made while the number was invisible.
+
+One test guards the render path specifically, not just the arithmetic: the unit
+test on `project_completion` passed even when the bar was reverted to checklist
+ticks, because nothing forced `render_all`'s actual HTML to use it. A second test
+against the rendered output catches that regression — verified red before the
+fix, green after.
+
 ## 2026-08-08 · Cap the strip, not the table
 
 The previous fix capped `.cell.wide` to stop the sessions strip crowding out the
