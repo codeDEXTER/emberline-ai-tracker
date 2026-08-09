@@ -356,3 +356,30 @@ see the *currently active* Space on a display and cannot switch Spaces.
 Gotcha: with two same-named processes running, `System Events ... process "X"`
 targets an arbitrary one and can fail with "Can't get window 1". Map windows to
 PIDs via `CGWindowListCopyWindowInfo` and act on the PID.
+
+## 2026-08-08 · Bug findings are triaged high/medium/low; only high holds the pipeline
+Said in: mac-explorer (next feature wave — #19, #20)
+
+Refines the 2026-08-07 "if there is a bug, create an issue, but continue" mode
+with an explicit severity taxonomy, given while starting a wave of several
+features at once: "If you find any issues, categorize them as high, medium,
+low, and medium and low in issues can be sorted out later. Focus is to
+implement all the features now."
+
+**High** — file the issue, and it holds that piece of work (same bar as the
+prior entry: doesn't compile, or can destroy/corrupt user data — read
+"high" as that bar, not a vibe call). **Medium and low** — file the issue
+with its severity stated in the title or body, and keep moving; they queue
+for a later pass rather than blocking the current one.
+
+**How to apply:** test-engineer and quality-manager passes should label
+every finding's severity explicitly in their report and in the filed issue,
+not just pass/fail. A gate verdict of "lands with open issues" should say
+which severities are open, so it's legible at a glance which ones are safe
+to defer and which were the actual bar. The point of naming a scale is so
+"continue" doesn't quietly become "ignore" — a medium/low finding is still
+real and still tracked, it's just not what's being optimized for right now.
+
+Context: given while several sponsor-approved features (#19, #20, and more
+to follow) are being worked in the same pass — the priority is getting the
+whole wave implemented, not perfecting each one before starting the next.
