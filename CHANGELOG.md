@@ -1,5 +1,60 @@
 # Changelog — common-rules
 
+## 2026-08-10 · `land` says which issue a PR closes, so the issue doesn't outlive its fix
+
+Found while landing finance-tracker's issue #362. The fix merged, and the
+issue stayed open — because `bin/land` wrote a **fixed** PR body ("Landed by
+`common-rules/bin/land`: N commit(s), tests green…") with no `Closes #N` in
+it. finance-tracker's `CLAUDE.md` has carried the rule for a while — *"a PR
+that finishes one says `Closes #N` in the body, not just the title, or the
+issue silently outlives its fix (that habit gap left four finished issues
+open on 2026-08-07 alone)"* — but the tool every session is told to land
+with could not follow it. A rule the tooling structurally cannot obey is not
+a rule; it is a reminder to be human about, which is how four issues stayed
+open in a day.
+
+`closes_trailer()` now reads the branch's own commit subjects **and bodies**
+(`main..$branch`, `%s%n%b`) and appends one `Closes #N` line per issue named.
+
+**What it deliberately does not match is the point.** Only an explicit intent
+word counts — `issue #N`, `fixes #N`, `closes #N`, `resolves #N`. A bare
+`(#N)` is ignored, because the entry directly above this one measured what
+that trailing number actually is on the repos consuming these rules: usually
+the **PR** number, on a range that overlaps the issue numbers, so keying on
+it would close an unrelated issue roughly six times out of seven. Same
+principle as `worktree_issue()` — *no match means unlinked, not guessed* —
+and the same reason the coupling graph refused the grep approach. A landed PR
+that names nothing simply carries no trailer, exactly as before.
+
+**A second wrong-issue trap, found by running the new code against its own
+branch.** A commit legitimately cites *another repo's* issue — this very
+change's commit explains itself by naming finance-tracker's issue #362 — and
+the first version of this happily emitted `Closes #362` into a common-rules
+PR, where #362 is a different and unrelated issue. Same failure class as the
+bare `(#N)`, arrived at from the other direction. `issue_here()` now filters
+every candidate through `gh issue view` against the *current* repo before it
+is written; without `gh` there is no way to check, so nothing is claimed.
+On this branch the trailer is correctly empty.
+
+**Behaviour change for adopted projects** (finance-tracker, pockets): a
+branch whose commits say `issue #N`, where #N resolves in that project's own
+tracker, now closes #N automatically on merge. Nothing else about `land`
+moves — same refusal conditions, same squash, same output. A branch that
+names no issue behaves identically to today.
+
+`tests/test_land.py` is new (8 tests) and pins both directions, including
+`"Add shared test-support modules (#389)"` → no trailer. It extracts the
+real function out of `bin/land` rather than copying the regex, since the
+script runs `land_one` at import and so cannot simply be sourced — a copied
+regex would only ever test the copy. One test asserts the helper is actually
+*called*: a `closes_trailer()` nothing wired up would pass every other test
+and still leave every issue open, which is the exact bug being fixed.
+
+Pre-existing and untouched: 4 `test_tower_render` failures on `main`
+(`bin/tower` is being rewritten on `rulecheck-adoption`), plus a stray
+untracked `.common-rules-version` stamp in this repo dated 2026-08-08
+(`144-008c5cc`) that fails `test_common_rules_never_acquires_a_stamp`.
+Neither is related to this change.
 ## 2026-08-10 · `test_tower_render` was red for two days; `velocity()` had a real bug in it
 
 Handed over from another session: `origin/main` had been red on
