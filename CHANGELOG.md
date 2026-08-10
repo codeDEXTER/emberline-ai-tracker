@@ -55,6 +55,49 @@ Pre-existing and untouched: 4 `test_tower_render` failures on `main`
 untracked `.common-rules-version` stamp in this repo dated 2026-08-08
 (`144-008c5cc`) that fails `test_common_rules_never_acquires_a_stamp`.
 Neither is related to this change.
+## 2026-08-10 · `test_tower_render` was red for two days; `velocity()` had a real bug in it
+
+Handed over from another session: `origin/main` had been red on
+`test_tower_render` since 08-08, worsening across four separate merges,
+because `bin/land`'s red-suite guard was being routed around by direct
+`gh pr merge`. Diagnosed and fixed rather than reverting anything —
+every failure traced to an intentional change from this session, and
+three of the four were stale test fixtures. The fourth was not.
+
+**`velocity()`'s window fallback had a real, dormant defect.**
+`window = [p for p in points if p[0] >= cutoff] or points[-2:]` only
+falls back to the last two points when the filtered window is *empty* —
+not when it has exactly one point. When one point survives the cutoff,
+`window[-1]` and `window[0]` are the same element, so the reported
+movement is silently **0** even when real progress happened just before
+the cutoff. It was dormant because it takes wall-clock time actually
+passing to trigger: a fixture dated 08-02/08-07 read correctly right up
+until today (08-10) pushed the 08-02 point outside the 7-day window,
+leaving only 08-07 to diff against itself. Fixed by falling back
+whenever the window has fewer than two points, not only when it's empty.
+
+The other three: two test fixtures built their own `data` dict by hand
+rather than through `collect()` and were missing the `"coupling"` key
+COUPLING's own commits added — `render_project` now reads it
+unconditionally, so a hand-built fixture that skipped it raised
+`KeyError` rather than silently passing. Added. The fourth asserted the
+literal string "enough checklist history", which this session's
+REPORT/PROGRESS merge deliberately reworded to "enough history" (the
+message now covers both the GitHub-sourced and checklist-fallback
+paths, not just the latter) — the assertion was stale, not the code.
+
+Also found and cleared: a stray, untracked `.common-rules-version` in
+this repo's own root, a side effect of running `bin/tower` locally
+during today's testing, was independently failing
+`test_common_rules_never_acquires_a_stamp`. Removed; not committed to
+begin with.
+
+`test_rulecheck.py` still fails three cases
+(`RealProjectsStillCheck.test_the_adopting_projects_are_still_recognised`
+for pockets/pip/mac-explorer) — a different tool's surface
+(`bin/rulecheck`, not `bin/tower`), checking real live project state
+unrelated to anything touched here. Left for whoever holds that surface,
+per the handover's own principle.
 
 ## 2026-08-10 · Coupling rolls up to feature level, from GitHub's own linkage
 

@@ -634,7 +634,7 @@ class ProgressReportsWhatHappened(unittest.TestCase):
         self.assertIn("sp-total", svg)
 
     def test_too_little_history_says_so_rather_than_drawing_nothing(self):
-        self.assertIn("enough checklist history", T.render_progress([]))
+        self.assertIn("enough history", T.render_progress([]))
 
 
 class SwitchingIsByProject(unittest.TestCase):
@@ -654,7 +654,8 @@ class SwitchingIsByProject(unittest.TestCase):
                 "worktrees": [_wt("w1", project="pockets"),
                               _wt("w2", project="finance-tracker")],
                 "needs_input": {}, "contested": [], "pipeline": None,
-                "cost": {"pockets": {"week": 1_500_000, "total": 4_000_000}}}
+                "cost": {"pockets": {"week": 1_500_000, "total": 4_000_000}},
+                "coupling": []}
 
     def test_the_tabs_are_links_carrying_the_project(self):
         """Not DOM state: the page re-requests itself every 10s and the DOM does
