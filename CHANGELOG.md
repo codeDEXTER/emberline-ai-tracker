@@ -1,5 +1,41 @@
 # Changelog — common-rules
 
+## 2026-08-10 · Coupling rolls up to feature level, from GitHub's own linkage
+
+Asked directly, after reviewing finance-tracker's real feature register: does
+COUPLING actually make feature-level tracking better, and can it consolidate
+to the feature? As shipped it couldn't — the graph was file-level only, with
+nothing connecting a coupled pair back to which feature owns that risk.
+
+**The obvious approach — grep commit messages for `#N` and match against a
+feature's cited issues — was measured and rejected before writing it.** Only
+13% of finance-tracker's commits carry an unambiguous `issue #N` reference;
+the rest end in a bare `(#N)` that's the PR number, not necessarily the
+issue, and PR numbers there (49–373) directly overlap the range feature
+issues live in (#3–#257). Text-matching would misattribute roughly six times
+out of seven — worse than not building it, and exactly the "confident wrong
+answer" this codebase already refuses elsewhere (`worktree_issue()`: *"no
+match means ungrouped, not guessed"*).
+
+**`feature_touched_files()` uses GitHub's own linkage instead**:
+`gh issue view --json closedByPullRequestsReferences` finds the real PR that
+closed an implementing issue, `gh pr view --json files` gets its actual
+touched-file list. Real data, not a guess — parallelized across a feature's
+closed issues (`fan_out`), and across projects in `_coupling_now`.
+
+**Honest finding once it ran for real: coverage is sparse.** Only 25 of 131
+closed issues (19%) in finance-tracker's tracker were closed via a properly
+linked PR. Of the register's 10 features, only one — #254, Spending — had
+enough linked closures to attribute any files at all. `render_coupling` says
+this plainly rather than rendering a quietly-empty section: *"no declared
+feature has a closed issue with a linked PR yet."*
+
+**What the 19% that did work found**: feature #254's own files are
+internally coupled — `projections.py ↔ test_projections.py` (6),
+`flows.py ↔ test_flows.py` (5) — a real, feature-scoped signal
+(`feature_coupling_summary`), not file-level noise. The other nine features
+show nothing, correctly, because there's nothing to attribute them from yet.
+
 ## 2026-08-08 · A coupling graph, read straight from git (proposal 14)
 
 Asked directly for "git analytics" and "graph analytics" for finance-tracker.

@@ -1058,6 +1058,88 @@ def coupling_graph(proj):
     return {"nodes": nodes, "edges": edges}
 
 
+def feature_touched_files(proj, feats, closed_map):
+    """{feature_number: {files}} -- real files a feature's shipped work
+    touched, from GitHub's own issue-closed-by-PR linkage
+    (`closedByPullRequestsReferences`), never from scanning commit text.
+
+    Text-matching was the first thing tried and it was rejected before any
+    code was written against it: measured on finance-tracker 2026-08-08,
+    only 13% of commits carry an unambiguous `issue #N` reference, and the
+    rest end in a bare `(#N)` that is the PR number, not necessarily the
+    issue -- PR numbers (49-373 in that sample) directly overlap the range
+    feature issues live in (#3-#257) here, so a regex match would
+    misattribute roughly six times out of seven. GitHub's own linkage is
+    the only source that doesn't guess.
+
+    Only closed implementing issues are looked up -- an open one has not
+    shipped anything to attribute yet, checked against `closed_map` (the
+    same map REPORT and BOARD already read) rather than a second query. An
+    issue closed without a linked PR (manual close, no closing keyword in
+    the merge) contributes no files: absence, not a guess.
+    """
+    if not proj.get("repo"):
+        return {}
+    closed_issues = sorted({n for f in feats for n in f["implements"]
+                            if closed_map.get(n)})
+    if not closed_issues:
+        return {}
+
+    def pr_files_for(n):
+        raw = run(["gh", "issue", "view", str(n), "-R", proj["repo"],
+                   "--json", "closedByPullRequestsReferences"])
+        try:
+            refs = (json.loads(raw) or {}).get("closedByPullRequestsReferences", [])
+        except json.JSONDecodeError:
+            refs = []
+        files = set()
+        for ref in refs:
+            pr_num = ref.get("number")
+            if not pr_num:
+                continue
+            praw = run(["gh", "pr", "view", str(pr_num), "-R", proj["repo"],
+                        "--json", "files"])
+            try:
+                pr_files = (json.loads(praw) or {}).get("files", [])
+            except json.JSONDecodeError:
+                pr_files = []
+            files.update(pf["path"] for pf in pr_files if pf.get("path"))
+        return n, files
+
+    file_by_issue = dict(fan_out(pr_files_for, closed_issues))
+    out = {}
+    for f in feats:
+        files = set()
+        for n in f["implements"]:
+            files |= file_by_issue.get(n, set())
+        if files:
+            out[f["number"]] = files
+    return out
+
+
+def feature_coupling_summary(coup, feats):
+    """Features whose OWN files sit inside the project's top coupling
+    edges -- risk a feature carries internally, not risk it merely shares
+    with the rest of the codebase. Only an edge whose BOTH endpoints belong
+    to the same feature counts; a feature sharing one file with someone
+    else's hotspot is a different fact (a shared surface, not the
+    feature's own tangle) and is deliberately not claimed here.
+    """
+    files_by_feat = coup.get("feature_files") or {}
+    if not files_by_feat:
+        return []
+    out = []
+    for f in feats:
+        owned = files_by_feat.get(f["number"])
+        if not owned or len(owned) < 2:
+            continue
+        internal = [ed for ed in coup["edges"]
+                   if ed["a"] in owned and ed["b"] in owned]
+        if internal:
+            out.append({"feature": f, "files": owned, "edges": internal})
+    return out
+
+
 def force_layout(nodes, edges, width=COUPLING_W, height=COUPLING_H,
                  iterations=300, seed=42):
     """A Fruchterman-Reingold spring embedder, hand-written: nodes repel each
@@ -1125,19 +1207,34 @@ _coupling_lock = threading.Lock()
 _coupling = {"ts": 0, "data": None}
 
 
-def _coupling_now(projs):
-    """Every project's coupling graph, laid out once and cached (#GRAPH_TTL).
-    Absence (no repo, too little history) is silent here -- the render layer
-    says why, per project, the same way PROGRESS already does."""
-    out = []
-    for proj in projs:
+def _coupling_now(projs, features):
+    """Every project's coupling graph, laid out once and cached (#GRAPH_TTL),
+    plus which of a declared feature's own files sit inside it
+    (feature_touched_files -- the gh-heavy part, which is why this rides the
+    same long TTL rather than history's or cost's). Absence (no repo, too
+    little history, no register) is silent here -- the render layer says
+    why, per project, the same way PROGRESS already does.
+
+    Parallelized across projects (fan_out): feature_touched_files alone can
+    be dozens of gh calls per project on a register this size, and projects
+    are independent.
+    """
+    by_name = {r["project"]: r for r in (features or [])}
+
+    def one(proj):
         g = coupling_graph(proj)
         if not g:
-            continue
+            return None
         pos = force_layout(g["nodes"], g["edges"])
-        out.append({"project": proj["name"], "nodes": g["nodes"],
-                    "edges": g["edges"], "pos": pos})
-    return out
+        row = by_name.get(proj["name"])
+        feat_files = {}
+        if row and row["features"]:
+            feat_files = feature_touched_files(
+                proj, row["features"], row.get("closed") or {})
+        return {"project": proj["name"], "nodes": g["nodes"],
+               "edges": g["edges"], "pos": pos, "feature_files": feat_files}
+
+    return [r for r in fan_out(one, projs) if r]
 
 
 # --- collect everything, cached ---
@@ -1332,7 +1429,7 @@ def _collect_now():
     history_err = None
     cost = cached_async(_cost, _cost_lock, COST_TTL, _cost_now, projs)
     cost_err = None
-    coupling = cached_async(_coupling, _coupling_lock, GRAPH_TTL, _coupling_now, projs)
+    coupling = cached_async(_coupling, _coupling_lock, GRAPH_TTL, _coupling_now, projs, features)
     gate_branches, gate_err = safe(open_gate_branches, projs)
 
     # Node labels (issue title, prefix stripped) — shared lookup from the
@@ -1632,6 +1729,15 @@ a.dot:hover { outline:1px solid var(--ink); }
 .c-edge.c-strong { stroke:var(--green); opacity:.8; }
 .c-node { fill:var(--card-2); stroke:var(--green); stroke-width:1.6; }
 .c-lbl { font-family:var(--mono); font-size:9px; fill:var(--dim); }
+
+.fcoup { margin-top:var(--gap-2); }
+.fcrow { display:grid; grid-template-columns:auto minmax(140px,1fr) minmax(0,1.6fr);
+         gap:var(--gap-2); align-items:baseline; padding:7px 0;
+         border-bottom:1px solid var(--edge); font-size:11.5px; }
+.fcrow:first-child { border-top:1px solid var(--edge); }
+.fc-n { font-family:var(--mono); font-size:10.5px; color:var(--amber); white-space:nowrap; }
+.fc-t { font-weight:600; }
+.fc-e { font-family:var(--mono); font-size:10px; color:var(--dim); }
 
 .f-fig { font-family:var(--mono); font-size:11px; white-space:nowrap; }
 .f-none { font-family:var(--mono); font-size:10px; color:var(--dim);
@@ -2075,7 +2181,7 @@ def render_progress(history, cost=None):
     return "\n".join(out)
 
 
-def render_coupling(coup):
+def render_coupling(coup, feats=None):
     """COUPLING — what moves together, read from the commit graph itself
     (proposal 14). Sits below PROGRESS: REPORT and PROGRESS answer "how much,
     how fast"; this answers "what's actually tangled" — a different
@@ -2083,6 +2189,11 @@ def render_coupling(coup):
     graph, not a table — positions come from force_layout(), computed once
     per GRAPH_TTL window by _coupling_now() and cached, never recomputed on
     a request.
+
+    Feature-level rollup, "the consolidated feature-level" tracking asked
+    for directly: which declared features (feats) have their OWN files
+    sitting inside this graph's edges, from GitHub's real issue-closed-by-PR
+    linkage (feature_touched_files), not a text-matching guess.
     """
     nodes, edges, pos = coup["nodes"], coup["edges"], coup["pos"]
     max_touch = max((n["touches"] for n in nodes), default=1) or 1
@@ -2130,6 +2241,40 @@ def render_coupling(coup):
                      f'commits touching more than {COUPLING_MAX_COMMIT_FILES} files '
                      f'are skipped as noise, not coupling · node size is real '
                      f'touch count</p>')
+
+    fsum = feature_coupling_summary(coup, feats or [])
+    if fsum:
+        parts.append('<div class="fcoup">')
+        for row in sorted(fsum, key=lambda r: -sum(ed["w"] for ed in r["edges"])):
+            f = row["feature"]
+            lead = "; ".join(
+                f'{ed["a"].rsplit("/", 1)[-1]} ↔ {ed["b"].rsplit("/", 1)[-1]} ({ed["w"]})'
+                for ed in sorted(row["edges"], key=lambda ed: -ed["w"])[:3])
+            parts.append(
+                f'<div class="fcrow"><span class="fc-n">#{f["number"]}</span>'
+                f'<span class="fc-t clamp1">{e(f["title"])}</span>'
+                f'<span class="fc-e clamp1">internally coupled: {e(lead)}</span></div>')
+        parts.append('</div>')
+        parts.append('<p class="sub">feature-level: files attributed via GitHub\'s own '
+                     'issue-closed-by-PR linkage, not text-matched — an issue closed '
+                     'without a linked PR contributes nothing here, absence rather '
+                     'than a guess</p>')
+    elif coup.get("feature_files"):
+        parts.append('<p class="sub">no declared feature\'s own files fall inside '
+                     'the top coupling edges above — whatever is tangled here isn\'t '
+                     'concentrated in one feature\'s shipped work</p>')
+    elif feats:
+        # Distinct from the branch above: this means feature_touched_files
+        # found NOTHING to attribute at all, not that it checked and found no
+        # overlap. Usually means most of this project's closed issues were
+        # never closed via a linked PR -- GitHub's own linkage is the only
+        # source this trusts (see feature_touched_files), so it has nothing
+        # to work with, not nothing to report.
+        parts.append('<p class="sub">no declared feature has a closed issue with '
+                     'a linked PR yet, so there are no files to attribute — this '
+                     'reads GitHub\'s own issue-closed-by-PR link, never guessed '
+                     'from commit text, and it only exists where a PR actually '
+                     'closed the issue</p>')
     return "\n".join(parts)
 
 
@@ -2246,7 +2391,7 @@ def render_project(name, data):
 
     coup = next((c for c in data["coupling"] if c["project"] == name), None)
     out.append('<p class="psec">COUPLING</p>')
-    out.append(render_coupling(coup) if coup else
+    out.append(render_coupling(coup, row["features"] if row else []) if coup else
                '<p class="sub">not enough co-change history yet — this walks '
                f'the last {COUPLING_LOG_COMMITS} commits for files that '
                'changed together, filtered for noise; a fresh or very small '
