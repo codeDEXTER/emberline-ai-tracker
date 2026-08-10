@@ -26,10 +26,21 @@ principle as `worktree_issue()` — *no match means unlinked, not guessed* —
 and the same reason the coupling graph refused the grep approach. A landed PR
 that names nothing simply carries no trailer, exactly as before.
 
+**A second wrong-issue trap, found by running the new code against its own
+branch.** A commit legitimately cites *another repo's* issue — this very
+change's commit explains itself by naming finance-tracker's issue #362 — and
+the first version of this happily emitted `Closes #362` into a common-rules
+PR, where #362 is a different and unrelated issue. Same failure class as the
+bare `(#N)`, arrived at from the other direction. `issue_here()` now filters
+every candidate through `gh issue view` against the *current* repo before it
+is written; without `gh` there is no way to check, so nothing is claimed.
+On this branch the trailer is correctly empty.
+
 **Behaviour change for adopted projects** (finance-tracker, pockets): a
-branch whose commits say `issue #N` now closes #N automatically on merge.
-Nothing else about `land` moves — same refusal conditions, same squash, same
-output. A branch that names no issue behaves identically to today.
+branch whose commits say `issue #N`, where #N resolves in that project's own
+tracker, now closes #N automatically on merge. Nothing else about `land`
+moves — same refusal conditions, same squash, same output. A branch that
+names no issue behaves identically to today.
 
 `tests/test_land.py` is new (8 tests) and pins both directions, including
 `"Add shared test-support modules (#389)"` → no trailer. It extracts the

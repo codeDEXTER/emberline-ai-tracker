@@ -85,6 +85,29 @@ class LandUsesTheTrailerTests(unittest.TestCase):
         self.assertIn('closes_trailer "$($GIT log "main..$branch"', source)
         self.assertIn('--body "$body"', source)
 
+    def test_the_trailer_is_filtered_by_issue_here(self):
+        """A commit may legitimately cite another repo's issue -- this change's
+        own commit cites finance-tracker #362 -- and closing whatever happens to
+        wear that number here would be exactly the wrong-issue failure the
+        bare-"(#N)" rule exists to avoid. The number must resolve in THIS repo.
+        """
+        source = LAND.read_text()
+        self.assertIn("issue_here", source)
+        self.assertIn('gh issue view "$1" --json number', source)
+        # The filter has to sit between the helper and the body, not anywhere.
+        trailer = source.split("closes=\"$(closes_trailer")[1].split("\n\n")[0]
+        self.assertIn("issue_here", trailer)
+
+    def test_issue_here_is_false_without_gh(self):
+        """No gh means no way to check, so nothing is claimed -- rather than
+        assuming the issue exists and closing something unrelated."""
+        source = LAND.read_text()
+        match = re.search(r"^issue_here\(\) \{.*?^\}", source, re.S | re.M)
+        self.assertIsNotNone(match)
+        script = match.group(0) + '\nPATH=/nonexistent issue_here 1 && echo YES || echo NO\n'
+        out = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        self.assertEqual("NO", out.stdout.strip())
+
 
 if __name__ == "__main__":
     unittest.main()

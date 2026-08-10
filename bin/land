@@ -87,6 +87,18 @@ closes_trailer() {
         | sed 's/^/Closes /'
 }
 
+# Does issue #N exist in THIS repo? The trailer is filtered through this
+# before it is written, because a commit legitimately cites another repo's
+# issue. This very change's own commit explains itself by naming
+# finance-tracker's issue #362 -- and unfiltered, landing it here would have
+# closed common-rules #362, a different and unrelated issue. Found by running
+# the new code against its own branch. Without `gh` there is no way to check,
+# so nothing is claimed.
+issue_here() {
+    command -v gh >/dev/null 2>&1 || return 1
+    gh issue view "$1" --json number >/dev/null 2>&1
+}
+
 land_one() {
     local branch="$1"
     say "── $branch"
@@ -134,7 +146,8 @@ land_one() {
 
     local body closes
     body="Landed by \`common-rules/bin/land\`: $ahead commit(s), tests green, no reserved paths touched."
-    closes="$(closes_trailer "$($GIT log "main..$branch" --pretty='%s%n%b')")"
+    closes="$(closes_trailer "$($GIT log "main..$branch" --pretty='%s%n%b')" \
+              | while read -r line; do issue_here "${line##*#}" && printf '%s\n' "$line"; done)"
     [ -n "$closes" ] && body="$body"$'\n\n'"$closes"
 
     if $GIT push -q origin "$branch" 2>/dev/null && command -v gh >/dev/null 2>&1; then
