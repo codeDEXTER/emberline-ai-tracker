@@ -70,6 +70,43 @@ make a commit whose only content is a record entry; append alongside real work.
 
 ---
 
+## Tests — the probe you ran is the test
+
+**One command, everywhere.** Tests live in `tests/`, and every project runs
+
+```
+python3 -m unittest discover -s tests -q
+```
+
+`bin/land` runs it before landing and CI runs the identical string, so a test
+written once is enforced in both without anybody wiring anything up. Do not
+invent a second command, a second directory, or a second runner: two commands
+wearing one name is how a test passes locally and never runs in CI.
+
+**Verification you performed lands as a test.** Measured on 2026-08-10:
+**29% of every Bash call a session makes is a one-off verification probe** —
+an inline script that proves something and dies with the session. There were
+3,873 of them, against 106 from all eight agent roles combined. The proving is
+already happening and the code is already being written; it is thrown away
+afterwards.
+
+So this is not a request to test more. When you write a snippet to check that a
+bug exists, that a fix works, or that two things agree — **put it in `tests/`
+instead of pasting it into a message.** It is the same code either way; only
+the destination differs.
+
+`bin/land` refuses a branch that changes code and touches no test. If a change
+genuinely cannot be tested, say why and re-run with `LAND_ALLOW_UNTESTED=1` —
+recorded either way.
+
+**A guard nobody has watched fail is not known to be a guard.** Run a new test
+against the broken state first and see it fail, then fix. Two tests written
+this week passed against the very bug they existed to catch: one because a
+`chdir` test ran from inside the directory it was checking, one because a
+`grep -q "__pycache__"` matched a different line.
+
+---
+
 ## AGENT-LOG.md — what a task cost
 
 This one is not bookkeeping for its own sake: it is how the user sees where

@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# This repo had 128 tests and no CI. main was red from 8 to 10 August 2026 --
+# four merges landed on top of a failing suite and nobody knew, because the
+# only thing that ran the tests was a human or `bin/land`, and land tests the
+# BRANCH before merging, never the merged result (issue #99).
+#
+# The command below is deliberately byte-identical to what `bin/land`'s
+# test_cmd() emits for a Python project. tests/test_ci_matches_land.py fails
+# if the two ever drift, so a session cannot change one and forget the other.
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # No dependency install step: the suite is stdlib-only by design, so
+      # anything that needs a package is a test that would not run on a fresh
+      # machine either. Keep it that way -- a rules repo that cannot be checked
+      # out and tested in one step is a rules repo nobody checks.
+      - name: Run test suite
+        run: python3 -m unittest discover -s tests -q

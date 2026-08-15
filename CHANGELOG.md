@@ -1,5 +1,43 @@
 # Changelog — common-rules
 
+## 2026-08-10 · The probe you ran is the test, and CI runs what land runs
+
+Three changes so a test written once is enforced everywhere, and so the
+verification sessions already do stops being thrown away.
+
+**1 · This repo has CI.** It had 128 tests and no workflow, which is how `main`
+stayed red from 8 to 10 August while four merges landed on top of it. The new
+`.github/workflows/ci.yml` runs on push and pull request. Its command is
+byte-identical to what `bin/land`'s `test_cmd()` emits, and
+`tests/test_ci_matches_land.py` fails if the two ever drift — it sources the
+function rather than parsing the file, so a changed `if` branch cannot slip past.
+
+**2 · One command, written down.** `tests/` plus
+`python3 -m unittest discover -s tests -q`, in `CLAUDE-workflow.md`. Both land
+and CI use it, so a test an agent writes reaches CI with no wiring.
+
+**3 · `bin/land` refuses a branch that changes code and touches no test.**
+Measured the same day: **29% of every Bash call a session makes is a one-off
+verification probe** — 3,873 inline scripts that proved something and died with
+the session, against 106 from all eight agent roles combined. The proving is
+already happening and the code is already written; only the destination is
+wrong. Docs, HTML and config do not trip it. `LAND_ALLOW_UNTESTED=1` overrides
+it deliberately.
+
+`code-engineer`, `test-engineer` and `quality-manager` each gain a short section
+pointing at the rule. The other five roles never touch tests and are unchanged.
+`test-engineer` holds no `Write` tool by design, so its section asks it to spell
+out the test that should exist — file, case and failing assertion — rather than
+describe a defect in prose that someone must re-derive.
+
+**Behaviour change for adopted projects:** `bin/land` will now refuse a
+code-only branch. Expect it on the first tooling change after this lands.
+
+Note on what this exposes: `main` is red as of this entry (`test_tower_render`,
+handed to the session holding `bin/tower`, and tracked in #99). Adding CI makes
+that visible on every push rather than only to whoever thinks to run the suite.
+That is the intent, not a side effect.
+
 ## 2026-08-10 · `land` says which issue a PR closes, so the issue doesn't outlive its fix
 
 Found while landing finance-tracker's issue #362. The fix merged, and the
