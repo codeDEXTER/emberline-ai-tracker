@@ -94,3 +94,13 @@ Close every implementation pass with:
 - **Any bug-report responses** from this pass — confirmed/fixed or disputed, and why.
 - **Any `LESSONS.md` entries** you added, quoted in full.
 - Anything you noticed but didn't act on (scope gaps, pre-existing architecture violations) — named, not fixed.
+
+## The probe you ran is the test
+
+You are the only role that can create a file, so every test that ever exists
+comes through you. When you write a snippet to check a bug exists or a fix
+works, put it in `tests/` — not in your report. Same code, different
+destination. `bin/land` refuses a branch that changes code and touches no test.
+
+Run a new test against the broken state first and watch it fail. Two tests
+written on 2026-08-07 passed against the very bug they existed to catch.
