@@ -63,6 +63,42 @@ test_cmd() {
     fi
 }
 
+# "Closes #N" lines for the issues this branch's commits name, or nothing.
+#
+# A PR that finishes an issue has to say "Closes #N" in its *body* or the
+# issue silently outlives its fix -- finance-tracker's CLAUDE.md has carried
+# that rule for a while, but the body written below was a fixed string, so
+# every branch landed here left its issue open for a human to notice. On
+# 2026-08-10 that put issue #362 in exactly that state: fixed, merged, still
+# open.
+#
+# It matches only an explicit intent word before the number. A bare "(#N)"
+# is deliberately NOT matched: as common-rules 149 measured on this very
+# repo's consumers, a trailing "(#N)" is usually the *PR* number, and PR
+# numbers overlap the range issues live in -- so keying on it would close
+# an unrelated issue roughly six times out of seven. Same principle as
+# bin/tower's worktree_issue(): no match means unlinked, not guessed.
+closes_trailer() {
+    local subjects="$1"
+    printf '%s\n' "$subjects" \
+        | grep -oiE '(issues?|closes?d?|fix(es|ed)?|resolves?d?)[[:space:]]+#[0-9]+' \
+        | grep -oE '#[0-9]+' \
+        | sort -u -t'#' -k2 -n \
+        | sed 's/^/Closes /'
+}
+
+# Does issue #N exist in THIS repo? The trailer is filtered through this
+# before it is written, because a commit legitimately cites another repo's
+# issue. This very change's own commit explains itself by naming
+# finance-tracker's issue #362 -- and unfiltered, landing it here would have
+# closed common-rules #362, a different and unrelated issue. Found by running
+# the new code against its own branch. Without `gh` there is no way to check,
+# so nothing is claimed.
+issue_here() {
+    command -v gh >/dev/null 2>&1 || return 1
+    gh issue view "$1" --json number >/dev/null 2>&1
+}
+
 land_one() {
     local branch="$1"
     say "── $branch"
@@ -130,11 +166,17 @@ land_one() {
 
     if [ "$CHECK_ONLY" = 1 ]; then say "  READY (check only, nothing done)"; return 0; fi
 
+    local body closes
+    body="Landed by \`common-rules/bin/land\`: $ahead commit(s), tests green, no reserved paths touched."
+    closes="$(closes_trailer "$($GIT log "main..$branch" --pretty='%s%n%b')" \
+              | while read -r line; do issue_here "${line##*#}" && printf '%s\n' "$line"; done)"
+    [ -n "$closes" ] && body="$body"$'\n\n'"$closes"
+
     if $GIT push -q origin "$branch" 2>/dev/null && command -v gh >/dev/null 2>&1; then
         local url
         url=$(gh pr create --base main --head "$branch" \
               --title "$($GIT log -1 --format=%s "$branch")" \
-              --body "Landed by \`common-rules/bin/land\`: $ahead commit(s), tests green, no reserved paths touched." \
+              --body "$body" \
               2>/dev/null || gh pr view "$branch" --json url -q .url 2>/dev/null)
         if [ -n "${url:-}" ]; then
             say "  PR: $url"
