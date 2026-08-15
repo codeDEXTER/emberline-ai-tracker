@@ -127,6 +127,28 @@ land_one() {
         fi
     fi
 
+    # --- a change to code arrives with a test ------------------------------
+    #
+    # Measured 2026-08-10: 29% of every Bash call a session makes is a one-off
+    # verification probe -- an inline script that proves something and then dies
+    # with the session. 3,873 of them in the transcripts, against 106 from the
+    # agent roles. The proving already happens; it just is not kept.
+    #
+    # So this does not ask for more testing. It asks for the test that was
+    # already written by hand to land in tests/ instead of a chat message.
+    # Docs, HTML and config changes are not code and do not trip it.
+    local code_touched tests_touched
+    code_touched=$($GIT diff --name-only "main...$branch" \
+        | grep -vE '^tests/' | grep -E '\.(py|sh|swift|js|ts|rb|go)$|^bin/' || true)
+    tests_touched=$($GIT diff --name-only "main...$branch" | grep -E '^tests/' || true)
+    if [ -n "$code_touched" ] && [ -z "$tests_touched" ] && [ "${LAND_ALLOW_UNTESTED:-0}" != 1 ]; then
+        refuse "changes code but no test -- the probe you ran belongs in tests/"
+        printf '%s\n' "$code_touched" | sed 's/^/      /'
+        say "      if this genuinely cannot be tested, say why and re-run with"
+        say "      LAND_ALLOW_UNTESTED=1 -- it is recorded in the PR either way."
+        return 1
+    fi
+
     local tc; tc="$(test_cmd)"
     if [ -n "$tc" ]; then
         say "  running: $tc"

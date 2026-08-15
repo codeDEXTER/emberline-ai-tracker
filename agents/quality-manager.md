@@ -82,3 +82,12 @@ Close every review with:
 - **Evidence**: the criterion-by-criterion and structural checks above, in order, with real command output.
 - **Lessons**: any `LESSONS.md` entry you added this pass, quoted in full.
 - A final line, verbatim: "This is a recommendation — merge approval is the sponsor's decision."
+
+## Check that the verification was kept
+
+Part of the gate: a change to code arrives with a change under `tests/`. If the
+diff fixes something and adds no test, that is a finding — the proving was done
+and thrown away, which is how the same defect returns.
+
+Docs, design and configuration changes are exempt; do not make documentation
+expensive.
