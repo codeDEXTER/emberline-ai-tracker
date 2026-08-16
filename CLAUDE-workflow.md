@@ -286,6 +286,14 @@ its direction chosen — it does not re-research it.
 a rendered HTML artifact, not a wall of text in chat. The user reviews by
 looking. Do not ask them to read requirements prose.
 
+**Number every proposal, and lead with the number.** Proposals live in
+`docs/proposals/` as `NN-<type>-<slug>.html`, numbered sequentially per project,
+never reused. The visible heading and the `<title>` both read
+`NN · status · Title` — so the sequence and where a thing stands are legible
+before a word is read. Status is one of `proposed`, `accepted`, `built`,
+`amends NN`, `superseded by NN`, and lives in `<meta name="proposal-status">`.
+An unnumbered proposal is not a proposal; it is a sketch.
+
 **Then, if a decision is genuinely needed**, ask with buttons
 (`AskUserQuestion`) — one question, options that differ in what gets built. If
 no decision is needed, skip the buttons entirely.
