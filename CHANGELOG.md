@@ -26,6 +26,8 @@ correctly from the `<meta>` tag, and that mechanism is unchanged.
 Added to "Talking to the user" beside "Show, don't summarise", where the
 artifact rule already lives.
 
+`docs/workflow.html` carries it too, with the stamp at 153 and the page regenerated — required by the rule that any PR changing the shared rules updates the bird's-eye view in the same PR. `tests/test_workflow_stamp.py` refused this branch until it did, which is the first time that guard has caught anything but its own author.
+
 ## 2026-08-10 · The probe you ran is the test, and CI runs what land runs
 
 Three changes so a test written once is enforced everywhere, and so the
