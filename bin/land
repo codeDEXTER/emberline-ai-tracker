@@ -78,13 +78,26 @@ test_cmd() {
 # numbers overlap the range issues live in -- so keying on it would close
 # an unrelated issue roughly six times out of seven. Same principle as
 # bin/tower's worktree_issue(): no match means unlinked, not guessed.
+# NO MATCH IS AN ANSWER, NOT A FAILURE -- and `|| true` below is load-bearing.
+# `grep` exits 1 when it matches nothing, which is the *common* case: most
+# commits name no issue. Under `set -euo pipefail` (line 22) that made the
+# pipeline fail, which made the `closes=$(...)` assignment fail, which killed
+# land outright -- silently, after printing "tests green" and before pushing
+# anything. Every branch with a plain descriptive commit message hit it.
+#
+# Reported 2026-08-16 as being line 173's `[ -n "$closes" ] && ...` test. It is
+# not: bash exempts a failing command in a && list from `set -e`, and a minimal
+# repro of that line exits 0. The death is the assignment above it. The
+# difference matters -- the reported fix would have left the bug in place and
+# looked like it had worked.
 closes_trailer() {
     local subjects="$1"
     printf '%s\n' "$subjects" \
         | grep -oiE '(issues?|closes?d?|fix(es|ed)?|resolves?d?)[[:space:]]+#[0-9]+' \
         | grep -oE '#[0-9]+' \
         | sort -u -t'#' -k2 -n \
-        | sed 's/^/Closes /'
+        | sed 's/^/Closes /' \
+        || true
 }
 
 # Does issue #N exist in THIS repo? The trailer is filtered through this
