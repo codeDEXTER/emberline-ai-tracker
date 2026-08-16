@@ -1,5 +1,33 @@
 # Changelog — common-rules
 
+## 2026-08-16 · land died silently on any commit that named no issue
+
+Reported by a finance-tracker session that hit it twice in one night: `land`
+printed `tests green` and then stopped. No error, no message, never reaching the
+push or the PR. Every branch whose commit message is plain description rather
+than `Fixes #N` hit it — which is most of them.
+
+`grep` exits 1 when it matches nothing, and no-issue is the *common* case. Under
+`set -euo pipefail` that failed the pipeline inside `closes_trailer`, which
+failed the `closes="$(…)"` assignment, which killed the script. `|| true` at the
+end of the pipeline fixes it: **no match is an answer, not a failure.**
+
+**The reported cause was wrong, and it matters.** The report named the following
+line, `[ -n "$closes" ] && body=…`, on the theory that a failing test under
+`set -e` kills the script. Bash exempts a failing command in a `&&` list, and a
+minimal repro of that line exits 0 — verified before changing anything. Applying
+the suggested fix would have left the bug in place while looking like it had
+worked. The symptom was reported exactly right; the diagnosis was one line off.
+
+`tests/test_land_closes_trailer.py` covers it, and was run against the unfixed
+script first: 3 of 5 failed. It calls the function under land's own
+`set -euo pipefail`, because without those flags the failing pipeline is
+harmless and the bug is invisible.
+
+**Why the existing land tests missed it:** every one of them drives
+`land --check`, which returns before this code runs. A guard that only exercises
+the early-exit path proves nothing about the rest.
+
 ## 2026-08-16 · Proposals carry their number and status in the title
 
 The sponsor asked for a rule after receiving two unnumbered proposals in one
