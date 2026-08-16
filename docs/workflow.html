@@ -105,7 +105,7 @@
 
 <div class="brand">
   <span>common-rules · reference</span>
-  <span>derived from CLAUDE-workflow.md · rules version 152 · 2026-08-10</span>
+  <span>derived from CLAUDE-workflow.md · rules version 153 · 2026-08-16</span>
 </div>
 
 <h1>The whole workflow, on one page</h1>
@@ -280,7 +280,8 @@ answer would change a look, or the decision is reserved for you.</p>
       contributes a section. It arrives as a rendered HTML artifact with a committed copy already
       in <code>docs/proposals/</code>, and the decision question follows in the same breath, with
       buttons. One decision per prompt.</p>
-      <div class="out"><span class="pill doc">docs/proposals/NN-…html</span><span class="pill">Accept · Amend · Reject · Show me first</span></div>
+      <p><strong>It leads with its number.</strong> Numbered sequentially per project and never reused; the visible heading and the <code>&lt;title&gt;</code> both read <code>NN · status · Title</code>, so where a thing sits in the sequence and whether it has been decided are legible before a word is read. Status lives in <code>&lt;meta name="proposal-status"&gt;</code>: proposed · accepted · built · amends NN · superseded by NN.</p>
+      <div class="out"><span class="pill doc">docs/proposals/NN-…html</span><span class="pill doc">NN · status · Title</span><span class="pill">Accept · Amend · Reject · Show me first</span></div>
     </div>
   </div>
 
