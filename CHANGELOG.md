@@ -1,5 +1,31 @@
 # Changelog — common-rules
 
+## 2026-08-16 · Proposals carry their number and status in the title
+
+The sponsor asked for a rule after receiving two unnumbered proposals in one
+session and having no way to tell where they sat in the sequence — or whether
+either had been decided.
+
+`finance-tracker` already numbered its proposals (`docs/proposals/NN-...`,
+eighteen of them, with status tracked in a `<meta>` tag and rendered into a
+generated index). The convention existed and worked; it simply was not written
+down anywhere shared, so a session working from `common-rules` alone had no way
+to know it applied. This records it.
+
+**The rule**: `docs/proposals/NN-<type>-<slug>.html`, numbered sequentially per
+project and never reused, with the visible heading and the `<title>` both
+reading `NN · status · Title`.
+
+**Behaviour change for adopted projects**: yes, but only for new proposals.
+`finance-tracker`'s existing eighteen already satisfy the file-naming half; what
+changes is that the number and status must now also appear in the visible
+heading and `<title>`, which most of them do not do yet. Nothing needs
+retro-fitting — the index at `docs/proposals/README.md` already derives status
+correctly from the `<meta>` tag, and that mechanism is unchanged.
+
+Added to "Talking to the user" beside "Show, don't summarise", where the
+artifact rule already lives.
+
 ## 2026-08-10 · The probe you ran is the test, and CI runs what land runs
 
 Three changes so a test written once is enforced everywhere, and so the
