@@ -16,9 +16,16 @@
 #   - the branch has no commits main doesn't have
 #   - the merge into main would conflict
 #   - the branch touches a path the user reserved (see RESERVED below)
+#   - the project is not aligned with the current common-rules (see below)
+#   - the branch changes code and touches no test (see below)
 #
 # main is protected on some remotes, so it lands through a PR when one is
 # needed and by fast-forward when it is not.
+#
+# Two escape hatches exist, both an env var someone had to type -- never a
+# silent default -- and both recorded in the PR either way:
+#   LAND_ALLOW_UNTESTED=1      land code that has no test
+#   LAND_ALLOW_STALE_RULES=1   land from a project behind on common-rules
 set -euo pipefail
 
 GIT=git; command -v git >/dev/null 2>&1 || GIT=/Library/Developer/CommandLineTools/usr/bin/git
@@ -49,6 +56,12 @@ case "$REPO_ROOT" in
         echo "      for the user. Push the branch and open a PR instead." >&2
         exit 3 ;;
 esac
+
+# The common-rules install this copy of `land` lives in -- resolved from its
+# own path, the same way `derecord` finds itself. By this point REPO_ROOT is
+# known not to be common-rules (the case above already exited), so this is
+# only ever the *other* repo's rules, never a project blocking on itself.
+RULES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 say() { printf '%s\n' "$*"; }
 refuse() { say "  not landing: $*"; return 1; }
@@ -121,6 +134,44 @@ land_one() {
     local ahead
     ahead=$($GIT rev-list --count "main..$branch")
     [ "$ahead" -gt 0 ] || { refuse "nothing main doesn't already have"; return 1; }
+
+    # --- aligned with common-rules -----------------------------------------
+    #
+    # Merging work produced under rules nobody read is the actual harm, and
+    # this is the last point before it happens. The signal already existed --
+    # `rulecheck` has exited 1 for a stale project all along -- but nothing
+    # consumed it: a SessionStart hook's exit status does not stop the
+    # session, so every session in a stale project got the failure and kept
+    # going anyway. This is what makes it a gate instead of a suggestion.
+    #
+    # Only a project that opted in is checked. `.common-rules-version` is the
+    # explicit act of opting in -- `rulecheck --align`, once, on purpose --
+    # so a project that has never run it (even one whose CLAUDE.md points at
+    # CLAUDE-workflow.md) is not blocked here. It never made the claim this
+    # gate is enforcing.
+    local stamp_file="$TOP/.common-rules-version"
+    if [ -f "$stamp_file" ] && [ -x "$RULES_DIR/bin/rulecheck" ]; then
+        if ! "$RULES_DIR/bin/rulecheck" --project "$TOP" --quiet >/dev/null 2>&1; then
+            if [ "${LAND_ALLOW_STALE_RULES:-0}" != 1 ]; then
+                local was cur msg
+                was="$(tr -d '[:space:]' < "$stamp_file")"
+                cur="$("$RULES_DIR/bin/rulecheck" --version 2>/dev/null || echo "unknown")"
+                # One `refuse` call with the whole message as a single argument --
+                # `refuse` returns 1, and under `set -e` a plain (non-&&/||/if-
+                # guarded) command returning non-zero ends the script right there,
+                # so anything meant to reach the user has to be said before or
+                # inside that one call, never after it.
+                msg="not aligned with common-rules -- on $was, current is $cur
+      Read $RULES_DIR/CLAUDE-workflow.md for what changed since $was, then:
+        $RULES_DIR/bin/rulecheck --align   # writes .common-rules-version -- does NOT commit it
+        git add .common-rules-version && git commit -m 'align with common-rules'
+      If this branch genuinely must land before that, re-run with
+      LAND_ALLOW_STALE_RULES=1 -- it is recorded in the PR either way."
+                refuse "$msg"
+                return 1
+            fi
+        fi
+    fi
 
     local touched
     touched=$($GIT diff --name-only "main...$branch" | grep -E "$RESERVED" || true)

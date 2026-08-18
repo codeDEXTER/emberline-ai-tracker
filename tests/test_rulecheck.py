@@ -62,7 +62,11 @@ class AdoptionIsRead(unittest.TestCase):
                          "This is v2, deliberately separate from ../common-rules/.\n"
                          "No gates, no worktrees, no issues here.\n")
         r = run(p)
-        self.assertEqual(r.returncode, 0, f"expected 'nothing to check', got:\n{r.stdout}{r.stderr}")
+        # Not 0: exit 0 means "verified aligned", and nothing was verified here
+        # -- there is no version to be aligned or behind on. Not 1 either: 1
+        # means "verified, and stale", which is also not what happened. This is
+        # its own outcome, "could not check", and it gets its own status (2).
+        self.assertEqual(r.returncode, 2, f"expected 'could not check' (2), got:\n{r.stdout}{r.stderr}")
         self.assertIn("does not adopt", r.stdout)
         self.assertNotIn("NEVER recorded", r.stdout)
 
@@ -90,14 +94,19 @@ class AdoptionIsRead(unittest.TestCase):
     def test_a_project_with_no_claude_md_at_all_does_not_adopt(self):
         p = self.project("scratch")
         r = run(p)
-        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.returncode, 2)
         self.assertIn("does not adopt", r.stdout)
 
     def test_quiet_says_nothing_for_a_non_adopting_project(self):
-        """--quiet is for the SessionStart hook; a non-adopter must not print."""
+        """--quiet is for the SessionStart hook; a non-adopter must not print.
+
+        The hook does not read the exit code (a SessionStart hook's exit
+        status does not stop the session), so this only pins the *output*
+        contract -- the exit code is pinned separately, below.
+        """
         p = self.project("idea-lab", "Deliberately separate.\n")
         r = run(p, "--quiet")
-        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.returncode, 2)
         self.assertEqual(r.stdout.strip(), "")
 
 
@@ -105,7 +114,11 @@ class TheRulesDoNotAdoptThemselves(unittest.TestCase):
 
     def test_common_rules_itself_is_not_an_adopter(self):
         r = run(ROOT)
-        self.assertEqual(r.returncode, 0)
+        # This is the exact case that motivated giving "could not check" its
+        # own status: a session run from inside common-rules used to get exit
+        # 0 here -- indistinguishable from "checked, and aligned" -- and
+        # treated a vacuous run as a pass.
+        self.assertEqual(r.returncode, 2)
         self.assertIn("the rules themselves", r.stdout)
         self.assertNotIn("NEVER recorded", r.stdout)
 
@@ -113,6 +126,33 @@ class TheRulesDoNotAdoptThemselves(unittest.TestCase):
         r = run(ROOT, "--align")
         self.assertFalse((ROOT / STAMP).exists(),
                          "common-rules stamped itself with its own version")
+
+
+class CannotCheckIsItsOwnStatus(unittest.TestCase):
+    """0 = verified aligned. 1 = verified, and stale. 2 = nothing was verified.
+
+    Before this, "could not check" shared exit 0 with "aligned" in both cases
+    it can happen -- common-rules itself, and a non-adopting project -- so a
+    caller that only looked at the exit code could not tell a real pass from
+    "there was nothing to check". That is what let a session tick the box
+    after running rulecheck from inside common-rules and reading exit 0 as a
+    pass.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_could_not_check_is_distinct_from_both_aligned_and_stale(self):
+        non_adopter = self.tmp / "scratch"
+        non_adopter.mkdir()
+        r_non_adopter = run(non_adopter)
+        r_common_rules = run(ROOT)
+        for r, label in ((r_non_adopter, "non-adopter"), (r_common_rules, "common-rules")):
+            self.assertEqual(r.returncode, 2, f"{label}: expected 2, got {r.returncode}")
+            self.assertNotEqual(r.returncode, 0, f"{label}: 2 must not collide with aligned")
+            self.assertNotEqual(r.returncode, 1, f"{label}: 2 must not collide with stale")
 
 
 class RealProjectsStillCheck(unittest.TestCase):

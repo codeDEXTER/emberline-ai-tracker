@@ -57,6 +57,18 @@ tree is clean, the branch is ahead, the merge is conflict-free, the tests are
 green and nothing reserved was touched — then merges, through a PR where `main`
 is protected. Nothing waits in a queue for the user to notice it.
 
+**A project that has aligned before must stay aligned to keep landing.**
+`bin/land` refuses when `.common-rules-version` names a version older than
+current — the same signal `rulecheck` has printed all along, made load-bearing
+instead of ignorable: a `SessionStart` hook's exit status does not stop a
+session, so a stale project's every session got the failure and proceeded
+anyway. Only a project that has actually run `rulecheck --align` at least once
+is checked — pointing at this file from a `CLAUDE.md` alone is not the same
+claim, so a project that never aligned is never blocked here. Fix it with
+`rulecheck`, then `rulecheck --align` (which writes `.common-rules-version` but
+does **not** commit it — commit it yourself), or, if the branch genuinely must
+land first, `LAND_ALLOW_STALE_RULES=1`, recorded in the PR either way.
+
 Nothing sits unmerged more than about two hours of working time. Long-lived
 branches are the whole cause of the collision class: on 2026-08-05 two branches
 independently created the same new file and independently rewrote the same
