@@ -1,5 +1,64 @@
 # Changelog — common-rules
 
+## 2026-08-18 · `bin/land` refuses a stale project, and `rulecheck` stops calling "I couldn't check" a pass
+
+Measured today: `mac-explorer` is on `127-efefb00`, `pockets` on `124-7f4fbc2`,
+`pip` on `103-06012ae` against current `154-d60140c` — 27, 30 and 51 versions
+behind. All three already have `rulecheck --quiet` installed as a
+`SessionStart` hook, so `derecord` was not the gap. `rulecheck --quiet` was
+**already exiting 1** for every one of those sessions; nothing consumed it,
+because a `SessionStart` hook's exit status does not stop a session. The
+signal existed and fired every time and changed nothing.
+
+This session made the mistake the change exists to prevent, and it is the
+clearest evidence for why exit code mattered here. It ran `rulecheck` from
+inside `common-rules` itself at the start, got `common-rules is the rules
+themselves — nothing to align against.` at **exit 0**, and moved on having
+verified nothing. The friendly sentence and the "nothing wrong" exit code were
+indistinguishable from an actual pass.
+
+**Two changes, one root cause: a signal that could be gotten without being
+acted on.**
+
+1. **`rulecheck` gives "could not check" its own exit status (2).** Before,
+   both "run inside common-rules itself" and "run in a project that never
+   adopted the rules" printed a friendly sentence and exited 0 — the same
+   code as "verified, and aligned". Now: `0` verified aligned · `1` verified
+   and stale · `2` nothing was verified. Checked every caller: the
+   `SessionStart` hook (`rulecheck --quiet`) never reads the exit code, so
+   it keeps working unchanged; `bin/derecord` only installs that hook string
+   and does not branch on rulecheck's exit either. Nothing else shells out to
+   it. `tests/test_rulecheck.py` pins the new contract, including the two
+   assertions that used to expect 0 and now expect 2.
+
+2. **`bin/land` refuses to land from a project that is stale on
+   `.common-rules-version`.** This is the enforcement point that was missing
+   — the actual harm is merging work produced under rules nobody read, and
+   `land` already refuses for exactly this class of reason (a code change
+   with no test). Only a project that has *actually run* `rulecheck --align`
+   at least once is checked — pointing at `CLAUDE-workflow.md` from a
+   `CLAUDE.md` alone does not count, so a project that never opted in is never
+   blocked. `common-rules` itself was already structurally exempt (it refuses
+   to land at all, always, before this check would ever run). The refusal
+   names both versions and the exact commands, including the gotcha that
+   `rulecheck --align` writes `.common-rules-version` but does not commit it.
+   Escape hatch, same shape as `LAND_ALLOW_UNTESTED`: `LAND_ALLOW_STALE_RULES=1`,
+   recorded in the PR either way. `tests/test_land_alignment.py` covers all
+   four cases (no stamp, aligned, stale, override) and was run against the
+   unguarded script first — it failed on the stale and override cases exactly
+   as expected.
+
+**Behaviour change for three projects that are not the current focus:**
+`mac-explorer`, `pockets` and `pip` cannot land through `bin/land` until
+someone runs `rulecheck` and `rulecheck --align` in each — that is the point,
+but it stops real work in those projects until it happens, so it is called out
+here rather than left to be discovered as a landing failure.
+
+`docs/workflow.html` updated with this change, stamp at 155, PNG regenerated —
+required by the same rule this PR is now stating explicitly in
+`CLAUDE-workflow.md`.
+
+
 ## 2026-08-16 · land died silently on any commit that named no issue
 
 Reported by a finance-tracker session that hit it twice in one night: `land`
