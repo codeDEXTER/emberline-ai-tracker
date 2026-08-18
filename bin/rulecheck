@@ -12,8 +12,12 @@ something did.
   rulecheck --version       # print the current rules version and exit
   rulecheck --quiet         # print nothing when aligned (for hooks)
 
-Exit codes: 0 aligned (or not an adopting project) · 1 behind (or never
-aligned) · 2 cannot tell.
+Exit codes: 0 aligned · 1 stale (behind, or never aligned) · 2 could not check
+at all -- run inside common-rules itself, a project that does not adopt the
+rules, or the rules repo unreadable. 2 is deliberately its own status, distinct
+from both 0 and 1: it used to share exit 0 with "aligned", so a session running
+this from inside common-rules got a friendly sentence and an exit code that
+looked exactly like a pass, and had verified nothing.
 
 The version is `<commit-count>-<short-sha>` of common-rules — the count orders
 it, the sha identifies it exactly. A project records the one it last aligned
@@ -132,10 +136,14 @@ def main():
         if proj == RULES:
             # Running inside common-rules itself, which is the usual way this is
             # hit: the rules are the thing being versioned, not a follower of it.
+            # Exit 2, not 0 -- nothing was actually verified here, and a session
+            # that reads exit 0 as "checked, and fine" learns nothing from a run
+            # that checked nothing. That is exactly the mistake this exists to
+            # stop: a vacuous run inside common-rules itself, treated as a pass.
             if not a.quiet:
                 print("common-rules is the rules themselves — nothing to align "
                       f"against. Current version: {cur}.")
-            return 0
+            return 2
         if a.align:
             # Refusing is the point. The stamp is a claim that a session read
             # these rules and that this project follows them; writing one into a
@@ -149,7 +157,10 @@ def main():
             return 2
         if not a.quiet:
             print(f"{proj.name} does not adopt the shared rules — nothing to check.")
-        return 0
+        # Same reasoning as the common-rules case above: this checked nothing,
+        # so it must not read as 0 (aligned) or 1 (stale) -- both would claim a
+        # verification that never happened.
+        return 2
 
     if a.align:
         stamp.write_text(cur + "\n")

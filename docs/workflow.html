@@ -105,7 +105,7 @@
 
 <div class="brand">
   <span>common-rules · reference</span>
-  <span>derived from CLAUDE-workflow.md · rules version 153 · 2026-08-16</span>
+  <span>derived from CLAUDE-workflow.md · rules version 155 · 2026-08-18</span>
 </div>
 
 <h1>The whole workflow, on one page</h1>
@@ -233,8 +233,12 @@ answer would change a look, or the decision is reserved for you.</p>
       <h3>Confirm the session is on the current rules</h3>
       <p>Before reading code, before the worktree, before anything. The rules move several
       times a day; a session working from what it read this morning is following a version
-      that no longer exists. It prints <em>what changed</em>, not merely that something did.</p>
-      <div class="out"><span class="pill mono">rulecheck</span><span class="pill mono">rulecheck --align</span><span class="pill doc">.common-rules-version</span></div>
+      that no longer exists. It prints <em>what changed</em>, not merely that something did.
+      Exit 0 means verified aligned, exit 1 means verified and stale, and exit 2 means it
+      could not check at all — run inside common-rules itself, or a project that never
+      opted in. 2 is its own status precisely so a caller can't mistake "nothing was
+      checked" for "checked, and fine".</p>
+      <div class="out"><span class="pill mono">rulecheck</span><span class="pill mono">rulecheck --align</span><span class="pill doc">.common-rules-version</span><span class="pill stop">bin/land refuses if stale</span></div>
     </div>
   </div>
 
@@ -622,7 +626,7 @@ title.</p>
   <tr><td class="k">tests/</td><td>whoever verified it — <code>code-engineer</code> writes them</td><td>One command everywhere: <code>python3 -m unittest discover -s tests -q</code>. <code>bin/land</code> and CI run the identical string, so a test written once is enforced in both. A probe you ran to prove something belongs here, not in a message — land refuses code with no test.</td></tr>
   <tr><td class="k">AGENT-LOG.md</td><td><em>generated</em> — <code>spend agentlog --write</code></td><td>Which agents ran, what each task cost, over what span. Regenerated from the session transcripts; never hand-edited.</td></tr>
   <tr><td class="k">ASKS.md</td><td>any session</td><td>What you've asked for about <em>how work is done</em>, and the patterns in it</td></tr>
-  <tr><td class="k">.common-rules-version</td><td>rulecheck --align</td><td>The rules version this project last confirmed</td></tr>
+  <tr><td class="k">.common-rules-version</td><td>rulecheck --align</td><td>The rules version this project last confirmed. Written, never committed automatically — and once it exists, <code>bin/land</code> refuses to land a stale project until it is updated (<code>LAND_ALLOW_STALE_RULES=1</code> to override, recorded either way)</td></tr>
 </table>
 </div>
 
@@ -656,6 +660,8 @@ honest remaining gap in both.</p>
 
 <ul>
   <li><b>No direct-to-main, ever</b>, and no two chats sharing a checkout.</li>
+  <li><b>A project that has aligned before must stay aligned to land.</b> <code>bin/land</code>
+  refuses a stale project — not one that never opted in — with the fix commands named.</li>
   <li><b>An accepted proposal is not settled requirements.</b> Requirements, then design, then L2 — never straight to code.</li>
   <li><b>One proposal per topic</b>, however many agents ran, and it survives across sessions until decided.</li>
   <li><b>Show, don't summarise.</b> Artifact over prose; demo before approval; the render, not a description of it.</li>
