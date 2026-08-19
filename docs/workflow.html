@@ -285,7 +285,7 @@ answer would change a look, or the decision is reserved for you.</p>
       in <code>docs/proposals/</code>, and the decision question follows in the same breath, with
       buttons. One decision per prompt.</p>
       <p><strong>It leads with its number.</strong> Numbered sequentially per project and never reused; the visible heading and the <code>&lt;title&gt;</code> both read <code>NN · status · Title</code>, so where a thing sits in the sequence and whether it has been decided are legible before a word is read. Status lives in <code>&lt;meta name="proposal-status"&gt;</code>: proposed · accepted · completed · completed in part · amends NN · superseded by NN (<code>built</code> is a grandfathered synonym for <code>completed</code>).</p>
-      <p><strong>A proposal that asked numbered decisions must record the answers</strong> — a decision date says <em>when</em>, never <em>what</em>, and <code>proposal-auditor</code> has nothing to measure a build against without them. Scoped mechanically: an <code>&lt;ol class="decisions"&gt;</code> list that asked something needs an <code>id="decided"</code> block answering it before the proposal is accepted; <code>completed in part</code> needs an <code>id="exceptions"</code> block naming what was skipped and why. <code>bin/proposalcheck</code> enforces both, grandfathered by decision date so nothing decided before the rule existed is failed retroactively.</p>
+      <p><strong>A proposal that asked numbered decisions must record the answers</strong> — a decision date says <em>when</em>, never <em>what</em>, and <code>proposal-auditor</code> has nothing to measure a build against without them. Scoped mechanically: an <code>&lt;ol class="decisions"&gt;</code> list that asked something needs an <code>id="decided"</code> block answering it before the proposal is accepted; <code>completed in part</code> needs an <code>id="exceptions"</code> block naming what was skipped and why. <code>bin/proposalcheck</code> enforces both, grandfathered by decision date so nothing decided before the rule existed is failed retroactively — and <code>bin/land</code> refuses to land a project whose proposals fail it, the same way it refuses a stale one (<code>LAND_ALLOW_UNRECORDED_DECISIONS=1</code> to override, recorded either way).</p>
       <div class="out"><span class="pill doc">docs/proposals/NN-…html</span><span class="pill doc">NN · status · Title</span><span class="pill">Accept · Amend · Reject · Show me first</span></div>
     </div>
   </div>
@@ -663,6 +663,8 @@ honest remaining gap in both.</p>
   <li><b>No direct-to-main, ever</b>, and no two chats sharing a checkout.</li>
   <li><b>A project that has aligned before must stay aligned to land.</b> <code>bin/land</code>
   refuses a stale project — not one that never opted in — with the fix commands named.</li>
+  <li><b>A proposal that asked decisions and recorded none doesn't land either.</b> <code>bin/land</code>
+  refuses via <code>bin/proposalcheck</code>, same opt-in guard, <code>LAND_ALLOW_UNRECORDED_DECISIONS=1</code> to override.</li>
   <li><b>An accepted proposal is not settled requirements.</b> Requirements, then design, then L2 — never straight to code.</li>
   <li><b>One proposal per topic</b>, however many agents ran, and it survives across sessions until decided.</li>
   <li><b>Show, don't summarise.</b> Artifact over prose; demo before approval; the render, not a description of it.</li>
