@@ -302,9 +302,47 @@ looking. Do not ask them to read requirements prose.
 `docs/proposals/` as `NN-<type>-<slug>.html`, numbered sequentially per project,
 never reused. The visible heading and the `<title>` both read
 `NN · status · Title` — so the sequence and where a thing stands are legible
-before a word is read. Status is one of `proposed`, `accepted`, `built`,
-`amends NN`, `superseded by NN`, and lives in `<meta name="proposal-status">`.
-An unnumbered proposal is not a proposal; it is a sketch.
+before a word is read. Status is one of `proposed`, `accepted`, `completed`,
+`completed in part`, `amends NN`, `superseded by NN`, and lives in
+`<meta name="proposal-status">`. `built` is a grandfathered synonym for
+`completed` — two proposals already use it and are not mass-renamed, but write
+`completed` from here on. An unnumbered proposal is not a proposal; it is a
+sketch.
+
+**A proposal that asked numbered decisions must record the answers.**
+Measured in finance-tracker (issue #584): 11 proposals `accepted`, 9 carrying
+a decision date (`<meta name="proposal-decided">`), 3 recording what was
+actually decided — and those three were hand-written the day the gap was
+noticed. A date says *when*; it says nothing about *what*, and
+`proposal-auditor` has nothing to measure a build against without the answers.
+Scoped mechanically, not by taste: a proposal whose `<ol class="decisions">`
+list asked something must carry the answers, in the same document, in a block
+a reader can find (`id="decided"` — proposal 18, portfolio-pdf, already does
+this by hand) before it reaches `accepted`, `completed`, `completed in part`,
+or the grandfathered `built`. A proposal that asked nothing needs nothing —
+"did it ask?" is checkable, "is it big?" is not.
+
+**A proposal reaches a terminal state — `completed`, or `completed in part`
+with its exceptions named.** `completed in part` requires an `id="exceptions"`
+block beside the decisions: what was not built, and why. A status claiming
+partial completion with nothing named is indistinguishable from quietly
+marking something done — the block is what keeps it honest. `built` remains
+the grandfathered word for full completion; `completed in part` is new
+vocabulary with no prior use to reconcile.
+
+**Grandfathered by decision date, not by list.** Both requirements above bind
+proposals decided on or after **2026-08-19**, the day this rule was written.
+A proposal decided before that date, or carrying no `proposal-decided` date at
+all, is exempt — undated reads the same as "decided before this rule
+existed," not as a loophole to leave the meta off going forward.
+finance-tracker alone has 8 accepted proposals whose answers are
+unrecoverable; inventing them would misstate history worse than the gap does,
+and a test that fails on day one against documents nobody can fix gets
+disabled. `bin/proposalcheck --project <dir>` is the mechanical form of both
+rules and this grandfather; it currently reports 0 blocked proposals across
+finance-tracker, mac-explorer, pockets and pip — finance-tracker has 4 that
+would fail without the floor (20, 23, 24, 25), all dated before it, so
+enforcement is forward-only from here.
 
 **Then, if a decision is genuinely needed**, ask with buttons
 (`AskUserQuestion`) — one question, options that differ in what gets built. If

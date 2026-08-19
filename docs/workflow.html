@@ -105,7 +105,7 @@
 
 <div class="brand">
   <span>common-rules · reference</span>
-  <span>derived from CLAUDE-workflow.md · rules version 155 · 2026-08-18</span>
+  <span>derived from CLAUDE-workflow.md · rules version 156 · 2026-08-19</span>
 </div>
 
 <h1>The whole workflow, on one page</h1>
@@ -284,7 +284,8 @@ answer would change a look, or the decision is reserved for you.</p>
       contributes a section. It arrives as a rendered HTML artifact with a committed copy already
       in <code>docs/proposals/</code>, and the decision question follows in the same breath, with
       buttons. One decision per prompt.</p>
-      <p><strong>It leads with its number.</strong> Numbered sequentially per project and never reused; the visible heading and the <code>&lt;title&gt;</code> both read <code>NN · status · Title</code>, so where a thing sits in the sequence and whether it has been decided are legible before a word is read. Status lives in <code>&lt;meta name="proposal-status"&gt;</code>: proposed · accepted · built · amends NN · superseded by NN.</p>
+      <p><strong>It leads with its number.</strong> Numbered sequentially per project and never reused; the visible heading and the <code>&lt;title&gt;</code> both read <code>NN · status · Title</code>, so where a thing sits in the sequence and whether it has been decided are legible before a word is read. Status lives in <code>&lt;meta name="proposal-status"&gt;</code>: proposed · accepted · completed · completed in part · amends NN · superseded by NN (<code>built</code> is a grandfathered synonym for <code>completed</code>).</p>
+      <p><strong>A proposal that asked numbered decisions must record the answers</strong> — a decision date says <em>when</em>, never <em>what</em>, and <code>proposal-auditor</code> has nothing to measure a build against without them. Scoped mechanically: an <code>&lt;ol class="decisions"&gt;</code> list that asked something needs an <code>id="decided"</code> block answering it before the proposal is accepted; <code>completed in part</code> needs an <code>id="exceptions"</code> block naming what was skipped and why. <code>bin/proposalcheck</code> enforces both, grandfathered by decision date so nothing decided before the rule existed is failed retroactively.</p>
       <div class="out"><span class="pill doc">docs/proposals/NN-…html</span><span class="pill doc">NN · status · Title</span><span class="pill">Accept · Amend · Reject · Show me first</span></div>
     </div>
   </div>
