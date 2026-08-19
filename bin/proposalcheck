@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""proposalcheck -- did a proposal that asked numbered decisions record the answers?
+
+  proposalcheck [--project DIR]     default: nearest project above cwd
+
+CLAUDE-workflow.md, "A proposal that asked numbered decisions must record the
+answers": a decision date (`<meta name="proposal-decided">`) says *when* a
+proposal was decided, and nothing about *what* -- measured in finance-tracker
+(issue #584), 11 proposals `accepted`, 9 with a decision date, 3 recording
+what was actually decided. `proposal-auditor` has nothing to measure a build
+against without the answers, only the date.
+
+A proposal "asks numbered decisions" when it carries a non-empty
+`<ol class="decisions">` list -- the shape already in live use across several
+of finance-tracker's proposals. Once a proposal reaches `accepted`,
+`completed`, `completed in part`, or the grandfathered `built`, the answers
+must live in the *same document*, in a block carrying `id="decided"` --
+proposal 18 (portfolio-pdf) already does exactly this by hand; this makes it
+checkable rather than a habit that lapses.
+
+A status of `completed in part` additionally requires an `id="exceptions"`
+block beside the decisions: what was not built, and why. A partial-completion
+status naming nothing is indistinguishable from quietly marking something
+done -- that block is what keeps it honest.
+
+GRANDFATHERED BY DATE, NOT BY LIST. A proposal decided before EFFECTIVE_DATE,
+or carrying no `proposal-decided` date at all, is exempt from the
+answers-recorded check. finance-tracker alone has 8 accepted proposals whose
+answers are unrecoverable; inventing them after the fact would misstate
+history worse than the gap does, and a test that fails on day one against
+documents nobody can fix gets disabled -- so the floor is today, and
+enforcement is forward-only. An undated proposal reads the same as "decided
+before this rule existed", not as a loophole for a new one to leave the meta
+off. `completed in part` is new vocabulary with nothing existing to
+grandfather, so its exceptions requirement is not date-gated.
+
+Exit codes: 0 clean. 1 violations found. 2 nothing to check (no
+docs/proposals/ under the project).
+"""
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from pathlib import Path
+
+# The day this rule was written. Nothing decided before it is checked -- see
+# the module docstring's "GRANDFATHERED BY DATE" section for why a floor
+# rather than a hand-maintained exemption list.
+EFFECTIVE_DATE = "2026-08-19"
+
+# Statuses under which a proposal that asked decisions must have recorded the
+# answers. `proposed` is deliberately excluded -- a proposal still being
+# negotiated is expected to have open decisions.
+DECISION_STATUSES = {"accepted", "completed", "completed in part", "built"}
+
+
+def meta(text: str, name: str) -> str | None:
+    m = re.search(rf'<meta name="proposal-{name}" content="([^"]*)">', text)
+    return m.group(1) if m else None
+
+
+def asks_decisions(text: str) -> bool:
+    """Does this document carry a non-empty <ol class="decisions"> list?
+
+    An empty list literally asks nothing -- "did it ask?" is the mechanical
+    test, not "how big is it", so a placeholder <ol class="decisions"></ol>
+    does not trigger the requirement.
+    """
+    m = re.search(r'<ol\s+class="decisions">(.*?)</ol>', text, re.S)
+    return bool(m and "<li" in m.group(1))
+
+
+def records_answers(text: str) -> bool:
+    return bool(re.search(r'\bid="decided"', text))
+
+
+def records_exceptions(text: str) -> bool:
+    return bool(re.search(r'\bid="exceptions"', text))
+
+
+def grandfathered(decided: str | None) -> bool:
+    """True if this proposal predates the rule, or never carried a date.
+
+    ISO dates (YYYY-MM-DD) sort correctly as plain strings, so a lexical
+    comparison against EFFECTIVE_DATE is exact -- no date parsing needed.
+    """
+    if not decided:
+        return True
+    return decided < EFFECTIVE_DATE
+
+
+def check_proposal(path: Path, text: str) -> list[str]:
+    """Violations for one proposal document, or an empty list."""
+    violations = []
+    status = meta(text, "status")
+    decided = meta(text, "decided")
+
+    if status in DECISION_STATUSES and asks_decisions(text) and not records_answers(text):
+        if not grandfathered(decided):
+            violations.append(
+                f'asks numbered decisions (<ol class="decisions">) and is '
+                f'"{status}", but records no answers (no id="decided" block) -- '
+                f'decided {decided}, on or after the {EFFECTIVE_DATE} floor'
+            )
+
+    if status == "completed in part" and not records_exceptions(text):
+        violations.append(
+            'status is "completed in part" but carries no id="exceptions" '
+            'block naming what was not built and why'
+        )
+
+    return violations
+
+
+def find_project(start: Path) -> Path:
+    """Nearest ancestor holding a CLAUDE.md or a .git -- same shape as rulecheck."""
+    p = start.resolve()
+    for d in (p, *p.parents):
+        if (d / "CLAUDE.md").exists() or (d / ".git").exists():
+            return d
+    return p
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="proposalcheck", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--project", default=None, help="default: nearest project above cwd")
+    a = ap.parse_args()
+
+    proj = Path(a.project).resolve() if a.project else find_project(Path.cwd())
+    proposals_dir = proj / "docs" / "proposals"
+    if not proposals_dir.is_dir():
+        print(f"{proj.name}: no docs/proposals/ -- nothing to check.")
+        return 2
+
+    total_violations = 0
+    for path in sorted(proposals_dir.glob("*.html")):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for v in check_proposal(path, text):
+            print(f"{path.name}: {v}")
+            total_violations += 1
+
+    if total_violations:
+        print(f"\n{total_violations} violation(s) in {proj.name}.")
+        return 1
+    print(f"{proj.name}: every proposal that asked decisions recorded them.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
