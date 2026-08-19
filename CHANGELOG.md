@@ -1,5 +1,62 @@
 # Changelog — common-rules
 
+## 2026-08-19 · a proposal must record its answers, and reach a terminal state
+
+Prompted by a measured gap in finance-tracker (its issue #584), not a taste
+call: 11 proposals there are `accepted`, 9 carry a decision date
+(`<meta name="proposal-decided">`), and only 3 record what was actually
+decided — and those three were hand-written on the day the gap was noticed.
+The date says *when*; it never says *what*, so `proposal-auditor` had nothing
+to measure a build against beyond "was there a date". The concrete cost:
+proposal 18 was accepted 2026-08-12, and six days later a review filed
+sixteen defects against what it authorised, with no way to tell whether the
+build drifted from the agreement or the agreement was never that specific.
+
+**Two additions to the proposal rule in `CLAUDE-workflow.md`:**
+
+1. **A proposal that asked numbered decisions must record the answers.**
+   Scoped mechanically, not by size — "did it ask?" is checkable, "is it big?"
+   is not. A proposal carrying a non-empty `<ol class="decisions">` list must
+   carry the answers in the same document, in an `id="decided"` block, before
+   it reaches `accepted`/`completed`/`completed in part`/the grandfathered
+   `built`. Proposal 18 (portfolio-pdf) already does this by hand — the rule
+   just makes it checkable rather than a habit that lapses.
+
+2. **A proposal now reaches a terminal state.** `completed` replaces `built`
+   as the vocabulary going forward (`built` stays valid — two proposals
+   already use it, not mass-renamed). New: `completed in part`, which
+   requires an `id="exceptions"` block beside the decisions naming what was
+   not built and why. A partial-completion status naming nothing is
+   indistinguishable from quietly marking something done.
+
+**Both are grandfathered by decision date, not by a hand-maintained list.**
+Nothing decided before **2026-08-19** — the day this landed — is checked, and
+a proposal with no `proposal-decided` date at all reads the same way.
+finance-tracker alone has 8 accepted proposals whose answers are
+unrecoverable; inventing them would misstate history worse than the gap does,
+and a test that fails on day one against documents nobody can fix gets
+disabled. The floor is stated here, in the rule, and in `bin/proposalcheck`'s
+own docstring, so the exemption is legible rather than silent.
+
+**`bin/proposalcheck --project <dir>`** is the mechanical form of both rules
+plus the grandfather. Run today against the four adopting projects: 0 blocked
+in every one. finance-tracker has 4 proposals that would fail without the
+floor (20, 23, 24, 25 — all decided 2026-08-17/18), so this rule is
+enforcement-going-forward only, not a retroactive block. `mac-explorer`,
+`pockets` and `pip` have no proposal using the `<ol class="decisions">` shape
+yet, so the rule currently has nothing to flag there either way — those three
+are also still behind on `rulecheck --align` (2026-08-18 entry) and blocked
+from landing regardless.
+
+`tests/test_proposal_lifecycle.py` pins both requirements and the
+grandfather, including that finance-tracker's real proposals are 0-blocked
+today (guards against a fix that quietly re-tightens the floor and starts
+failing history it was supposed to leave alone).
+
+`docs/workflow.html` updated with the new status vocabulary and the
+decisions-recorded requirement, stamp bumped, PNG regenerated.
+
+
 ## 2026-08-18 · `bin/land` refuses a stale project, and `rulecheck` stops calling "I couldn't check" a pass
 
 Measured today: `mac-explorer` is on `127-efefb00`, `pockets` on `124-7f4fbc2`,
