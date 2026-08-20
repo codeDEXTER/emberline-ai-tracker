@@ -190,6 +190,53 @@
   </section>
 
   <section>
+    <p class="eyebrow">Where D5 lands <span class="tag">measured after this proposal was written</span></p>
+
+    <div class="verdict warn">
+      <b>The checker D5 asks for could not fire in the repo that ships it</b>
+      <p>D5's argument is that this repo has built three checkers that sat unconsumed, so a fourth should be
+      wired into <code>bin/land</code> rather than left advisory. That argument is sound and the measurement
+      below does not contradict it. It adds a fourth failure mode the first three do not cover.</p>
+      <p><strong>Every gate in <code>bin/land</code> sits behind
+      <code>[ -f "$stamp_file" ]</code></strong> — the project's <code>.common-rules-version</code>. That is
+      deliberate and right: a project that never ran <code>rulecheck --align</code> never claimed to be governed
+      by these rules, so it is never refused on them. But <em>common-rules does not adopt itself</em>. It carries
+      no stamp, so every gate skips here. It also has no <code>CLAUDE-checklist.md</code> at all: no feature
+      register, no <code>## Milestones</code> table, no <code>docs/milestones.html</code>.</p>
+      <p>So the repo that authors this proposal, hosts it, and would ship its checker is the one place the
+      checker is structurally unable to run — and proposal 16 would be the first proposal here it could ever
+      apply to.</p>
+    </div>
+
+    <p><strong>The fourth failure mode is worse than the three D5 names, because it looks like a pass.</strong>
+    <code>rulecheck --quiet</code>, <code>proposalcheck</code> and <code>milestonecheck</code> each failed by
+    <em>nobody calling them</em> — visibly inert, and each needed a second change to give it teeth. A gate that
+    is called and always skips reports success. Nothing prompts the second change, because nothing looks
+    wrong.</p>
+
+    <p>This is not hypothetical here. <code>proposalcheck</code> reports of this repo today that
+    <em>"every proposal that asked decisions recorded them"</em> — and that is vacuously true:
+    <strong>not one of common-rules' sixteen proposals carries an <code>&lt;ol class="decisions"&gt;</code>
+    list at all.</strong> Zero asked. The check has never once had anything to check, and its output has read
+    as a pass throughout.</p>
+
+    <p>Two consequences worth carrying into D5, neither of which decides it:</p>
+    <ul>
+      <li>A checker enforcing declared milestones needs to say <em>which</em> of "checked and clean" or "nothing
+      to check" it means. The <code>0</code>/<code>1</code>/<code>2</code> convention
+      <code>proposalcheck</code> and <code>milestonecheck</code> already share — where <code>2</code> is
+      "could not check" — is the existing answer, and it exists precisely so a skip is not read as a pass.</li>
+      <li>Enforcement in <code>bin/land</code> reaches adopting projects only. If this rule is meant to bind
+      the rules repo too, that is a second change — giving common-rules a checklist and a plan of its own — and
+      it is a larger question than this proposal, which is why it is named here rather than folded into D5.</li>
+    </ul>
+
+    <p class="note">Measured 2026-08-20 against this repo, by the session handed proposal 16 to implement,
+    while checking whether its claims held on a second corpus. The pilot in finance-tracker tests a different
+    claim — whether decisions sort into stages and parameters — and its findings are still outstanding.</p>
+  </section>
+
+  <section>
     <p class="eyebrow">Decisions needed <span class="tag">nothing is built until these are answered</span></p>
     <ol class="decisions">
       <li><b>D1 — Adopt the link at all.</b> An accepted proposal that authorises building declares the
@@ -206,7 +253,9 @@
         declared milestones are all <code>done</code>. Recommended yes, and wired into <code>bin/land</code>
         rather than left advisory: this repo has now built three checkers that sat unconsumed
         (<code>rulecheck --quiet</code>, <code>proposalcheck</code>, <code>milestonecheck</code>) and each needed
-        a second change to give it teeth.</li>
+        a second change to give it teeth. See <em>Where D5 lands</em> above: in this repo such a checker would be
+        called and would always skip, which is a fourth failure mode that reads as a pass. That does not change
+        what D5 asks, but it changes what answering yes has to account for.</li>
       <li><b>D6 — Retrofit, or new proposals only?</b> Recommended <strong>new only</strong>, with the same
         date-floor mechanism the decisions rule already uses. finance-tracker has eight accepted proposals whose
         milestones were never declared and cannot be reconstructed honestly.</li>
