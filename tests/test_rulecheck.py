@@ -34,6 +34,39 @@ def run(project: Path, *args, rules_dir: Path | None = None):
                           capture_output=True, text=True, env=env, check=False)
 
 
+# rulecheck prints its verdict, then (for a stale project) quotes the changelog
+# under this heading. See bin/rulecheck, "What changed since (N changelog lines)".
+DUMP_MARKER = "What changed since"
+
+
+def verdict(stdout: str) -> str:
+    """rulecheck's own words, with the changelog it quotes cut off.
+
+    A stale project's report quotes the changelog, and the changelog is prose
+    *about these rules* -- including the line "common-rules does not adopt
+    itself." Asserting against raw stdout therefore searches the verdict and
+    its evidence as one string, so a phrase occurring in the evidence reads as
+    a verdict.
+
+    That is exactly what broke RealProjectsStillCheck on `main` from the day
+    that changelog entry was written: pockets, pip and mac-explorer were
+    correctly recognised as adopting and correctly reported stale, and the test
+    called them skipped because the changelog it was shown contained the words
+    it was grepping for. The projects were fine. The assertion was reading the
+    wrong half of the output.
+
+    Same failure the render tests already guard against -- see
+    test_tower_render.test_no_forecast_in_the_data_rows, which scopes its
+    search to the data rows precisely because the page's own disclaimer
+    contains the forecast words it bans.
+
+    Harmless for a non-adopting project: rulecheck returns before printing any
+    dump, so there is no marker and the whole of stdout is the verdict.
+    """
+    return stdout.split(DUMP_MARKER, 1)[0]
+
+
+
 class AdoptionIsRead(unittest.TestCase):
     """Adoption comes from the project's own declaration, never from assumption."""
 
@@ -67,8 +100,8 @@ class AdoptionIsRead(unittest.TestCase):
         # means "verified, and stale", which is also not what happened. This is
         # its own outcome, "could not check", and it gets its own status (2).
         self.assertEqual(r.returncode, 2, f"expected 'could not check' (2), got:\n{r.stdout}{r.stderr}")
-        self.assertIn("does not adopt", r.stdout)
-        self.assertNotIn("NEVER recorded", r.stdout)
+        self.assertIn("does not adopt", verdict(r.stdout))
+        self.assertNotIn("NEVER recorded", verdict(r.stdout))
 
     def test_align_refuses_to_stamp_a_non_adopting_project(self):
         p = self.project("idea-lab", "Deliberately separate from ../common-rules/.\n")
@@ -88,14 +121,14 @@ class AdoptionIsRead(unittest.TestCase):
         """Rewording a CLAUDE.md must not silently un-adopt a project."""
         p = self.project("pockets", "No pointer here any more.\n", stamp="1-deadbee")
         r = run(p)
-        self.assertNotIn("does not adopt", r.stdout,
+        self.assertNotIn("does not adopt", verdict(r.stdout),
                          "a project that has aligned before was treated as never having adopted")
 
     def test_a_project_with_no_claude_md_at_all_does_not_adopt(self):
         p = self.project("scratch")
         r = run(p)
         self.assertEqual(r.returncode, 2)
-        self.assertIn("does not adopt", r.stdout)
+        self.assertIn("does not adopt", verdict(r.stdout))
 
     def test_quiet_says_nothing_for_a_non_adopting_project(self):
         """--quiet is for the SessionStart hook; a non-adopter must not print.
@@ -166,8 +199,70 @@ class RealProjectsStillCheck(unittest.TestCase):
                 self.skipTest(f"{name} not present on this machine")
             with self.subTest(project=name):
                 r = run(p)
-                self.assertNotIn("does not adopt", r.stdout,
+                self.assertNotIn("does not adopt", verdict(r.stdout),
                                  f"{name} adopts the rules but was skipped")
+
+
+class TheChangelogIsEvidenceNotVerdict(unittest.TestCase):
+    """The bug RealProjectsStillCheck actually had, pinned so it cannot return.
+
+    Hermetic on purpose: this builds its own two-commit rules repo whose
+    changelog delta contains the poisoned phrase, rather than relying on the
+    real CHANGELOG.md still containing "common-rules does not adopt itself."
+    A regression test that depends on the prose it is guarding against stops
+    testing the moment someone rewords a changelog entry.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.rules = Path(self.tmp.name) / "rules"
+        self.rules.mkdir()
+        self._git("init", "-q", "-b", "main")
+        self._git("config", "user.email", "t@example.com")
+        self._git("config", "user.name", "t")
+        (self.rules / "CLAUDE-workflow.md").write_text("# rules\n")
+        (self.rules / "CHANGELOG.md").write_text("# Changelog\n\n## Old entry\n\nnothing here.\n")
+        self._git("add", "-A"); self._git("commit", "-qm", "seed")
+        self.old_sha = self._git("rev-parse", "--short", "HEAD").stdout.strip()
+
+        # the entry that poisons the dump -- prose about a project NOT adopting
+        (self.rules / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## A newer entry\n\n"
+            "- **common-rules does not adopt itself.** Running rulecheck inside\n"
+            "  this repo checks nothing, so it must not read as a pass.\n\n"
+            "## Old entry\n\nnothing here.\n")
+        self._git("add", "-A"); self._git("commit", "-qm", "add the entry")
+
+        self.proj = Path(self.tmp.name) / "pockets"
+        self.proj.mkdir()
+        (self.proj / "CLAUDE.md").write_text(POINTER)
+        (self.proj / STAMP).write_text(f"1-{self.old_sha}\n")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _git(self, *a):
+        return subprocess.run(["git", "-C", str(self.rules), *a],
+                              capture_output=True, text=True, check=False)
+
+    def test_a_stale_project_is_not_called_a_non_adopter_by_its_own_changelog(self):
+        """An adopting project, correctly reported stale, whose evidence quotes
+        the words "does not adopt". It is stale, not un-adopted, and the two
+        must not be confused by a substring search."""
+        r = run(self.proj, rules_dir=self.rules)
+        self.assertEqual(r.returncode, 1, f"expected stale (1):\n{r.stdout}{r.stderr}")
+        self.assertIn("does not adopt", r.stdout,
+                      "precondition: the dump must carry the phrase, or this proves nothing")
+        self.assertNotIn("does not adopt", verdict(r.stdout),
+                         "the changelog it quotes was read as rulecheck's own verdict")
+
+    def test_the_marker_that_splits_verdict_from_evidence_still_exists(self):
+        """verdict() cuts on a heading bin/rulecheck prints. If that wording
+        changes, verdict() silently stops cutting and every assertion above
+        goes back to searching the whole dump -- passing, and testing nothing."""
+        r = run(self.proj, rules_dir=self.rules)
+        self.assertIn(DUMP_MARKER, r.stdout,
+                      "bin/rulecheck no longer prints this heading -- update verdict()")
 
 
 if __name__ == "__main__":
