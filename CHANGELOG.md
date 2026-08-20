@@ -2,6 +2,31 @@
 
 ## 2026-08-20 · The real-project checks stop skipping where they are run
 
+**Follow-up, same PR: the third instance is fixed too.**
+`test_rulecheck.RealProjectsStillCheck` — raised in #113, left unfixed there,
+and named as out of scope when this branch opened — now takes the same
+`apps_dir()`. It carried a second bug the resolution had been hiding: its
+`skipTest` sat *outside* the `subTest`, so the first absent project aborted the
+whole test and the remaining three were never looked at even when present.
+Since `ROOT.parent` made the first one always absent, that was every run.
+
+**The helper is one module, not a copy in each.** `tests/projects.py`, imported
+by both, with `tests/test_projects.py` pinning it. Two copies of a path rule is
+how the two drift, and this is the rule that has now been got wrong three times
+in two days. It is not named `test_*.py`, so `discover` does not collect it;
+both callers put `tests/` on `sys.path` explicitly so the suite runs the same
+way under `discover -s tests` and under an explicit `tests.test_x` module path.
+
+**The structural guard widened with it** — it now scans every `*.py` in `tests/`
+rather than only its own file, which is what makes it catch a regression in a
+module other than the one it lives in. Verified: reverting `test_rulecheck`
+alone gives `FAILED (failures=1, skipped=1)`, the failure naming
+`test_rulecheck.py:196` from a guard in `test_projects.py`.
+
+**The suite now has no skips at all.** It reported `OK (skipped=1)` for as long
+as this bug existed, and that skip was the bug describing itself.
+
+
 `tests/test_proposal_lifecycle.py` resolved the projects it reads as
 `ROOT.parent` — `/Users/aashish/apps` from the main checkout, and
 `.worktrees/` from a task worktree, where it holds no projects at all. So

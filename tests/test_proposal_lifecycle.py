@@ -28,46 +28,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PROPOSALCHECK = ROOT / "bin" / "proposalcheck"
 
-# Command Line Tools git, because a pending Xcode licence breaks plain `git`.
-GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
-                        "/usr/bin/git") if Path(g).exists()), "git")
-
-
-def apps_dir(start: Path | None = None) -> Path | None:
-    """Where this checkout's sibling projects live, read at runtime.
-
-    These checks used to resolve them as `ROOT.parent`, which is
-    `/Users/aashish/apps` only from the main checkout. From a task worktree
-    (`<apps>/common-rules/.worktrees/<name>`) it is `.worktrees/`, which holds
-    no projects -- so every real-project check found nothing and passed. That
-    is both places the suite is actually run: `bin/land` tests the branch
-    worktree, and CI checks out a repo with no siblings at all. The checks
-    could only ever fail in the one place nobody runs them.
-
-    Same class as `bin/rulecheck`'s hardcoded rules path (#116) and
-    `bin/milestones`' `RULES.parent` -- a path derived from an assumption
-    about the layout rather than from something true at runtime, and invisible
-    precisely where it was wrong.
-
-    `git rev-parse --git-common-dir` names the *main* checkout's `.git` from
-    inside a worktree as readily as from the checkout itself, so the answer is
-    read rather than assumed. It is the corrected form of what `ROOT.parent`
-    was reaching for, not a new policy: `bin/milestones` and `bin/pulse` name
-    `/Users/aashish/apps` outright, and rightly -- `--all` has to find every
-    project on this Mac, which is a claim about the machine. A test only needs
-    the projects beside *this* checkout, which is a fact about the repo.
-
-    Returns None when there is no git repository to ask.
-    """
-    start = Path(start or ROOT)
-    r = subprocess.run([GIT, "-C", str(start), "rev-parse", "--git-common-dir"],
-                       capture_output=True, text=True)
-    if r.returncode != 0:
-        return None
-    common = Path(r.stdout.strip())
-    if not common.is_absolute():
-        common = (start / common).resolve()
-    return common.parent.parent
+# Resolving the real projects lives in one place -- see tests/projects.py for
+# why it is read from git rather than derived from this file's location.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from projects import apps_dir  # noqa: E402
 
 BEFORE_FLOOR = "2026-08-10"   # < EFFECTIVE_DATE (2026-08-19) in proposalcheck
 ON_FLOOR = "2026-08-19"
@@ -350,72 +314,6 @@ class ProposalIsEitherAProposalOrAnArtifactTests(unittest.TestCase):
                     self.skipTest(f"{name} not present beside {apps}")
                 r = run(proj)
                 self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-
-
-class TheRealProjectChecksAreNotVacuous(unittest.TestCase):
-    """The checks above are the only ones that read real documents. If they
-    resolve to a directory with no projects in it they skip, silently, and
-    the suite stays green while checking nothing -- which is exactly what
-    happened everywhere the suite is actually run. These pin the resolution
-    itself, so a regression fails loudly instead of going quiet."""
-
-    def test_no_project_is_resolved_as_root_parent(self):
-        """Structural guard, in the shape of #116's 'no home directory is
-        baked into the default'. Asserting that the real-project checks pass
-        proves nothing -- they pass hardest when they are skipping. What can
-        be asserted is that the broken expression is not in the file."""
-        # Assembled, so this guard's own text is not a hit for itself.
-        # Prose may still name the expression in backticks -- the docstrings
-        # here explain the bug and would otherwise trip their own guard.
-        forbidden = "ROOT" + ".parent"
-        offenders = [f"{n}: {line.strip()}"
-                     for n, line in enumerate(
-                         Path(__file__).read_text().splitlines(), 1)
-                     if forbidden in line and f"`{forbidden}`" not in line]
-        self.assertEqual(
-            offenders, [],
-            f"real projects must be resolved with apps_dir(), not {forbidden} -- "
-            "the latter is '.worktrees/' from a task worktree, which is where "
-            "bin/land runs this suite")
-
-    def test_apps_dir_finds_the_projects_from_inside_a_worktree(self):
-        """Hermetic: builds its own <apps>/<repo>/.worktrees/<name> layout
-        rather than depending on this Mac having one. A regression test that
-        needs the real machine stops testing the moment it runs anywhere
-        else -- which is the bug it is guarding against."""
-        with tempfile.TemporaryDirectory() as tmp:
-            apps = (Path(tmp) / "apps").resolve()
-            repo = apps / "common-rules"
-            (apps / "finance-tracker").mkdir(parents=True)
-            repo.mkdir(parents=True)
-
-            def git(*args, cwd=repo):
-                r = subprocess.run([GIT, "-C", str(cwd), *args],
-                                   capture_output=True, text=True)
-                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-
-            git("init", "-q", "-b", "main")
-            git("config", "user.email", "t@example.com")
-            git("config", "user.name", "T")
-            (repo / "README.md").write_text("x\n")
-            git("add", "-A")
-            git("commit", "-qm", "init")
-            wt = repo / ".worktrees" / "task"
-            git("worktree", "add", "-q", "-b", "task", str(wt))
-
-            self.assertEqual(apps_dir(repo), apps,
-                             "wrong answer from the main checkout")
-            self.assertEqual(apps_dir(wt), apps,
-                             "wrong answer from a worktree -- the whole bug")
-            # The expression this replaces, and what it would have said here.
-            self.assertEqual(wt.parent, repo / ".worktrees")
-            self.assertFalse((wt.parent / "finance-tracker").exists())
-
-    def test_apps_dir_is_none_outside_a_git_repository(self):
-        """No repository to ask means no answer, not a wrong one. The callers
-        skip on None rather than resolving something arbitrary."""
-        with tempfile.TemporaryDirectory() as tmp:
-            self.assertIsNone(apps_dir(Path(tmp)))
 
 
 if __name__ == "__main__":
