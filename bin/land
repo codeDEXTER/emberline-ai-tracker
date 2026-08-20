@@ -30,6 +30,7 @@
 #   LAND_ALLOW_STALE_RULES=1            land from a project behind on common-rules
 #   LAND_ALLOW_UNRECORDED_DECISIONS=1   land a proposal missing its answers
 #   LAND_ALLOW_NO_MILESTONES=1          land a project with no milestone plan
+#   LAND_ALLOW_STALE_MILESTONE_PAGE=1   land with docs/milestones.html out of date
 set -euo pipefail
 
 GIT=git; command -v git >/dev/null 2>&1 || GIT=/Library/Developer/CommandLineTools/usr/bin/git
@@ -253,6 +254,37 @@ land_one() {
       step *proves* and what you *get* -- 'nothing to hold' is a valid answer, a blank is not.
       If this branch genuinely must land before that, re-run with
       LAND_ALLOW_NO_MILESTONES=1 -- it is recorded in the PR either way."
+            refuse "$msg"
+            return 1
+        fi
+    fi
+
+    # --- the milestone plan's picture is current ---------------------------
+    #
+    # `CLAUDE-workflow.md`: "the plan has a picture, generated". The page is
+    # rendered from the same table the gate above validates, so this asks only
+    # one thing -- has the table moved since the page was last generated.
+    #
+    # Separate from the gate above rather than folded into it, and separately
+    # overridable, because they fail for different reasons and are fixed by
+    # different actions: one wants the plan written, this one wants a command
+    # run. A single refusal covering both would name the wrong fix half the
+    # time.
+    #
+    # `milestones --check` follows the same 0/1/2 reading as its siblings, and
+    # exits 2 for a project with no checklist -- the checklist rule's business,
+    # not this gate's.
+    if [ -f "$stamp_file" ] && [ -x "$RULES_DIR/bin/milestones" ]; then
+        local mp_out mp_rc=0
+        mp_out="$("$RULES_DIR/bin/milestones" --check --project "$TOP" 2>&1)" || mp_rc=$?
+        if [ "$mp_rc" = 1 ] && [ "${LAND_ALLOW_STALE_MILESTONE_PAGE:-0}" != 1 ]; then
+            local msg
+            msg="the milestone plan's page is missing or out of date -- $mp_out
+      Read $RULES_DIR/CLAUDE-workflow.md, \"And the plan has a picture, generated\".
+      Fix it by running it, not by editing the page:  $RULES_DIR/bin/milestones
+      Then commit docs/milestones.html alongside the plan change that moved it.
+      If this branch genuinely must land before that, re-run with
+      LAND_ALLOW_STALE_MILESTONE_PAGE=1 -- it is recorded in the PR either way."
             refuse "$msg"
             return 1
         fi

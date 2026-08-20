@@ -1,5 +1,75 @@
 # Changelog — common-rules
 
+## 2026-08-20 · The milestone plan gets a picture, and it is generated
+
+Asked for directly, after seeing `pocket-internet`'s timeline: *"each project
+should have a live document like this with a graph"*, then *"I want the same
+structure in every project. And this should be the common rule. And every
+project should speak the same language as a standard template."*
+
+**`bin/milestones` renders `docs/milestones.html` from the `## Milestones`
+table** — the same table `bin/milestonecheck` validates. Lanes, states, a
+marker wherever something reaches the sponsor's hands, and four meters. One
+template, so four projects' plans read the same way.
+
+**Generated, never written, and that is the whole design.** A hand-maintained
+second copy of the plan is precisely the drift the plan rule already warns
+about — "a milestone plan that is not maintained is worse than none" — with
+extra steps, because the table and the picture separate and the picture is the
+one people look at. The page has no data of its own, so it cannot disagree.
+
+**Staleness is checkable via a digest, not a byte comparison.** The page stamps
+its own generation time, so comparing files would call every page stale the
+moment the clock moved. Instead the page carries a 16-char hash of the plan's
+content and `--check` recomputes it, asking the only question that matters:
+does this still show this plan. Pinned by a test that rewrites the timestamp
+and asserts the check stays clean.
+
+**Parallel work gets lanes — an optional `Track` column.** Added the same day,
+on the follow-up: *"some projects have parallel milestones... in financial
+tracker there is a quality thing going on, and then there is a UI thing going
+on."* A project naming tracks gets one lane per track instead of one rule;
+omit the column and nothing changes. Three decisions worth recording:
+
+- **Lanes are drawn in the order the plan first mentions them**, never sorted —
+  same rule as the rows.
+- **Each lane carries its own "here."** With parallel work there is no single
+  front, and one marker would assert an ordering between lanes the plan never
+  claimed.
+- **Lane length is information.** All lanes share one step, so a one-milestone
+  track draws a stub rather than a full-width rule. The first cut stretched
+  each lane to full width independently, which drew a lane with one milestone
+  as though work continued along it.
+
+**A positional read became a bug the moment the column existed.**
+`bin/milestonecheck` took the state from `cells[-1]`, which was correct only
+while State happened to be last. A `Track` column to its right had every row's
+track read as its state, and a valid plan was refused for a vocabulary it never
+used. State is now found by header, falling back to the last cell only when no
+State column is declared. Three tests pin it, including one asserting a
+genuinely bad state is still caught when Track sits last — a fix that stops
+catching real violations is not a fix.
+
+**The tenth gate.** `bin/land` refuses a project whose page is missing or
+stale, `LAND_ALLOW_STALE_MILESTONE_PAGE=1` to override. Separate from the ninth
+rather than folded into it, and separately overridable: one wants the plan
+*written*, this one wants a command *run*, and a single refusal covering both
+would name the wrong fix half the time. Wired in the same PR as the renderer,
+for the reason the last three entries all give.
+
+**Two things the first cut got wrong, found by running it.**
+`--check` returned 1 for a project with no `## Milestones` at all, so `land`
+refused twice — once in the plan gate's words and once in an empty message from
+this one. It now returns 2: no plan means no picture to be stale, and that
+finding belongs to the gate that owns it. And `--all` silently found nothing
+from a worktree, because `APPS` was derived as `RULES.parent` — the same
+resolution trap that let `test_rulecheck`'s real-project subtests skip
+everywhere they were actually run (#113), three hours earlier, in this repo.
+`bin/pulse` names the path; so does this now.
+
+`tests/test_milestones_page.py` (15) covers the renderer, the digest and the
+gate. Suite: 225 tests.
+
 ## 2026-08-20 · `bin/land` now consumes `bin/milestonecheck` — the ninth gate
 
 The milestone-plan rule landed the same day (`## Milestones` in

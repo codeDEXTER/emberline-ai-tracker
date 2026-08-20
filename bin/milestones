@@ -1,0 +1,501 @@
+#!/usr/bin/env python3
+"""milestones -- render a project's milestone plan as a live page with a graph.
+
+  milestones [--project DIR] [--all] [--stdout]
+
+WHY A GENERATOR AND NOT A HAND-WRITTEN PAGE. `CLAUDE-workflow.md` says the
+milestone plan "is a live document, kept current until the feature is done",
+and that "a milestone plan that is not maintained is worse than none, because
+it asserts an order of work that has stopped being true and nobody can tell
+which rows still hold." A second hand-maintained copy of the plan is exactly
+that failure with extra steps: the table and the picture drift, and the
+picture is the one people look at.
+
+So this reads the `## Milestones` table in CLAUDE-checklist.md -- the same
+table `bin/milestonecheck` validates -- and renders from it. The page cannot
+disagree with the plan, because it has no data of its own. Same argument as
+`bin/tower` reading the feature register and `bin/pulse` deriving everything
+from ground truth rather than from a file somebody remembers to update.
+
+WHAT THE TABLE CANNOT SAY, AND IS NOT INVENTED HERE. The rule's five columns
+are #, Milestone, Proves, You get, State. There is no date column and no
+narrative, so this page has no "when" axis and no per-row commentary -- it
+draws order, state, and where something reaches the sponsor's hands. Adding
+columns to carry more would change a rule that landed today; if the plan
+should say when, that is a change to the rule, not a flag here.
+
+"You get" drives the deliverable marker. A row whose You-get is "nothing to
+hold" (or any of the phrasings below) is a step that proves something without
+handing anything over -- drawn as a plain node. Anything else raises a marker
+above the rule, because "when do I get something" is the question the column
+was added to answer.
+
+Exit codes: 0 rendered. 1 the plan is missing or malformed (run
+`bin/milestonecheck` for the detail). 2 nothing to check.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime
+import hashlib
+import html
+import json
+import pathlib
+import re
+import sys
+
+RULES = pathlib.Path(__file__).resolve().parent.parent
+# Named, not derived as RULES.parent. From a task worktree that expression is
+# `.worktrees/`, so `--all` silently finds nothing and reports success -- the
+# same resolution trap that let tests/test_rulecheck.py's real-project subtests
+# skip everywhere they were actually run (#113). bin/pulse names it for the
+# same reason.
+APPS = pathlib.Path("/Users/aashish/apps")
+
+# The register's vocabulary, mapped to what the drawing does with each. Order
+# is the plan's order, never sorted -- a milestone plan reordered by state
+# stops being a plan.
+STATE_CLASS = {
+    "done": "done", "built": "built", "in flight": "now",
+    "next": "next", "later": "later", "blocked": "blocked",
+}
+STATE_LABEL = {
+    "done": "done", "built": "built, not closed", "now": "in flight",
+    "next": "next", "later": "later", "blocked": "blocked",
+}
+
+# A You-get that means "nothing, and that is fine". The rule requires the
+# column be written rather than left blank precisely so this can be said out
+# loud, so it must be recognised rather than treated as a deliverable.
+NOTHING = re.compile(r"^(nothing( to hold| yet)?|none|no|n/?a|—|-)$", re.I)
+
+
+def split_row(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def parse(checklist: pathlib.Path):
+    text = checklist.read_text(encoding="utf-8", errors="replace")
+    lines = text.splitlines()
+    start = next((i for i, ln in enumerate(lines)
+                  if re.match(r"^##\s+Milestones\b", ln.strip(), re.I)), None)
+    if start is None:
+        return None
+    body = []
+    for ln in lines[start + 1:]:
+        if ln.strip().startswith("## "):
+            break
+        body.append(ln)
+    rows = [ln for ln in body if ln.strip().startswith("|")]
+    if len(rows) < 2:
+        return None
+    header = [c.lower() for c in split_row(rows[0])]
+    idx = {}
+    for i, c in enumerate(header):
+        if re.search(r"\bprove", c): idx["pv"] = i
+        elif re.search(r"\b(you\s*get|sponsor\s*gets?|deliver)", c): idx["gt"] = i
+        elif re.search(r"\bstate\b", c): idx["st"] = i
+        elif re.search(r"\bmilestone\b", c): idx["t"] = i
+        elif re.search(r"\b(track|lane|stream|workstream)\b", c): idx["tr"] = i
+    if not {"pv", "gt", "t"} <= set(idx):
+        return None
+    out = []
+    for r in rows[1:]:
+        if set(r.replace("|", "").strip()) <= {"-", ":", " "}:
+            continue
+        c = split_row(r)
+        def cell(k, default=""):
+            i = idx.get(k)
+            return c[i] if i is not None and i < len(c) else default
+        raw_state = (cell("st") or (c[-1] if c else "")).strip().strip("*").lower()
+        # `cell("st")` is found by header. Falling back to the last cell only
+        # when there is no State column at all -- positional reading breaks the
+        # moment an optional column (Track) is added to the right of it.
+        cls = next((v for k, v in STATE_CLASS.items() if k in raw_state), "next")
+        gt = cell("gt")
+        out.append({
+            "t": cell("t"), "pv": cell("pv"), "gt": gt, "tr": cell("tr").strip("*") or "",
+            "s": cls, "deliver": bool(gt) and not NOTHING.match(gt.strip().strip("*")),
+        })
+    return out or None
+
+
+PAGE = r"""<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__NAME__ — milestones</title>
+<meta name="milestones-digest" content="__DIGEST__">
+<style>
+:root{
+  --ground:#fbfaf8; --ink:#1a1a19; --dim:#6b6a66; --rule:#dcd9d2; --card:#fff;
+  --done:#3f7d58; --built:#5c8a9e; --now:#c2703d; --next:#8a8781; --later:#b5b2ab;
+  --blocked:#a8443a; --get:#7a5ea8;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --ground:#16161a; --ink:#e9e7e2; --dim:#9b988f; --rule:#33333a; --card:#1e1e24;
+  --done:#6fae86; --built:#83b3c6; --now:#e09160; --next:#8f8c85; --later:#5f5d58;
+  --blocked:#d4776c; --get:#a98fd6;
+}}
+:root[data-theme=dark]{
+  --ground:#16161a; --ink:#e9e7e2; --dim:#9b988f; --rule:#33333a; --card:#1e1e24;
+  --done:#6fae86; --built:#83b3c6; --now:#e09160; --next:#8f8c85; --later:#5f5d58;
+  --blocked:#d4776c; --get:#a98fd6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font:16px/1.55 ui-serif,Georgia,"Iowan Old Style",serif;}
+.wrap{max-width:60rem;margin:0 auto;padding:2.4rem 1.3rem 4rem}
+h1{font-size:1.75rem;margin:0 0 .2rem;letter-spacing:-.01em}
+.stand{color:var(--dim);margin:0 0 1.6rem;max-width:52ch}
+.meters{display:grid;grid-template-columns:repeat(auto-fit,minmax(9.5rem,1fr));
+  gap:.7rem;margin:0 0 1.5rem}
+.m{border:1px solid var(--rule);border-radius:.5rem;padding:.6rem .75rem;background:var(--card)}
+.m b{display:block;font:600 .68rem/1.3 ui-sans-serif,system-ui;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:.2rem}
+.m span{font-size:1.02rem}
+.gwrap{border:1px solid var(--rule);border-radius:.5rem;background:var(--card);
+  padding:.5rem .3rem;margin:0 0 1.5rem;overflow-x:auto}
+svg{display:block;width:100%;height:auto;min-width:34rem}
+svg text.cap{font:400 10px ui-sans-serif,system-ui;fill:var(--dim)}
+svg text.lg{font:600 9.5px ui-sans-serif,system-ui;letter-spacing:.05em}
+svg text.lane{font:600 10px ui-sans-serif,system-ui;fill:var(--dim);letter-spacing:.03em}
+svg .tk{cursor:pointer}
+.bar{display:flex;gap:.4rem;flex-wrap:wrap;margin:0 0 1.1rem}
+button{font:500 .8rem ui-sans-serif,system-ui;color:var(--ink);background:var(--card);
+  border:1px solid var(--rule);border-radius:.4rem;padding:.34rem .7rem;cursor:pointer}
+button[aria-pressed=true]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.ev{display:grid;grid-template-columns:1.4rem 1fr;gap:.65rem;margin:0 0 .55rem}
+.sp{display:flex;justify-content:center;padding-top:.72rem;position:relative}
+.sp::before{content:"";position:absolute;top:0;bottom:-.55rem;width:1px;background:var(--rule)}
+.ev:last-child .sp::before{bottom:auto;height:.72rem}
+.dot{width:.55rem;height:.55rem;border-radius:50%;background:var(--ground);
+  border:1.6px solid var(--next);position:relative;z-index:1}
+.s-done .dot{background:var(--done);border-color:var(--done)}
+.s-built .dot{background:var(--built);border-color:var(--built)}
+.s-now .dot{background:var(--now);border-color:var(--now);box-shadow:0 0 0 3.5px color-mix(in srgb,var(--now) 22%,transparent)}
+.s-blocked .dot{border-color:var(--blocked)}
+.s-later .dot{border-color:var(--later)}
+.card{border:1px solid var(--rule);border-radius:.5rem;background:var(--card);padding:.6rem .8rem}
+.deliver .card{border-left:2.5px solid var(--get)}
+.row{display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap}
+.ttl{font-weight:600;cursor:pointer;border-bottom:1px dotted var(--rule)}
+.ttl:focus-visible{outline:2px solid var(--now);outline-offset:2px}
+.tag{font:600 .62rem ui-sans-serif,system-ui;letter-spacing:.07em;text-transform:uppercase;
+  padding:.11rem .4rem;border-radius:.25rem;border:1px solid currentColor}
+.g-done{color:var(--done)} .g-built{color:var(--built)} .g-now{color:var(--now)}
+.g-next{color:var(--next)} .g-later{color:var(--later)} .g-blocked{color:var(--blocked)}
+.g-get{color:var(--get)}
+.g-track{color:var(--dim);border-style:dashed}
+.bar .sep{width:1px;background:var(--rule);margin:.1rem .35rem}
+.detail{margin-top:.5rem;display:grid;gap:.35rem}
+.hidden{display:none}
+.band{font-size:.9rem;padding:.35rem .55rem;border-radius:.35rem;
+  background:color-mix(in srgb,var(--ink) 4%,transparent)}
+.band b{font:600 .62rem ui-sans-serif,system-ui;letter-spacing:.08em;text-transform:uppercase;
+  display:block;color:var(--dim);margin-bottom:.1rem}
+.band.gt{background:color-mix(in srgb,var(--get) 12%,transparent)}
+.flash{animation:f 1.4s ease-out}
+@keyframes f{from{background:color-mix(in srgb,var(--now) 26%,transparent)}to{background:transparent}}
+.here{font:600 .64rem ui-sans-serif,system-ui;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--now);margin:.1rem 0 .6rem 2.05rem}
+footer{margin-top:2.2rem;padding-top:.9rem;border-top:1px solid var(--rule);
+  color:var(--dim);font-size:.8rem}
+code{font:.85em ui-monospace,SFMono-Regular,Menlo,monospace}
+</style>
+<div class="wrap">
+<h1>__NAME__ — milestones</h1>
+<p class="stand">The order of work, and what each step <b>proves</b>. Generated from
+<code>CLAUDE-checklist.md</code>'s <code>## Milestones</code> table — this page has no data of
+its own, so it cannot drift from the plan. Click any node or title to open it.</p>
+<div class="meters">
+  <div class="m"><b>proven</b><span id="m1"></span></div>
+  <div class="m"><b>in flight</b><span id="m2"></span></div>
+  <div class="m"><b>in your hands</b><span id="m3"></span></div>
+  <div class="m"><b>next you get</b><span id="m4"></span></div>
+</div>
+<div class="gwrap"><svg id="g" viewBox="0 0 720 104" role="img"
+  aria-label="Milestone order, coloured by state, with markers where something reaches you"></svg></div>
+<div class="bar">
+  <button id="b-all" aria-pressed="true">every milestone</button>
+  <button id="b-get" aria-pressed="false">only what I get</button>
+  <button id="b-open" aria-pressed="false">expand all</button>
+  <span class="sep" id="lane-sep" hidden></span>
+  <span id="lanes"></span>
+</div>
+<div id="tl"></div>
+<footer>Generated __WHEN__ by <code>common-rules/bin/milestones</code> from
+<code>__SRC__</code>. Regenerate rather than editing this file — anything typed
+here is lost on the next run, which is the point.</footer>
+</div>
+<script>
+const D=__DATA__;
+const LB=__LABELS__;
+const tl=document.getElementById('tl');
+let mode='all', openAll=false, lane='*';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function render(){
+  tl.innerHTML='';
+  let list = mode==='get' ? D.filter(x=>x.deliver) : D;
+  if(lane!=='*') list=list.filter(x=>(x.tr||'')===lane);
+  if(!list.length){tl.innerHTML='<p class="stand">Nothing here under this filter.</p>';return}
+  list.forEach(x=>{
+    const ev=document.createElement('div');
+    ev.className='ev s-'+x.s+(x.deliver?' deliver':'');
+    ev.innerHTML='<span class="sp"><span class="dot"></span></span>'+
+      '<div class="card"><div class="row">'+
+      '<span class="ttl" tabindex="0" role="button" aria-expanded="'+openAll+'">'+esc(x.t)+'</span>'+
+      '<span class="tag g-'+x.s+'">'+esc(LB[x.s]||x.s)+'</span>'+
+      (x.tr&&lane==='*'?'<span class="tag g-track">'+esc(x.tr)+'</span>':'')+
+      (x.deliver?'<span class="tag g-get">you get something</span>':'')+
+      '</div><div class="detail'+(openAll?'':' hidden')+'">'+
+      '<div class="band pv"><b>proves</b>'+esc(x.pv)+'</div>'+
+      (x.gt?'<div class="band gt"><b>you get</b>'+esc(x.gt)+'</div>':'')+
+      '</div></div>';
+    const t=ev.querySelector('.ttl'), det=ev.querySelector('.detail');
+    const toggle=()=>{det.classList.toggle('hidden');
+      t.setAttribute('aria-expanded',!det.classList.contains('hidden'))};
+    t.addEventListener('click',toggle);
+    t.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle()}});
+    tl.appendChild(ev);
+    if(mode==='all'&&x.s==='now'){const h=document.createElement('div');
+      h.className='here';h.textContent='You are here';tl.appendChild(h)}
+  });
+}
+function meter(){
+  const proven=D.filter(x=>x.s==='done'||x.s==='built').length;
+  document.getElementById('m1').textContent=proven+' of '+D.length;
+  const now=D.filter(x=>x.s==='now');
+  document.getElementById('m2').textContent=now.length?now[0].t:'—';
+  const del=D.filter(x=>x.deliver);
+  const got=del.filter(x=>x.s==='done'||x.s==='built').length;
+  document.getElementById('m3').textContent=del.length?got+' of '+del.length:'—';
+  const nx=del.find(x=>x.s!=='done'&&x.s!=='built');
+  document.getElementById('m4').textContent=nx?nx.gt:'—';
+}
+const bAll=document.getElementById('b-all'),bGet=document.getElementById('b-get'),
+      bOpen=document.getElementById('b-open');
+bAll.onclick=()=>{mode='all';bAll.setAttribute('aria-pressed','true');
+  bGet.setAttribute('aria-pressed','false');render()};
+bGet.onclick=()=>{mode='get';bGet.setAttribute('aria-pressed','true');
+  bAll.setAttribute('aria-pressed','false');render()};
+bOpen.onclick=()=>{openAll=!openAll;bOpen.setAttribute('aria-pressed',openAll);
+  bOpen.textContent=openAll?'collapse all':'expand all';render()};
+function tracks(){
+  // Order of first appearance -- never sorted. A plan's lanes are listed in
+  // the order the plan introduces them, the same way its rows are.
+  const seen=[]; D.forEach(x=>{const k=x.tr||''; if(!seen.includes(k)) seen.push(k)});
+  return seen;
+}
+function graph(){
+  const g=document.getElementById('g'), L=36, R=688;
+  const cs=getComputedStyle(document.documentElement), C=k=>cs.getPropertyValue(k).trim();
+  const col=x=>C('--'+(x.s==='now'?'now':x.s));
+  const TR=tracks(), multi=TR.length>1;
+  // One lane per track. With a single (or unnamed) track this collapses to the
+  // one rule it drew before tracks existed -- a project with no parallel work
+  // should not pay for the concept in its picture.
+  const labW = multi?96:0, x0=L+labW, top=multi?36:54, laneH=50;
+  const H = multi ? top + TR.length*laneH + 26 : 104;
+  g.setAttribute('viewBox','0 0 720 '+H);
+  let s='';
+  const maxN = Math.max(...TR.map(t=>D.filter(x=>(x.tr||'')===t).length));
+  const step = maxN>1 ? (R-x0)/(maxN-1) : 0;
+  TR.forEach((tr,li)=>{
+    const rows=D.map((x,i)=>({x,i})).filter(o=>(o.x.tr||'')===tr);
+    const y = multi ? top + li*laneH : 54;
+    const n = rows.length;
+    const laneEnd = x0 + step*(n-1);
+    if(multi){
+      s+='<text class="lane" x="'+(x0-10)+'" y="'+(y+3.5)+'" text-anchor="end">'+esc(tr||'—')+'</text>';
+    }
+    // A one-milestone lane gets a stub, not a full rule -- length is information.
+    s+='<line x1="'+x0+'" y1="'+y+'" x2="'+(n>1?laneEnd:x0+14)+'" y2="'+y+
+       '" stroke="'+C('--rule')+'" stroke-width="2"/>';
+    const proven=rows.map((o,j)=>(o.x.s==='done'||o.x.s==='built')?j:-1).filter(j=>j>=0);
+    if(proven.length) s+='<line x1="'+x0+'" y1="'+y+'" x2="'+(x0+step*proven[proven.length-1])+
+      '" y2="'+y+'" stroke="'+C('--done')+'" stroke-width="2"/>';
+    rows.forEach((o,j)=>{
+      const cx=x0+step*j, x=o.x, c=col(x);
+      const fill=(x.s==='done'||x.s==='built'||x.s==='now')?c:C('--ground');
+      s+='<g class="tk" data-i="'+o.i+'"><title>'+esc((x.tr?x.tr+' · ':'')+x.t)+'</title>';
+      s+='<rect class="hit" x="'+(cx-(step||24)/2)+'" y="'+(y-21)+'" width="'+(step||24)+
+         '" height="42" fill="'+C('--ink')+'" opacity="0"/>';
+      if(x.deliver){
+        s+='<path d="M'+cx+','+(y-17)+' L'+(cx+5.5)+','+(y-11.5)+' L'+cx+','+(y-6)+
+           ' L'+(cx-5.5)+','+(y-11.5)+' Z" fill="'+C('--get')+'"/>';
+        s+='<line x1="'+cx+'" y1="'+(y-6)+'" x2="'+cx+'" y2="'+(y-3)+'" stroke="'+
+           C('--get')+'" stroke-width="1"/>';
+      }
+      s+='<circle cx="'+cx+'" cy="'+y+'" r="'+(x.s==='now'?5.5:4)+'" fill="'+fill+
+         '" stroke="'+c+'" stroke-width="1.6"/>';
+      if(x.s==='now') s+='<circle cx="'+cx+'" cy="'+y+'" r="9" fill="none" stroke="'+
+         c+'" stroke-width="1" opacity=".45"/>';
+      if(x.s==='blocked'){
+        s+='<line x1="'+(cx-3.2)+'" y1="'+(y-3.2)+'" x2="'+(cx+3.2)+'" y2="'+(y+3.2)+
+           '" stroke="'+c+'" stroke-width="1.5"/>';
+        s+='<line x1="'+(cx+3.2)+'" y1="'+(y-3.2)+'" x2="'+(cx-3.2)+'" y2="'+(y+3.2)+
+           '" stroke="'+c+'" stroke-width="1.5"/>';
+      }
+      s+='</g>';
+    });
+    // Per lane, because with parallel work there is no single "here" -- each
+    // track has its own front, and collapsing them to one would assert an
+    // ordering between lanes that the plan does not claim.
+    const nowJ=rows.findIndex(o=>o.x.s==='now');
+    if(nowJ>=0) s+='<text class="lg" x="'+(x0+step*nowJ)+'" y="'+(y+19)+
+      '" text-anchor="middle" fill="'+C('--now')+'">'+(multi?'here':'you are here')+'</text>';
+    const fd=rows.findIndex(o=>o.x.deliver&&o.x.s!=='done'&&o.x.s!=='built');
+    if(fd>=0&&!multi) s+='<text class="lg" x="'+(x0+step*fd)+'" y="'+(y-25)+
+      '" text-anchor="middle" fill="'+C('--get')+'">next in your hands</text>';
+  });
+  if(!multi){
+    s+='<text class="cap" x="'+x0+'" y="'+(54+32)+'">'+esc(D[0].t.slice(0,30))+'</text>';
+    s+='<text class="cap" x="'+R+'" y="'+(54+32)+'" text-anchor="end">'+
+       esc(D[D.length-1].t.slice(0,30))+'</text>';
+  }
+  g.innerHTML=s;
+  g.querySelectorAll('.tk').forEach(el=>el.addEventListener('click',()=>{
+    const i=+el.dataset.i;
+    if(mode==='get'&&!D[i].deliver) bAll.click();
+    if(lane!=='*'&&(D[i].tr||'')!==lane){lane='*';syncLanes();render();}
+    const target=[...document.querySelectorAll('.ev')]
+      .find(r=>r.querySelector('.ttl').textContent===D[i].t);
+    if(target){target.querySelector('.detail').classList.remove('hidden');
+      target.classList.add('flash');setTimeout(()=>target.classList.remove('flash'),1500);
+      target.scrollIntoView({behavior:'smooth',block:'center'});}
+  }));
+}
+function syncLanes(){
+  [...document.querySelectorAll('#lanes button')].forEach(b=>
+    b.setAttribute('aria-pressed', b.dataset.lane===lane));
+}
+(function buildLanes(){
+  const TR=tracks();
+  if(TR.length<2) return;           // no lanes worth filtering
+  document.getElementById('lane-sep').hidden=false;
+  const host=document.getElementById('lanes');
+  [['*','all tracks'],...TR.map(t=>[t,t||'untracked'])].forEach(([v,label])=>{
+    const b=document.createElement('button');
+    b.dataset.lane=v; b.textContent=label;
+    b.setAttribute('aria-pressed', v===lane);
+    b.onclick=()=>{lane=v;syncLanes();render()};
+    host.appendChild(b);
+  });
+})();
+const _r=render; render=function(){_r();graph()};
+meter();render();
+</script>
+"""
+
+
+def digest(rows) -> str:
+    """A fingerprint of the plan's content, so staleness is checkable.
+
+    The generated page carries this in a meta tag and `bin/milestonecheck`
+    recomputes it from the table. Comparing whole files would not work: the
+    page stamps the time it was generated, so a byte comparison calls every
+    page stale the moment the clock moves. Hashing the *data* asks the only
+    question that matters -- does the picture still show this plan.
+    """
+    canon = json.dumps(rows, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canon.encode("utf-8")).hexdigest()[:16]
+
+
+DIGEST_RE = re.compile(r'<meta name="milestones-digest" content="([0-9a-f]+)"')
+
+
+def page_digest(page: pathlib.Path) -> str | None:
+    if not page.is_file():
+        return None
+    m = DIGEST_RE.search(page.read_text(encoding="utf-8", errors="replace"))
+    return m.group(1) if m else None
+
+
+def build(project: pathlib.Path, rows) -> str:
+    when = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    return (PAGE
+            .replace("__NAME__", html.escape(project.name))
+            .replace("__WHEN__", when)
+            .replace("__SRC__", "CLAUDE-checklist.md")
+            .replace("__DIGEST__", digest(rows))
+            .replace("__DATA__", json.dumps(rows, ensure_ascii=False))
+            .replace("__LABELS__", json.dumps(STATE_LABEL)))
+
+
+def check_one(project: pathlib.Path) -> int:
+    """Is the generated page present, and does it still show this plan?"""
+    checklist = project / "CLAUDE-checklist.md"
+    if not checklist.is_file():
+        return 2
+    rows = parse(checklist)
+    if not rows:
+        # 2, not 1. A project with no usable `## Milestones` table has no
+        # picture to be stale, and `bin/milestonecheck` already refuses it in
+        # its own words. Returning 1 here made `land` refuse a second time with
+        # an empty message -- the page gate reporting the plan gate's finding,
+        # badly. This gate only speaks when there is a plan to draw.
+        return 2
+    page = project / "docs" / "milestones.html"
+    want, have = digest(rows), page_digest(page)
+    if have is None:
+        print(f"milestones: {project.name} has a milestone plan but no docs/milestones.html "
+              f"-- run `common-rules/bin/milestones`", file=sys.stderr)
+        return 1
+    if have != want:
+        print(f"milestones: {project.name}'s docs/milestones.html is stale -- it shows "
+              f"{have}, the plan is {want}. Run `common-rules/bin/milestones`.", file=sys.stderr)
+        return 1
+    return 0
+
+
+def one(project: pathlib.Path, to_stdout=False) -> int:
+    checklist = project / "CLAUDE-checklist.md"
+    if not checklist.is_file():
+        print(f"milestones: no CLAUDE-checklist.md under {project}", file=sys.stderr)
+        return 2
+    rows = parse(checklist)
+    if not rows:
+        print(f"milestones: {project.name} has no usable `## Milestones` table -- "
+              f"run bin/milestonecheck for the detail", file=sys.stderr)
+        return 1
+    page = build(project, rows)
+    if to_stdout:
+        sys.stdout.write(page)
+        return 0
+    out = project / "docs" / "milestones.html"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(page, encoding="utf-8")
+    deliver = sum(1 for r in rows if r["deliver"])
+    print(f"milestones: {project.name} -- {len(rows)} milestones "
+          f"({deliver} hand something over) -> {out}")
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="milestones")
+    ap.add_argument("--project", default=None)
+    ap.add_argument("--all", action="store_true",
+                    help="every project under apps/ that carries a milestone plan")
+    ap.add_argument("--stdout", action="store_true")
+    ap.add_argument("--check", action="store_true",
+                    help="exit 1 if docs/milestones.html is missing or stale; write nothing")
+    a = ap.parse_args()
+    if a.all:
+        worst = 0
+        for d in sorted(p for p in APPS.iterdir() if p.is_dir()):
+            if not (d / "CLAUDE-checklist.md").is_file():
+                continue
+            if parse(d / "CLAUDE-checklist.md") is None:
+                continue
+            worst = max(worst, check_one(d) if a.check else one(d))
+        return worst
+    start = pathlib.Path(a.project).resolve() if a.project else pathlib.Path.cwd()
+    for d in [start, *start.parents]:
+        if (d / "CLAUDE-checklist.md").is_file():
+            return check_one(d) if a.check else one(d, a.stdout)
+    print(f"milestones: no CLAUDE-checklist.md at or above {start}", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
