@@ -10,13 +10,14 @@ Tower simpler while doing it, not just bigger.
 **MILESTONES sits directly under REPORT**, reading the same `## Milestones`
 table `milestonecheck` (#112) already validates — `parse_milestones()` reads
 every column by its header, never positionally. That specific caution
-wasn't theoretical: `milestonecheck` itself still reads State from
-`cells[-1]`, and finance-tracker's real table on `origin/main` carries an
-optional `Track` column between `You get` and `State` that a positional
-read would have silently swapped. Order is preserved exactly as written,
-not grouped by state — BOARD already answers "what's built"; this answers
-"in what order, and when is there something to hold," a different question
-over the same vocabulary.
+wasn't theoretical: `milestonecheck` originally read State from `cells[-1]`,
+and finance-tracker's real table on `origin/main` carries an optional
+`Track` column between `You get` and `State` that a positional read would
+have silently swapped — since fixed in the same #114 that added Track
+support, `milestonecheck` now looks State up by header too. Order is
+preserved exactly as written, not grouped by state — BOARD already answers
+"what's built"; this answers "in what order, and when is there something to
+hold," a different question over the same vocabulary.
 
 **PROPOSALS sits at the foot of the page**, reading each project's
 `docs/proposals/*.html` the same way `proposalcheck` (#111) already does —
