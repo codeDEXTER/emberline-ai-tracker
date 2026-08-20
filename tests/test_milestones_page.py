@@ -93,6 +93,24 @@ class ThePageComesFromTheTable(Harness):
         self.gen()
         self.assertIn("Regenerate rather than editing", self.page())
 
+    def test_completed_and_the_grandfathered_done_render_identically(self):
+        """`completed` and `done` are the same concept (2026-08-20) -- both
+        must count as proven, and the picture must show the word to write
+        going forward regardless of which of the two the table used."""
+        completed = PLAIN.replace("| done |", "| completed |")
+        self.write(completed)
+        self.assertEqual(self.gen().returncode, 0)
+        completed_data = re.search(r'"s": "(\w+)"', self.page()).group(1)
+
+        self.write(PLAIN)
+        self.gen()
+        done_data = re.search(r'"s": "(\w+)"', self.page()).group(1)
+
+        self.assertEqual(completed_data, done_data, "completed and done must share one class")
+        self.assertIn('"done": "completed"', self.page(),
+                      "the label shown must be 'completed', the word to write going forward, "
+                      "even for a plan that still writes the grandfathered 'done'")
+
 
 class ThePageIsTitledForTheProjectNotTheWorktree(unittest.TestCase):
     """Every session works in `.worktrees/<task>`, so a directory basename

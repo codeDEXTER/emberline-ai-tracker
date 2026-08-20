@@ -173,9 +173,13 @@ answer to "what is this product made of, and how much of it is done".
 | [#8](…/issues/8) | Get it onto the second phone | version 2 |
 
 States: `in flight` · `next` · `blocked by #N` · `later` / `version N` · `built`
-/ `done`. Name the implementing issues as `issue #N` — that is what makes a
+/ `completed`. Name the implementing issues as `issue #N` — that is what makes a
 percentage computable, and it is read separately from `blocked by`, which is a
-dependency and never progress.
+dependency and never progress. `completed` is the word for fully finished —
+`done` is a grandfathered synonym, not mass-renamed where it's already written,
+but write `completed` from here on (same convention as proposal-status's own
+`built` → `completed`, 2026-08-20). `built` keeps its own, narrower meaning here
+— shipped but not yet closed — and is not folded into `completed`.
 
 **This is not a per-task obligation.** It changes when the sponsor adds, renames
 or closes a feature — which is rare, and is his act rather than a session's.
@@ -191,13 +195,14 @@ A project with no register is reported as **"no features declared"**, never as
 
 | # | Milestone | Proves | You get | State |
 |---|---|---|---|---|
-| 1 | One corpus indexed, answering a question | retrieval is good enough to build on | nothing to hold | done |
+| 1 | One corpus indexed, answering a question | retrieval is good enough to build on | nothing to hold | completed |
 | 2 | The model timed on the real phone | the felt speed, and so the retrieval budget | nothing to hold | in flight |
 | 3 | The first real screen, on the device | the design survives contact with a hand | **an app you can use, one corpus** | next |
 
-Same states as the register. The register says what the product is made of; this says
-**what order, what each step establishes, and when the sponsor gets something he can
-hold.**
+Same states as the register — including `completed`/grandfathered `done` for a
+milestone that is fully finished, not just `built` and shipped. The register
+says what the product is made of; this says **what order, what each step
+establishes, and when the sponsor gets something he can hold.**
 
 **Three disciplines make it worth the row.** A milestone ends in something *proven*,
 not something delivered — "the index builds" is a task, "retrieval is good enough to

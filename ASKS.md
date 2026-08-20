@@ -413,3 +413,19 @@ section must carry none. Auditing for the zero-blocking floor surfaced a real,
 unrelated bug along the way — three proposal-number collisions in finance-tracker,
 and a status-vocabulary typo in pockets (`superseded-by` for `superseded by`) sitting
 unchecked since 2026-08-04.
+
+## 2026-08-20 · The milestone/feature vocabulary needs a "completed" word too
+
+Said in: finance-tracker, right after the proposal/artifact vocabulary rule above
+
+*"I think we need some sort of that vocabulary that tells if a proposal has been
+completed or not in the end. Right now, it shows... but it doesn't show completed."*
+
+What it constrains: he's drawing the same line he just drew for proposal-status
+(`built` grandfathered, `completed` the word to write) across to the
+milestone/feature register vocabulary, which had drifted onto `done` instead with
+no shared terminal word at all. He also flagged that another session is building a
+milestone-plan feature (tracks/lanes, a generated timeline page) and wants that
+work to pick up whatever vocabulary lands here rather than the two drifting apart
+again — check what a project's other live sessions are already building before
+adding a parallel, possibly conflicting, version of the same thing.
