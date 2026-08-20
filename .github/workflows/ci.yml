@@ -19,7 +19,21 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 is load-bearing, not tidiness. The rules version IS
+      # `git rev-list --count HEAD` (see bin/rulecheck's current_version), and
+      # actions/checkout defaults to a depth-1 shallow clone -- so on a runner
+      # HEAD counts as commit 1, and anything comparing a stamped version
+      # against it reads "stamp claims 163, but HEAD is only at 1".
+      #
+      # This was masked until 2026-08-20: `rulecheck --version` used to exit 2
+      # on a runner (its rules-repo path was hardcoded to a developer's home
+      # directory), so the version was never successfully computed here at all.
+      # Fixing that exposed the shallow clone underneath it. rulecheck's
+      # changelog diffing (`git diff <old_sha>..HEAD -- CHANGELOG.md`) needs
+      # the history for the same reason.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
