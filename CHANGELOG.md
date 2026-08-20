@@ -1,5 +1,70 @@
 # Changelog — common-rules
 
+## 2026-08-20 · `bin/land` now consumes `bin/milestonecheck` — the ninth gate
+
+The milestone-plan rule landed the same day (`## Milestones` in
+`CLAUDE-checklist.md`, with a **Proves** column and a **You get** column) and
+landed *advisory*: nothing read it, so nothing enforced it.
+
+**The checker and its caller ship in one PR this time, on purpose.** That is the
+third instance of the same gap and the first one caught before it opened. #106
+shipped `bin/proposalcheck` with nothing calling it and #107 had to come back a
+day later to connect it. `rulecheck --quiet` sat in a `SessionStart` hook whose
+exit status stops nothing until the 2026-08-18 alignment gate made it
+load-bearing. Both times the rule was a suggestion for as long as the two halves
+were separated by a PR boundary. Splitting them is what creates the gap, so they
+are not split.
+
+**What is checked — structure only.** A `## Milestones` section exists and holds
+a table; the header carries a Proves column and a You-get column; every row fills
+both; states come from the register's vocabulary.
+
+**What is deliberately not checked.** Not freshness — "in flight for N days"
+fires on every genuinely slow milestone and trains everyone to ignore the
+checker, so staleness stays a judgement for `bin/pulse`, where a person sees it,
+rather than an exit code. Not truth — nothing here can know whether "retrieval is
+good enough to build on" was actually proven.
+
+**"Nothing to hold" is a valid You-get and is pinned by a test.** The column may
+not be blank, but it may say no. A checker that rejected "nothing to hold" would
+push people to invent a deliverable per milestone, which is the exact failure the
+column exists to prevent.
+
+**Blast radius, measured 2026-08-20, and it is not zero — it is everything.**
+
+| project | `## Milestones` | verdict |
+|---|---|---|
+| finance-tracker | absent | blocked |
+| pockets | absent | blocked |
+| pip | absent | blocked |
+| mac-explorer | absent | blocked |
+
+All four adopting projects are refused until each writes a plan. This is the
+opposite of #107's reading, where `proposalcheck` reported 0 blocked in all four
+and the gate cost nothing to turn on. **`LAND_ALLOW_NO_MILESTONES=1` therefore
+matters more here than its three siblings do**, and it is recorded in the PR
+either way. Writing four short milestone tables is a one-off of maybe ten minutes
+each; whether to do that before or after this lands is the user's call and is
+being asked rather than assumed.
+
+**Exit codes follow proposalcheck's reading, not rulecheck's.** Only 1 refuses. A
+2 means "no `CLAUDE-checklist.md` under this project" — for an *adopting* project
+that is a malformed project, but it is the checklist rule's violation to report,
+not this gate's; folding it in would have this gate reporting someone else's rule
+in its own words.
+
+`bin/pulse` grows a second chip beside the alignment chip — its own, not folded
+in, because the two fail for unrelated reasons and are fixed in different files,
+and one chip reading "not ok" for either would send a session to the wrong one.
+It reads `no milestone plan` for all four projects today.
+
+`tests/test_milestonecheck.py` (12) and `tests/test_land_milestonecheck.py` (7)
+pin the checker and the gate separately, the second mirroring
+`tests/test_land_proposalcheck.py`'s throwaway-repo harness. Suite: 195 tests.
+
+**Depends on the milestone rule itself (PR #109) being in `main` first.** This
+gate enforces a rule whose text is still on a branch; landing it first would
+refuse four projects on the authority of a paragraph nobody can read yet.
 ## 2026-08-20 · rulecheck's tests stopped reading its evidence as its verdict
 
 Three subtests of `test_rulecheck.RealProjectsStillCheck` have been failing in
