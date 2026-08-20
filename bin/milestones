@@ -56,12 +56,19 @@ APPS = pathlib.Path("/Users/aashish/apps")
 # The register's vocabulary, mapped to what the drawing does with each. Order
 # is the plan's order, never sorted -- a milestone plan reordered by state
 # stops being a plan.
+#
+# `completed` and the grandfathered `done` are the same concept (2026-08-20,
+# matching proposal-status's own `built` -> `completed` migration) and share
+# one class, so a plan can write either word and still count as proven. The
+# label goes the other way: it always reads `completed`, regardless of which
+# of the two words the table actually uses, so the picture reflects the word
+# to write going forward rather than freezing whichever synonym is on disk.
 STATE_CLASS = {
-    "done": "done", "built": "built", "in flight": "now",
+    "done": "done", "completed": "done", "built": "built", "in flight": "now",
     "next": "next", "later": "later", "blocked": "blocked",
 }
 STATE_LABEL = {
-    "done": "done", "built": "built, not closed", "now": "in flight",
+    "done": "completed", "built": "built, not closed", "now": "in flight",
     "next": "next", "later": "later", "blocked": "blocked",
 }
 
