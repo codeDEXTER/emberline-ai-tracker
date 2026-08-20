@@ -33,6 +33,15 @@ Twenty minutes of network time overturned a conclusion that eleven research pass
 of reading had not — because the check had been written down as a thing to prove
 rather than left as a thing to assume.
 
+**And it is a live document.** Asked for in the same conversation: *"this doc should
+always be a live doc maintained till feature completion."* The guardrail against it
+becoming proposal 08's logbook is a test rather than a prohibition — **a session that
+edits the plan because it *did* something is writing a logbook and is wrong; a
+session that edits because something is now *known* is maintaining the plan and is
+right.** Three events move it: a state change, a proof landing (recording what
+actually happened when it differs from the prediction), and a reorder forced by a
+proof. All three are rare across a feature.
+
 **Honest note on the cost.** This is an *addition*, and this file's own rule is that
 a new rule must either replace something or be enforceable by `derecord`. It does
 neither. The argument for it is that it extends a section that did not reach far

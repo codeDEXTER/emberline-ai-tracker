@@ -212,9 +212,24 @@ verifications named in advance. Three ran — two confirmed an estimate and one
 corrected a verdict that had already propagated into two proposals. Twenty minutes,
 and it changed a conclusion that eleven passes of reading had not.
 
-**Not a per-task obligation**, same guardrail as the register: it changes when the
-order of work changes, not when work lands. This is deliberately not proposal 08's
-logbook, which was rejected for exactly that reason.
+**It is a live document, kept current until the feature is done.** A milestone plan
+that is not maintained is worse than none, because it asserts an order of work that
+has stopped being true and nobody can tell which rows still hold. Three things move
+it, and only three:
+
+- a milestone's **state** changes;
+- a milestone's **proof lands** — and if the result differs from what was predicted,
+  the row records what actually happened rather than being quietly rewritten;
+- the **order changes**, because a proof came back badly enough to reorder what
+  follows.
+
+**Still not a per-task obligation**, same guardrail as the register. Those three
+events happen a handful of times across a whole feature, not once per task, and
+nothing here asks a session to append anything when work lands. This is deliberately
+not proposal 08's logbook, which was rejected for exactly that reason. The test is
+simple: if a session is editing the plan because it *did* something, that is the
+logbook and it is wrong; if it is editing because something is now *known*, that is
+the plan and it is right.
 
 **A question to the user is a cost, not a safety move.** Before asking, check
 whether the answer would change what gets built. If either answer leads to the
