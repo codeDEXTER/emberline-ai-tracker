@@ -24,6 +24,14 @@ WHAT IS CHECKED, AND WHAT DELIBERATELY IS NOT. Structure only:
     milestone, and an empty You-get is the question the sponsor asked for;
   - states come from the register's vocabulary.
 
+`completed` IS the word for a milestone fully finished, same concept as
+proposal-status's `completed` (2026-08-20). `done` is a grandfathered synonym --
+finance-tracker's own plan already uses it and is not mass-renamed -- but write
+`completed` from here on. This is not the same word as `built`: this project's
+own tracks generator distinguishes them on purpose ("built, not closed" vs
+"done"), so `built` keeps its narrower meaning of shipped-but-not-yet-closed
+and is not folded into `completed`.
+
 NOT freshness. "In flight for N days" fires on every genuinely slow milestone and
 trains everyone to ignore it; staleness is a judgement and belongs in `bin/pulse`
 where a person can see it, not in an exit code. NOT truth -- nothing here can
@@ -44,7 +52,7 @@ import pathlib
 import re
 import sys
 
-STATES = {"in flight", "next", "later", "built", "done", "blocked"}
+STATES = {"in flight", "next", "later", "built", "done", "completed", "blocked"}
 PROVES = re.compile(r"\bprove", re.I)
 GETS = re.compile(r"\b(you\s*get|sponsor\s*gets?|deliver)", re.I)
 
