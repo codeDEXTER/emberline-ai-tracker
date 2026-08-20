@@ -117,16 +117,19 @@ exists to show. Real data, finance-tracker, <code>origin/main</code>:</p>
 <div class="verdict warn">
   <b>The column that had to be found by header, not position</b>
   <p>The 2026-08-20 handover named this exact trap: <code>milestonecheck</code>
-  itself reads State from <code>cells[-1]</code>, which breaks the moment the
-  table's optional <code>Track</code> column sits to its right. It is not
-  hypothetical here — finance-tracker's real table on <code>origin/main</code>
+  originally read State from <code>cells[-1]</code>, which broke the moment
+  the table's optional <code>Track</code> column sat to its right. Not
+  hypothetical — finance-tracker's real table on <code>origin/main</code>
   carries <code>Track</code> between <code>You get</code> and
   <code>State</code>, and the local working checkout used to write this
   proposal's first draft did not have that column yet (a plain, unrelated
   case of the checkout-lags-<code>origin/main</code> problem #91 already
-  fixed for the feature register). <code>parse_milestones()</code> finds
-  every column by its header text, always, so the row order in the source
-  table cannot silently swap two fields.</p>
+  fixed for the feature register). <code>milestonecheck</code> itself was
+  fixed the same way in the same PR (#114) that added <code>Track</code>
+  support — it now looks State up by header, falling back to
+  <code>cells[-1]</code> only when no State column is declared at all.
+  <code>parse_milestones()</code> follows the same rule, so the two checkers
+  cannot drift back apart.</p>
 </div>
 
 <h3>PROPOSALS, at the foot of the page</h3>

@@ -692,12 +692,14 @@ def parse_milestones(md):
     """The `## Milestones` table of a CLAUDE-checklist.md, or [] if it has
     none (CLAUDE-workflow.md, "And every project keeps a milestone plan").
 
-    Columns are found BY HEADER, never positionally. `milestonecheck` itself
-    reads State from `cells[-1]`, which breaks the moment the table's
-    optional Track column is added to its right -- flagged in the 2026-08-20
-    handover as a trap not to repeat, so this looks each value up by its
-    header name instead, the same way `## Features` sections aren't at risk
-    of it (they aren't a table).
+    Columns are found BY HEADER, never positionally. Flagged in the
+    2026-08-20 handover as a trap not to repeat: `milestonecheck` originally
+    read State from `cells[-1]`, which broke the moment the table's optional
+    Track column was added to its right -- fixed in the same PR (#114) that
+    added Track support, and confirmed live: `milestonecheck` now looks up
+    State by header too, falling back to `cells[-1]` only when no State
+    column is declared at all. This parser does the same, so the two never
+    drift back apart.
 
     Order is preserved as written, never sorted or grouped by state -- the
     plan's own order (what happens next) is the thing this exists to show,
