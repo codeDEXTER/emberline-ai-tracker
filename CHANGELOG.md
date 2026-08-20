@@ -1,5 +1,61 @@
 # Changelog — common-rules
 
+## 2026-08-20 · Every project keeps a milestone plan, beside the feature register
+
+Asked for directly (`ASKS.md`, 2026-08-20) after seeing a phased plan for the
+`pocket-internet` idea: *"make a common rule that all projects should maintain a
+common milestone plan like this."*
+
+**Why the feature register was not already enough.** It answers "what is this
+product made of, and how much of it is done" — and the Tower reads it for exactly
+that. It does not answer "in what order, and what does each step establish", which
+is the question that decides what to do next. Two different views; the register
+carries one of them.
+
+**The addition is a `## Milestones` table** in the same `CLAUDE-checklist.md`,
+sharing the register's state vocabulary, with one column the register has no
+equivalent of: **Proves**.
+
+**Three disciplines, and they are the whole point of the rule.** A milestone ends in
+something *proven* rather than delivered — "the index builds" is a task, "retrieval
+is good enough to build on" is a milestone. The result that would stop the plan is
+written *before* the work starts; written afterwards it is a rationalisation of
+whatever the data happened to say. And **every row states what the sponsor gets,
+including when the answer is nothing** — added the same day on his follow-up, *"add
+checkpoint when will I get what feature in user end"*, which is the question a
+proves-only plan silently refuses to answer.
+
+**The evidence is one day old and it is the reason this is worth a row.** The
+`pocket-internet` plan opened with five cheap verifications named in advance. Three
+ran. Two confirmed an estimate; one corrected a claim about a German timetable feed
+that had already propagated into two proposals and would have reached the build.
+Twenty minutes of network time overturned a conclusion that eleven research passes
+of reading had not — because the check had been written down as a thing to prove
+rather than left as a thing to assume.
+
+**And it is a live document.** Asked for in the same conversation: *"this doc should
+always be a live doc maintained till feature completion."* The guardrail against it
+becoming proposal 08's logbook is a test rather than a prohibition — **a session that
+edits the plan because it *did* something is writing a logbook and is wrong; a
+session that edits because something is now *known* is maintaining the plan and is
+right.** Three events move it: a state change, a proof landing (recording what
+actually happened when it differs from the prediction), and a reorder forced by a
+proof. All three are rare across a feature.
+
+**Honest note on the cost.** This is an *addition*, and this file's own rule is that
+a new rule must either replace something or be enforceable by `derecord`. It does
+neither. The argument for it is that it extends a section that did not reach far
+enough rather than opening a new front, and that it inherits the register's
+guardrail verbatim: **not a per-task obligation**, changing only when the order of
+work changes. It is deliberately not proposal 08's logbook, which was rejected for
+being exactly that.
+
+**Effect on adopted projects.** `finance-tracker` and `pockets` have adopted these
+rules; `mac-explorer` and `pip` carry a version file. None has a `## Milestones`
+table today, so all four are now behind this rule until one is added. Nothing
+enforces it — no `derecord` attribute, no `land` gate — so it is advisory in the
+way `rulecheck --quiet` was before 2026-08-18. If it should have teeth, that is a
+second change and a separate PR.
 ## 2026-08-20 · The Tower's progress tests no longer depend on what day it is
 
 `tests/test_tower_render.py` has been red on `main` since **2026-08-15**, and
