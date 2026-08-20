@@ -18,14 +18,17 @@
 #   - the branch touches a path the user reserved (see RESERVED below)
 #   - the project is not aligned with the current common-rules (see below)
 #   - the branch changes code and touches no test (see below)
+#   - a proposal asked numbered decisions or claims partial completion and
+#     recorded neither (see below)
 #
 # main is protected on some remotes, so it lands through a PR when one is
 # needed and by fast-forward when it is not.
 #
-# Two escape hatches exist, both an env var someone had to type -- never a
-# silent default -- and both recorded in the PR either way:
-#   LAND_ALLOW_UNTESTED=1      land code that has no test
-#   LAND_ALLOW_STALE_RULES=1   land from a project behind on common-rules
+# Three escape hatches exist, each an env var someone had to type -- never a
+# silent default -- and each recorded in the PR either way:
+#   LAND_ALLOW_UNTESTED=1               land code that has no test
+#   LAND_ALLOW_STALE_RULES=1            land from a project behind on common-rules
+#   LAND_ALLOW_UNRECORDED_DECISIONS=1   land a proposal missing its answers
 set -euo pipefail
 
 GIT=git; command -v git >/dev/null 2>&1 || GIT=/Library/Developer/CommandLineTools/usr/bin/git
@@ -170,6 +173,52 @@ land_one() {
                 refuse "$msg"
                 return 1
             fi
+        fi
+    fi
+
+    # --- proposals recorded their decisions --------------------------------
+    #
+    # `bin/proposalcheck` landed in #106 (common-rules 156-8b1cce3) and
+    # nothing consumed its exit code -- `rulecheck`'s stale-project signal sat
+    # unconsumed the same way until the alignment gate above made it
+    # load-bearing, and it took a session actually hitting it to notice. This
+    # is that fix applied to the sibling check before the same gap gets found
+    # the same way twice.
+    #
+    # Same opt-in guard as the alignment gate above, and for the same reason:
+    # a project that never ran `rulecheck --align` never claimed to be
+    # governed by these rules at all, so it is not held to a rule that lives
+    # inside them.
+    if [ -f "$stamp_file" ] && [ -x "$RULES_DIR/bin/proposalcheck" ]; then
+        # Captured rather than tested with `!`, because the exit codes are
+        # not a pass/fail pair here. `proposalcheck` follows rulecheck's 0/1/2
+        # shape on paper, but its 2 means something different in practice:
+        # rulecheck's 2 is "could not check" (run from the wrong place, rules
+        # unreadable) -- an error. proposalcheck's 2 is "no docs/proposals/
+        # under this project" (see its own docstring/exit-codes section) --
+        # an ordinary, common project shape, not an error. The
+        # `.common-rules-version` guard above already excludes the
+        # non-adopting projects that would make rulecheck's 2 fire, so the two
+        # checkers' 2s cannot collide here; the only thing this branch would
+        # still see is a genuinely proposal-less adopting project, which has
+        # nothing to be gated on. Collapsing it into "nonzero -> refuse" the
+        # way the alignment gate does would block every such project on a
+        # gate that had nothing to say. Only exit 1 -- an actual violation --
+        # refuses. `pc_rc=$?` on the right of `||` is the same rescue used
+        # throughout this file: under `set -e` a failing command that is the
+        # last thing in a plain assignment ends the script right there unless
+        # something catches it first.
+        local pc_out pc_rc=0
+        pc_out="$("$RULES_DIR/bin/proposalcheck" --project "$TOP" 2>&1)" || pc_rc=$?
+        if [ "$pc_rc" = 1 ] && [ "${LAND_ALLOW_UNRECORDED_DECISIONS:-0}" != 1 ]; then
+            local msg
+            msg="proposal(s) asked numbered decisions, or claim partial completion, and record neither -- $pc_out
+      Read $RULES_DIR/CLAUDE-workflow.md, \"A proposal that asked numbered decisions must record the answers\".
+      Add the missing id=\"decided\" block (and id=\"exceptions\" for completed in part) to the proposal(s) named above.
+      If this branch genuinely must land before that, re-run with
+      LAND_ALLOW_UNRECORDED_DECISIONS=1 -- it is recorded in the PR either way."
+            refuse "$msg"
+            return 1
         fi
     fi
 

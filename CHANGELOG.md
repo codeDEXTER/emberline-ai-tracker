@@ -1,5 +1,52 @@
 # Changelog — common-rules
 
+## 2026-08-19 · `bin/land` now consumes `bin/proposalcheck`'s exit code
+
+Reported cause: issue #107 asked to "wire the checker into `land`". The real
+cause is the one from 2026-08-18 repeating itself one day later: `bin/land`
+was not modified in the same PR that added `bin/proposalcheck` (#106), so the
+rule it enforces — a proposal that asked numbered decisions records the
+answers, or a `completed in part` names its exceptions — was advisory in
+every project it governs, exactly the way `rulecheck --quiet` sat unconsumed
+in a `SessionStart` hook until yesterday's alignment gate gave it teeth. A
+checker with no caller is a suggestion wearing the shape of a rule.
+
+**The eighth gate in `land_one()`**, same guard and shape as the seventh
+(alignment): only a project carrying `.common-rules-version` is checked — one
+that never opted in never claimed to be governed by a rule that lives inside
+these rules. `LAND_ALLOW_UNRECORDED_DECISIONS=1` is the named escape hatch,
+recorded in the PR either way, alongside `LAND_ALLOW_UNTESTED` and
+`LAND_ALLOW_STALE_RULES`.
+
+**Exit 2 is deliberately not treated the way the alignment gate treats
+`rulecheck`'s exit 2.** `rulecheck`'s 2 means "could not check at all" and is
+folded into "refuse" there. `proposalcheck`'s 2 means "no `docs/proposals/`
+under this project" — an ordinary shape for a project with no proposals yet,
+not an error — and treating it as a failure would block every proposal-less
+adopting project on a gate with nothing to say. Only exit 1 (an actual
+violation) refuses; exit 2 lands same as exit 0. The two checkers' 2s cannot
+collide in practice, because the `.common-rules-version` guard already
+excludes the only case (a non-adopting project) that makes `rulecheck` return
+its 2.
+
+`tests/test_land_proposalcheck.py`, mirroring `tests/test_land_alignment.py`,
+pins: no stamp → not blocked; a compliant proposal → lands; a proposal with
+no `docs/proposals/` at all → lands (the exit-2 case, above); an unanswered
+proposal → refused, naming the offending file; the override → lands.
+
+Blast radius measured against the four adopting projects today:
+`bin/proposalcheck` reports 0 blocked in each of finance-tracker,
+mac-explorer, pockets and pip — the same reading #106's own changelog entry
+already recorded, unchanged since nothing in any of their proposals crossed
+the 2026-08-19 grandfather floor in the interim. `mac-explorer`, `pockets` and
+`pip` remain blocked from landing regardless, by the alignment gate, for the
+unrelated reason of being behind on `rulecheck --align`.
+
+`docs/workflow.html` updated to name the eighth gate and its override, stamp
+unchanged (`CLAUDE-workflow.md` itself did not change — this completes a rule
+already written into it on 2026-08-19), PNG regenerated to match.
+
+
 ## 2026-08-19 · a proposal must record its answers, and reach a terminal state
 
 Prompted by a measured gap in finance-tracker (its issue #584), not a taste
