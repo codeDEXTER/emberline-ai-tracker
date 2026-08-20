@@ -212,6 +212,28 @@ verifications named in advance. Three ran — two confirmed an estimate and one
 corrected a verdict that had already propagated into two proposals. Twenty minutes,
 and it changed a conclusion that eleven passes of reading had not.
 
+**One optional column: `Track`.** A project running genuinely parallel work —
+finance-tracker has correctness and surfaces moving at the same time — names a track
+per row, and the picture below draws one lane per track instead of one rule. Leave it
+out and nothing changes; a project with a single thread of work should not pay for the
+concept. Tracks are drawn in the order the plan first mentions them, never sorted, and
+each lane carries its own *here*: with parallel work there is no single front, and
+collapsing them to one would assert an ordering between lanes the plan never claimed.
+
+**And the plan has a picture, generated — `docs/milestones.html`.** `bin/milestones`
+reads the table above and renders it: the lanes, the states, and a marker wherever
+something reaches the sponsor's hands. Run it after any change to the plan; `bin/land`
+refuses a project whose page is missing or stale, on the same opt-in guard as the other
+gates.
+
+The page is **generated, never written**. That is the whole design: a hand-maintained
+second copy of the plan is the failure this rule already warns about, with extra steps —
+the table and the picture drift, and the picture is the one people look at. Staleness is
+checkable because the page carries a digest of the plan's content, so the check asks
+"does the picture still show this plan" rather than comparing bytes, which a generation
+timestamp would defeat. Anything typed into the page is lost on the next run, and that
+is the point.
+
 **It is a live document, kept current until the feature is done.** A milestone plan
 that is not maintained is worse than none, because it asserts an order of work that
 has stopped being true and nobody can tell which rows still hold. Three things move
