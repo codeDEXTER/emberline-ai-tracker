@@ -1,0 +1,285 @@
+<meta charset="utf-8">
+<title>common-rules · Milestones and proposals, on the Tower — Proposal</title>
+<meta name="proposal-id" content="15">
+<meta name="proposal-topic" content="tower-milestones-proposals">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="built">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
+    --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E;
+    --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0; --border:#26303C;
+            --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81; --warn:#D2A05A;
+            --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660;
+            --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B;
+            --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; }
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1060px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:33px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  h3 { font-size:18px; font-weight:640; margin:30px 0 4px; letter-spacing:-.01em; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:68ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  p { max-width:72ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:74ch; }
+  code, .mono { font-family:var(--mono); font-size:12.4px; }
+  a { color:var(--accent); }
+  .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+          padding:3px 9px; border-radius:4px; background:var(--dim); color:var(--chip-ink); }
+  .tablewrap { overflow-x:auto; margin-top:16px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:600px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.1px; white-space:nowrap; }
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:20px 0; max-width:76ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.good { border-left-color:var(--gain); } .verdict.warn { border-left-color:var(--warn); }
+  .mock { margin-top:20px; overflow-x:auto; border-radius:12px; }
+  .mock svg { width:100%; min-width:720px; height:auto; display:block; }
+  .cap { font-family:var(--mono); font-size:11px; color:var(--dim); margin-top:8px; }
+  ul { max-width:72ch; } li { margin-bottom:6px; }
+  .quote { border-left:3px solid var(--you); padding-left:16px; margin:18px 0; max-width:70ch;
+           font-size:16px; }
+</style>
+
+<div class="page">
+
+<div class="brand">
+  <span>common-rules · proposal 15</span>
+  <span><span class="chip" style="background:var(--accent)">built</span> &nbsp; 2026-08-20 · rules 154</span>
+</div>
+
+<h1>Milestones and proposals, on the Tower — and a smaller screen doing it</h1>
+<p class="standfirst">BOARD says what a project is made of. REPORT says how much
+is done. Neither says <em>in what order</em>, or where the decisions behind any
+of it actually live. Two new sections answer that, reusing tables and metadata
+three other tools already validate — nothing here invents a second convention.</p>
+
+<div class="quote">
+  Handed over, at the sponsor's request, once every supporting piece existed:
+  <em>"1. The Tower keeps track of every project's milestone plan. 2. Per
+  project, he can also view the list of proposals and decision articles. 3.
+  He suggested the Tower 'can be made simpler' while doing this."</em>
+</div>
+
+<div class="verdict">
+  <b>What already existed to build on, not re-implement</b>
+  <p>A <code>## Milestones</code> table convention landed in
+  <code>CLAUDE-workflow.md</code> the same day (rule #109), validated by
+  <code>bin/milestonecheck</code> (#112) — structure only: a Proves and a
+  You-get column, every row fills both, states from the register's own
+  vocabulary. <code>bin/proposalcheck</code> already reads a proposal's
+  <code>&lt;meta name="proposal-*"&gt;</code> fields and the lead/section
+  distinction (#111). Tower's job was never to parse anything new — it was to
+  put what these checkers already validate on the one screen that shows a
+  project's whole picture.</p>
+</div>
+
+<p class="eyebrow">What changes</p>
+
+<h3>MILESTONES, directly under REPORT</h3>
+<p>REPORT and PROGRESS answer <em>how much, how fast</em>; MILESTONES answers
+<em>in what order, and when there's something to hold</em> —
+<code>milestonecheck</code>'s own words for "the question that decides what
+to do next." Not grouped by state the way BOARD is: a milestone plan's whole
+point is its order, so grouping it into columns would erase the one thing it
+exists to show. Real data, finance-tracker, <code>origin/main</code>:</p>
+
+<div class="tablewrap"><table>
+  <tr><th>#</th><th>milestone</th><th>track</th><th>state</th></tr>
+  <tr><td class="k">1</td><td>Investments at three depths, detail pages retired</td><td>Surfaces</td><td class="k">done</td></tr>
+  <tr><td class="k">2</td><td>Money figures survive negative cases on the real book</td><td>Correctness</td><td class="k">in flight</td></tr>
+  <tr><td class="k">3</td><td>A portfolio report leaves the app</td><td>Surfaces</td><td class="k">built</td></tr>
+  <tr><td class="k">7</td><td>One catalogue for accounts, instruments, subscriptions</td><td>Capture</td><td class="k">blocked</td></tr>
+</table></div>
+
+<div class="verdict warn">
+  <b>The column that had to be found by header, not position</b>
+  <p>The 2026-08-20 handover named this exact trap: <code>milestonecheck</code>
+  itself reads State from <code>cells[-1]</code>, which breaks the moment the
+  table's optional <code>Track</code> column sits to its right. It is not
+  hypothetical here — finance-tracker's real table on <code>origin/main</code>
+  carries <code>Track</code> between <code>You get</code> and
+  <code>State</code>, and the local working checkout used to write this
+  proposal's first draft did not have that column yet (a plain, unrelated
+  case of the checkout-lags-<code>origin/main</code> problem #91 already
+  fixed for the feature register). <code>parse_milestones()</code> finds
+  every column by its header text, always, so the row order in the source
+  table cannot silently swap two fields.</p>
+</div>
+
+<h3>PROPOSALS, at the foot of the page</h3>
+<p>Every project's <code>docs/proposals/*.html</code>, a lead's title and
+status with its part-of sections nested underneath — reference material, so
+it sits last, after SESSIONS, not competing with what needs attention now.</p>
+
+<div class="verdict warn">
+  <b>No one title convention — measured across five projects, found four shapes</b>
+  <p>The first version of the title-cleaning regex assumed
+  <code>"&lt;project&gt; · &lt;headline&gt; — Proposal"</code>, common-rules'
+  own convention. Running it live against every adopting project surfaced
+  three more, each different: <code>"NN · status · headline"</code>
+  (finance-tracker, mac-explorer), plain <code>"project · headline"</code>
+  with no chrome at all (pip), and <code>"project · Proposal NN —
+  headline"</code> (pockets). A regex tuned to one project's convention
+  silently mangled the other four. The fix generalizes instead of
+  special-casing each shape: split on the <em>last</em> <code>·</code> and
+  keep that segment — the headline is always last, whatever comes before it
+  — then strip only the two chrome patterns that are actually generic
+  (a leading <code>"Proposal NN —"</code>, a trailing <code>"— Proposal
+  NN"</code>). Verified against all five projects' real files afterward,
+  not assumed correct from the one project it was written against.</p>
+</div>
+
+<h3>The simplification: PROPOSALS is capped, same shape as QUEUED already uses</h3>
+<p>finance-tracker alone has 38 proposal documents. Every one of them on a
+project page at once is the opposite of what the page is for — measured
+directly: it rendered as a scroll of 38 rows before this was capped.
+<code>render_proposals</code> now shows the most recent 8 leads and states
+the rest as a count (<code>"+16 more, older"</code>), the exact pattern
+<code>QUEUED</code> already established for exactly this problem (#82) —
+extending an existing convention rather than inventing a second one, which
+is the "simpler" half of the brief this proposal answers most directly.
+The bigger simplification question — whether BOARD and MILESTONES should
+merge, since both now carry the same state vocabulary over overlapping rows
+— is named here rather than decided: it changes what BOARD means, and that
+is the sponsor's call, per <code>CLAUDE-workflow.md</code>, not a side
+effect of adding a screen.</p>
+
+<div class="mock">
+<svg viewBox="0 0 1280 620" role="img" aria-label="MILESTONES and PROPOSALS on a project page">
+  <style>
+    .b{fill:#0B0E13}
+    .h{font-family:ui-monospace,monospace;font-size:11px;fill:#7C8594;letter-spacing:.12em;font-weight:700}
+    .t{font-family:-apple-system,sans-serif;font-size:12.5px;fill:#DFE3EA;font-weight:600}
+    .d{font-family:ui-monospace,monospace;font-size:10px;fill:#7C8594}
+    .b2{font-family:ui-monospace,monospace;font-size:9px;fill:#DFE3EA}
+    .lst{font-family:ui-monospace,monospace;font-size:9px}
+  </style>
+  <rect class="b" width="1280" height="620" rx="14"/>
+  <text class="h" x="28" y="34">FINANCE-TRACKER · 10 FEATURES</text>
+  <line x1="24" y1="50" x2="1256" y2="50" stroke="#222B38"/>
+
+  <text class="h" x="28" y="80">MILESTONES</text>
+  <line x1="24" y1="92" x2="1256" y2="92" stroke="#1A2230"/>
+  <text class="d" x="28" y="112">1</text>
+  <text class="t" x="52" y="112">Investments at three depths, detail pages retired</text>
+  <text class="d" x="52" y="128"><tspan fill="#DFE3EA" font-weight="600">proves</tspan> the three-depth model reads better than a page per asset</text>
+  <text class="d" x="52" y="144"><tspan fill="#DFE3EA" font-weight="600">you get</tspan> the investment surfaces</text>
+  <text class="d" x="1030" y="118" fill="#A98FD6">Surfaces</text>
+  <rect x="1110" y="106" width="42" height="16" rx="3" fill="#222B38"/><text class="lst" x="1131" y="117" text-anchor="middle" fill="#DFE3EA">done</text>
+  <line x1="24" y1="160" x2="1256" y2="160" stroke="#1A2230"/>
+
+  <text class="d" x="28" y="180">2</text>
+  <text class="t" x="52" y="180">Money figures survive negative cases on the real book</text>
+  <text class="d" x="52" y="196"><tspan fill="#DFE3EA" font-weight="600">proves</tspan> the numbers are right — 1,753 green tests did not establish this</text>
+  <text class="d" x="52" y="212"><tspan fill="#DFE3EA" font-weight="600">you get</tspan> nothing to hold</text>
+  <text class="d" x="1010" y="186" fill="#A98FD6">Correctness</text>
+  <rect x="1110" y="174" width="70" height="16" rx="3" fill="#5FA985"/><text class="lst" x="1145" y="185" text-anchor="middle" fill="#0B0E13">in flight</text>
+  <line x1="24" y1="228" x2="1256" y2="228" stroke="#1A2230"/>
+
+  <text class="d" x="28" y="248">7</text>
+  <text class="t" x="52" y="248">One catalogue for accounts, instruments, subscriptions</text>
+  <text class="d" x="52" y="264"><tspan fill="#DFE3EA" font-weight="600">proves</tspan> the three are one thing and were only ever filed apart</text>
+  <text class="d" x="52" y="280"><tspan fill="#DFE3EA" font-weight="600">you get</tspan> the catalogue</text>
+  <text class="d" x="1020" y="254" fill="#A98FD6">Capture</text>
+  <rect x="1110" y="242" width="60" height="16" rx="3" fill="#D2A05A"/><text class="lst" x="1140" y="253" text-anchor="middle" fill="#0B0E13">blocked</text>
+  <text class="d" x="28" y="308" fill="#39434F">— 8 milestones total, plan order preserved, not grouped by state</text>
+
+  <line x1="24" y1="332" x2="1256" y2="332" stroke="#222B38"/>
+  <text class="h" x="28" y="360">COUPLING</text>
+  <text class="d" x="28" y="380" fill="#39434F">— unchanged, proposal 14</text>
+
+  <line x1="24" y1="404" x2="1256" y2="404" stroke="#222B38"/>
+  <text class="h" x="28" y="432">SESSIONS</text>
+  <text class="d" x="28" y="452" fill="#39434F">— unchanged</text>
+
+  <line x1="24" y1="476" x2="1256" y2="476" stroke="#222B38"/>
+  <text class="h" x="28" y="504">PROPOSALS</text>
+  <text class="d" x="28" y="528">#01</text><text class="t" x="60" y="528">One book for the household</text>
+  <rect x="1180" y="516" width="60" height="16" rx="3" fill="#5FA985"/><text class="lst" x="1210" y="527" text-anchor="middle" fill="#0B0E13">built</text>
+  <text class="d" x="60" y="544" fill="#7C8594">↳ How it feels when it's done · section</text>
+  <text class="d" x="28" y="568">#02</text><text class="t" x="60" y="568">Local by default, Claude when it counts</text>
+  <rect x="1150" y="556" width="90" height="16" rx="3" fill="#5FA985"/><text class="lst" x="1195" y="567" text-anchor="middle" fill="#0B0E13">accepted</text>
+  <text class="d" x="28" y="596" fill="#39434F">— showing the most recent 8 leads; <tspan fill="#D2A05A">+16 more, older</tspan></text>
+</svg>
+</div>
+<p class="cap">MILESTONES and PROPOSALS · finance-tracker · hand-placed layout, real content and counts</p>
+
+<p class="eyebrow">What this costs</p>
+<ul>
+  <li><b>Zero new fetches.</b> Milestones parse from the same
+  <code>register_source()</code> text the feature register already reads
+  (one <code>git show</code>, not two); proposals are local file reads, no
+  git or <code>gh</code> call at all — both run in the synchronous
+  collect path, no new cache bucket.</li>
+  <li><b>Two more sections on an already-long page.</b> The project page now
+  carries REPORT, MILESTONES, PROGRESS, COUPLING, BOARD, FLOW, SESSIONS,
+  PROPOSALS — eight regions. PROPOSALS' cap is the one concrete
+  simplification landed here; whether more should merge is named above, not
+  decided.</li>
+</ul>
+
+<p class="eyebrow">What does not change</p>
+<ul>
+  <li>REPORT, PROGRESS, COUPLING, BOARD, FLOW, SESSIONS — untouched.</li>
+  <li><code>milestonecheck</code> and <code>proposalcheck</code> stay the
+  validators; Tower only reads what they already require to exist.</li>
+</ul>
+
+<h3>Added mid-build: a picture, not just a list</h3>
+<p>The sponsor pointed at the pocket-internet exploration's own milestone
+timeline (<code>idea-lab/ideas/pocket-internet/09-timeline.html</code>) and
+asked for that visual language reused. Two ideas carry across cleanly into
+Tower's own screen; the rest is that page's editorial serif design, which
+would clash with every other region on the same screen. Ported: a single
+horizontal arc — one dot per milestone, state-coloured, a diamond wherever
+the milestone actually hands something over, "you are here" at the first
+in-flight step — and a four-card meter (proven / in flight / in your hands
+/ next you get), styled like REPORT's own card grid rather than invented
+fresh. Left behind on purpose: the source page's client-side lens buttons
+and per-row expand/collapse. That state lives in the DOM, and Tower
+re-requests its own page every 10 seconds — the exact failure mode that
+already killed a different piece of client-side toggle state once, which is
+why <code>?project=</code> is carried in the URL instead of a
+<code>:checked</code> radio to begin with (proposal 13). Both new
+functions — <code>render_milestone_arc</code>,
+<code>render_milestone_meter</code> — are static per collect, no listeners,
+no toggles.</p>
+
+<div class="verdict good">
+  <b>Built directly, verified against real data before wiring in</b>
+  <p>Both parsers were run against every adopting project's real files before
+  either was wired into <code>render_project</code> — the Track-column case
+  and the four title conventions were both found this way, not assumed
+  correct because the code ran without error. <code>test_tower_render</code>
+  stayed green throughout (99/99).</p>
+</div>
+
+<p class="note" style="margin-top:34px">No issues filed — built directly, all
+in one pass. Every number above is real, read from finance-tracker's
+<code>origin/main</code> and its live <code>docs/proposals/</code> on
+2026-08-20.</p>
+
+</div>

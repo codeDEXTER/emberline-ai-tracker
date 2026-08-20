@@ -685,6 +685,63 @@ def parse_features(md):
     return out
 
 
+MILESTONE_SEP = re.compile(r"^[\s|:-]+$")
+
+
+def parse_milestones(md):
+    """The `## Milestones` table of a CLAUDE-checklist.md, or [] if it has
+    none (CLAUDE-workflow.md, "And every project keeps a milestone plan").
+
+    Columns are found BY HEADER, never positionally. `milestonecheck` itself
+    reads State from `cells[-1]`, which breaks the moment the table's
+    optional Track column is added to its right -- flagged in the 2026-08-20
+    handover as a trap not to repeat, so this looks each value up by its
+    header name instead, the same way `## Features` sections aren't at risk
+    of it (they aren't a table).
+
+    Order is preserved as written, never sorted or grouped by state -- the
+    plan's own order (what happens next) is the thing this exists to show,
+    which is why MILESTONES on screen doesn't reuse BOARD's by-state
+    columns.
+    """
+    lines = md.splitlines()
+    try:
+        start = next(i for i, l in enumerate(lines)
+                     if re.match(r"^##\s+Milestones\b", l, re.I))
+    except StopIteration:
+        return []
+    header = None
+    out = []
+    for line in lines[start + 1:]:
+        if line.startswith("## "):
+            break
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if header is None:
+            header = [c.lower() for c in cells]
+            continue
+        if MILESTONE_SEP.match(stripped.replace("|", "")):
+            continue  # the |---|---| separator row
+
+        def col(*names):
+            for i, h in enumerate(header):
+                if any(n in h for n in names):
+                    return cells[i].strip("*") if i < len(cells) else ""
+            return ""
+
+        state_raw = col("state")
+        low = state_raw.lower()
+        kind = next((s for s in ("in flight", "blocked", "later", "built",
+                                 "done", "next") if s in low), "next")
+        out.append({"number": col("#"), "title": col("milestone"),
+                    "proves": col("proves"),
+                    "gets": col("you get", "sponsor get", "deliver"),
+                    "track": col("track"), "state": state_raw, "kind": kind})
+    return out
+
+
 def register_source(path):
     """The checklist as *merged*, not as whatever this checkout is parked on.
 
@@ -722,8 +779,11 @@ def feature_data(projs):
     """
     out = []
     for proj in projs:
-        feats = parse_features(register_source(proj["path"]))
+        source = register_source(proj["path"])
+        feats = parse_features(source)
+        milestones = parse_milestones(source)
         row = {"project": proj["name"], "features": feats or None,
+               "milestones": milestones or None,
                "items": None, "unparsed": 0, "closed": {}, "closed_at": {}}
         # The checklist's own tick count, kept as the honest fallback signal for
         # a project that has not declared features -- labelled as what it is.
@@ -1747,6 +1807,39 @@ a.dot:hover { outline:1px solid var(--ink); }
 .fc-t { font-weight:600; }
 .fc-e { font-family:var(--mono); font-size:10px; color:var(--dim); }
 
+.mmeter { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+          gap:var(--gap-2); margin-top:var(--gap-2); }
+.mcard { background:var(--card); border:1px solid var(--edge); border-radius:9px;
+         padding:var(--gap-2); min-width:0; }
+.mcard .k { font-family:var(--mono); font-size:9.5px; color:var(--dim);
+            text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
+.mcard .v { font-size:13px; font-weight:600; color:var(--ink); }
+
+.marc { width:100%; height:auto; display:block; margin-top:var(--gap-3); }
+.ms-here { font-family:var(--mono); font-size:9px; letter-spacing:.08em;
+           text-transform:uppercase; fill:var(--amber); }
+
+.mstones { margin-top:var(--gap-2); }
+.msrow { display:grid; grid-template-columns:24px minmax(0,1fr) auto auto;
+         gap:var(--gap-2); align-items:start; padding:9px 0;
+         border-bottom:1px solid var(--edge); }
+.msrow:first-child { border-top:1px solid var(--edge); }
+.ms-n { font-family:var(--mono); font-size:11px; color:var(--dim); padding-top:2px; }
+.ms-t { font-size:12.5px; font-weight:600; margin:0; }
+.ms-p, .ms-g { font-family:var(--mono); font-size:10px; color:var(--dim); margin:2px 0 0; }
+.ms-p b, .ms-g b { color:var(--ink); font-weight:600; }
+.ms-trk { font-family:var(--mono); font-size:9px; letter-spacing:.06em;
+          color:var(--purple); white-space:nowrap; align-self:center; }
+
+.props { margin-top:var(--gap-2); }
+.prow { display:grid; grid-template-columns:auto minmax(0,1fr) auto;
+        gap:var(--gap-2); align-items:center; padding:6px 0;
+        border-bottom:1px solid var(--edge); font-size:11.5px; }
+.prow:first-child { border-top:1px solid var(--edge); }
+.prow-sub { padding-left:var(--gap-3); }
+.pr-n { font-family:var(--mono); font-size:10px; color:var(--dim); white-space:nowrap; }
+.pr-t { font-weight:600; }
+
 .f-fig { font-family:var(--mono); font-size:11px; white-space:nowrap; }
 .f-none { font-family:var(--mono); font-size:10px; color:var(--dim);
           margin:var(--gap-3) 0 0; }
@@ -2353,6 +2446,222 @@ def render_report(name, data):
     return "\n".join(out)
 
 
+MILESTONE_CLASS = {"in flight": "in-flight", "blocked": "blocked",
+                   "later": "later"}
+
+MILESTONE_ARC_COLOR = {"done": "var(--green)", "built": "var(--green)",
+                       "in flight": "var(--amber)", "blocked": "var(--amber)",
+                       "later": "var(--purple)"}
+MILESTONE_NOTHING = {"nothing to hold", "nothing", "none", "no", "n/a", "-", "—"}
+MILESTONE_ARC_W, MILESTONE_ARC_H = 720, 90
+
+
+def milestone_delivers(m):
+    """Does this milestone actually hand something to the sponsor? A You-get
+    of "nothing to hold" is a deliberate, required answer (milestonecheck's
+    own rule: the column may not be blank, and "no" must be written out
+    loud) -- it must not be read as a delivery marker just because the
+    field is non-empty.
+    """
+    gets = (m.get("gets") or "").strip().strip("*").lower()
+    return bool(gets) and gets not in MILESTONE_NOTHING
+
+
+def render_milestone_arc(ms):
+    """The whole plan as one line: state-coloured dots in order, a diamond
+    wherever something reaches the sponsor's hands, "you are here" at the
+    first in-flight step. Same visual idea as the pocket-internet
+    exploration's own milestone timeline and bin/milestones' generated
+    page -- ported into Tower's own dark palette, server-rendered with no
+    client-side toggle state, since a lens button's state would reset on
+    every 10s auto-refresh the same way tab state once did (#82's own
+    reason for carrying state in the URL instead of the DOM).
+    """
+    n = len(ms)
+    if n < 2:
+        return ""
+    left, right, y = 24, MILESTONE_ARC_W - 24, 46
+    step = (right - left) / (n - 1)
+    last_done = max((i for i, m in enumerate(ms) if m["kind"] in ("done", "built")),
+                    default=-1)
+    now_i = next((i for i, m in enumerate(ms) if m["kind"] == "in flight"), None)
+
+    parts = [f'<svg class="marc" viewBox="0 0 {MILESTONE_ARC_W} {MILESTONE_ARC_H}" '
+             f'preserveAspectRatio="xMidYMid meet" role="img" '
+             f'aria-label="milestone order, coloured by state, marked where '
+             f'something reaches you">',
+             f'<line x1="{left}" y1="{y}" x2="{right}" y2="{y}" '
+             f'stroke="var(--edge)" stroke-width="2"/>']
+    if last_done >= 0:
+        parts.append(f'<line x1="{left}" y1="{y}" x2="{left + step * last_done:.1f}" '
+                     f'y2="{y}" stroke="var(--green)" stroke-width="2"/>')
+    for i, m in enumerate(ms):
+        cx = left + step * i
+        col = MILESTONE_ARC_COLOR.get(m["kind"], "var(--edge)")
+        filled = m["kind"] in ("done", "built", "in flight")
+        if milestone_delivers(m):
+            parts.append(
+                f'<path d="M{cx:.1f},{y - 15} L{cx + 5.5:.1f},{y - 9.5} '
+                f'L{cx:.1f},{y - 4} L{cx - 5.5:.1f},{y - 9.5} Z" fill="var(--purple)">'
+                f'<title>#{e(m["number"])} {e(m["title"])} — you get: {e(m["gets"])}</title>'
+                f'</path>')
+        r = 5.5 if m["kind"] == "in flight" else 4
+        parts.append(
+            f'<circle cx="{cx:.1f}" cy="{y}" r="{r}" '
+            f'fill="{col if filled else "var(--card)"}" stroke="{col}" stroke-width="1.6">'
+            f'<title>#{e(m["number"])} {e(m["title"])} — {e(m["state"])}</title></circle>')
+        if i == now_i:
+            parts.append(f'<circle cx="{cx:.1f}" cy="{y}" r="9" fill="none" '
+                         f'stroke="{col}" stroke-width="1" opacity=".45"/>')
+            parts.append(f'<text x="{cx:.1f}" y="{y + 24}" text-anchor="middle" '
+                         f'class="ms-here">you are here</text>')
+    parts.append("</svg>")
+    return "\n".join(parts)
+
+
+def render_milestone_meter(ms):
+    """proven / in flight / in your hands / next you get — the same four
+    questions bin/milestones' own meter answers, in Tower's card idiom
+    (matching REPORT's .rcard grid) rather than its editorial one.
+    """
+    proven = sum(1 for m in ms if m["kind"] in ("done", "built"))
+    now = next((m for m in ms if m["kind"] == "in flight"), None)
+    deliverables = [m for m in ms if milestone_delivers(m)]
+    got = sum(1 for m in deliverables if m["kind"] in ("done", "built"))
+    next_get = next((m for m in deliverables if m["kind"] not in ("done", "built")), None)
+    cards = [
+        (f'{proven}/{len(ms)}', 'proven'),
+        (now["title"] if now else "—", 'in flight'),
+        (f'{got}/{len(deliverables)}' if deliverables else "—", 'in your hands'),
+        (next_get["gets"] if next_get else "—", 'next you get'),
+    ]
+    out = ['<div class="mmeter">']
+    for v, k in cards:
+        out.append(f'<div class="mcard"><div class="v clamp1">{e(str(v))}</div>'
+                   f'<div class="k">{e(k)}</div></div>')
+    out.append('</div>')
+    return "\n".join(out)
+
+
+def render_milestones(row):
+    """MILESTONES — the plan's own order, and when the sponsor gets
+    something (CLAUDE-workflow.md, "And every project keeps a milestone
+    plan"). Deliberately not grouped by state the way BOARD is: BOARD
+    answers what this product is made of and how much is built; this
+    answers in what order, what each step proves, and when there's
+    something to hold -- "the question that decides what to do next"
+    (milestonecheck's own words). Two different questions over the same
+    state vocabulary, same as REPORT/PROGRESS are for features.
+    """
+    ms = row.get("milestones") if row else None
+    if not ms:
+        return ('<p class="sub">no milestone plan declared for this project '
+                '— see CLAUDE-workflow.md, "And every project keeps a '
+                'milestone plan"</p>')
+    out = [render_milestone_meter(ms), render_milestone_arc(ms), '<div class="mstones">']
+    for m in ms:
+        cls = MILESTONE_CLASS.get(m["kind"], "")
+        track = (f'<span class="ms-trk">{e(m["track"])}</span>'
+                if m.get("track") else "")
+        out.append(
+            f'<div class="msrow"><span class="ms-n">{e(m["number"])}</span>'
+            f'<div class="ms-body"><p class="ms-t clamp1">{e(m["title"])}</p>'
+            f'<p class="ms-p clamp1"><b>proves</b> {e(m["proves"])}</p>'
+            f'<p class="ms-g clamp1"><b>you get</b> {e(m["gets"])}</p></div>'
+            f'{track}<span class="lst {cls}">{e(m["state"])}</span></div>')
+    out.append('</div>')
+    return "\n".join(out)
+
+
+PROPOSAL_META_RE = re.compile(r'<meta name="proposal-([\w-]+)" content="([^"]*)">')
+PROPOSAL_ID_RE = re.compile(r"^(\d+)-")
+PROPOSAL_STATUS_CLASS = {"accepted": "in-flight", "built": "in-flight",
+                         "completed": "in-flight", "completed in part": "blocked"}
+
+
+def project_proposals(proj):
+    """Every docs/proposals/*.html for one project: id, title, status,
+    decided date, and whether it's a lead or a part-of section -- the same
+    `<meta name="proposal-*">` fields `proposalcheck` already reads, not
+    re-derived by a second convention. Local file reads only, no git or gh
+    call, so this runs in the same synchronous pass as pipeline/contested
+    rather than needing its own cache bucket.
+    """
+    pdir = Path(proj["path"]) / "docs" / "proposals"
+    if not pdir.is_dir():
+        return []
+    out = []
+    for path in sorted(pdir.glob("*.html")):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        meta = dict(PROPOSAL_META_RE.findall(text))
+        tm = re.search(r"<title>(.*?)</title>", text, re.S)
+        title = html.unescape(tm.group(1)).strip() if tm else path.stem
+        # No one <title> convention: measured live across four projects and
+        # found four different shapes -- "project · headline — Proposal"
+        # (common-rules), "NN · status · headline" (finance-tracker,
+        # mac-explorer), "project · headline" (pip), "project · Proposal NN
+        # — headline" (pockets). Splitting on the last "·" and stripping only
+        # the two generic chrome patterns (a leading "Proposal NN —", a
+        # trailing "— Proposal") survives all four rather than hardcoding one.
+        segs = [s.strip() for s in title.split("·")]
+        if len(segs) > 1:
+            title = segs[-1]
+        title = re.sub(r"^Proposal\s+\d+\s*[—-]\s*", "", title, flags=re.I)
+        title = re.sub(r"\s*[—-]\s*Proposal(\s+\d+)?\s*$", "", title, flags=re.I)
+        idm = PROPOSAL_ID_RE.match(path.stem)
+        out.append({"id": idm.group(1) if idm else path.stem, "file": path.name,
+                   "title": title, "status": meta.get("status"),
+                   "decided": meta.get("decided"), "part_of": meta.get("part-of")})
+    return out
+
+
+PROPOSALS_SHOWN = 8
+
+
+def render_proposals(rows):
+    """PROPOSALS — the decision articles behind this project, listed rather
+    than reproduced: a lead's title and status, with its part-of sections
+    nested under it (CLAUDE-workflow.md, "A document is either a proposal
+    or an artifact") rather than listed as peers with a status they don't
+    carry.
+
+    Capped to the most recent PROPOSALS_SHOWN leads, same shape as QUEUED's
+    own "+N more" -- finance-tracker alone has 38, and every one on screen
+    at once is the opposite of what a project page is for. Older ones are
+    counted, never dropped silently.
+    """
+    if not rows:
+        return '<p class="sub">no docs/proposals/ for this project</p>'
+    sections = {}
+    for r in rows:
+        if r["part_of"]:
+            sections.setdefault(r["part_of"], []).append(r)
+    leads = [r for r in rows if not r["part_of"]]
+    hidden = max(0, len(leads) - PROPOSALS_SHOWN)
+    shown = leads[-PROPOSALS_SHOWN:] if hidden else leads
+
+    out = ['<div class="props">']
+    for r in shown:
+        status = r["status"] or "no status"
+        cls = PROPOSAL_STATUS_CLASS.get(status, "")
+        out.append(
+            f'<div class="prow"><span class="pr-n">#{e(r["id"])}</span>'
+            f'<span class="pr-t clamp1">{e(r["title"])}</span>'
+            f'<span class="lst {cls}">{e(status)}</span></div>')
+        for s in sections.get(r["id"], []):
+            out.append(
+                f'<div class="prow prow-sub"><span class="pr-n"></span>'
+                f'<span class="pr-t clamp1 dim">{e(s["title"])}</span>'
+                f'<span class="dim">section</span></div>')
+    out.append('</div>')
+    if hidden:
+        out.append(f'<p class="sub">+{hidden} more, older</p>')
+    return "\n".join(out)
+
+
 def render_project(name, data):
     """Everything about one project, on one screen (#81).
 
@@ -2389,6 +2698,12 @@ def render_project(name, data):
     out.append('<p class="psec">REPORT</p>')
     out.append(render_report(name, data))
 
+    # MILESTONES sits directly under REPORT: REPORT says how much of the
+    # register is done, this says in what order and what's next -- "the
+    # question that decides what to do next" (milestonecheck's own words).
+    out.append('<p class="psec">MILESTONES</p>')
+    out.append(render_milestones(row))
+
     # PROGRESS sits directly under REPORT's counters, not after BOARD: the two
     # are one story (how much, how fast) and belong together on the screen.
     # REPORT no longer carries its own chart -- see render_report -- this is
@@ -2409,6 +2724,12 @@ def render_project(name, data):
     out.append(render_flow(pipe))
     out.append('<p class="psec">SESSIONS</p>')
     out.append(render_strip(wts, data["needs_input"], data["contested"], feats))
+
+    # PROPOSALS last: reference material, not something that needs you now.
+    proj = next((p for p in projects() if p["name"] == name), None)
+    out.append('<p class="psec">PROPOSALS</p>')
+    out.append(render_proposals(project_proposals(proj)) if proj
+              else '<p class="sub">no docs/proposals/ for this project</p>')
     return "\n".join(out)
 
 
