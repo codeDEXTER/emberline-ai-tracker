@@ -41,6 +41,15 @@ nothing from a worktree), and this. Each derived a path from an assumption
 rather than from something true at runtime, and each was invisible precisely
 where it was wrong.
 
+**And it exposed a second bug underneath it: CI has always cloned shallow.**
+The rules version *is* `git rev-list --count HEAD`, and `actions/checkout`
+defaults to depth 1 — so on a runner HEAD counts as commit 1, and
+`test_stamp_is_not_from_the_future` reads "stamp claims 163, but HEAD is only
+at 1". This could never have been seen before today: `rulecheck --version`
+exited 2 on a runner, so the version was never successfully computed there at
+all. One bug was standing in front of the other. `fetch-depth: 0` now, which
+`rulecheck`'s changelog diffing needs for the same reason.
+
 Suite: 231 tests.
 
 ## 2026-08-20 · The milestone plan gets a picture, and it is generated
