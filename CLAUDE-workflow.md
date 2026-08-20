@@ -185,6 +185,35 @@ proposal 08's logbook, and it was rejected for exactly that reason.
 A project with no register is reported as **"no features declared"**, never as
 0% — undeclared scope is a different statement from none of it done.
 
+**And every project keeps a milestone plan.** A `## Milestones` table in the same
+`CLAUDE-checklist.md`: the order of work, and — the column that earns the table —
+**what each step proves**.
+
+| # | Milestone | Proves | State |
+|---|---|---|---|
+| 1 | One corpus indexed, answering a question | retrieval is good enough to build on | done |
+| 2 | The model timed on the real phone | the felt speed, and so the retrieval budget | in flight |
+| 3 | The first real screen, on the device | the design survives contact with a hand | next |
+
+Same states as the register. The register says what the product is made of; this says
+**what order, and what each step establishes** — the question the register cannot
+answer and the one that decides what to do next.
+
+**Two disciplines make it worth the row.** A milestone ends in something *proven*, not
+something delivered — "the index builds" is a task, "retrieval is good enough to build
+on" is a milestone. And **the result that would stop the plan is written before the
+work starts**. Written afterwards it is a rationalisation of whatever the data
+happened to say.
+
+Measured on `pocket-internet`, 2026-08-20: the first milestone was five cheap
+verifications named in advance. Three ran — two confirmed an estimate and one
+corrected a verdict that had already propagated into two proposals. Twenty minutes,
+and it changed a conclusion that eleven passes of reading had not.
+
+**Not a per-task obligation**, same guardrail as the register: it changes when the
+order of work changes, not when work lands. This is deliberately not proposal 08's
+logbook, which was rejected for exactly that reason.
+
 **A question to the user is a cost, not a safety move.** Before asking, check
 whether the answer would change what gets built. If either answer leads to the
 same work, pick one, say which you picked, and continue. A question about

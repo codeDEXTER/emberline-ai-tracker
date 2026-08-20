@@ -383,3 +383,16 @@ real and still tracked, it's just not what's being optimized for right now.
 Context: given while several sponsor-approved features (#19, #20, and more
 to follow) are being worked in the same pass — the priority is getting the
 whole wave implemented, not perfecting each one before starting the next.
+
+## 2026-08-20 · Every project should keep a milestone plan, not just a feature list
+Said in: idea-lab / pocket-internet
+
+Shown a phased plan for the pocket-internet idea — seven steps, each ending in
+something proven, with the result that would stop the plan written down before the
+work started — he said: *"make a common rule that all projects should maintain a
+common milestone plan like this."*
+
+What it constrains: the feature register answers "what is this made of and how much
+is done". It does not answer "in what order, and what does each step establish" —
+which is the question that decides what to do next. He wants that second view kept
+per project, not improvised per conversation.
