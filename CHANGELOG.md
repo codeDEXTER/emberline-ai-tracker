@@ -1,5 +1,46 @@
 # Changelog — common-rules
 
+## 2026-08-20 · A document is either a proposal or an artifact
+
+Asked for directly, in conversation, while a finance-tracker session was adding six
+parallel spending-UI concepts from one design-explorer run — they had nowhere to go
+but loose, unnumbered `claude.ai` links, because nothing said a document with no
+decision of its own (an exploration, several concepts shown side by side before a
+direction is picked) was allowed to be numbered without also claiming a status.
+
+**The rule was already half-written and never said out loud.** `docs/proposals/README.md`'s
+own generated index already had a lead+sections shape (`proposal-part-of`, "a topic's
+supporting pages... carry no status of their own") — three finance-tracker sections
+and two pip proposals were already living this way, correctly, by convention alone.
+What was missing was the mechanical half: nothing checked that a **lead** (no
+`part-of`) actually carried a status, or that a **section** (has `part-of`) carried
+none.
+
+**Both directions matter, and the second one caught something real.** Auditing
+finance-tracker/mac-explorer/pockets/pip to find the zero-blocking floor surfaced
+three genuine, pre-existing proposal-number collisions in finance-tracker (ids 14, 15
+and 20, each reused by two different documents) — unrelated to this rule, fixed
+separately in that project — and one real vocabulary typo in pockets: `superseded-by
+14` instead of the documented `superseded by 14` (hyphen for space), sitting unchecked
+since 2026-08-04. Both were only found because someone finally asked "does every lead
+actually have a status" instead of assuming the convention held.
+
+**`bin/proposalcheck` gains two checks**, its own floor (`STATUS_EFFECTIVE_DATE`,
+2026-08-20 — a different rule than the decisions-recorded one above, written a day
+later, so it gets its own date rather than reusing that one): a lead with no
+`proposal-status`, or one that matches none of the known vocabulary
+(`proposed`/`accepted`/`completed`/`completed in part`/`built`/`amends NN`/`superseded
+by NN`), fails; a section that also claims its own status fails the mirror way. 0
+blocked today across every adopting project — pockets' typo'd lead and pip's two
+undated leads are grandfathered the same way an undated or pre-floor proposal already
+is under the rule above, not specially cased.
+
+**Not wired into `bin/land` in this PR.** The decisions-recorded rule shipped
+advisory-only for a full day (#106) before a session actually hit the gap and #107
+wired it in — this PR ships the check and its tests only; wiring it into `land`'s exit
+code (the same eighth-gate shape #107 added) is a separate, smaller follow-up once
+this lands, not bundled in to keep the diff reviewable.
+
 ## 2026-08-19 · `bin/land` now consumes `bin/proposalcheck`'s exit code
 
 Reported cause: issue #107 asked to "wire the checker into `land`". The real

@@ -383,3 +383,20 @@ real and still tracked, it's just not what's being optimized for right now.
 Context: given while several sponsor-approved features (#19, #20, and more
 to follow) are being worked in the same pass — the priority is getting the
 whole wave implemented, not perfecting each one before starting the next.
+
+## 2026-08-20 · Every proposal document must say whether it's a proposal or an artifact
+
+Said in: finance-tracker / spending-feel
+
+While numbering six parallel design-explorer concepts for the "make me feel it"
+spending exploration, he said: *"should also identify which is just an artifact and
+other proposal. as proposal will have some status constraints. check common rules"* —
+and separately, in the same conversation, *"and make this a common rule."*
+
+What it constrains: `docs/proposals/README.md`'s own lead+sections shape already
+existed informally (a section carries no status, only its lead does), but nothing
+checked either direction. He wants it checkable: a lead must carry a real status, a
+section must carry none. Auditing for the zero-blocking floor surfaced a real,
+unrelated bug along the way — three proposal-number collisions in finance-tracker,
+and a status-vocabulary typo in pockets (`superseded-by` for `superseded by`) sitting
+unchecked since 2026-08-04.

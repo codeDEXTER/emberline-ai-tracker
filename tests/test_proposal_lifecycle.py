@@ -32,15 +32,28 @@ BEFORE_FLOOR = "2026-08-10"   # < EFFECTIVE_DATE (2026-08-19) in proposalcheck
 ON_FLOOR = "2026-08-19"
 AFTER_FLOOR = "2026-08-20"
 
+# STATUS_EFFECTIVE_DATE in proposalcheck (2026-08-20) is its own, later floor --
+# a different rule, written a day after the one above, so it gets its own
+# before/on/after trio rather than reusing BEFORE_FLOOR/ON_FLOOR/AFTER_FLOOR.
+STATUS_BEFORE_FLOOR = "2026-08-19"
+STATUS_ON_FLOOR = "2026-08-20"
+STATUS_AFTER_FLOOR = "2026-08-21"
 
-def proposal(status: str, decided: str | None = None, *,
+
+def proposal(status: str | None, decided: str | None = None, *,
              asks_decisions: bool = False, answered: bool = False,
-             exceptions: bool = False) -> str:
-    """A minimal but structurally real proposal document."""
-    meta = ['<meta name="proposal-id" content="01">',
-            f'<meta name="proposal-status" content="{status}">']
+             exceptions: bool = False, part_of: str | None = None) -> str:
+    """A minimal but structurally real proposal document. `status=None` omits
+    the meta tag entirely -- a lead with no status at all, the shape the
+    status-required rule checks for. `part_of` marks this document as a
+    section rather than a lead."""
+    meta = ['<meta name="proposal-id" content="01">']
+    if status is not None:
+        meta.append(f'<meta name="proposal-status" content="{status}">')
     if decided:
         meta.append(f'<meta name="proposal-decided" content="{decided}">')
+    if part_of:
+        meta.append(f'<meta name="proposal-part-of" content="{part_of}">')
 
     body = ["<h1>Test proposal</h1>"]
     if asks_decisions:
@@ -185,6 +198,112 @@ class ProposalLifecycleTests(unittest.TestCase):
         empty.mkdir()
         r = run(empty)
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+
+
+class ProposalIsEitherAProposalOrAnArtifactTests(unittest.TestCase):
+    """CLAUDE-workflow.md, 'A document is either a proposal or an artifact':
+    a lead (no proposal-part-of) must carry a proposal-status from the known
+    vocabulary; a section (has proposal-part-of) must carry none. Its own
+    floor (STATUS_EFFECTIVE_DATE, 2026-08-20) is separate from the
+    decisions-recorded rule's floor above -- a different rule, a different
+    day."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        (self.tmp / "CLAUDE.md").write_text("test project\n")
+        self.proposals = self.tmp / "docs" / "proposals"
+        self.proposals.mkdir(parents=True)
+
+    def write(self, name: str, text: str):
+        (self.proposals / name).write_text(text)
+
+    # -- a lead needs a status -----------------------------------------------
+
+    def test_lead_with_no_status_after_the_floor_fails(self):
+        self.write("01-x.html", proposal(None, STATUS_AFTER_FLOOR))
+        r = run(self.tmp)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("carries no proposal-status", r.stdout)
+
+    def test_lead_with_a_known_status_passes(self):
+        for status in ("proposed", "accepted", "completed", "completed in part",
+                        "built", "amends 07", "superseded by 14"):
+            with self.subTest(status=status):
+                self.tmp2 = tempfile.TemporaryDirectory()
+                self.addCleanup(self.tmp2.cleanup)
+                proposals = Path(self.tmp2.name) / "docs" / "proposals"
+                proposals.mkdir(parents=True)
+                (Path(self.tmp2.name) / "CLAUDE.md").write_text("test project\n")
+                # "completed in part" separately requires its own id="exceptions"
+                # block (the rule above) -- unrelated to the status-vocabulary
+                # check this test targets, so give it one to isolate that.
+                needs_exceptions = status == "completed in part"
+                (proposals / "01-x.html").write_text(
+                    proposal(status, STATUS_AFTER_FLOOR, exceptions=needs_exceptions)
+                )
+                r = run(Path(self.tmp2.name))
+                self.assertEqual(r.returncode, 0, f"{status}: " + r.stdout + r.stderr)
+
+    def test_lead_with_an_unrecognized_status_after_the_floor_fails(self):
+        self.write("01-x.html", proposal("propsed", STATUS_AFTER_FLOOR))  # typo, on purpose
+        r = run(self.tmp)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("matches none of the known vocabulary", r.stdout)
+
+    def test_superseded_by_hyphenated_is_not_the_known_form(self):
+        """The exact typo found live in pockets ('superseded-by 14' instead of
+        'superseded by 14') -- the whole-string regex must not accept it."""
+        self.write("01-x.html", proposal("superseded-by 14", STATUS_AFTER_FLOOR))
+        r = run(self.tmp)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+
+    # -- a section (part-of) carries no status of its own --------------------
+
+    def test_section_with_no_status_passes(self):
+        self.write("01-lead.html", proposal("accepted", STATUS_AFTER_FLOOR))
+        self.write("02-section.html", proposal(None, part_of="01"))
+        r = run(self.tmp)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_section_claiming_its_own_status_fails(self):
+        self.write("01-lead.html", proposal("accepted", STATUS_AFTER_FLOOR))
+        self.write("02-section.html", proposal("proposed", part_of="01"))
+        r = run(self.tmp)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("also claims its own status", r.stdout)
+
+    # -- grandfathering, this rule's own floor --------------------------------
+
+    def test_lead_with_no_status_decided_before_this_rules_floor_is_grandfathered(self):
+        self.write("01-x.html", proposal(None, STATUS_BEFORE_FLOOR))
+        r = run(self.tmp)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_lead_with_no_status_decided_exactly_on_this_rules_floor_is_not_grandfathered(self):
+        self.write("01-x.html", proposal(None, STATUS_ON_FLOOR))
+        r = run(self.tmp)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+
+    def test_lead_with_no_status_and_no_decided_date_at_all_is_grandfathered(self):
+        """Matches pip's 02a/02b -- undated leads with no status, predating
+        this rule the same way an undated proposal predates the one above."""
+        self.write("01-x.html", proposal(None, decided=None))
+        r = run(self.tmp)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_pockets_and_pip_blast_radius_is_grandfathered_today(self):
+        """Every non-compliant lead in pockets and pip today was decided (or
+        undated) before this rule's floor -- guards against a fix that
+        quietly re-tightens the floor and starts failing history."""
+        for name in ("pockets", "pip"):
+            proj = ROOT.parent / name
+            if not proj.exists():
+                continue
+            with self.subTest(project=name):
+                r = run(proj)
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
 
 if __name__ == "__main__":

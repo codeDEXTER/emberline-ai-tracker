@@ -344,6 +344,29 @@ finance-tracker, mac-explorer, pockets and pip — finance-tracker has 4 that
 would fail without the floor (20, 23, 24, 25), all dated before it, so
 enforcement is forward-only from here.
 
+**A document is either a proposal or an artifact, and the difference is
+whether it carries a status.** A **lead** — a document with no
+`<meta name="proposal-part-of">` — is the one thing in its topic asking for
+a decision, and must carry a `proposal-status` from the vocabulary above. A
+**section** — `part-of` some lead — is supporting material with nothing of
+its own to decide (an exploration, a findings run, a design-explorer's
+parallel concepts shown side by side before a direction is picked): it
+carries no status at all, because there is only ever one decision per
+topic, and the lead is where it lives. Six parallel spending-UI concepts
+from one design-explorer run (finance-tracker, 2026-08-20) had nowhere to
+go but loose, unnumbered `claude.ai` links until this was made explicit —
+`NN-<type>-<slug>.html` already had a real answer (make each its own
+numbered section of one lead proposal), it just wasn't written down as a
+rule anyone could check.
+
+**Grandfathered the same way, a separate floor.** This binds proposals
+touched on or after **2026-08-20** — its own day, not reused from the floor
+above. `bin/proposalcheck` reports 0 blocked today: pockets carries one
+lead with a typo'd status (`superseded-by 14` for `superseded by 14`,
+decided 2026-08-04) and pip carries two undated leads with no status at
+all — both grandfathered the identical way an undated or pre-floor proposal
+already is above, not specially cased.
+
 **Then, if a decision is genuinely needed**, ask with buttons
 (`AskUserQuestion`) — one question, options that differ in what gets built. If
 no decision is needed, skip the buttons entirely.
