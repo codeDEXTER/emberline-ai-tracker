@@ -1,5 +1,57 @@
 # Changelog — common-rules
 
+## 2026-08-20 · rulecheck locates itself instead of guessing a home directory
+
+`bin/rulecheck`'s rules-repo default was the literal string
+`/Users/the-sponsor/apps/common-rules` — correct on exactly one machine. On a CI
+runner that path does not exist, so `git -C <missing>` fails,
+`current_version()` returns `None`, and `--version` exits 2. That errored
+**11 gate tests** across `test_land_alignment`, `test_land_proposalcheck` and
+`test_land_milestonecheck` on every CI run since CI existed.
+
+It surfaced only today because Actions had been blocked at the billing gate;
+the first run that actually executed after the account moved to Pro failed on
+this immediately. A correction to what this session said earlier: these errors
+were called "a CI-environment divergence, not a code bug". They were a code
+bug.
+
+**The default is now `Path(__file__).resolve().parent.parent`** — a script
+always knows where it lives. `COMMON_RULES_DIR` still wins when set, which is
+how tests and projects point it at a particular checkout.
+
+**One deliberate behaviour change.** Run from a task worktree, `--version` now
+reports *that worktree's* version rather than the main checkout's. That is the
+honest answer — the version should describe the rules actually being run — but
+it changes what every gate compares against inside a worktree, which is where
+`bin/land` does all its checking. Raised before the change rather than
+discovered after.
+
+**The test's shape is the point, and it is the reason this survived.** Asserting
+`--version` merely succeeds proves nothing: on the developer's Mac the
+hardcoded path resolves and the broken version passes too. So the test runs a
+*copy* of the script from a *different* repository and asserts it reports that
+repository's version — something only a self-located default can do. Verified
+by reverting the fix: 3 of the 4 new tests fail, including the structural guard
+that no home directory is baked into the default.
+
+**Third variant of one mistake, all found today**, and worth naming as a class:
+`RealProjectsStillCheck` resolving projects as `ROOT.parent` (skips everywhere
+it is run), `bin/milestones` deriving `APPS` the same way (silently found
+nothing from a worktree), and this. Each derived a path from an assumption
+rather than from something true at runtime, and each was invisible precisely
+where it was wrong.
+
+**And it exposed a second bug underneath it: CI has always cloned shallow.**
+The rules version *is* `git rev-list --count HEAD`, and `actions/checkout`
+defaults to depth 1 — so on a runner HEAD counts as commit 1, and
+`test_stamp_is_not_from_the_future` reads "stamp claims 163, but HEAD is only
+at 1". This could never have been seen before today: `rulecheck --version`
+exited 2 on a runner, so the version was never successfully computed there at
+all. One bug was standing in front of the other. `fetch-depth: 0` now, which
+`rulecheck`'s changelog diffing needs for the same reason.
+
+Suite: 231 tests.
+
 ## 2026-08-20 · The milestone plan gets a picture, and it is generated
 
 Asked for directly, after seeing `pocket-internet`'s timeline: *"each project
