@@ -18,6 +18,7 @@ Run:  python3 -m unittest discover -s tests -q
 """
 from __future__ import annotations
 
+import datetime
 import importlib.machinery
 import importlib.util
 import re
@@ -114,6 +115,24 @@ class OneRegionFailsAlone(unittest.TestCase):
 
     def test_empty_session_list_is_not_an_exception(self):
         self.assertIn("no worktrees", T.render_strip([], {}, [], []))
+
+
+def _ago(days):
+    """An ISO date `days` days before today.
+
+    Any fixture that reaches velocity() must be dated relative to today,
+    because velocity()'s window is `today - 7 days`. An absolute fixture
+    measured against a relative window is a time bomb whose fuse is exactly
+    the length of the window: it passes in review, passes in CI that
+    afternoon, and starts failing a week later with no commit to blame.
+
+    This has already gone off twice on
+    ProgressReportsWhatHappened.test_velocity_is_a_measurement_and_names_its_window
+    -- once around 2026-08-09, "fixed" in ee141e2 by re-dating the fixture
+    forward, and again on 2026-08-15 when the re-dated fixture aged out in its
+    turn. Re-dating resets the fuse. Anchoring to today removes it.
+    """
+    return (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
 
 
 def _wt(name, **kw):
@@ -586,8 +605,11 @@ class ProgressReportsWhatHappened(unittest.TestCase):
     log, so no new record file and no revival of the logbook proposal 08
     rejected."""
 
-    # the real finance-tracker shape: seven completed while the percentage FELL
-    FT = [("2026-08-03", 9, 25), ("2026-08-05", 16, 41), ("2026-08-07", 16, 51)]
+    # the real finance-tracker shape: seven completed while the percentage FELL.
+    # Dated relative to today (see _ago), and stopping at yesterday rather than
+    # today so the whole fixture sits inside velocity()'s window while moved()'s
+    # "today:" branch stays out of it -- that branch has its own test below.
+    FT = [(_ago(5), 9, 25), (_ago(3), 16, 41), (_ago(1), 16, 51)]
 
     def test_a_falling_percentage_while_work_completes_is_called_out(self):
         """The case one number actively hides: 36% -> 31% while seven items
@@ -619,9 +641,8 @@ class ProgressReportsWhatHappened(unittest.TestCase):
 
     def test_a_shrinking_total_is_shown_as_a_re_scope_not_smoothed(self):
         """mac-explorer's total really went 8 -> 5. A dip is information."""
-        import datetime
         today = datetime.date.today().isoformat()
-        pts = [("2026-08-05", 1, 8), (today, 1, 5)]
+        pts = [(_ago(5), 1, 8), (today, 1, 5)]
         self.assertEqual(T.moved(pts), (1, 1, 8, 5))
         self.assertIn("re-scoped", T.render_progress([{"project": "m", "points": pts}]))
 
@@ -675,7 +696,7 @@ class SwitchingIsByProject(unittest.TestCase):
         """The point of the rework: no second click for the whole picture."""
         data = self._data()
         data["history"] = [{"project": "pockets",
-                            "points": [("2026-08-02", 0, 10), ("2026-08-07", 5, 14)]}]
+                            "points": [(_ago(5), 0, 10), (_ago(1), 5, 14)]}]
         out = T.render_project("pockets", data)
         for expect in ("IN FLIGHT", "PROGRESS", "SESSIONS"):
             self.assertIn(expect, out)
@@ -722,7 +743,7 @@ class CostIsPerWeekNotPerFeature(unittest.TestCase):
     destroyed by finishing. So the unit is the week."""
 
     HIST = [{"project": "pockets",
-             "points": [("2026-08-02", 0, 10), ("2026-08-07", 5, 14)]}]
+             "points": [(_ago(5), 0, 10), (_ago(1), 5, 14)]}]
     COST = {"pockets": {"week": 1_500_000, "total": 4_000_000}}
 
     def test_the_week_and_what_moved_sit_together(self):

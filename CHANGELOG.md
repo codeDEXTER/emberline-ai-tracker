@@ -1,5 +1,47 @@
 # Changelog — common-rules
 
+## 2026-08-20 · The Tower's progress tests no longer depend on what day it is
+
+`tests/test_tower_render.py` has been red on `main` since **2026-08-15**, and
+every branch cut from it inherited the failure. The cause is not the assertion
+that broke; it is the shape of the fixture behind it.
+
+`velocity()` measures a window computed from `datetime.date.today()`. The
+fixture it was measured against was dated absolutely —
+`2026-08-03 / 08-05 / 08-07`. An absolute fixture read through a relative
+window is a time bomb whose fuse is exactly the length of the window: green in
+review, green in CI that afternoon, red a week later with no commit to blame.
+Nobody changed anything on 08-15. The calendar did.
+
+**This is the second time the same test has broken this way.** `ee141e2`
+(2026-08-10, "Fix velocity()'s window fallback; test_tower_render green again")
+re-dated the fixture forward. That reset the fuse; it did not remove it, and it
+went off again five days later. So the fix here is not a third re-dating: the
+fixtures are now anchored to today via a new `_ago(days)` helper, and dated to
+land inside the window by construction. There is no date in them left to age.
+
+**Two more fixtures carried the same trap** and are anchored the same way.
+`CostIsPairedWithMovement.HIST` was the interesting one — it asserts
+`"completed in the last 7 days"` and has been **passing only by accident**,
+via the out-of-window fallback described below. It would have started failing
+the moment that fallback was corrected, in a PR that had nothing to do with it.
+
+Verified by running the class at simulated dates of today +0, +1, +3, +7, +14,
++30, +90 and +365 days: 6 tests, 0 failures at every offset. The same harness
+run against the pre-fix file fails at every offset, so it is measuring
+something.
+
+**Found while fixing this, deliberately NOT fixed here** — `velocity()`
+mislabels stale data rather than declining to report it. When no point falls
+inside the window it falls back to `points[-2:]` and reports that diff under
+the window's label. Points dated 08-01 and 08-02, read on 08-20, render as
+`9 item(s) completed in the last 7 days` — a sentence about the last 7 days
+built from data 18 days old. The fallback was added deliberately in `ee141e2`
+to fix a real problem (a length-1 window silently diffing against itself), so
+correcting it is a judgement about what the Tower should say when a project
+has gone quiet, not a typo. That is the user's call and is being asked
+separately.
+
 ## 2026-08-19 · `bin/land` now consumes `bin/proposalcheck`'s exit code
 
 Reported cause: issue #107 asked to "wire the checker into `land`". The real
