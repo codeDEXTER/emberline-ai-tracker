@@ -105,7 +105,7 @@
 
 <div class="brand">
   <span>common-rules · reference</span>
-  <span>derived from CLAUDE-workflow.md · rules version 161 · 2026-08-20</span>
+  <span>derived from CLAUDE-workflow.md · rules version 163 · 2026-08-20</span>
 </div>
 
 <h1>The whole workflow, on one page</h1>
@@ -673,7 +673,7 @@ honest remaining gap in both.</p>
   <li><b>Look before you start, and commit before you pause</b> — uncommitted work is invisible to everyone, including the next check.</li>
   <li><b>A question to the user is a cost.</b> If the answer wouldn't change what he sees at a look and isn't reserved, the AI decides, records one line, and proceeds. Unnecessary questions are counted at the gate.</li>
   <li><b>You own features; the AI owns the issues they decompose into</b> — cut vertically, never backend-for-X plus UI-for-X.</li>
-  <li><b>Every project keeps a feature register</b> — a <code>## Features</code> table in its <code>CLAUDE-checklist.md</code>, one row per feature, linking the issue that <em>is</em> the feature. The Tower reads it: that table is the only answer to what a product is made of and how much is done. It changes when you add, rename or close a feature — never per task. A project without one reports <em>"no features declared"</em>, never 0%.</li>
+  <li><b>Every project keeps a feature register</b> — a <code>## Features</code> table in its <code>CLAUDE-checklist.md</code>, one row per feature, linking the issue that <em>is</em> the feature. The Tower reads it: that table is the only answer to what a product is made of and how much is done. It changes when you add, rename or close a feature — never per task. A project without one reports <em>"no features declared"</em>, never 0%. States: <code>in flight</code> · <code>next</code> · <code>blocked by #N</code> · <code>later</code>/<code>version N</code> · <code>built</code> · <code>completed</code> (<code>done</code> is a grandfathered synonym, same convention as proposal-status's own <code>built</code> → <code>completed</code>).</li>
   <li><b>And every project keeps a milestone plan</b> — a <code>## Milestones</code> table beside the register, sharing its states, with two columns the register has no equivalent of: <b>Proves</b> and <b>You get</b>. The register says what the product is made of; this says what order, what each step establishes, and when the sponsor gets something he can hold. A milestone ends in something <em>proven</em>, not delivered — "the index builds" is a task, "retrieval is good enough to build on" is a milestone. The result that would <em>stop</em> the plan is written before the work starts; written after, it is a rationalisation of whatever the data said. And every row states what the sponsor gets <b>including when the answer is nothing</b> — a plan whose first four steps hand him nothing is fine, but he should be told at the start rather than find out in week three.</li>
   <li><b>The milestone plan is live</b> — kept current until the feature is done, because a plan that is not maintained asserts an order of work that has stopped being true. Three things move it: a state changes, a proof lands (recording what actually happened when it differs from the prediction), or a proof forces a reorder. Still never per task. The test: a session editing because it <em>did</em> something is writing a logbook and is wrong; editing because something is now <em>known</em> is maintaining the plan and is right.</li>
   <li><b>Nothing about features, merges, promotions or these rules happens without you.</b></li>

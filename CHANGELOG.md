@@ -1,5 +1,34 @@
 # Changelog — common-rules
 
+## 2026-08-20 · The milestone/feature vocabulary gets `completed`, matching proposal-status
+
+*Ask, verbatim: "I think we need some sort of that vocabulary that tells if a
+proposal has been completed or not in the end. Right now, it shows... but it
+doesn't show completed."*
+
+The register/milestone vocabulary (`in flight` / `next` / `blocked by #N` /
+`later` / `version N` / `built` / `done`) never had a word matching
+proposal-status's own `completed` — the two systems drifted onto different
+terminal words for the same idea (`done` here, `completed` there), and `built`
+carries different meanings in each: a grandfathered synonym for `completed` in
+proposal-status, but a genuinely distinct "shipped, not yet closed" state in the
+milestone/feature vocabulary (finance-tracker's own tracks generator already
+labels it "built, not closed").
+
+**The fix mirrors the one already applied to proposal-status.** `completed` is
+now the word for a milestone or feature fully finished; `done` is a
+grandfathered synonym, not mass-renamed where it's already written (this
+session's own finance-tracker milestone plan uses it), but write `completed`
+from here on. `built` keeps its own narrower meaning and is not folded into
+`completed` — collapsing the two would erase a distinction the tracks generator
+already draws on purpose.
+
+`bin/milestonecheck`'s `STATES` set gained `completed`;
+`tests/test_milestonecheck.py` gained a test pinning both `completed` and the
+grandfathered `done` as accepted, alongside the existing full-vocabulary test.
+`CLAUDE-workflow.md`'s register and milestone-plan sections both restate the
+vocabulary and the `done`→`completed` migration note.
+
 ## 2026-08-20 · `bin/land` now consumes `bin/milestonecheck` — the ninth gate
 
 The milestone-plan rule landed the same day (`## Milestones` in
