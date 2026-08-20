@@ -91,6 +91,13 @@ def check(project: pathlib.Path) -> tuple[int, list[str]]:
     header = [c.lower() for c in split_row(rows[0])]
     p_idx = next((i for i, c in enumerate(header) if PROVES.search(c)), None)
     g_idx = next((i for i, c in enumerate(header) if GETS.search(c)), None)
+    # State is located by header, falling back to the last cell only when the
+    # table declares no State column. Reading it positionally was safe only
+    # while State happened to be last: an optional Track column (which the rule
+    # allows, for a project running parallel work) sits to its right and would
+    # otherwise have every row's track read as its state, so a plan with tracks
+    # would be refused for using a vocabulary it never used.
+    s_idx = next((i for i, c in enumerate(header) if re.search(r"\bstate\b", c)), None)
 
     problems: list[str] = []
     if p_idx is None:
@@ -113,9 +120,11 @@ def check(project: pathlib.Path) -> tuple[int, list[str]]:
             problems.append(
                 f"milestone {label!r}: You-get is empty -- write 'nothing to hold' if that is the answer"
             )
-        state = cells[-1].strip().strip("*").lower() if cells else ""
+        raw = (cells[s_idx] if s_idx is not None and s_idx < len(cells)
+               else (cells[-1] if cells else ""))
+        state = raw.strip().strip("*").lower()
         if state and not any(s in state for s in STATES):
-            problems.append(f"milestone {label!r}: state {cells[-1]!r} is not one the register uses")
+            problems.append(f"milestone {label!r}: state {raw!r} is not one the register uses")
 
     return (1, problems) if problems else (0, [])
 
