@@ -94,6 +94,39 @@ class ThePageComesFromTheTable(Harness):
         self.assertIn("Regenerate rather than editing", self.page())
 
 
+class ThePageIsTitledForTheProjectNotTheWorktree(unittest.TestCase):
+    """Every session works in `.worktrees/<task>`, so a directory basename
+    there is the BRANCH. Generating from one titled three projects' pages
+    "milestone-page — milestones" before this was caught."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.repo = Path(self.tmp.name) / "pip"
+        self.repo.mkdir()
+        for a in (("init", "-q", "-b", "main"), ("config", "user.email", "t@e.com"),
+                  ("config", "user.name", "t")):
+            subprocess.run(["git", "-C", str(self.repo), *a], capture_output=True)
+        (self.repo / "CLAUDE-checklist.md").write_text(PLAIN)
+        subprocess.run(["git", "-C", str(self.repo), "add", "-A"], capture_output=True)
+        subprocess.run(["git", "-C", str(self.repo), "commit", "-qm", "seed"], capture_output=True)
+        self.wt = self.repo / ".worktrees" / "some-branch"
+        subprocess.run(["git", "-C", str(self.repo), "worktree", "add", "-q",
+                        "-b", "some-branch", str(self.wt)], capture_output=True)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_generating_from_a_worktree_titles_the_page_for_the_project(self):
+        r = run("--project", str(self.wt))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = (self.wt / "docs" / "milestones.html").read_text()
+        self.assertIn("<title>pip — milestones</title>", page)
+        self.assertNotIn("some-branch", page, "the branch name reached the page")
+
+    def test_the_console_line_names_the_project_too(self):
+        self.assertIn("pip --", run("--project", str(self.wt)).stdout)
+
+
 class TracksBecomeLanes(Harness):
 
     def test_a_track_column_is_optional(self):

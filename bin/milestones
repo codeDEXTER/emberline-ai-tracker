@@ -42,6 +42,7 @@ import html
 import json
 import pathlib
 import re
+import subprocess
 import sys
 
 RULES = pathlib.Path(__file__).resolve().parent.parent
@@ -411,10 +412,30 @@ def page_digest(page: pathlib.Path) -> str | None:
     return m.group(1) if m else None
 
 
+def project_name(project: pathlib.Path) -> str:
+    """The project's name, not the directory the command happened to run in.
+
+    Every session works in `.worktrees/<task>`, so the directory basename there
+    is the BRANCH name -- generating from a worktree titled three projects'
+    pages "milestone-page — milestones". git knows the difference: the first
+    entry of `worktree list` is always the main checkout, whatever worktree the
+    question is asked from.
+    """
+    try:
+        out = subprocess.run(["git", "-C", str(project), "worktree", "list", "--porcelain"],
+                             capture_output=True, text=True, timeout=10)
+        for line in out.stdout.splitlines():
+            if line.startswith("worktree "):
+                return pathlib.Path(line.split(" ", 1)[1]).name
+    except Exception:
+        pass
+    return project.name
+
+
 def build(project: pathlib.Path, rows) -> str:
     when = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     return (PAGE
-            .replace("__NAME__", html.escape(project.name))
+            .replace("__NAME__", html.escape(project_name(project)))
             .replace("__WHEN__", when)
             .replace("__SRC__", "CLAUDE-checklist.md")
             .replace("__DIGEST__", digest(rows))
@@ -438,11 +459,11 @@ def check_one(project: pathlib.Path) -> int:
     page = project / "docs" / "milestones.html"
     want, have = digest(rows), page_digest(page)
     if have is None:
-        print(f"milestones: {project.name} has a milestone plan but no docs/milestones.html "
+        print(f"milestones: {project_name(project)} has a milestone plan but no docs/milestones.html "
               f"-- run `common-rules/bin/milestones`", file=sys.stderr)
         return 1
     if have != want:
-        print(f"milestones: {project.name}'s docs/milestones.html is stale -- it shows "
+        print(f"milestones: {project_name(project)}'s docs/milestones.html is stale -- it shows "
               f"{have}, the plan is {want}. Run `common-rules/bin/milestones`.", file=sys.stderr)
         return 1
     return 0
@@ -455,7 +476,7 @@ def one(project: pathlib.Path, to_stdout=False) -> int:
         return 2
     rows = parse(checklist)
     if not rows:
-        print(f"milestones: {project.name} has no usable `## Milestones` table -- "
+        print(f"milestones: {project_name(project)} has no usable `## Milestones` table -- "
               f"run bin/milestonecheck for the detail", file=sys.stderr)
         return 1
     page = build(project, rows)
@@ -466,7 +487,7 @@ def one(project: pathlib.Path, to_stdout=False) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(page, encoding="utf-8")
     deliver = sum(1 for r in rows if r["deliver"])
-    print(f"milestones: {project.name} -- {len(rows)} milestones "
+    print(f"milestones: {project_name(project)} -- {len(rows)} milestones "
           f"({deliver} hand something over) -> {out}")
     return 0
 
