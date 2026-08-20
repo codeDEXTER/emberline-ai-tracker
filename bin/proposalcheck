@@ -34,6 +34,31 @@ before this rule existed", not as a loophole for a new one to leave the meta
 off. `completed in part` is new vocabulary with nothing existing to
 grandfather, so its exceptions requirement is not date-gated.
 
+CLAUDE-workflow.md, "A document is either a proposal or an artifact":
+measured across finance-tracker, pip and pockets while adding new proposal
+content (2026-08-20) -- three real proposal-number collisions turned up
+along the way, and separately, nothing had ever checked whether a document
+claiming to BE a proposal (not a `part-of` section) actually carried a
+status at all. Two finance-tracker part-of sections had spent their whole
+history with no meta status and a mockup title informally borrowing their
+lead's status word -- harmless, because the convention was already "a
+section carries no status of its own", just never made checkable. This adds
+the other half: a **lead** (a document with no `proposal-part-of`) must
+carry a `proposal-status` from the known vocabulary
+(`proposed`/`accepted`/`completed`/`completed in part`/`built`/`amends
+NN`/`superseded by NN`) -- a lead with no status, or a typo'd one
+(`superseded-by` for `superseded by`, found live in pockets), is exactly the
+gap `proposal-auditor` and this project's own generated index have nothing
+to measure against. A `part-of` document carrying its OWN status is the
+mirror violation: a section pretending to a decision it doesn't have.
+
+GRANDFATHERED THE SAME WAY, A SEPARATE FLOOR. `STATUS_EFFECTIVE_DATE` is its
+own constant, not reused from the decisions-recorded rule above, because it
+is a different rule written on a different day. pockets' typo'd status and
+pip's two undated leads are both grandfathered by it today -- zero blocked
+across every adopting project at the time this landed, same standard as the
+rule above.
+
 Exit codes: 0 clean. 1 violations found. 2 nothing to check (no
 docs/proposals/ under the project).
 """
@@ -48,6 +73,19 @@ from pathlib import Path
 # the module docstring's "GRANDFATHERED BY DATE" section for why a floor
 # rather than a hand-maintained exemption list.
 EFFECTIVE_DATE = "2026-08-19"
+
+# The day the "lead must carry a known status" rule was written -- its own
+# floor, not reused from EFFECTIVE_DATE above, because it is a distinct rule.
+STATUS_EFFECTIVE_DATE = "2026-08-20"
+
+# proposed / accepted / completed / completed in part / built (grandfathered
+# synonym), or the two parameterized cross-reference forms. A lead's status
+# must match this whole-string shape -- CLAUDE-workflow.md's own vocabulary,
+# made checkable rather than left to eyeballing.
+KNOWN_STATUS_RE = re.compile(
+    r"^(proposed|accepted|completed|completed in part|built"
+    r"|amends \d+|superseded by \d+)$"
+)
 
 # Statuses under which a proposal that asked decisions must have recorded the
 # answers. `proposed` is deliberately excluded -- a proposal still being
@@ -79,15 +117,27 @@ def records_exceptions(text: str) -> bool:
     return bool(re.search(r'\bid="exceptions"', text))
 
 
-def grandfathered(decided: str | None) -> bool:
-    """True if this proposal predates the rule, or never carried a date.
+def grandfathered(decided: str | None, floor: str = EFFECTIVE_DATE) -> bool:
+    """True if this proposal predates `floor`, or never carried a date.
 
     ISO dates (YYYY-MM-DD) sort correctly as plain strings, so a lexical
-    comparison against EFFECTIVE_DATE is exact -- no date parsing needed.
+    comparison is exact -- no date parsing needed. `floor` defaults to
+    EFFECTIVE_DATE (the decisions-recorded rule's own floor); the
+    status-required rule below passes its own, later floor explicitly,
+    because it is a different rule written on a different day.
     """
     if not decided:
         return True
-    return decided < EFFECTIVE_DATE
+    return decided < floor
+
+
+def is_lead(text: str) -> bool:
+    """A lead is a document with no `proposal-part-of` -- the one thing in
+    its topic that carries an independent status and a decision. Everything
+    else is a section: supporting material with nothing of its own to
+    decide (CLAUDE-workflow.md, "A document is either a proposal or an
+    artifact")."""
+    return meta(text, "part-of") is None
 
 
 def check_proposal(path: Path, text: str) -> list[str]:
@@ -109,6 +159,29 @@ def check_proposal(path: Path, text: str) -> list[str]:
             'status is "completed in part" but carries no id="exceptions" '
             'block naming what was not built and why'
         )
+
+    lead = is_lead(text)
+    if lead:
+        if status is None:
+            if not grandfathered(decided, floor=STATUS_EFFECTIVE_DATE):
+                violations.append(
+                    'is a lead (no proposal-part-of) but carries no proposal-status at '
+                    f'all -- decided {decided}, on or after the {STATUS_EFFECTIVE_DATE} floor'
+                )
+        elif not KNOWN_STATUS_RE.match(status):
+            if not grandfathered(decided, floor=STATUS_EFFECTIVE_DATE):
+                violations.append(
+                    f'is a lead (no proposal-part-of) with status "{status}", which matches '
+                    f'none of the known vocabulary (proposed/accepted/completed/completed in '
+                    f'part/built/amends NN/superseded by NN) -- decided {decided}, on or '
+                    f'after the {STATUS_EFFECTIVE_DATE} floor'
+                )
+    else:
+        if status is not None:
+            violations.append(
+                f'carries proposal-part-of (a section, not a lead) but also claims its own '
+                f'status ("{status}") -- a section has no decision of its own to track'
+            )
 
     return violations
 

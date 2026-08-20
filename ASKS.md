@@ -383,3 +383,33 @@ real and still tracked, it's just not what's being optimized for right now.
 Context: given while several sponsor-approved features (#19, #20, and more
 to follow) are being worked in the same pass — the priority is getting the
 whole wave implemented, not perfecting each one before starting the next.
+
+## 2026-08-20 · Every project should keep a milestone plan, not just a feature list
+Said in: idea-lab / pocket-internet
+
+Shown a phased plan for the pocket-internet idea — seven steps, each ending in
+something proven, with the result that would stop the plan written down before the
+work started — he said: *"make a common rule that all projects should maintain a
+common milestone plan like this."*
+
+What it constrains: the feature register answers "what is this made of and how much
+is done". It does not answer "in what order, and what does each step establish" —
+which is the question that decides what to do next. He wants that second view kept
+per project, not improvised per conversation.
+
+## 2026-08-20 · Every proposal document must say whether it's a proposal or an artifact
+
+Said in: finance-tracker / spending-feel
+
+While numbering six parallel design-explorer concepts for the "make me feel it"
+spending exploration, he said: *"should also identify which is just an artifact and
+other proposal. as proposal will have some status constraints. check common rules"* —
+and separately, in the same conversation, *"and make this a common rule."*
+
+What it constrains: `docs/proposals/README.md`'s own lead+sections shape already
+existed informally (a section carries no status, only its lead does), but nothing
+checked either direction. He wants it checkable: a lead must carry a real status, a
+section must carry none. Auditing for the zero-blocking floor surfaced a real,
+unrelated bug along the way — three proposal-number collisions in finance-tracker,
+and a status-vocabulary typo in pockets (`superseded-by` for `superseded by`) sitting
+unchecked since 2026-08-04.
