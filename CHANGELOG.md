@@ -1,5 +1,62 @@
 # Changelog — common-rules
 
+## 2026-08-20 · Milestones and proposals reach the Tower (proposal 15)
+
+Handed over from another session, at the sponsor's request, once every
+supporting piece existed: the Tower should track each project's milestone
+plan and list its proposals/decision articles, with a push to make the
+Tower simpler while doing it, not just bigger.
+
+**MILESTONES sits directly under REPORT**, reading the same `## Milestones`
+table `milestonecheck` (#112) already validates — `parse_milestones()` reads
+every column by its header, never positionally. That specific caution
+wasn't theoretical: `milestonecheck` itself still reads State from
+`cells[-1]`, and finance-tracker's real table on `origin/main` carries an
+optional `Track` column between `You get` and `State` that a positional
+read would have silently swapped. Order is preserved exactly as written,
+not grouped by state — BOARD already answers "what's built"; this answers
+"in what order, and when is there something to hold," a different question
+over the same vocabulary.
+
+**PROPOSALS sits at the foot of the page**, reading each project's
+`docs/proposals/*.html` the same way `proposalcheck` (#111) already does —
+`<meta name="proposal-*">` fields, the lead/part-of distinction. The title
+cleanup needed more care than expected: measured live across five projects,
+proposal `<title>` tags turned out to use four different conventions, not
+one, and the first regex (tuned to common-rules' own shape) mangled the
+other three. Fixed by splitting on the last `·` and keeping that segment
+generically, rather than hardcoding a shape per project.
+
+**The concrete simplification**: PROPOSALS caps to the most recent 8 leads
+with a `"+N more, older"` note, the same pattern `QUEUED` already
+established (#82) — finance-tracker alone has 38 proposal documents, and
+all of them on one project page was measured, not assumed, to be too much.
+Whether BOARD and MILESTONES should merge (both now carry the same state
+vocabulary over overlapping rows) is named in proposal 15 rather than
+decided there — that reshapes what BOARD means, and is the sponsor's call.
+
+**MILESTONES got a picture, mid-build, on request**: the sponsor pointed at
+the pocket-internet exploration's own milestone timeline
+(`idea-lab/ideas/pocket-internet/09-timeline.html`) and asked for that
+visual language. Ported the two ideas that carry across into Tower's own
+dark, auto-refreshing screen rather than its editorial serif one: a single
+horizontal arc (`render_milestone_arc`) with one dot per milestone —
+state-coloured, a diamond wherever `milestone_delivers()` finds a real
+You-get rather than a written-out "nothing to hold", "you are here" at the
+first in-flight step — and a four-card meter (`render_milestone_meter`:
+proven / in flight / in your hands / next you get) styled like REPORT's own
+`.rcard` grid. Both server-rendered and static per collect, deliberately
+without the source page's client-side lens buttons and expand/collapse —
+that state would silently reset on Tower's 10-second auto-refresh, the same
+failure mode that killed DOM-based tab state once already (#82).
+
+Both parsers were run against every adopting project's real files before
+either was wired into `render_project`, which is how the Track-column case
+and the four title conventions were actually found. `test_tower_render`
+stayed green throughout (99/99) — no new fetches: milestones parse from the
+same `register_source()` text the feature register already reads, and
+proposals are local file reads with no `git` or `gh` call at all.
+
 ## 2026-08-20 · The milestone plan gets a picture, and it is generated
 
 Asked for directly, after seeing `pocket-internet`'s timeline: *"each project
