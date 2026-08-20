@@ -65,6 +65,48 @@ pin the checker and the gate separately, the second mirroring
 **Depends on the milestone rule itself (PR #109) being in `main` first.** This
 gate enforces a rule whose text is still on a branch; landing it first would
 refuse four projects on the authority of a paragraph nobody can read yet.
+## 2026-08-20 · rulecheck's tests stopped reading its evidence as its verdict
+
+Three subtests of `test_rulecheck.RealProjectsStillCheck` have been failing in
+the `main` checkout — pockets, pip and mac-explorer — and the projects were
+never the problem.
+
+`rulecheck` prints a verdict, then, for a stale project, **quotes the changelog**
+under "What changed since (N changelog lines)". The changelog is prose about
+these rules, and one entry contains the sentence *"common-rules does not adopt
+itself."* The assertion was `assertNotIn("does not adopt", r.stdout)` — searching
+the verdict and the evidence as one string. Three adopting projects were
+correctly recognised and correctly reported stale, and the test called them
+skipped because the changelog it had just been shown contained the words it was
+grepping for.
+
+**The fix is scoping, not rewording.** A new `verdict()` helper cuts stdout at
+the dump heading, and every "does not adopt" assertion now reads only
+rulecheck's own words. Rewording the changelog entry would have worked today and
+broken again the next time anyone wrote that phrase.
+
+This is the same failure the render tests already guard against:
+`test_tower_render.test_no_forecast_in_the_data_rows` scopes its search to the
+data rows precisely because the page's own disclaimer contains the forecast
+words it bans. That guard existed and was documented; this file did not have it.
+
+**`TheChangelogIsEvidenceNotVerdict` pins it, hermetically.** It builds its own
+two-commit rules repo whose changelog delta carries the poisoned phrase, rather
+than relying on the real `CHANGELOG.md` still containing that sentence — a
+regression test that depends on the prose it guards against stops testing the
+moment someone rewords an entry. A second test pins the dump heading itself,
+because if that wording changes, `verdict()` silently stops cutting and every
+assertion goes back to searching the whole dump, passing and testing nothing.
+Verified by neutralising `verdict()`: 4 failures, including the new one.
+
+**Why this survived so long, and it is not fixed here.** `RealProjectsStillCheck`
+resolves the projects as `ROOT.parent`, which is `/Users/aashish/apps` only from
+the main checkout. From any task worktree it resolves to `.worktrees/`, finds no
+projects, and **skips**. So the test is vacuous everywhere it is normally run:
+`bin/land` tests the branch worktree, and CI checks out a repo with no sibling
+projects at all. It can only fail in the one place nobody runs the suite. That is
+a real gap in what `land` and CI actually verify, it is wider than this fix, and
+it is being raised rather than quietly patched.
 
 ## 2026-08-20 · A document is either a proposal or an artifact
 
