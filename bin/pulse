@@ -239,6 +239,39 @@ def rules_state(path):
     return current, have
 
 
+def milestone_state(path):
+    """Does this project keep a well-formed milestone plan? (label, css class)
+
+    `CLAUDE-workflow.md`, "And every project keeps a milestone plan". Its own
+    chip beside the alignment chip rather than folded into it: the two fail for
+    unrelated reasons and are fixed in different files, so one chip reading
+    "not ok" for either would send a session to the wrong one.
+
+    Freshness is deliberately not asked. `bin/milestonecheck` refuses to judge
+    it -- "in flight for N days" fires on every genuinely slow milestone and
+    trains everyone to ignore the checker -- and this is where that judgement
+    would go if it is ever wanted, in front of a person rather than inside an
+    exit code. Not today.
+
+    Returns None when there is nothing to say, so the chip is absent rather
+    than green: exit 2 is "no CLAUDE-checklist.md", and a project with no
+    checklist has no milestone plan to be right or wrong about.
+    """
+    mc = RULES / "bin" / "milestonecheck"
+    if not mc.exists():
+        return None
+    try:
+        r = subprocess.run([str(mc), "--project", str(path), "--quiet"],
+                           capture_output=True, text=True, timeout=30)
+    except Exception:
+        return None
+    if r.returncode == 0:
+        return "milestones", "ok"
+    if r.returncode == 1:
+        return "no milestone plan", "warn"
+    return None
+
+
 def render(write=True):
     """Build the pulse page. write=True (CLI default) writes docs/pulse.html
     and returns its path; write=False returns the HTML string and touches
@@ -260,6 +293,8 @@ def render(write=True):
         aligned = ("aligned" if stamped == cur_rules else
                    f"on {stamped}" if stamped else "never aligned")
         chip_cls = "ok" if stamped == cur_rules else "warn"
+        mile = milestone_state(proj["path"])
+        mile_chip = (f'<span class="lab {mile[1]}">{e(mile[0])}</span>' if mile else "")
 
         body = []
         for prefix, members in groups:
@@ -292,7 +327,7 @@ def render(write=True):
 
         parts.append(
             f'<section><div class="eyebrow"><span>{e(proj["name"])}</span>'
-            f'<span class="tag"><span class="lab {chip_cls}">{aligned}</span></span></div>'
+            f'<span class="tag"><span class="lab {chip_cls}">{aligned}</span>{mile_chip}</span></div>'
             + "".join(body) + "</section>")
 
     inst = instances()

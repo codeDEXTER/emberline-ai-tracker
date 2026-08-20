@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""milestonecheck -- does this project keep a milestone plan, and is it well-formed?
+
+  milestonecheck [--project DIR]     default: nearest project above cwd
+
+CLAUDE-workflow.md, "And every project keeps a milestone plan": a `## Milestones`
+table in `CLAUDE-checklist.md` carrying, per row, what the step *proves* and what
+the sponsor *gets*. The feature register answers "what is this made of and how
+much is done"; the milestone plan answers "in what order, what does each step
+establish, and when do I get something" -- the question that decides what to do
+next.
+
+WHY THIS IS A CHECKER AND NOT A PARAGRAPH. The rule landed advisory. That is the
+same shape as `bin/proposalcheck`, which sat unconsumed until #107 wired it into
+`land`, and as `rulecheck --quiet`, which sat in a SessionStart hook whose exit
+status stops nothing until the 2026-08-18 alignment gate gave it teeth. A rule
+with no caller is a suggestion wearing the shape of a rule.
+
+WHAT IS CHECKED, AND WHAT DELIBERATELY IS NOT. Structure only:
+
+  - a `## Milestones` section exists and holds a table;
+  - the header carries a Proves column and a You-get column, by any casing;
+  - every row fills both -- an empty Proves is a task masquerading as a
+    milestone, and an empty You-get is the question the sponsor asked for;
+  - states come from the register's vocabulary.
+
+NOT freshness. "In flight for N days" fires on every genuinely slow milestone and
+trains everyone to ignore it; staleness is a judgement and belongs in `bin/pulse`
+where a person can see it, not in an exit code. NOT truth -- nothing here can
+know whether "retrieval is good enough" was actually proven.
+
+"Nothing to hold" IS a valid You-get and must be written. A plan whose first four
+steps deliver nothing visible is a fine plan; the sponsor should be told at the
+start rather than discover it in week three. That is why the column may not be
+blank but may say no.
+
+Exit codes: 0 clean. 1 violations found. 2 nothing to check (no
+CLAUDE-checklist.md under the project).
+"""
+from __future__ import annotations
+
+import argparse
+import pathlib
+import re
+import sys
+
+STATES = {"in flight", "next", "later", "built", "done", "blocked"}
+PROVES = re.compile(r"\bprove", re.I)
+GETS = re.compile(r"\b(you\s*get|sponsor\s*gets?|deliver)", re.I)
+
+
+def find_project(start: pathlib.Path) -> pathlib.Path | None:
+    for d in [start, *start.parents]:
+        if (d / "CLAUDE-checklist.md").is_file():
+            return d
+    return None
+
+
+def split_row(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def check(project: pathlib.Path) -> tuple[int, list[str]]:
+    checklist = project / "CLAUDE-checklist.md"
+    if not checklist.is_file():
+        return 2, [f"no CLAUDE-checklist.md under {project}"]
+
+    text = checklist.read_text(encoding="utf-8", errors="replace")
+    lines = text.splitlines()
+
+    start = next(
+        (i for i, ln in enumerate(lines) if re.match(r"^##\s+Milestones\b", ln.strip(), re.I)),
+        None,
+    )
+    if start is None:
+        return 1, [
+            "no `## Milestones` section in CLAUDE-checklist.md -- "
+            "see CLAUDE-workflow.md, 'And every project keeps a milestone plan'"
+        ]
+
+    body: list[str] = []
+    for ln in lines[start + 1 :]:
+        if ln.strip().startswith("## "):
+            break
+        body.append(ln)
+
+    rows = [ln for ln in body if ln.strip().startswith("|")]
+    if len(rows) < 2:
+        return 1, ["`## Milestones` exists but holds no table"]
+
+    header = [c.lower() for c in split_row(rows[0])]
+    p_idx = next((i for i, c in enumerate(header) if PROVES.search(c)), None)
+    g_idx = next((i for i, c in enumerate(header) if GETS.search(c)), None)
+
+    problems: list[str] = []
+    if p_idx is None:
+        problems.append("the Milestones table has no `Proves` column")
+    if g_idx is None:
+        problems.append("the Milestones table has no `You get` column")
+    if problems:
+        return 1, problems
+
+    data = [r for r in rows[1:] if not set(r.replace("|", "").strip()) <= {"-", ":", " "}]
+    if not data:
+        return 1, ["`## Milestones` has a header but no milestones"]
+
+    for n, row in enumerate(data, start=1):
+        cells = split_row(row)
+        label = cells[1] if len(cells) > 1 and cells[1] else f"row {n}"
+        if p_idx >= len(cells) or not cells[p_idx]:
+            problems.append(f"milestone {label!r}: Proves is empty -- that is a task, not a milestone")
+        if g_idx >= len(cells) or not cells[g_idx]:
+            problems.append(
+                f"milestone {label!r}: You-get is empty -- write 'nothing to hold' if that is the answer"
+            )
+        state = cells[-1].strip().strip("*").lower() if cells else ""
+        if state and not any(s in state for s in STATES):
+            problems.append(f"milestone {label!r}: state {cells[-1]!r} is not one the register uses")
+
+    return (1, problems) if problems else (0, [])
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="milestonecheck", add_help=True)
+    ap.add_argument("--project", default=None)
+    ap.add_argument("--quiet", action="store_true")
+    args = ap.parse_args()
+
+    start = pathlib.Path(args.project).resolve() if args.project else pathlib.Path.cwd()
+    project = start if (start / "CLAUDE-checklist.md").is_file() else find_project(start)
+    if project is None:
+        if not args.quiet:
+            print(f"milestonecheck: no CLAUDE-checklist.md at or above {start}")
+        return 2
+
+    code, notes = check(project)
+    if not args.quiet:
+        if code == 0:
+            print(f"milestonecheck: {project.name} -- milestone plan present and well-formed")
+        else:
+            for nt in notes:
+                print(f"milestonecheck: {nt}")
+    return code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

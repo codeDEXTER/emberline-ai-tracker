@@ -29,6 +29,7 @@
 #   LAND_ALLOW_UNTESTED=1               land code that has no test
 #   LAND_ALLOW_STALE_RULES=1            land from a project behind on common-rules
 #   LAND_ALLOW_UNRECORDED_DECISIONS=1   land a proposal missing its answers
+#   LAND_ALLOW_NO_MILESTONES=1          land a project with no milestone plan
 set -euo pipefail
 
 GIT=git; command -v git >/dev/null 2>&1 || GIT=/Library/Developer/CommandLineTools/usr/bin/git
@@ -217,6 +218,41 @@ land_one() {
       Add the missing id=\"decided\" block (and id=\"exceptions\" for completed in part) to the proposal(s) named above.
       If this branch genuinely must land before that, re-run with
       LAND_ALLOW_UNRECORDED_DECISIONS=1 -- it is recorded in the PR either way."
+            refuse "$msg"
+            return 1
+        fi
+    fi
+
+    # --- the milestone plan exists, and is well-formed ----------------------
+    #
+    # `CLAUDE-workflow.md`, "And every project keeps a milestone plan". Wired
+    # in the same PR that added `bin/milestonecheck` rather than a day later,
+    # which is the whole lesson of the two gates above: #106 shipped
+    # `proposalcheck` with nothing calling it and #107 had to come back and
+    # connect it, and `rulecheck --quiet` sat in a SessionStart hook whose
+    # exit status stops nothing until the 2026-08-18 alignment gate. A checker
+    # with no caller is a suggestion wearing the shape of a rule.
+    #
+    # Same opt-in guard as both gates above, same reason: a project that never
+    # ran `rulecheck --align` never claimed to be governed by these rules.
+    #
+    # Exit codes follow proposalcheck's reading, not rulecheck's: only 1 (an
+    # actual violation) refuses. milestonecheck's 2 is "no CLAUDE-checklist.md
+    # under this project" -- for an adopting project that is a malformed
+    # project rather than a milestone problem, and it is the checklist rule's
+    # business to say so, not this gate's. Folding 2 into "refuse" here would
+    # have this gate reporting someone else's violation in its own words.
+    if [ -f "$stamp_file" ] && [ -x "$RULES_DIR/bin/milestonecheck" ]; then
+        local mc_out mc_rc=0
+        mc_out="$("$RULES_DIR/bin/milestonecheck" --project "$TOP" 2>&1)" || mc_rc=$?
+        if [ "$mc_rc" = 1 ] && [ "${LAND_ALLOW_NO_MILESTONES:-0}" != 1 ]; then
+            local msg
+            msg="this project's milestone plan is missing or malformed -- $mc_out
+      Read $RULES_DIR/CLAUDE-workflow.md, \"And every project keeps a milestone plan\".
+      Add a \`## Milestones\` table to CLAUDE-checklist.md. Every row states what the
+      step *proves* and what you *get* -- 'nothing to hold' is a valid answer, a blank is not.
+      If this branch genuinely must land before that, re-run with
+      LAND_ALLOW_NO_MILESTONES=1 -- it is recorded in the PR either way."
             refuse "$msg"
             return 1
         fi
