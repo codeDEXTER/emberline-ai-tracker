@@ -168,6 +168,39 @@ class StatesComeFromTheRegistersVocabulary(Harness):
                 self.assertEqual(run(self.proj).returncode, 0, f"{state!r} rejected")
 
 
+class AnOptionalTrackColumnIsAllowed(Harness):
+    """The rule permits a `Track` column for a project running parallel work.
+    It is optional, and it may sit anywhere -- including to the right of State,
+    which is what makes reading state positionally a bug rather than a style."""
+
+    def test_a_track_column_does_not_make_a_plan_invalid(self):
+        self.write("# c\n\n## Milestones\n\n"
+                   "| # | Milestone | Proves | You get | Track | State |\n|---|---|---|---|---|---|\n"
+                   "| 1 | Index it | retrieval is good enough | nothing to hold | Correctness | next |\n")
+        self.assertEqual(run(self.proj).returncode, 0)
+
+    def test_a_track_column_to_the_RIGHT_of_state_is_not_read_as_the_state(self):
+        """The regression: `cells[-1]` was the state only while State happened
+        to be the last column. With Track after it, every row's track was read
+        as its state and a valid plan was refused for a vocabulary it never
+        used."""
+        self.write("# c\n\n## Milestones\n\n"
+                   "| # | Milestone | Proves | You get | State | Track |\n|---|---|---|---|---|---|\n"
+                   "| 1 | Index it | retrieval is good enough | nothing to hold | next | Correctness |\n")
+        r = run(self.proj)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("Correctness", r.stdout, "the track was reported as a bad state")
+
+    def test_a_genuinely_bad_state_is_still_caught_when_track_sits_last(self):
+        """The fix must not become a way to smuggle a bad state past the check."""
+        self.write("# c\n\n## Milestones\n\n"
+                   "| # | Milestone | Proves | You get | State | Track |\n|---|---|---|---|---|---|\n"
+                   "| 1 | Index it | retrieval is good enough | nothing to hold | wip | Correctness |\n")
+        r = run(self.proj)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("wip", r.stdout)
+
+
 class NothingToCheckIsNotAFailure(Harness):
 
     def test_a_project_with_no_checklist_exits_2_not_1(self):

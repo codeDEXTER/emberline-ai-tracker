@@ -98,7 +98,16 @@ class LandHarness(unittest.TestCase):
         self.git("add", "-A"); self.git("commit", "-qm", f"work on {name}")
 
     def land(self, env=None):
-        e = dict(os.environ); e.update(env or {})
+        # LAND_ALLOW_STALE_MILESTONE_PAGE is set for the same reason the stamp
+        # is always written at the current rules version above: every case in
+        # this file is isolated to the milestone-plan gate. The tenth gate
+        # (docs/milestones.html is current) fires on a valid plan whose page
+        # was never generated, which is every compliant fixture here -- and a
+        # test that trips a neighbouring gate stops testing its own.
+        # tests/test_milestones_page.py covers that gate on its own terms.
+        e = dict(os.environ)
+        e.setdefault("LAND_ALLOW_STALE_MILESTONE_PAGE", "1")
+        e.update(env or {})
         return subprocess.run([str(LAND), "--check"], cwd=str(self.repo),
                               capture_output=True, text=True, check=False, env=e)
 

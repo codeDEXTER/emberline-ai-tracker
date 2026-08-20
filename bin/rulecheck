@@ -41,7 +41,17 @@ import subprocess
 import sys
 from pathlib import Path
 
-RULES = Path(os.environ.get("COMMON_RULES_DIR", "/Users/the-sponsor/apps/common-rules"))
+# Self-located, not a hardcoded path. The default used to be
+# "/Users/the-sponsor/apps/common-rules" -- correct on exactly one machine, and
+# absent on every CI runner, where `git -C <missing>` fails, current_version()
+# returns None and `--version` exits 2. That errored 11 gate tests on every CI
+# run and was invisible for weeks, because the only place the fallback is ever
+# exercised is a machine where the hardcoded path happens to exist.
+#
+# A script always knows where it lives. COMMON_RULES_DIR still wins when set,
+# which is how the tests point it at a fixture repo.
+RULES = Path(os.environ.get("COMMON_RULES_DIR",
+                            str(Path(__file__).resolve().parent.parent)))
 STAMP = ".common-rules-version"
 # Command Line Tools git, because a pending Xcode licence breaks plain `git`.
 GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
