@@ -189,21 +189,23 @@ A project with no register is reported as **"no features declared"**, never as
 `CLAUDE-checklist.md`: the order of work, and — the column that earns the table —
 **what each step proves**.
 
-| # | Milestone | Proves | State |
-|---|---|---|---|
-| 1 | One corpus indexed, answering a question | retrieval is good enough to build on | done |
-| 2 | The model timed on the real phone | the felt speed, and so the retrieval budget | in flight |
-| 3 | The first real screen, on the device | the design survives contact with a hand | next |
+| # | Milestone | Proves | You get | State |
+|---|---|---|---|---|
+| 1 | One corpus indexed, answering a question | retrieval is good enough to build on | nothing to hold | done |
+| 2 | The model timed on the real phone | the felt speed, and so the retrieval budget | nothing to hold | in flight |
+| 3 | The first real screen, on the device | the design survives contact with a hand | **an app you can use, one corpus** | next |
 
 Same states as the register. The register says what the product is made of; this says
-**what order, and what each step establishes** — the question the register cannot
-answer and the one that decides what to do next.
+**what order, what each step establishes, and when the sponsor gets something he can
+hold.**
 
-**Two disciplines make it worth the row.** A milestone ends in something *proven*, not
-something delivered — "the index builds" is a task, "retrieval is good enough to build
-on" is a milestone. And **the result that would stop the plan is written before the
-work starts**. Written afterwards it is a rationalisation of whatever the data
-happened to say.
+**Three disciplines make it worth the row.** A milestone ends in something *proven*,
+not something delivered — "the index builds" is a task, "retrieval is good enough to
+build on" is a milestone. **The result that would stop the plan is written before the
+work starts**; written afterwards it is a rationalisation of whatever the data
+happened to say. And **every row states what the sponsor gets, including when the
+answer is nothing** — a plan whose first four steps hand him nothing is a fine plan,
+but he should be told that at the start rather than discover it in week three.
 
 Measured on `pocket-internet`, 2026-08-20: the first milestone was five cheap
 verifications named in advance. Three ran — two confirmed an estimate and one

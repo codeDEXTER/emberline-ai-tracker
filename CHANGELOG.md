@@ -16,11 +16,14 @@ carries one of them.
 sharing the register's state vocabulary, with one column the register has no
 equivalent of: **Proves**.
 
-**Two disciplines, and they are the whole point of the rule.** A milestone ends in
+**Three disciplines, and they are the whole point of the rule.** A milestone ends in
 something *proven* rather than delivered — "the index builds" is a task, "retrieval
-is good enough to build on" is a milestone. And the result that would stop the plan
-is written *before* the work starts; written afterwards it is a rationalisation of
-whatever the data happened to say.
+is good enough to build on" is a milestone. The result that would stop the plan is
+written *before* the work starts; written afterwards it is a rationalisation of
+whatever the data happened to say. And **every row states what the sponsor gets,
+including when the answer is nothing** — added the same day on his follow-up, *"add
+checkpoint when will I get what feature in user end"*, which is the question a
+proves-only plan silently refuses to answer.
 
 **The evidence is one day old and it is the reason this is worth a row.** The
 `pocket-internet` plan opened with five cheap verifications named in advance. Three
