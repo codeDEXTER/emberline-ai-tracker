@@ -185,6 +185,52 @@ proposal 08's logbook, and it was rejected for exactly that reason.
 A project with no register is reported as **"no features declared"**, never as
 0% — undeclared scope is a different statement from none of it done.
 
+**And every project keeps a milestone plan.** A `## Milestones` table in the same
+`CLAUDE-checklist.md`: the order of work, and — the column that earns the table —
+**what each step proves**.
+
+| # | Milestone | Proves | You get | State |
+|---|---|---|---|---|
+| 1 | One corpus indexed, answering a question | retrieval is good enough to build on | nothing to hold | done |
+| 2 | The model timed on the real phone | the felt speed, and so the retrieval budget | nothing to hold | in flight |
+| 3 | The first real screen, on the device | the design survives contact with a hand | **an app you can use, one corpus** | next |
+
+Same states as the register. The register says what the product is made of; this says
+**what order, what each step establishes, and when the sponsor gets something he can
+hold.**
+
+**Three disciplines make it worth the row.** A milestone ends in something *proven*,
+not something delivered — "the index builds" is a task, "retrieval is good enough to
+build on" is a milestone. **The result that would stop the plan is written before the
+work starts**; written afterwards it is a rationalisation of whatever the data
+happened to say. And **every row states what the sponsor gets, including when the
+answer is nothing** — a plan whose first four steps hand him nothing is a fine plan,
+but he should be told that at the start rather than discover it in week three.
+
+Measured on `pocket-internet`, 2026-08-20: the first milestone was five cheap
+verifications named in advance. Three ran — two confirmed an estimate and one
+corrected a verdict that had already propagated into two proposals. Twenty minutes,
+and it changed a conclusion that eleven passes of reading had not.
+
+**It is a live document, kept current until the feature is done.** A milestone plan
+that is not maintained is worse than none, because it asserts an order of work that
+has stopped being true and nobody can tell which rows still hold. Three things move
+it, and only three:
+
+- a milestone's **state** changes;
+- a milestone's **proof lands** — and if the result differs from what was predicted,
+  the row records what actually happened rather than being quietly rewritten;
+- the **order changes**, because a proof came back badly enough to reorder what
+  follows.
+
+**Still not a per-task obligation**, same guardrail as the register. Those three
+events happen a handful of times across a whole feature, not once per task, and
+nothing here asks a session to append anything when work lands. This is deliberately
+not proposal 08's logbook, which was rejected for exactly that reason. The test is
+simple: if a session is editing the plan because it *did* something, that is the
+logbook and it is wrong; if it is editing because something is now *known*, that is
+the plan and it is right.
+
 **A question to the user is a cost, not a safety move.** Before asking, check
 whether the answer would change what gets built. If either answer leads to the
 same work, pick one, say which you picked, and continue. A question about

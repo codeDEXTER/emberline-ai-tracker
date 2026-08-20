@@ -40,6 +40,103 @@ advisory-only for a full day (#106) before a session actually hit the gap and #1
 wired it in — this PR ships the check and its tests only; wiring it into `land`'s exit
 code (the same eighth-gate shape #107 added) is a separate, smaller follow-up once
 this lands, not bundled in to keep the diff reviewable.
+## 2026-08-20 · Every project keeps a milestone plan, beside the feature register
+
+Asked for directly (`ASKS.md`, 2026-08-20) after seeing a phased plan for the
+`pocket-internet` idea: *"make a common rule that all projects should maintain a
+common milestone plan like this."*
+
+**Why the feature register was not already enough.** It answers "what is this
+product made of, and how much of it is done" — and the Tower reads it for exactly
+that. It does not answer "in what order, and what does each step establish", which
+is the question that decides what to do next. Two different views; the register
+carries one of them.
+
+**The addition is a `## Milestones` table** in the same `CLAUDE-checklist.md`,
+sharing the register's state vocabulary, with one column the register has no
+equivalent of: **Proves**.
+
+**Three disciplines, and they are the whole point of the rule.** A milestone ends in
+something *proven* rather than delivered — "the index builds" is a task, "retrieval
+is good enough to build on" is a milestone. The result that would stop the plan is
+written *before* the work starts; written afterwards it is a rationalisation of
+whatever the data happened to say. And **every row states what the sponsor gets,
+including when the answer is nothing** — added the same day on his follow-up, *"add
+checkpoint when will I get what feature in user end"*, which is the question a
+proves-only plan silently refuses to answer.
+
+**The evidence is one day old and it is the reason this is worth a row.** The
+`pocket-internet` plan opened with five cheap verifications named in advance. Three
+ran. Two confirmed an estimate; one corrected a claim about a German timetable feed
+that had already propagated into two proposals and would have reached the build.
+Twenty minutes of network time overturned a conclusion that eleven research passes
+of reading had not — because the check had been written down as a thing to prove
+rather than left as a thing to assume.
+
+**And it is a live document.** Asked for in the same conversation: *"this doc should
+always be a live doc maintained till feature completion."* The guardrail against it
+becoming proposal 08's logbook is a test rather than a prohibition — **a session that
+edits the plan because it *did* something is writing a logbook and is wrong; a
+session that edits because something is now *known* is maintaining the plan and is
+right.** Three events move it: a state change, a proof landing (recording what
+actually happened when it differs from the prediction), and a reorder forced by a
+proof. All three are rare across a feature.
+
+**Honest note on the cost.** This is an *addition*, and this file's own rule is that
+a new rule must either replace something or be enforceable by `derecord`. It does
+neither. The argument for it is that it extends a section that did not reach far
+enough rather than opening a new front, and that it inherits the register's
+guardrail verbatim: **not a per-task obligation**, changing only when the order of
+work changes. It is deliberately not proposal 08's logbook, which was rejected for
+being exactly that.
+
+**Effect on adopted projects.** `finance-tracker` and `pockets` have adopted these
+rules; `mac-explorer` and `pip` carry a version file. None has a `## Milestones`
+table today, so all four are now behind this rule until one is added. Nothing
+enforces it — no `derecord` attribute, no `land` gate — so it is advisory in the
+way `rulecheck --quiet` was before 2026-08-18. If it should have teeth, that is a
+second change and a separate PR.
+## 2026-08-20 · The Tower's progress tests no longer depend on what day it is
+
+`tests/test_tower_render.py` has been red on `main` since **2026-08-15**, and
+every branch cut from it inherited the failure. The cause is not the assertion
+that broke; it is the shape of the fixture behind it.
+
+`velocity()` measures a window computed from `datetime.date.today()`. The
+fixture it was measured against was dated absolutely —
+`2026-08-03 / 08-05 / 08-07`. An absolute fixture read through a relative
+window is a time bomb whose fuse is exactly the length of the window: green in
+review, green in CI that afternoon, red a week later with no commit to blame.
+Nobody changed anything on 08-15. The calendar did.
+
+**This is the second time the same test has broken this way.** `ee141e2`
+(2026-08-10, "Fix velocity()'s window fallback; test_tower_render green again")
+re-dated the fixture forward. That reset the fuse; it did not remove it, and it
+went off again five days later. So the fix here is not a third re-dating: the
+fixtures are now anchored to today via a new `_ago(days)` helper, and dated to
+land inside the window by construction. There is no date in them left to age.
+
+**Two more fixtures carried the same trap** and are anchored the same way.
+`CostIsPairedWithMovement.HIST` was the interesting one — it asserts
+`"completed in the last 7 days"` and has been **passing only by accident**,
+via the out-of-window fallback described below. It would have started failing
+the moment that fallback was corrected, in a PR that had nothing to do with it.
+
+Verified by running the class at simulated dates of today +0, +1, +3, +7, +14,
++30, +90 and +365 days: 6 tests, 0 failures at every offset. The same harness
+run against the pre-fix file fails at every offset, so it is measuring
+something.
+
+**Found while fixing this, deliberately NOT fixed here** — `velocity()`
+mislabels stale data rather than declining to report it. When no point falls
+inside the window it falls back to `points[-2:]` and reports that diff under
+the window's label. Points dated 08-01 and 08-02, read on 08-20, render as
+`9 item(s) completed in the last 7 days` — a sentence about the last 7 days
+built from data 18 days old. The fallback was added deliberately in `ee141e2`
+to fix a real problem (a length-1 window silently diffing against itself), so
+correcting it is a judgement about what the Tower should say when a project
+has gone quiet, not a typo. That is the user's call and is being asked
+separately.
 
 ## 2026-08-19 · `bin/land` now consumes `bin/proposalcheck`'s exit code
 
