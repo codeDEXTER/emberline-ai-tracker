@@ -76,6 +76,62 @@ worktree for the first time.
 never fixed) takes the same `apps_dir()` in one line. It is left out of
 scope deliberately rather than swept in; the full run reports
 `OK (skipped=1)` and that skip is it. Suite: 236 tests.
+## 2026-08-23 · A milestone that explains why it hands nothing over is no longer counted as a delivery
+
+*Ask, verbatim: "fix the milestones count bug."*
+
+Found while piloting proposal 16 against finance-tracker's real plan.
+`bin/milestones` decided whether a row hands something to the sponsor by
+testing the You-get cell for **equality** against a fixed refusal vocabulary
+(`^(nothing( to hold| yet)?|none|no|n/?a|—|-)$`). A row that merely *said*
+"nothing to hold" passed. A row that said **why** did not.
+
+So the meter answering "when do I get something" was inflated by exactly the
+rows that were most careful about saying they gave nothing. finance-tracker's
+money-correctness row — the one row whose entire point is that the sponsor
+holds nothing until the figures are trusted — reads `nothing to hold — this is
+the floor everything else stands on`, and has been counted as a deliverable for
+the whole life of that plan. Measured: its 13-row plan reported `13 hand
+something over`, and now reports 12; the 16-row pilot plan reported 16 and now
+reports 13.
+
+The rule requires the column be written rather than left blank *precisely so
+that "no" can be said out loud*. Punishing a row for saying it well inverts the
+rule it was built to serve.
+
+**The fix is a prefix match, not a wider vocabulary**: a refusal word, then
+either the end of the cell or a punctuation mark introducing the explanation.
+The punctuation requirement is the whole safety of the widening — it is what
+keeps a genuine deliverable that merely *starts* with one of those words ("no
+more waiting for the book to open") from being swallowed as a refusal. Both
+cases are pinned by tests, and the explained-nothing test was confirmed red
+against the old regex before the fix.
+
+**Two consequences worth stating.**
+
+The digest hashes the parsed rows, and `deliver` is one of them — so every
+adopting project's committed `docs/milestones.html` is now stale and
+`bin/land`'s `--check` gate will say so until it is regenerated. That is the
+gate working: a page showing the wrong count should fail loudly rather than
+pass quietly.
+
+`bin/tower`'s `milestone_delivers()` carries the **same bug by an independent
+route** — set membership against the same vocabulary, with a docstring
+describing precisely the case it gets wrong. The sponsor asked for the two to
+match. **They cannot be made to match from a clean branch**: that function
+exists only in `ac3d3f4`, an unpushed commit in the shared
+`/Users/aashish/apps/common-rules` checkout, under a further 130 uncommitted
+lines of in-progress work. It is absent from `origin/main` entirely. Editing
+it means editing an unreconciled working tree, which would put real
+in-progress work at risk to fix a dormant bug.
+
+So the matching is set up rather than done. `hands_something_over()` is now a
+**public function** in `bin/milestones` — the one definition of this predicate.
+When that Tower work is reconciled and pushed, `milestone_delivers()` should
+call it (`bin/tower` already loads `bin/pulse` and `bin/spend` this way, so the
+pattern is established) rather than get a second corrected copy of the
+vocabulary. Two independent implementations is exactly how one predicate came
+to be wrong in two places, each with a comment describing the case it missed.
 
 ## 2026-08-20 · The milestone/feature vocabulary gets `completed`, matching proposal-status
 
