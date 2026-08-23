@@ -1,5 +1,52 @@
 # Changelog — common-rules
 
+## 2026-08-20 · The workflow bake-off becomes proposal 17
+
+The collision the check above found, fixed. `08` was claimed by two documents
+since 2026-08-07 and the ambiguity has been live ever since.
+
+**Which one keeps 08 was read, not chosen.** `08-proposal-work-packages.html`
+("The Tower keeps the record") was added 2026-08-06 in #37; the bake-off
+followed a day later in #47. More decisive than the dates: **ten passages in
+`CLAUDE-workflow.md` and this changelog say "proposal 08", and every one of
+them means the work-packages document** — "not proposal 08's logbook, which was
+rejected for exactly that reason", "no forecast of any kind (proposal 08
+refused an ETA)". That document says *logbook* twelve times; the bake-off says
+it zero times. So the number has effectively belonged to one of them in prose
+for two weeks, and moving the other one breaks no reference anywhere in the
+repo.
+
+**The bake-off had been invisible, and the collision is why.**
+`docs/proposals/README.md` is keyed by number and carries one row for `08` —
+the work-packages one. The bake-off has never appeared in the index at all. It
+is the proposal behind "Ceremony is opt-in", whose measurement (five arms, one
+frozen spec, 22/22 for all five, 2.4×–22.7× cost spread) is the evidence that
+rule tells people to argue against. Findable now.
+
+**Its Decided cell reads `—` rather than a date.** The document carries no
+`<meta name="proposal-decided">`, and the index's own header says the documents
+win where the two disagree. Writing 2026-08-07 there because that is when the
+PR merged would assert a decision date the record does not carry.
+
+**A test that cannot skip.** `test_this_repo_is_free_of_collisions` names
+`ROOT` directly instead of resolving through `apps_dir()`, because this is the
+repository the suite lives in: always present, so it can never quietly pass by
+finding nothing. That matters here more than elsewhere — common-rules carries
+no `.common-rules-version`, so every gate in `bin/land` skips it, and the rules
+repo is the one place a violation of its own rules cannot be refused. A test is
+the only mechanism that reaches it. Verified by restoring the old number: the
+new test fails, alone.
+
+**Two things left alone, and named rather than quietly fixed.** The index still
+stops at 14 — proposals 15 and 16 are missing from it too, and it claims to be
+"derived from the documents" while no generator exists to derive it. Its status
+vocabulary line is also behind the rules it points at (`draft`, `rejected`,
+`superseded-by NN` with a hyphen; no `completed` or `completed in part`). Both
+are real, both are wider than a renumber, and backfilling them under cover of
+this change would put unreviewed edits in a records file.
+
+Suite: 249 tests.
+
 ## 2026-08-20 · A proposal number is claimed by exactly one document
 
 "Number every proposal" has said *"numbered sequentially per project, never
