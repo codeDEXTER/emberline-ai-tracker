@@ -186,6 +186,48 @@ def check_proposal(path: Path, text: str) -> list[str]:
     return violations
 
 
+def collisions(documents: list[tuple[Path, str]]) -> list[str]:
+    """Violations for proposal numbers claimed by more than one document.
+
+    CLAUDE-workflow.md, "Number every proposal": numbered sequentially per
+    project, *never reused*. Nothing checked the second half. Three collisions
+    already existed in finance-tracker (ids 14, 15 and 20) and were found only
+    because someone was reading every proposal for an unrelated reason -- both
+    documents of every colliding pair passed every check this tool had.
+
+    A collision is worse than an ordinary violation because it breaks every
+    reference *to* a proposal at once: `proposal-part-of` names an id, the
+    shared rules cite proposals by number, and the Tower groups a topic's
+    pages by it. When two documents answer to "14", each of those is ambiguous
+    and nothing says so.
+
+    NOT GRANDFATHERED, unlike every other rule here, and the difference is in
+    kind rather than in leniency. The other rules are grandfathered because a
+    proposal's history cannot be honestly reconstructed after the fact --
+    inventing the answers would misstate it worse than the gap does. A
+    collision is a live ambiguity, not a missing record, and renumbering fixes
+    it exactly. Measured when this landed: zero collisions across every
+    adopting project, one in common-rules itself.
+
+    A document carrying no `proposal-id` at all does not participate. Absent
+    is not a value -- pip's 02a/02b are two sections with no id, and bucketing
+    them together would fail a project on day one for a rule about *reuse*,
+    which is how a check gets disabled.
+    """
+    claimed: dict[str, list[str]] = {}
+    for path, text in documents:
+        pid = meta(text, "id")
+        if pid is None:
+            continue
+        claimed.setdefault(pid, []).append(path.name)
+
+    return [f'proposal id "{pid}" is claimed by {len(names)} documents: '
+            + ", ".join(sorted(names))
+            # One line per id, not one per document: a two-way collision is
+            # one thing wrong, and counting it twice inflates the total.
+            for pid, names in sorted(claimed.items()) if len(names) > 1]
+
+
 def find_project(start: Path) -> Path:
     """Nearest ancestor holding a CLAUDE.md or a .git -- same shape as rulecheck."""
     p = start.resolve()
@@ -207,17 +249,34 @@ def main() -> int:
         print(f"{proj.name}: no docs/proposals/ -- nothing to check.")
         return 2
 
+    documents = [(path, path.read_text(encoding="utf-8", errors="replace"))
+                 for path in sorted(proposals_dir.glob("*.html"))]
+
     total_violations = 0
-    for path in sorted(proposals_dir.glob("*.html")):
-        text = path.read_text(encoding="utf-8", errors="replace")
+    for path, text in documents:
         for v in check_proposal(path, text):
             print(f"{path.name}: {v}")
             total_violations += 1
 
+    # Project-level, so it runs over the whole set rather than per document.
+    for v in collisions(documents):
+        print(v)
+        total_violations += 1
+
     if total_violations:
         print(f"\n{total_violations} violation(s) in {proj.name}.")
         return 1
-    print(f"{proj.name}: every proposal that asked decisions recorded them.")
+
+    # Say what was actually looked at, not what the rule is about. This line
+    # read "every proposal that asked decisions recorded them" whatever it had
+    # examined -- and across common-rules' own proposals, none carries a
+    # decisions list, so it was vacuously true for the tool's whole life while
+    # reading as a clean pass. The exit code already separates "checked and
+    # clean" from "could not check" (2); the sentence a person reads did not
+    # separate "checked and clean" from "there was nothing to check".
+    asked = sum(1 for _, text in documents if asks_decisions(text))
+    print(f"{proj.name}: {len(documents)} proposal(s), {asked} asked decisions "
+          f"-- no violations.")
     return 0
 
 
