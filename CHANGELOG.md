@@ -1,5 +1,65 @@
 # Changelog — common-rules
 
+## 2026-08-20 · A proposal number is claimed by exactly one document
+
+"Number every proposal" has said *"numbered sequentially per project, never
+reused"* since it was written. Nothing checked the second half.
+
+**Three collisions already existed and were found by accident.** Auditing four
+projects for the lead/section rule turned up finance-tracker ids 14, 15 and 20,
+each claimed by two different documents — surfaced only because somebody was
+reading every proposal for an unrelated reason. `proposalcheck` validated that
+decisions were recorded and that a lead carried a status, and passed both
+documents of every colliding pair. A fourth is live in this repo today: `08` is
+claimed by both `08-proposal-work-packages.html` and
+`08-proposal-workflow-bakeoff.html`.
+
+**A collision is worse than an ordinary violation because it breaks every
+reference *to* a proposal at once.** `proposal-part-of` names an id, the shared
+rules cite proposals by number, and the Tower groups a topic's pages by it.
+When two documents answer to "14", each of those is ambiguous and nothing says
+so.
+
+**Not grandfathered, and the difference is in kind rather than in leniency.**
+Every other rule here is date-floored because a proposal's history cannot be
+honestly reconstructed — inventing the answers would misstate it worse than the
+gap does. A collision is a live ambiguity, not a missing record, and
+renumbering fixes it exactly. Blast radius, measured: **zero collisions across
+finance-tracker, pockets, pip and mac-explorer; one in common-rules itself** —
+which `bin/land` does not gate, because this repo carries no
+`.common-rules-version`. So the one violation the new check finds is in the one
+place the gate cannot fire, which is proposal 16's *Where D5 lands* happening
+in real time rather than in the abstract.
+
+**Absent is not a value.** A document with no `proposal-id` does not
+participate. pip's `02a`/`02b` are two sections carrying none, and bucketing
+them together would have failed a project on day one for a rule about *reuse* —
+which is how a check gets disabled. Pinned by a test.
+
+**Real sections settled a design question the fixtures had hidden.** All 14 of
+finance-tracker's sections carry their *own* id and point at the lead through
+`part-of` — 33 through 38 all sit `part-of 32`. So a lead and its sections
+never share a number, and the check needs no exemption for them. This surfaced
+because `tests/test_proposal_lifecycle.py`'s `proposal()` helper hardcoded
+`content="01"` for every document it built, which made every two-document
+fixture a collision the moment collisions became checkable. The helper takes a
+`pid` now; the answer came from measuring the real files rather than deciding
+what a section ought to do.
+
+**The summary line now says what was looked at.** It read *"every proposal that
+asked decisions recorded them"* whatever it had examined — and across
+common-rules' sixteen proposals, pockets' nineteen, pip's four and
+mac-explorer's one, **not one carries a decisions list at all.** That sentence
+has been vacuously true for the tool's whole life while reading as a clean
+pass. Only finance-tracker has ever given it anything to check: 7 of 38. The
+exit code already separated "checked and clean" from "could not check" (2); the
+line a person reads did not separate "checked and clean" from "there was
+nothing to check". It now reports both counts. Reporting only — the exit code is
+unchanged, because a vacuous pass is not a violation.
+
+Verified by reverting `bin/proposalcheck`: 5 of the 10 new tests fail.
+`tests/test_proposal_ids.py` (10). Suite: 248 tests.
+
 ## 2026-08-20 · The real-project checks stop skipping where they are run
 
 **Follow-up, same PR: the third instance is fixed too.**
