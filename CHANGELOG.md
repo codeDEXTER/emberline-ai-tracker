@@ -1,5 +1,81 @@
 # Changelog — common-rules
 
+## 2026-08-20 · The real-project checks stop skipping where they are run
+
+**Follow-up, same PR: the third instance is fixed too.**
+`test_rulecheck.RealProjectsStillCheck` — raised in #113, left unfixed there,
+and named as out of scope when this branch opened — now takes the same
+`apps_dir()`. It carried a second bug the resolution had been hiding: its
+`skipTest` sat *outside* the `subTest`, so the first absent project aborted the
+whole test and the remaining three were never looked at even when present.
+Since `ROOT.parent` made the first one always absent, that was every run.
+
+**The helper is one module, not a copy in each.** `tests/projects.py`, imported
+by both, with `tests/test_projects.py` pinning it. Two copies of a path rule is
+how the two drift, and this is the rule that has now been got wrong three times
+in two days. It is not named `test_*.py`, so `discover` does not collect it;
+both callers put `tests/` on `sys.path` explicitly so the suite runs the same
+way under `discover -s tests` and under an explicit `tests.test_x` module path.
+
+**The structural guard widened with it** — it now scans every `*.py` in `tests/`
+rather than only its own file, which is what makes it catch a regression in a
+module other than the one it lives in. Verified: reverting `test_rulecheck`
+alone gives `FAILED (failures=1, skipped=1)`, the failure naming
+`test_rulecheck.py:196` from a guard in `test_projects.py`.
+
+**The suite now has no skips at all.** It reported `OK (skipped=1)` for as long
+as this bug existed, and that skip was the bug describing itself.
+
+
+`tests/test_proposal_lifecycle.py` resolved the projects it reads as
+`ROOT.parent` — `/Users/the-sponsor/apps` from the main checkout, and
+`.worktrees/` from a task worktree, where it holds no projects at all. So
+both blast-radius checks found nothing and passed.
+
+**That is both places the suite is actually run.** `bin/land` tests the
+branch worktree; CI checks out a repo with no siblings. The checks could
+only ever fail in the one place nobody runs them — the same sentence
+#113 wrote about `test_rulecheck`'s copy of this bug, still true a day
+later in a second file.
+
+**One of the two was worse than a skip.** The pockets/pip loop used
+`continue`, not `skipTest`, so it ran zero assertions and reported `ok` —
+indistinguishable from a run that had actually read both projects. The
+finance-tracker one at least announced itself. Both now skip out loud,
+per project, inside their `subTest`.
+
+**The resolution is read, not assumed.** `apps_dir()` asks
+`git rev-parse --git-common-dir`, which names the *main* checkout's `.git`
+from inside a worktree as readily as from the checkout itself. This is the
+corrected form of what `ROOT.parent` was reaching for, not a new policy —
+`bin/milestones` and `bin/pulse` name `/Users/the-sponsor/apps` outright and
+are right to: `--all` has to find every project on this Mac, which is a
+claim about the machine. A test needs the projects beside *this* checkout,
+which is a fact about the repo. Outside a git repository it returns None
+and the callers skip rather than resolve something arbitrary.
+
+**Asserting that the checks pass proves nothing — they pass hardest when
+they are skipping.** So the guard is structural, in the shape #116 used for
+its baked-in home directory: no `ROOT`+`.parent` on any line of the file.
+The forbidden token is assembled at runtime so the guard is not a hit for
+itself, and backticked prose is exempt so the docstrings can explain the
+bug they guard against. Alongside it, a hermetic test builds its own
+`<apps>/<repo>/.worktrees/<name>` layout and asserts the answer from both
+ends, rather than depending on this Mac having one — a regression test that
+needs the real machine stops testing the moment it runs anywhere else,
+which is the bug.
+
+**Verified by reverting**, and the numbers say it exactly: reverted, from a
+worktree, the file reports `FAILED (failures=1, skipped=1)` — the guard
+fails and the vacuity shows as the skip. Fixed, it reports 27 tests, **0
+skipped**, having genuinely read finance-tracker, pockets and pip from a
+worktree for the first time.
+
+**The third instance is untouched and is now the suite's only skip.**
+`test_rulecheck.RealProjectsStillCheck` (`ROOT.parent`, raised in #113 and
+never fixed) takes the same `apps_dir()` in one line. It is left out of
+scope deliberately rather than swept in; the full run reports
+`OK (skipped=1)` and that skip is it. Suite: 236 tests.
 ## 2026-08-23 · A milestone that explains why it hands nothing over is no longer counted as a delivery
 
 *Ask, verbatim: "fix the milestones count bug."*

@@ -25,6 +25,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RULECHECK = ROOT / "bin" / "rulecheck"
+
+# Resolving the real projects lives in one place -- see tests/projects.py for
+# why it is read from git rather than derived from this file's location.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from projects import apps_dir  # noqa: E402
 STAMP = ".common-rules-version"
 POINTER = "Shared workflow rules: ../common-rules/CLAUDE-workflow.md — read it.\n"
 
@@ -193,12 +198,15 @@ class RealProjectsStillCheck(unittest.TestCase):
     """Guard against a fix that quietly stops checking everything."""
 
     def test_the_adopting_projects_are_still_recognised(self):
-        apps = ROOT.parent
+        apps = apps_dir()
         for name in ("finance-tracker", "pockets", "pip", "mac-explorer"):
-            p = apps / name
-            if not p.exists():
-                self.skipTest(f"{name} not present on this machine")
+            # Inside the subTest, so a project that is genuinely absent skips
+            # only itself. Outside it, the first miss aborted the whole test
+            # and the remaining three were never looked at even when present.
             with self.subTest(project=name):
+                p = apps / name if apps else None
+                if p is None or not p.exists():
+                    self.skipTest(f"{name} not present beside {apps}")
                 r = run(p)
                 self.assertNotIn("does not adopt", verdict(r.stdout),
                                  f"{name} adopts the rules but was skipped")

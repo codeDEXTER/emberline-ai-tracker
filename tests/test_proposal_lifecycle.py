@@ -28,6 +28,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PROPOSALCHECK = ROOT / "bin" / "proposalcheck"
 
+# Resolving the real projects lives in one place -- see tests/projects.py for
+# why it is read from git rather than derived from this file's location.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from projects import apps_dir  # noqa: E402
+
 BEFORE_FLOOR = "2026-08-10"   # < EFFECTIVE_DATE (2026-08-19) in proposalcheck
 ON_FLOOR = "2026-08-19"
 AFTER_FLOOR = "2026-08-20"
@@ -185,9 +190,10 @@ class ProposalLifecycleTests(unittest.TestCase):
         this rule's floor -- so landing the rule blocks nothing retroactively.
         Guards against a fix that quietly re-tightens the floor and starts
         failing history."""
-        proj = ROOT.parent / "finance-tracker"
-        if not proj.exists():
-            self.skipTest("finance-tracker not present on this machine")
+        apps = apps_dir()
+        proj = apps / "finance-tracker" if apps else None
+        if proj is None or not proj.exists():
+            self.skipTest(f"finance-tracker not present beside {apps}")
         r = run(proj)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
@@ -297,11 +303,15 @@ class ProposalIsEitherAProposalOrAnArtifactTests(unittest.TestCase):
         """Every non-compliant lead in pockets and pip today was decided (or
         undated) before this rule's floor -- guards against a fix that
         quietly re-tightens the floor and starts failing history."""
+        apps = apps_dir()
         for name in ("pockets", "pip"):
-            proj = ROOT.parent / name
-            if not proj.exists():
-                continue
             with self.subTest(project=name):
+                proj = apps / name if apps else None
+                # `continue` here reported `ok` after asserting nothing, which
+                # is indistinguishable from a run that actually checked the
+                # project. A skip at least says so out loud.
+                if proj is None or not proj.exists():
+                    self.skipTest(f"{name} not present beside {apps}")
                 r = run(proj)
                 self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
