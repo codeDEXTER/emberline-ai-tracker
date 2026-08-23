@@ -1,5 +1,51 @@
 # Changelog — common-rules
 
+## 2026-08-23 · A milestone that explains why it hands nothing over is no longer counted as a delivery
+
+*Ask, verbatim: "fix the milestones count bug."*
+
+Found while piloting proposal 16 against finance-tracker's real plan.
+`bin/milestones` decided whether a row hands something to the sponsor by
+testing the You-get cell for **equality** against a fixed refusal vocabulary
+(`^(nothing( to hold| yet)?|none|no|n/?a|—|-)$`). A row that merely *said*
+"nothing to hold" passed. A row that said **why** did not.
+
+So the meter answering "when do I get something" was inflated by exactly the
+rows that were most careful about saying they gave nothing. finance-tracker's
+money-correctness row — the one row whose entire point is that the sponsor
+holds nothing until the figures are trusted — reads `nothing to hold — this is
+the floor everything else stands on`, and has been counted as a deliverable for
+the whole life of that plan. Measured: its 13-row plan reported `13 hand
+something over`, and now reports 12; the 16-row pilot plan reported 16 and now
+reports 13.
+
+The rule requires the column be written rather than left blank *precisely so
+that "no" can be said out loud*. Punishing a row for saying it well inverts the
+rule it was built to serve.
+
+**The fix is a prefix match, not a wider vocabulary**: a refusal word, then
+either the end of the cell or a punctuation mark introducing the explanation.
+The punctuation requirement is the whole safety of the widening — it is what
+keeps a genuine deliverable that merely *starts* with one of those words ("no
+more waiting for the book to open") from being swallowed as a refusal. Both
+cases are pinned by tests, and the explained-nothing test was confirmed red
+against the old regex before the fix.
+
+**Two consequences worth stating.**
+
+The digest hashes the parsed rows, and `deliver` is one of them — so every
+adopting project's committed `docs/milestones.html` is now stale and
+`bin/land`'s `--check` gate will say so until it is regenerated. That is the
+gate working: a page showing the wrong count should fail loudly rather than
+pass quietly.
+
+`bin/tower`'s `milestone_delivers()` carries the **same bug by an independent
+route** — set membership against the same vocabulary, with a docstring
+describing precisely the case it gets wrong. It is knowingly left alone: the
+sponsor has deprioritised the Tower ("forget about tower app, not imp"). The
+two now disagree on the same table, which is a real if dormant trap, and is
+recorded here rather than left to be rediscovered.
+
 ## 2026-08-20 · The milestone/feature vocabulary gets `completed`, matching proposal-status
 
 *Ask, verbatim: "I think we need some sort of that vocabulary that tells if a
