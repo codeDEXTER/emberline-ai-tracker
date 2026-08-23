@@ -92,6 +92,18 @@ NOTHING = re.compile(
     rf"^\s*(?:[—–-]|(?:{_NO})\b\s*(?:[—–\-,;:.(].*)?)\s*$", re.I | re.S)
 
 
+def hands_something_over(you_get: str) -> bool:
+    """Does this You-get cell promise the sponsor something he can hold?
+
+    Public on purpose. Any other reader of the milestone table -- a dashboard,
+    a report, a second generator -- must call this rather than keep its own
+    copy of the vocabulary. Two independent implementations of this one
+    predicate is not hypothetical: it already happened, both got the same case
+    wrong, and both carried a comment describing the case they got wrong.
+    """
+    return bool(you_get) and not NOTHING.match(you_get.strip().strip("*"))
+
+
 def split_row(line: str) -> list[str]:
     return [c.strip() for c in line.strip().strip("|").split("|")]
 
@@ -137,7 +149,7 @@ def parse(checklist: pathlib.Path):
         gt = cell("gt")
         out.append({
             "t": cell("t"), "pv": cell("pv"), "gt": gt, "tr": cell("tr").strip("*") or "",
-            "s": cls, "deliver": bool(gt) and not NOTHING.match(gt.strip().strip("*")),
+            "s": cls, "deliver": hands_something_over(gt),
         })
     return out or None
 

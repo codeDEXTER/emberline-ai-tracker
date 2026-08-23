@@ -41,10 +41,21 @@ pass quietly.
 
 `bin/tower`'s `milestone_delivers()` carries the **same bug by an independent
 route** — set membership against the same vocabulary, with a docstring
-describing precisely the case it gets wrong. It is knowingly left alone: the
-sponsor has deprioritised the Tower ("forget about tower app, not imp"). The
-two now disagree on the same table, which is a real if dormant trap, and is
-recorded here rather than left to be rediscovered.
+describing precisely the case it gets wrong. The sponsor asked for the two to
+match. **They cannot be made to match from a clean branch**: that function
+exists only in `ac3d3f4`, an unpushed commit in the shared
+`/Users/aashish/apps/common-rules` checkout, under a further 130 uncommitted
+lines of in-progress work. It is absent from `origin/main` entirely. Editing
+it means editing an unreconciled working tree, which would put real
+in-progress work at risk to fix a dormant bug.
+
+So the matching is set up rather than done. `hands_something_over()` is now a
+**public function** in `bin/milestones` — the one definition of this predicate.
+When that Tower work is reconciled and pushed, `milestone_delivers()` should
+call it (`bin/tower` already loads `bin/pulse` and `bin/spend` this way, so the
+pattern is established) rather than get a second corrected copy of the
+vocabulary. Two independent implementations is exactly how one predicate came
+to be wrong in two places, each with a comment describing the case it missed.
 
 ## 2026-08-20 · The milestone/feature vocabulary gets `completed`, matching proposal-status
 
