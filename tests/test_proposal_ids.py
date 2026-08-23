@@ -183,6 +183,23 @@ class TheRealProjectsHaveNoCollisions(unittest.TestCase):
     """The measured blast radius, pinned. Guards against a fix that quietly
     stops looking -- and against a project acquiring a collision unnoticed."""
 
+    def test_this_repo_is_free_of_collisions(self):
+        """common-rules itself, which no other check here reaches. It carries
+        no `.common-rules-version`, so every gate in `bin/land` skips it --
+        the rules repo is the one place a violation of its own rules cannot
+        be refused. This ran red until 2026-08-20, when `08` was claimed by
+        both `08-proposal-work-packages.html` (the logbook proposal, which
+        ten passages in CLAUDE-workflow.md and the changelog call "proposal
+        08") and the workflow bake-off, since renumbered to 17.
+
+        Named directly rather than resolved through apps_dir(): this is the
+        repository the suite lives in, so it is always present and this check
+        can never quietly skip -- which is the whole complaint against the
+        gate that cannot fire here."""
+        r = run(ROOT)
+        self.assertNotIn("is claimed by", r.stdout,
+                         "common-rules has a proposal-id collision")
+
     def test_adopting_projects_are_free_of_collisions(self):
         apps = apps_dir()
         for name in ("finance-tracker", "pockets", "pip", "mac-explorer"):
