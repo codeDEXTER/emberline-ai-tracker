@@ -1,8 +1,9 @@
-<title>16 · proposed · A proposal declares the milestones it creates, and its status follows from them</title>
+<title>16 · accepted · A proposal declares the milestones it creates, and its status follows from them</title>
 <meta name="proposal-id" content="16">
 <meta name="proposal-topic" content="proposal-milestone-pipeline">
 <meta name="proposal-type" content="design-concept">
-<meta name="proposal-status" content="proposed">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-08-23">
 <style>
   :root {
     --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
@@ -71,11 +72,11 @@
 
 <div class="page">
   <div class="brand"><span>common-rules</span><span>Proposal 16 · 20 August 2026</span></div>
-  <p class="proposal-kicker" style="opacity:.55;font-size:.78em;letter-spacing:.06em;text-transform:uppercase;margin:0 0 .35em;">16 · proposed</p>
+  <p class="proposal-kicker" style="opacity:.55;font-size:.78em;letter-spacing:.06em;text-transform:uppercase;margin:0 0 .35em;">16 · accepted · decided 23 August 2026</p>
   <h1>A proposal declares the milestones it creates, and its status follows from them</h1>
 
   <!-- proposal-status:start -->
-  <p style="margin:14px 0 20px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;line-height:1.4"><span style="display:inline-block;padding:3px 10px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;white-space:nowrap;background:#B4761E;color:#FFFFFF">proposed</span><span style="display:inline-block;padding:3px 10px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;white-space:nowrap;border:1px solid currentColor;opacity:.55;font-weight:600">design-concept</span><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;opacity:.6;letter-spacing:.02em">Proposal 16 · topic: proposal-milestone-pipeline · redrafted 23 August 2026 after the pilot</span></p>
+  <p style="margin:14px 0 20px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;line-height:1.4"><span style="display:inline-block;padding:3px 10px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;white-space:nowrap;background:#2E7D5B;color:#FFFFFF">accepted</span><span style="display:inline-block;padding:3px 10px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;white-space:nowrap;border:1px solid currentColor;opacity:.55;font-weight:600">design-concept</span><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;opacity:.6;letter-spacing:.02em">Proposal 16 · topic: proposal-milestone-pipeline · redrafted 23 August 2026 after the pilot</span></p>
   <!-- proposal-status:end -->
 
   <p class="standfirst">The sponsor's observation, 2026-08-20: <em>"each proposal is a feature where all the
@@ -385,5 +386,59 @@
     <p class="note" style="margin-top:18px">Adjacent to <a href="15-proposal-milestones-and-proposals.html">proposal
     15</a>, which puts milestones and proposals side by side on one surface — that one is about <em>showing</em>
     them; this one is about <em>linking</em> them so one can be derived from the other.</p>
+  </section>
+
+  <section id="decided">
+    <p class="eyebrow">Decided <span class="tag">23 August 2026 · the sponsor</span></p>
+
+    <p>The sponsor, 2026-08-23: <em>"proposal sixteen is a go ahead."</em> Accepted as a whole, on the
+    recommendations as they stand in this redraft — <strong>not answered decision by decision</strong>. That
+    distinction is recorded rather than smoothed over: where a recommendation was revised by the pilot, what was
+    accepted is the revised form, and the one sub-question D4 leaves open is still open.</p>
+
+    <div class="tablewrap"><table>
+      <tr><th>#</th><th>Decision</th><th>Answer</th><th>As accepted</th></tr>
+
+      <tr><td class="k">D1</td><td>Adopt the link at all</td><td class="k">Yes</td>
+        <td>An accepted proposal that authorises building declares the milestones it creates; a milestone row
+        cites its proposal where it has one.</td></tr>
+
+      <tr><td class="k">D2</td><td>How a decision becomes a stage</td><td class="k">Yes — as a heuristic</td>
+        <td><strong>Three buckets, never a gate.</strong> Stage, parameter, and neither. A decision in the third
+        bucket is recorded as such and stops there. 19% of real decisions land there, and the first draft
+        misclassified its own worked example, so the test advises and never refuses.</td></tr>
+
+      <tr><td class="k">D3</td><td>Milestones without proposals stay legal</td><td class="k">Yes</td>
+        <td>A milestone may arise from a review, an audit, or the sponsor directly, and says so instead of naming
+        a proposal. 3 of 16 rows have none, including the two hardest in the plan.</td></tr>
+
+      <tr><td class="k">D4</td><td>Terminal status is computed, not typed</td><td class="k">Yes — with both revisions</td>
+        <td>Derive across the <strong>whole</strong> terminal vocabulary, not two words of it. Zero declared
+        milestones computes to <code>unanswerable</code>, never to <code>completed</code>.</td></tr>
+
+      <tr><td class="k">D5</td><td>Is it enforced?</td><td class="k">Yes — only on condition</td>
+        <td><strong>No checker is wired into <code>bin/land</code> that can exit 0 on a corpus it could not
+        examine.</strong> Exit 2 on an empty corpus, using the <code>0</code>/<code>1</code>/<code>2</code>
+        convention <code>proposalcheck</code> and <code>milestonecheck</code> already share. Without that
+        condition, D5 is refused.</td></tr>
+
+      <tr><td class="k">D6</td><td>Retrofit, or new proposals only?</td><td class="k">New only</td>
+        <td>A date floor of 2026-08-23. No back-filling of milestone declarations into proposals already
+        accepted — that would be editing a proposal after its decisions were recorded.</td></tr>
+    </table></div>
+
+    <div class="verdict warn">
+      <b>Still open, and deliberately not answered here</b>
+      D4 asks what a proposal computes to when its only declared milestone is <code>next</code>. Not started is
+      not <code>completed in part</code>, and the terminal vocabulary has no word for it. Blanket acceptance does
+      not answer a question the proposal itself left open, so it stays open. Whoever implements D4 raises it
+      rather than picking one — the whole point of this proposal is that a status nobody decided should not
+      quietly assert something.
+    </div>
+
+    <p class="note">First consequence, recorded here so the claim is checkable: proposal 39 (finance-tracker,
+    the income and spending surface) is the first proposal in either repo written under D1, and therefore the
+    first to declare its own milestones. Every one of the 54 proposals across both repos before it declares
+    none.</p>
   </section>
 </div>
