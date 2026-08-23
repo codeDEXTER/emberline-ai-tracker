@@ -48,10 +48,12 @@ what a section ought to do.
 
 **The summary line now says what was looked at.** It read *"every proposal that
 asked decisions recorded them"* whatever it had examined — and across
-common-rules' sixteen proposals, pockets' nineteen, pip's four and
-mac-explorer's one, **not one carries a decisions list at all.** That sentence
-has been vacuously true for the tool's whole life while reading as a clean
-pass. Only finance-tracker has ever given it anything to check: 7 of 38. The
+pockets' nineteen proposals, pip's four and mac-explorer's one, **not one
+carries a decisions list at all**, and common-rules' sixteen carry exactly one
+— proposal 16, merged hours ago. That sentence has been vacuously true for
+those three projects for the tool's whole life while reading as a clean pass,
+and was true of this repo too until today. Only finance-tracker has ever
+really given it anything to check: 7 of 38. The
 exit code already separated "checked and clean" from "could not check" (2); the
 line a person reads did not separate "checked and clean" from "there was
 nothing to check". It now reports both counts. Reporting only — the exit code is
