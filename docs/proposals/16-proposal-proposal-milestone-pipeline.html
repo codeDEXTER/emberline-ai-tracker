@@ -240,6 +240,57 @@
   </section>
 
   <section>
+    <p class="eyebrow">The cost case <span class="tag">found 2026-08-23, in finance-tracker's own book</span></p>
+
+    <p>Everything above argues this proposal from tidiness — statuses that ought to be derivable, exceptions
+    lists that ought to write themselves. Three days after it was written, an audit of finance-tracker's
+    Spending area produced the argument from <strong>damage</strong>, which is the one it was missing.</p>
+
+    <p><strong>Proposal 01, <em>One book for the household</em>, is stamped <code>built</code>.</strong> Its
+    Workstream 3 says, verbatim:</p>
+
+    <div class="quote">"The single largest genuine gap: the app has no concept of income. Inflow categories
+    (salary, interest, refund, FD maturity, transfer-in) and a transfer category on the expense side… On top of
+    that, a savings rate, and the sentence you actually asked for, generated as a monthly household statement
+    and archived."</div>
+
+    <p>The transfer half shipped, as <code>flows.py</code>. <strong>The income half never did.</strong> And
+    because the proposal carries a terminal status, nothing has tracked the remainder since.
+    <code>CLAUDE-checklist.md</code> admits this about itself, in its own words: <em>"proposal 01's two orphans
+    (the income model and the retirement half — neither is tracked anywhere since 01 was marked
+    <code>built</code>)"</em>. A search of every issue in that repo for income, salary and savings rate returned
+    nothing. The work was not deprioritised, argued down, or deferred. It was <em>lost</em>, by a status.</p>
+
+    <div class="verdict warn">
+      <b>What surfaced it, and what did not</b>
+      Not a review, not a checker, not this proposal. The sponsor asked in August 2026 for a feature — total
+      income, income by kind, a figure he could plan an investment against — and only then did anyone discover
+      it had already been accepted, scoped in detail, and marked done. Between those two dates the ordinary
+      machinery of the project ran continuously and reported nothing wrong, because by every record it consults,
+      nothing was.
+    </div>
+
+    <p><strong>And the model as written would not have caught it either.</strong> That is the part worth stating
+    against interest. This proposal derives <code>completed</code> and <code>completed in part</code> from
+    milestone states. Proposal 01 is <code>built</code> — a status that asserts done-ness while sitting outside
+    the derivation entirely. Proposal 01 also declares no milestones, so there is nothing to derive from; it is
+    one of the thirty-eight the finance-tracker pilot found declaring none. Under this proposal's rules,
+    unchanged, it computes to <code>completed</code> and stays exactly as wrong as it is today.</p>
+
+    <p>So the cost case is evidence <em>for</em> the proposal and a correction <em>to</em> it at the same time.
+    It establishes that an asserted terminal status can lose real, accepted, scoped work for months — which is
+    the strongest argument for derivation anyone has produced. It also establishes that derivation is worthless
+    unless <strong>every</strong> status that reads as finished is derived, and unless a proposal declaring zero
+    milestones is treated as <em>unanswerable</em> rather than as complete. Both gaps are put to the sponsor in
+    D4 below rather than fixed here.</p>
+
+    <p class="note">Filed as finance-tracker issue #624 so the capability is tracked whatever is decided about
+    this proposal — the immediate harm is repaired independently of the rule. The Spending audit of 2026-08-23
+    also found the milestone row, the feature register and the closed issue #254 disagreeing with each other
+    about that feature's state, which is the same class of defect one level down.</p>
+  </section>
+
+  <section>
     <p class="eyebrow">Decisions needed <span class="tag">nothing is built until these are answered</span></p>
     <ol class="decisions">
       <li><b>D1 — Adopt the link at all.</b> An accepted proposal that authorises building declares the
@@ -251,7 +302,18 @@
         ceremony against finance-tracker's money-correctness milestone, which came from a review.</li>
       <li><b>D4 — Terminal status is computed, not typed.</b> All declared milestones <code>done</code> →
         <code>completed</code>; some → <code>completed in part</code> with the unfinished rows as the exceptions
-        list. Recommended yes — this is the payoff, and it removes a discipline dependency.</li>
+        list. Recommended yes — this is the payoff, and it removes a discipline dependency.
+        <p class="note" style="margin-top:8px"><b>Two gaps the cost case exposed, both of which D4 must answer or
+        it does not work.</b> <em>(a)</em> <code>built</code> reads as finished but sits outside the derivation —
+        and <code>built</code> is the status that lost proposal 01's income model. Every status that reads as
+        finished must be derived, or the rule simply moves the hiding place. <em>(b)</em> A proposal declaring
+        <strong>zero</strong> milestones currently computes to <code>completed</code>, since vacuously all of
+        none are done. That is the same vacuous pass measured in <em>Where D5 lands</em>, arriving through the
+        status rule instead of the checker, and it is the state of every one of finance-tracker's thirty-eight
+        proposals today. Zero declared milestones must compute to <strong>unanswerable</strong> — a proposal that
+        never said what it would produce cannot have its completion derived, and should say so rather than
+        claim success. Recommended: derive over the full terminal vocabulary, and treat an empty declaration as
+        unanswerable rather than complete.</p></li>
       <li><b>D5 — Is it enforced?</b> A checker could verify that every <code>completed</code> proposal's
         declared milestones are all <code>done</code>. Recommended yes, and wired into <code>bin/land</code>
         rather than left advisory: this repo has now built three checkers that sat unconsumed
