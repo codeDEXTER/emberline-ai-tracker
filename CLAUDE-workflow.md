@@ -57,6 +57,26 @@ tree is clean, the branch is ahead, the merge is conflict-free, the tests are
 green and nothing reserved was touched — then merges, through a PR where `main`
 is protected. Nothing waits in a queue for the user to notice it.
 
+**Shared plan documents live on one branch, never in a feature branch.**
+A project's milestone plan and the surfaces generated from it — for
+finance-tracker that is `CLAUDE-milestones.json`, `CLAUDE-checklist.md`,
+`docs/milestone-plan.html` and `docs/milestones.html` — are edited only on a
+dedicated `plan` branch, landed on their own. A feature branch never touches
+them, even to record its own row as done.
+
+Two reasons, both measured on 2026-08-29. **They collide.** Every branch that
+regenerates them rewrites the same handful of files, so three consecutive
+rebases hit a conflict in one stamp file that no human had edited — the work
+was identical, only the regeneration order differed. And **they go stale in
+private.** A row marked done inside a feature branch is invisible to every
+other session until that branch lands, so two sessions can each believe they
+own the same row; nine rows sat stale for days for exactly this reason.
+
+The rule is about the PLAN, not about every generated file. A document whose
+gate is coupled to the code — the spec-book and open-book stamps, which fail
+when the source they cite changes — must still be re-stamped by the branch
+that moved that source. Those belong with the change; the plan does not.
+
 **A project that has aligned before must stay aligned to keep landing.**
 `bin/land` refuses when `.common-rules-version` names a version older than
 current — the same signal `rulecheck` has printed all along, made load-bearing
