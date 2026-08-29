@@ -299,6 +299,19 @@ Reserved to the user, always:
 
 ---
 
+**The accepted plan is the queue. Do not ask which row is next.**
+Once the sponsor has accepted a milestone plan, its open rows in `Seq` order
+are the work. Finish a row, land it, take the next one — immediately, without
+checking in. A question asking which accepted row to do next re-asks something
+already answered, and every interruption costs more than a wrong guess would.
+
+Stop for exactly three things: work that is destructive or irreversible, work
+genuinely outside the plan, and a decision the plan itself records as the
+sponsor's. Say those in a sentence, not a menu of options.
+
+Reporting is not asking. Say what landed and what was found; do not seek
+permission to continue.
+
 ## Issues
 
 Cut issues **vertically**. One capability end to end — never "backend for X"

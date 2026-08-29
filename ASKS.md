@@ -19,6 +19,20 @@ quotes. Anything logged from here on is written when it is said.
 
 ---
 
+## 2026-08-29 · Do not stop to ask which accepted row is next
+Said in: finance-tracker
+
+*"Please stop asking me in between questions at the end of the day. I want the
+work to be completed. Pick up a new work afterwards immediately and don't stop.
+This also needs to be a part of mandatory rules. I have defined the milestone
+plan, what has been accepted, then just keep picking up and going ahead."*
+
+Said after a day with four or five clarifying rounds whose answers were already
+in the accepted plan. Constrains cadence, not scope: reporting what happened is
+still wanted, asking permission to continue is not.
+
+---
+
 ## 2026-08-29 · Shared plan documents belong on one branch, not in every feature branch
 Said in: finance-tracker
 
