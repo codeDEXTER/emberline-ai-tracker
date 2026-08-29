@@ -19,6 +19,37 @@ quotes. Anything logged from here on is written when it is said.
 
 ---
 
+## 2026-08-29 · Do not stop to ask which accepted row is next
+Said in: finance-tracker
+
+*"Please stop asking me in between questions at the end of the day. I want the
+work to be completed. Pick up a new work afterwards immediately and don't stop.
+This also needs to be a part of mandatory rules. I have defined the milestone
+plan, what has been accepted, then just keep picking up and going ahead."*
+
+Said after a day with four or five clarifying rounds whose answers were already
+in the accepted plan. Constrains cadence, not scope: reporting what happened is
+still wanted, asking permission to continue is not.
+
+---
+
+## 2026-08-29 · Shared plan documents belong on one branch, not in every feature branch
+Said in: finance-tracker
+
+*"Milestone plan and other static documents are commonly written by every
+branch. So these should be in a dedicated branch and not in separate branches.
+So every branch can have access to the latest data. Please make amendments to
+the common rule if required. This is mandatory."*
+
+Constrains where the plan is edited, not what it says. A feature branch may not
+touch `CLAUDE-milestones.json` or the surfaces generated from it, even to mark
+its own row done; that happens on the plan branch afterwards. Said after a day
+in which three consecutive rebases conflicted on one regenerated file and nine
+milestone rows were found stale because their completion was recorded inside
+branches that had not landed.
+
+---
+
 ## 2026-08-02 · No direct-to-main, and no two chats sharing a working directory
 Said in: finance-tracker
 
