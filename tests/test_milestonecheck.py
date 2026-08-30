@@ -149,7 +149,18 @@ class StatesComeFromTheRegistersVocabulary(Harness):
         self.assertIn("wip", r.stdout)
 
     def test_every_state_the_register_uses_is_accepted(self):
-        for state in ("in flight", "next", "later", "built", "done", "blocked"):
+        for state in ("in flight", "next", "later", "built", "done", "completed", "blocked"):
+            with self.subTest(state=state):
+                self.write("# Checklist\n\n## Milestones\n\n"
+                           "| # | Milestone | Proves | You get | State |\n|---|---|---|---|---|\n"
+                           f"| 1 | Index it | retrieval is good enough | nothing to hold | {state} |\n")
+                self.assertEqual(run(self.proj).returncode, 0, f"{state!r} rejected")
+
+    def test_completed_is_accepted_alongside_the_grandfathered_done(self):
+        """`completed` is the word to write going forward (matching
+        proposal-status's own vocabulary); `done` is a grandfathered synonym,
+        not a violation -- finance-tracker's own plan already uses it."""
+        for state in ("completed", "done"):
             with self.subTest(state=state):
                 self.write("# Checklist\n\n## Milestones\n\n"
                            "| # | Milestone | Proves | You get | State |\n|---|---|---|---|---|\n"

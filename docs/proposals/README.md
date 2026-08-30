@@ -24,6 +24,8 @@ table reflects them. If they disagree, the document wins.
 | [13](13-proposal-tower-by-project.html) | Switch by project, not by lens — one app's whole picture on one screen | proposal | **accepted** | 2026-08-07 |
 | [14](14-proposal-coupling-graph.html) | A coupling graph, read from git — what's actually tangled, not just what changed | proposal | **built** | 2026-08-08 |
 | [15](15-proposal-milestones-and-proposals.html) | Milestones and proposals, on the Tower — and a smaller screen doing it | proposal | **built** | 2026-08-20 |
+| [16](16-proposal-proposal-milestone-pipeline.html) | A proposal declares the milestones it creates, and its status follows from them | design-concept | **accepted** | 2026-08-23 |
+| [17](17-proposal-workflow-bakeoff.html) | What five workflows cost, and which one to keep | proposal | **accepted** | — |
 
 Statuses: `draft` · `proposed` · `accepted` · `rejected` · `superseded-by NN` /
 `amends NN` · `built`. There is deliberately no `deferred` and no

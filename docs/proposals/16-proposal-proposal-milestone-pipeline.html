@@ -1,0 +1,444 @@
+<title>16 · accepted · A proposal declares the milestones it creates, and its status follows from them</title>
+<meta name="proposal-id" content="16">
+<meta name="proposal-topic" content="proposal-milestone-pipeline">
+<meta name="proposal-type" content="design-concept">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-08-23">
+<style>
+  :root {
+    --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
+    --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E;
+    --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0; --border:#26303C;
+            --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81; --warn:#D2A05A;
+            --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  }
+  :root[data-theme="dark"] { --ground:#0C0F14; --surface:#131820; --ink:#E8E6E1; --dim:#8B93A0;
+            --border:#26303C; --rule:#E8E6E1; --accent:#7FB2CE; --gain:#5FA985; --loss:#C97A81;
+            --warn:#D2A05A; --chip-ink:#0C0F14; --lane:#101620; --you:#A98FD6; }
+  :root[data-theme="light"] { --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660;
+            --border:#DCD8D2; --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B;
+            --warn:#B4761E; --chip-ink:#FBFAF9; --lane:#EFEDEA; --you:#6B4E9E; }
+  body { background:var(--ground); color:var(--ink); font-family:var(--sans);
+         line-height:1.55; font-size:15.5px; margin:0; }
+  .page { max-width:1060px; margin:0 auto; padding:52px 28px 90px; }
+  .brand { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+           color:var(--dim); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:33px; font-weight:650; letter-spacing:-.015em; line-height:1.15;
+       margin:18px 0 10px; text-wrap:balance; }
+  h3 { font-size:18px; font-weight:640; margin:30px 0 4px; letter-spacing:-.01em; }
+  .standfirst { font-size:17px; color:var(--dim); max-width:68ch; margin:0 0 8px; text-wrap:pretty; }
+  .eyebrow { font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em;
+             text-transform:uppercase; margin:52px 0 0; padding-bottom:9px;
+             border-bottom:2px solid var(--rule); display:flex; justify-content:space-between;
+             align-items:baseline; gap:12px; }
+  .eyebrow .tag { font-weight:400; letter-spacing:.06em; color:var(--dim); text-transform:none; }
+  p { max-width:72ch; }
+  p.note { color:var(--dim); font-size:13.5px; max-width:74ch; }
+  code, .mono { font-family:var(--mono); font-size:12.4px; }
+  a { color:var(--accent); }
+  .chip { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+          padding:3px 9px; border-radius:4px; background:var(--dim); color:var(--chip-ink); }
+  .tablewrap { overflow-x:auto; margin-top:16px; }
+  table { border-collapse:collapse; width:100%; font-size:13.4px; min-width:600px; }
+  th { font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+       color:var(--dim); text-align:left; font-weight:600; padding:8px 14px 8px 0;
+       border-bottom:1px solid var(--border); }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--border); vertical-align:top; }
+  td.k { font-family:var(--mono); font-size:12.1px; white-space:nowrap; }
+  .verdict { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+             border-radius:0 10px 10px 0; padding:16px 20px; margin:20px 0; max-width:76ch; }
+  .verdict b { font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+               display:block; margin-bottom:6px; }
+  .verdict.good { border-left-color:var(--gain); } .verdict.warn { border-left-color:var(--warn); }
+  .mock { margin-top:20px; overflow-x:auto; border-radius:12px; }
+  .mock svg { width:100%; min-width:720px; height:auto; display:block; }
+  .cap { font-family:var(--mono); font-size:11px; color:var(--dim); margin-top:8px; }
+  ul { max-width:72ch; } li { margin-bottom:6px; }
+  .quote { border-left:3px solid var(--you); padding-left:16px; margin:18px 0; max-width:70ch;
+           font-size:16px; }
+
+
+
+
+  ol.decisions b { display: block; font-size: 15.5px; }
+  .yes { border-left-color: var(--gain); }
+  .no  { border-left-color: var(--loss); }
+</style>
+
+<div class="page">
+  <div class="brand"><span>common-rules</span><span>Proposal 16 · 20 August 2026</span></div>
+  <p class="proposal-kicker" style="opacity:.55;font-size:.78em;letter-spacing:.06em;text-transform:uppercase;margin:0 0 .35em;">16 · accepted · decided 23 August 2026</p>
+  <h1>A proposal declares the milestones it creates, and its status follows from them</h1>
+
+  <!-- proposal-status:start -->
+  <p style="margin:14px 0 20px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;line-height:1.4"><span style="display:inline-block;padding:3px 10px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;white-space:nowrap;background:#2E7D5B;color:#FFFFFF">accepted</span><span style="display:inline-block;padding:3px 10px;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;white-space:nowrap;border:1px solid currentColor;opacity:.55;font-weight:600">design-concept</span><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;opacity:.6;letter-spacing:.02em">Proposal 16 · topic: proposal-milestone-pipeline · redrafted 23 August 2026 after the pilot</span></p>
+  <!-- proposal-status:end -->
+
+  <p class="standfirst">The sponsor's observation, 2026-08-20: <em>"each proposal is a feature where all the
+  decisions it needs to do in a pipeline are different milestones."</em> The first draft argued it was true for
+  one class of proposal and false for another. A pilot against finance-tracker's real plan, and a survey of this
+  repo's own, then <strong>measured</strong> it — and the measurement changed three of the six decisions. This
+  redraft is what survived.</p>
+
+  <div class="verdict">
+    <b>What this proposes</b>
+    An accepted proposal that authorises building declares the milestones it creates. Only its
+    <strong>sequencing</strong> decisions become stages; most are parameters, and <strong>a fifth of them are
+    neither</strong> — a third answer the first draft did not have. Milestones may still arise with no proposal.
+    A proposal's terminal status is <strong>computed from its milestones</strong> rather than typed — across the
+    <em>whole</em> terminal vocabulary, with an empty declaration computing to <code>unanswerable</code> rather
+    than to success.
+  </div>
+
+  <div class="verdict warn">
+    <b>What the measurement cost the first draft</b>
+    <strong>D2 was binary and should not have been</strong> — 19% of real decisions sort into neither bucket, and
+    they cluster in every proposal that contains sequencing thinking at all. <strong>D4 was too narrow</strong> —
+    it derived two words out of a vocabulary of seven, and the status that actually lost work was one of the five
+    it ignored. <strong>D5's premise was right and its target was wrong</strong> — the checker it proposes would
+    be called and would always skip, in both repos measured.
+  </div>
+
+  <section>
+    <p class="eyebrow">The observation holds <span class="tag">three for three, and this part is unchanged</span></p>
+
+    <p>Every accepted proposal that authorised building produced an ordered chain, and its own decisions fixed
+    the order:</p>
+
+    <div class="tablewrap"><table>
+      <tr><th>Proposal</th><th>The decisions that set an order</th><th>Became</th></tr>
+      <tr><td class="k">24 · design system</td>
+          <td>D2 tokens alone → D3 migrate page by page → D5 dark mode only after</td>
+          <td class="k">#580 → #532 → #531</td></tr>
+      <tr><td class="k">23 · the work light</td>
+          <td>D5 — the event-loop stalls land before the footer</td>
+          <td class="k">#537 → #536</td></tr>
+      <tr><td class="k">25 · feature boundaries</td>
+          <td>D3 — surfaces, then engines, then channels</td>
+          <td class="k">that order, held</td></tr>
+    </table></div>
+
+    <p>In each case the order was <em>argued</em> in the proposal and then <em>obeyed</em> by the work. That is a
+    pipeline of milestones, and the sponsor's observation names something real.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">But the test is not binary <span class="tag">measured 2026-08-23, and this is new</span></p>
+
+    <p>The first draft offered one test: <em>does this decision answer "what must be true before the next thing
+    starts"?</em> If yes it is a stage; if it sets a parameter of what gets built, it is not. The pilot applied
+    that test to every decision in every accepted finance-tracker proposal. The result:</p>
+
+    <div class="tablewrap"><table>
+      <tr><th>Verdict</th><th>Count</th><th>Share</th></tr>
+      <tr><td>Stages</td><td class="k">6</td><td class="k">22%</td></tr>
+      <tr><td>Parameters</td><td class="k">16</td><td class="k">59%</td></tr>
+      <tr><td><strong>Neither</strong></td><td class="k"><strong>5</strong></td><td class="k"><strong>19%</strong></td></tr>
+      <tr><td>Total decisions examined</td><td class="k">27</td><td class="k">across 5 proposals</td></tr>
+    </table></div>
+
+    <p><strong>The distribution matters more than the total, and it is the bad kind.</strong> The five do not sit
+    together in one loosely-written document. They fall in three of the five proposals — specifically, in
+    <em>every proposal that contains any sequencing thinking at all</em>. The two proposals with zero
+    unclassifiable decisions (18, 20) are pure parameters end to end. So this is a blind spot in the test, not
+    carelessness in the writing.</p>
+
+    <p>Three shapes recur, and none of them is exotic:</p>
+
+    <ul>
+      <li><strong>The adopt decision</strong> (23·D1, 24·D1) — "do this at all". It gates everything downstream,
+        yet produces no row of its own.</li>
+      <li><strong>The standing gate</strong> (23·D4, 25·D4) — a rule that must hold before and during every later
+        stage. Both answer <em>"what must be true before the next thing starts"</em> verbatim, and neither yields
+        a milestone. 25·D4 is answered <em>no</em>, which a stage cannot be.</li>
+      <li><strong>The process decision</strong> (25·D5) — who writes the thing, rather than what gets written.</li>
+    </ul>
+
+    <div class="verdict warn">
+      <b>The test misfires on this proposal's own worked example</b>
+      The first draft classified 23·D4 as a parameter, in the table it used to demonstrate the test. Under the
+      test as stated, 23·D4 answers the stage question word for word. It is a standing gate, which is neither —
+      and the draft reached the right answer by instinct while its own stated rule pointed elsewhere. A rule that
+      its author cannot apply correctly to their own example is not yet a rule.
+    </div>
+
+    <p><strong>So the test keeps its usefulness and loses its authority.</strong> It is a good heuristic and a bad
+    gate. Forcing an ambiguous decision to one side is not harmless: the pilot did exactly that on its own
+    restructure and produced a milestone row citing two parameters as its source. Three buckets, and the third is
+    a real answer rather than a failure to decide.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">And it does not generalise <span class="tag">two ways it breaks</span></p>
+
+    <div class="verdict no">
+      <b>Not every decision is a stage</b>
+      <p>Proposal 24's <b>D6</b> keeps the palette picker; <b>D4</b> makes the tracked-scope test a hard gate.
+      These change <em>what</em> gets built, not <em>when</em>. Recorded in the Decided block, consumed by
+      whoever implements, never a row in a plan.</p>
+    </div>
+
+    <div class="verdict no">
+      <b>Not every proposal produces milestones</b>
+      <p>Proposal 22's <b>D1</b> was <em>"No new timing-test work. The audit is the deliverable."</em> A research
+      proposal whose honest conclusion is <strong>do not build this</strong>. It creates zero milestones, and no
+      amount of waiting will change that. A rule demanding milestones from every proposal would push that
+      proposal to invent some.</p>
+      <p class="note" style="margin-top:10px">The first draft said proposal 22 <em>"is complete"</em>. It is not
+      — it still reads <code>proposed</code>. The example survives; the claim did not. Recorded rather than
+      quietly deleted, because it is this proposal's own thesis happening to this proposal: an asserted status
+      going stale inside the document arguing that asserted statuses go stale. Found by the pilot, not by
+      review.</p>
+    </div>
+
+    <div class="verdict no">
+      <b>Not every milestone has a proposal</b>
+      <p>finance-tracker's money-correctness milestone came from a quality review. Its performance-architecture
+      milestone came from the sponsor directly. The pilot measured the ratio: of 16 milestone rows, <b>12</b>
+      trace to exactly one proposal, <b>1</b> to two, and <b>3</b> to none. The three with none include the two
+      hardest rows in the plan. A rule requiring a proposal per milestone charges ceremony against exactly the
+      work that least needs it.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">The cost case <span class="tag">why this is not a tidiness proposal</span></p>
+
+    <p>Everything above argues from housekeeping. Three days after the first draft, an audit of finance-tracker's
+    Spending area produced the argument from <strong>damage</strong>.</p>
+
+    <p><strong>Proposal 01, <em>One book for the household</em>, is stamped <code>built</code>.</strong> Its
+    Workstream 3 says, verbatim:</p>
+
+    <div class="quote">"The single largest genuine gap: the app has no concept of income. Inflow categories
+    (salary, interest, refund, FD maturity, transfer-in) and a transfer category on the expense side… On top of
+    that, a savings rate, and the sentence you actually asked for, generated as a monthly household statement and
+    archived."</div>
+
+    <p>The transfer half shipped, as <code>flows.py</code>. <strong>The income half never did.</strong> Nothing
+    has tracked the remainder since, because the proposal reads finished. <code>CLAUDE-checklist.md</code> admits
+    this about itself: <em>"proposal 01's two orphans (the income model and the retirement half — neither is
+    tracked anywhere since 01 was marked <code>built</code>)"</em>. A search of every issue in that repo for
+    income, salary and savings rate returned nothing.</p>
+
+    <div class="verdict warn">
+      <b>What surfaced it, and what did not</b>
+      Not a review, not a checker, not this proposal. The sponsor asked in August 2026 for a feature — total
+      income, income by kind, a figure he could plan an investment against — and only then did anyone discover it
+      had already been accepted, scoped in detail, and marked done. Throughout, the project's ordinary machinery
+      ran and reported nothing wrong, because by every record it consults, nothing was. The work was not
+      deprioritised, argued down, or deferred. It was <em>lost, by a status.</em>
+    </div>
+
+    <p><strong>And the first draft's rule would not have caught it.</strong> Proposal 01 is <code>built</code> —
+    outside the <code>completed</code> / <code>completed in part</code> derivation entirely. It also declares no
+    milestones, so vacuously all of none are done: under D4 as first written it computes to <code>completed</code>
+    and stays exactly as wrong as it is today. The cost case is evidence <em>for</em> derivation and a correction
+    <em>to</em> it in the same breath.</p>
+
+    <p class="note">Filed as finance-tracker issue #624, so the capability is tracked whatever is decided here —
+    the harm is repaired independently of the rule. The same audit found that feature's milestone row, its
+    register entry and its <em>closed</em> issue #254 disagreeing with each other about its state, which is the
+    identical defect one level down.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">What it buys <span class="tag">a hole opened 2026-08-19, closed properly this time</span></p>
+
+    <p>The payoff is not tidiness. It is that terminal status becomes <strong>derivable</strong>: every declared
+    milestone <code>done</code> → <code>completed</code>; some → <code>completed in part</code>, <strong>with the
+    unfinished rows as the exceptions list</strong>. Today <code>completed in part</code> depends on a person
+    remembering to enumerate what was skipped — the same discipline dependency one level up. Derived, it cannot
+    be fudged by omission.</p>
+
+    <p>The pilot tested this against the record and it is the strongest positive result in the whole exercise.
+    <strong>Derived status disagreed with asserted status on 4 of 7 proposals — and not one disagreement was the
+    model being wrong.</strong> Two (23, 24) were the derivation working as designed, exceptions list included.
+    Two (07, 18) were <strong>genuinely stale records it caught</strong>: proposal 18's report shipped on 15
+    August and its status never moved.</p>
+
+    <div class="verdict good">
+      <b>Two corrections the mechanism needs before it works</b>
+      <p><strong>Derive over the whole vocabulary, not two words of it.</strong> The terminal vocabulary is
+      <code>proposed</code> / <code>accepted</code> / <code>completed</code> / <code>completed in part</code> /
+      <code>built</code> / <code>amends NN</code> / <code>superseded by NN</code>. The first draft derived two.
+      <code>built</code> — one of the five it ignored — is the status that lost proposal 01's income model. Every
+      status that reads as finished must be derived, or the rule only moves the hiding place.</p>
+      <p style="margin-top:10px"><strong>Zero declared milestones is <code>unanswerable</code>, not
+      <code>completed</code>.</strong> Vacuously, all of none are done. That is the same vacuous pass measured
+      below, arriving through the status rule instead of the checker — and it is the state of all 38
+      finance-tracker proposals today. A proposal that never said what it would produce cannot have its
+      completion derived, and should say so rather than claim success.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">The corpus problem <span class="tag">measured in both repos, and it decides D5</span></p>
+
+    <p>The first draft recommended wiring a checker into <code>bin/land</code>, arguing that this repo has built
+    three checkers that sat unconsumed and each needed a second change to give it teeth. That argument stands.
+    <strong>What it failed to check was whether the checker could fire at all.</strong></p>
+
+    <div class="tablewrap"><table>
+      <tr><th>Repo</th><th>Proposals</th><th>Carrying a decisions list</th><th>Declaring milestones</th></tr>
+      <tr><td class="k">common-rules</td><td class="k">16</td><td class="k">0</td><td class="k">0</td></tr>
+      <tr><td class="k">finance-tracker</td><td class="k">38</td><td class="k">7 (5 accepted)</td><td class="k">0</td></tr>
+    </table></div>
+
+    <p>Two consequences, both fatal to D5 as first written.</p>
+
+    <p><strong>In common-rules the gate cannot fire.</strong> This repo carries no <code>.common-rules-version</code>
+    stamp — it does not adopt itself — and every gate in <code>bin/land</code> sits behind a test for that file.
+    It has no <code>CLAUDE-checklist.md</code>, no feature register, no <code>## Milestones</code> table. So the
+    repo that authors this proposal, hosts it, and would ship its checker is the one place the checker is
+    structurally unable to run. That is a fourth failure mode, and it is worse than the three named: not "nobody
+    called it" but <strong>"it is called and always skips"</strong>, which reads as a pass.</p>
+
+    <p><strong>In finance-tracker the gate would fire and pass on nothing.</strong> Zero of 38 proposals declare
+    milestones. Point the checker there today, with D6's date floor in force: it enumerates 24 accepted
+    proposals, finds no declaration on any of them, and exits 0.</p>
+
+    <div class="verdict warn">
+      <b>This is not a prediction. It is already happening.</b>
+      <code>proposalcheck</code> reports of this repo that <em>"every proposal that asked decisions recorded
+      them"</em> — and that has been vacuously true for its entire life, because none of the sixteen ever asked.
+      The tool D5 cites as precedent is itself the failure D5 is trying to avoid.
+    </div>
+
+    <p>The fix is available and needs no invention. <code>proposalcheck</code> and <code>milestonecheck</code>
+    already share a <code>0</code>/<code>1</code>/<code>2</code> exit convention that can distinguish
+    <em>checked and clean</em> from <em>nothing to check</em>. D5 must make that a <strong>condition</strong>
+    rather than a note beside it.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The caution <span class="tag">why the link points one way</span></p>
+
+    <p>A milestone cites its proposal. <strong>A proposal is never edited to match a plan that moved.</strong>
+    Proposals are immutable records of <em>why</em>; milestone plans are explicitly live documents that move when
+    a state changes or an order proves wrong. Couple them tightly in both directions and one of two things
+    happens: the plan freezes to keep the proposal true, or the proposal gets rewritten after the fact — which is
+    the failure the whole numbering-and-status apparatus exists to prevent.</p>
+
+    <p class="note">This redraft is not a counter-example. Proposal 16 has recorded no decisions; its status is
+    <code>proposed</code>. Revising an argument before it is decided is drafting. Revising it after would be the
+    thing forbidden — which is exactly why D1–D6 were left unrecorded until the pilot reported, rather than being
+    written down and amended.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Decisions needed <span class="tag">nothing is built until these are answered</span></p>
+
+    <ol class="decisions">
+      <li><b>D1 — Adopt the link at all.</b> An accepted proposal that authorises building declares the milestones
+        it creates; a milestone row cites its proposal where it has one.
+        <p class="note" style="margin-top:8px"><b>Recommended yes.</b> Unchanged by the pilot, and the pilot is
+        the evidence: the restructure cost about an hour and produced every finding in this document, including
+        three milestones the plan had been hiding and one attribution that was wrong.</p></li>
+
+      <li><b>D2 — How a decision becomes a stage.</b> The test is <em>"what must be true before the next thing
+        starts"</em>. <strong>Revised: three buckets, not two</strong> — stage, parameter, and neither.
+        <p class="note" style="margin-top:8px"><b>Recommended yes, as a heuristic, never as a gate.</b> 19% of
+        real decisions land in the third bucket, they cluster in every proposal containing sequencing thinking,
+        and the first draft misclassified its own worked example. Forcing the ambiguous to one side already
+        produced a wrong milestone source in the pilot. A decision in the third bucket is recorded as such and
+        stops there.</p></li>
+
+      <li><b>D3 — Milestones without proposals stay legal.</b> A milestone may arise from a review, an audit, or
+        the sponsor directly, and says so instead of naming a proposal.
+        <p class="note" style="margin-top:8px"><b>Recommended yes.</b> 3 of 16 rows have no proposal, and they
+        include the two hardest rows in the plan. Requiring one would charge ceremony against the most important
+        work.</p></li>
+
+      <li><b>D4 — Terminal status is computed, not typed.</b> All declared milestones <code>done</code> →
+        <code>completed</code>; some → <code>completed in part</code> with the unfinished rows as the exceptions
+        list. <strong>Revised on two points</strong>: derive across the <em>whole</em> terminal vocabulary, and
+        treat zero declared milestones as <code>unanswerable</code> rather than complete.
+        <p class="note" style="margin-top:8px"><b>Recommended yes, with both revisions.</b> This is the payoff —
+        4 of 7 derived statuses disagreed with the asserted ones and none was a model error. But without the
+        first revision it misses <code>built</code>, the status that actually lost work; without the second it
+        stamps <code>completed</code> on every proposal that declared nothing, which today is all of them.
+        <b>Open sub-question for the sponsor:</b> what does a proposal whose only milestone is <code>next</code>
+        compute to? Not started is not <code>completed in part</code>, and the vocabulary has no word for
+        it.</p></li>
+
+      <li><b>D5 — Is it enforced?</b> A checker verifying that every terminal proposal's declared milestones are
+        all <code>done</code>. <strong>Revised: only on condition.</strong>
+        <p class="note" style="margin-top:8px"><b>Recommended no as first written; yes only if it exits 2 on an
+        empty corpus.</b> The original argument — that unconsumed checkers get ignored — is sound and survives.
+        The target was wrong. Measured in both repos, such a checker would be called and would always skip, which
+        reads as a pass; and <code>proposalcheck</code> is already doing exactly that here today. Wire nothing
+        into <code>bin/land</code> that can exit 0 on a corpus it could not examine.</p></li>
+
+      <li><b>D6 — Retrofit, or new proposals only?</b> <b>Recommended new only</b>, with a date floor, and no
+        back-filling of milestone declarations into proposals already accepted.
+        <p class="note" style="margin-top:8px">Unchanged, and the caution above is why: back-filling is editing a
+        proposal after its decisions were recorded. Note the tension D5 creates — with new-only in force, the
+        checker sees an empty corpus for a long time, which is precisely why its empty-corpus behaviour has to be
+        decided rather than discovered.</p></li>
+    </ol>
+
+    <p class="note" style="margin-top:18px">Adjacent to <a href="15-proposal-milestones-and-proposals.html">proposal
+    15</a>, which puts milestones and proposals side by side on one surface — that one is about <em>showing</em>
+    them; this one is about <em>linking</em> them so one can be derived from the other.</p>
+  </section>
+
+  <section id="decided">
+    <p class="eyebrow">Decided <span class="tag">23 August 2026 · the sponsor</span></p>
+
+    <p>The sponsor, 2026-08-23: <em>"proposal sixteen is a go ahead."</em> Accepted as a whole, on the
+    recommendations as they stand in this redraft — <strong>not answered decision by decision</strong>. That
+    distinction is recorded rather than smoothed over: where a recommendation was revised by the pilot, what was
+    accepted is the revised form, and the one sub-question D4 leaves open is still open.</p>
+
+    <div class="tablewrap"><table>
+      <tr><th>#</th><th>Decision</th><th>Answer</th><th>As accepted</th></tr>
+
+      <tr><td class="k">D1</td><td>Adopt the link at all</td><td class="k">Yes</td>
+        <td>An accepted proposal that authorises building declares the milestones it creates; a milestone row
+        cites its proposal where it has one.</td></tr>
+
+      <tr><td class="k">D2</td><td>How a decision becomes a stage</td><td class="k">Yes — as a heuristic</td>
+        <td><strong>Three buckets, never a gate.</strong> Stage, parameter, and neither. A decision in the third
+        bucket is recorded as such and stops there. 19% of real decisions land there, and the first draft
+        misclassified its own worked example, so the test advises and never refuses.</td></tr>
+
+      <tr><td class="k">D3</td><td>Milestones without proposals stay legal</td><td class="k">Yes</td>
+        <td>A milestone may arise from a review, an audit, or the sponsor directly, and says so instead of naming
+        a proposal. 3 of 16 rows have none, including the two hardest in the plan.</td></tr>
+
+      <tr><td class="k">D4</td><td>Terminal status is computed, not typed</td><td class="k">Yes — with both revisions</td>
+        <td>Derive across the <strong>whole</strong> terminal vocabulary, not two words of it. Zero declared
+        milestones computes to <code>unanswerable</code>, never to <code>completed</code>.</td></tr>
+
+      <tr><td class="k">D5</td><td>Is it enforced?</td><td class="k">Yes — only on condition</td>
+        <td><strong>No checker is wired into <code>bin/land</code> that can exit 0 on a corpus it could not
+        examine.</strong> Exit 2 on an empty corpus, using the <code>0</code>/<code>1</code>/<code>2</code>
+        convention <code>proposalcheck</code> and <code>milestonecheck</code> already share. Without that
+        condition, D5 is refused.</td></tr>
+
+      <tr><td class="k">D6</td><td>Retrofit, or new proposals only?</td><td class="k">New only</td>
+        <td>A date floor of 2026-08-23. No back-filling of milestone declarations into proposals already
+        accepted — that would be editing a proposal after its decisions were recorded.</td></tr>
+    </table></div>
+
+    <div class="verdict warn">
+      <b>Still open, and deliberately not answered here</b>
+      D4 asks what a proposal computes to when its only declared milestone is <code>next</code>. Not started is
+      not <code>completed in part</code>, and the terminal vocabulary has no word for it. Blanket acceptance does
+      not answer a question the proposal itself left open, so it stays open. Whoever implements D4 raises it
+      rather than picking one — the whole point of this proposal is that a status nobody decided should not
+      quietly assert something.
+    </div>
+
+    <p class="note">First consequence, recorded here so the claim is checkable: proposal 39 (finance-tracker,
+    the income and spending surface) is the first proposal in either repo written under D1, and therefore the
+    first to declare its own milestones. Every one of the 54 proposals across both repos before it declares
+    none.</p>
+  </section>
+</div>

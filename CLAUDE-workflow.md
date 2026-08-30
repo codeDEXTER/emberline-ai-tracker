@@ -57,6 +57,26 @@ tree is clean, the branch is ahead, the merge is conflict-free, the tests are
 green and nothing reserved was touched — then merges, through a PR where `main`
 is protected. Nothing waits in a queue for the user to notice it.
 
+**Shared plan documents live on one branch, never in a feature branch.**
+A project's milestone plan and the surfaces generated from it — for
+finance-tracker that is `CLAUDE-milestones.json`, `CLAUDE-checklist.md`,
+`docs/milestone-plan.html` and `docs/milestones.html` — are edited only on a
+dedicated `plan` branch, landed on their own. A feature branch never touches
+them, even to record its own row as done.
+
+Two reasons, both measured on 2026-08-29. **They collide.** Every branch that
+regenerates them rewrites the same handful of files, so three consecutive
+rebases hit a conflict in one stamp file that no human had edited — the work
+was identical, only the regeneration order differed. And **they go stale in
+private.** A row marked done inside a feature branch is invisible to every
+other session until that branch lands, so two sessions can each believe they
+own the same row; nine rows sat stale for days for exactly this reason.
+
+The rule is about the PLAN, not about every generated file. A document whose
+gate is coupled to the code — the spec-book and open-book stamps, which fail
+when the source they cite changes — must still be re-stamped by the branch
+that moved that source. Those belong with the change; the plan does not.
+
 **A project that has aligned before must stay aligned to keep landing.**
 `bin/land` refuses when `.common-rules-version` names a version older than
 current — the same signal `rulecheck` has printed all along, made load-bearing
@@ -173,9 +193,13 @@ answer to "what is this product made of, and how much of it is done".
 | [#8](…/issues/8) | Get it onto the second phone | version 2 |
 
 States: `in flight` · `next` · `blocked by #N` · `later` / `version N` · `built`
-/ `done`. Name the implementing issues as `issue #N` — that is what makes a
+/ `completed`. Name the implementing issues as `issue #N` — that is what makes a
 percentage computable, and it is read separately from `blocked by`, which is a
-dependency and never progress.
+dependency and never progress. `completed` is the word for fully finished —
+`done` is a grandfathered synonym, not mass-renamed where it's already written,
+but write `completed` from here on (same convention as proposal-status's own
+`built` → `completed`, 2026-08-20). `built` keeps its own, narrower meaning here
+— shipped but not yet closed — and is not folded into `completed`.
 
 **This is not a per-task obligation.** It changes when the sponsor adds, renames
 or closes a feature — which is rare, and is his act rather than a session's.
@@ -191,13 +215,14 @@ A project with no register is reported as **"no features declared"**, never as
 
 | # | Milestone | Proves | You get | State |
 |---|---|---|---|---|
-| 1 | One corpus indexed, answering a question | retrieval is good enough to build on | nothing to hold | done |
+| 1 | One corpus indexed, answering a question | retrieval is good enough to build on | nothing to hold | completed |
 | 2 | The model timed on the real phone | the felt speed, and so the retrieval budget | nothing to hold | in flight |
 | 3 | The first real screen, on the device | the design survives contact with a hand | **an app you can use, one corpus** | next |
 
-Same states as the register. The register says what the product is made of; this says
-**what order, what each step establishes, and when the sponsor gets something he can
-hold.**
+Same states as the register — including `completed`/grandfathered `done` for a
+milestone that is fully finished, not just `built` and shipped. The register
+says what the product is made of; this says **what order, what each step
+establishes, and when the sponsor gets something he can hold.**
 
 **Three disciplines make it worth the row.** A milestone ends in something *proven*,
 not something delivered — "the index builds" is a task, "retrieval is good enough to
@@ -273,6 +298,19 @@ Reserved to the user, always:
 - `finance_data/`, `auth.json`, `.env` — never leave the machine in the clear
 
 ---
+
+**The accepted plan is the queue. Do not ask which row is next.**
+Once the sponsor has accepted a milestone plan, its open rows in `Seq` order
+are the work. Finish a row, land it, take the next one — immediately, without
+checking in. A question asking which accepted row to do next re-asks something
+already answered, and every interruption costs more than a wrong guess would.
+
+Stop for exactly three things: work that is destructive or irreversible, work
+genuinely outside the plan, and a decision the plan itself records as the
+sponsor's. Say those in a sentence, not a menu of options.
+
+Reporting is not asking. Say what landed and what was found; do not seek
+permission to continue.
 
 ## Issues
 

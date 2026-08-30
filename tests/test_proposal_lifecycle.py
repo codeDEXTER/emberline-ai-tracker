@@ -28,6 +28,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PROPOSALCHECK = ROOT / "bin" / "proposalcheck"
 
+# Resolving the real projects lives in one place -- see tests/projects.py for
+# why it is read from git rather than derived from this file's location.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from projects import apps_dir  # noqa: E402
+
 BEFORE_FLOOR = "2026-08-10"   # < EFFECTIVE_DATE (2026-08-19) in proposalcheck
 ON_FLOOR = "2026-08-19"
 AFTER_FLOOR = "2026-08-20"
@@ -42,12 +47,17 @@ STATUS_AFTER_FLOOR = "2026-08-21"
 
 def proposal(status: str | None, decided: str | None = None, *,
              asks_decisions: bool = False, answered: bool = False,
-             exceptions: bool = False, part_of: str | None = None) -> str:
+             exceptions: bool = False, part_of: str | None = None,
+             pid: str = "01") -> str:
     """A minimal but structurally real proposal document. `status=None` omits
     the meta tag entirely -- a lead with no status at all, the shape the
     status-required rule checks for. `part_of` marks this document as a
     section rather than a lead."""
-    meta = ['<meta name="proposal-id" content="01">']
+    # Every document needs its *own* id, sections included -- measured across
+    # finance-tracker's 14 real sections, where 33-38 all sit part-of 32 and
+    # each carries its own number. Hardcoding "01" here made any two-document
+    # fixture a proposal-id collision once that became a checked rule.
+    meta = [f'<meta name="proposal-id" content="{pid}">']
     if status is not None:
         meta.append(f'<meta name="proposal-status" content="{status}">')
     if decided:
@@ -185,9 +195,10 @@ class ProposalLifecycleTests(unittest.TestCase):
         this rule's floor -- so landing the rule blocks nothing retroactively.
         Guards against a fix that quietly re-tightens the floor and starts
         failing history."""
-        proj = ROOT.parent / "finance-tracker"
-        if not proj.exists():
-            self.skipTest("finance-tracker not present on this machine")
+        apps = apps_dir()
+        proj = apps / "finance-tracker" if apps else None
+        if proj is None or not proj.exists():
+            self.skipTest(f"finance-tracker not present beside {apps}")
         r = run(proj)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
@@ -263,13 +274,13 @@ class ProposalIsEitherAProposalOrAnArtifactTests(unittest.TestCase):
 
     def test_section_with_no_status_passes(self):
         self.write("01-lead.html", proposal("accepted", STATUS_AFTER_FLOOR))
-        self.write("02-section.html", proposal(None, part_of="01"))
+        self.write("02-section.html", proposal(None, part_of="01", pid="02"))
         r = run(self.tmp)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_section_claiming_its_own_status_fails(self):
         self.write("01-lead.html", proposal("accepted", STATUS_AFTER_FLOOR))
-        self.write("02-section.html", proposal("proposed", part_of="01"))
+        self.write("02-section.html", proposal("proposed", part_of="01", pid="02"))
         r = run(self.tmp)
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("also claims its own status", r.stdout)
@@ -297,11 +308,15 @@ class ProposalIsEitherAProposalOrAnArtifactTests(unittest.TestCase):
         """Every non-compliant lead in pockets and pip today was decided (or
         undated) before this rule's floor -- guards against a fix that
         quietly re-tightens the floor and starts failing history."""
+        apps = apps_dir()
         for name in ("pockets", "pip"):
-            proj = ROOT.parent / name
-            if not proj.exists():
-                continue
             with self.subTest(project=name):
+                proj = apps / name if apps else None
+                # `continue` here reported `ok` after asserting nothing, which
+                # is indistinguishable from a run that actually checked the
+                # project. A skip at least says so out loud.
+                if proj is None or not proj.exists():
+                    self.skipTest(f"{name} not present beside {apps}")
                 r = run(proj)
                 self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 

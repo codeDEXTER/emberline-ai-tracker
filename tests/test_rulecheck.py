@@ -16,6 +16,7 @@ Run:  python3 -m unittest discover -s tests -q
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -24,6 +25,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RULECHECK = ROOT / "bin" / "rulecheck"
+
+# Resolving the real projects lives in one place -- see tests/projects.py for
+# why it is read from git rather than derived from this file's location.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from projects import apps_dir  # noqa: E402
 STAMP = ".common-rules-version"
 POINTER = "Shared workflow rules: ../common-rules/CLAUDE-workflow.md — read it.\n"
 
@@ -192,15 +198,97 @@ class RealProjectsStillCheck(unittest.TestCase):
     """Guard against a fix that quietly stops checking everything."""
 
     def test_the_adopting_projects_are_still_recognised(self):
-        apps = ROOT.parent
+        apps = apps_dir()
         for name in ("finance-tracker", "pockets", "pip", "mac-explorer"):
-            p = apps / name
-            if not p.exists():
-                self.skipTest(f"{name} not present on this machine")
+            # Inside the subTest, so a project that is genuinely absent skips
+            # only itself. Outside it, the first miss aborted the whole test
+            # and the remaining three were never looked at even when present.
             with self.subTest(project=name):
+                p = apps / name if apps else None
+                if p is None or not p.exists():
+                    self.skipTest(f"{name} not present beside {apps}")
                 r = run(p)
                 self.assertNotIn("does not adopt", verdict(r.stdout),
                                  f"{name} adopts the rules but was skipped")
+
+
+class RulecheckLocatesItselfRatherThanGuessing(unittest.TestCase):
+    """`rulecheck --version` must work from any checkout, on any machine.
+
+    The default for RULES was the literal string
+    "/Users/the-sponsor/apps/common-rules" -- correct on exactly one machine. On a
+    CI runner that path does not exist, so `git -C <missing>` fails,
+    current_version() returns None, and `--version` exits 2, erroring every
+    gate test that asks for the current version (11 of them, on every CI run
+    since CI existed).
+
+    THE SHAPE OF THIS TEST IS THE POINT. Asserting that `--version` merely
+    succeeds proves nothing here: run on the developer's Mac, the hardcoded
+    path resolves and the broken version passes too. So this runs a COPY of
+    the script from a DIFFERENT repository and asserts it reports THAT
+    repository's version -- something only a self-located default can do. A
+    hardcoded default reports the real repo's version and fails the second
+    assertion.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.fake = Path(self.tmp.name) / "elsewhere"
+        (self.fake / "bin").mkdir(parents=True)
+        shutil.copy2(RULECHECK, self.fake / "bin" / "rulecheck")
+        for a in (("init", "-q", "-b", "main"), ("config", "user.email", "t@e.com"),
+                  ("config", "user.name", "t")):
+            subprocess.run(["git", "-C", str(self.fake), *a], capture_output=True)
+        # Two commits, so this repo's count cannot coincide with the real one's.
+        for i in range(2):
+            (self.fake / f"f{i}.txt").write_text("x\n")
+            subprocess.run(["git", "-C", str(self.fake), "add", "-A"], capture_output=True)
+            subprocess.run(["git", "-C", str(self.fake), "commit", "-qm", f"c{i}"],
+                           capture_output=True)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _run_without_the_env_var(self):
+        env = {k: v for k, v in os.environ.items() if k != "COMMON_RULES_DIR"}
+        return subprocess.run([str(self.fake / "bin" / "rulecheck"), "--version"],
+                              capture_output=True, text=True, env=env, cwd=str(self.fake))
+
+    def test_version_is_read_from_the_checkout_the_script_lives_in(self):
+        r = self._run_without_the_env_var()
+        self.assertEqual(r.returncode, 0, f"exit {r.returncode}: {r.stdout}{r.stderr}")
+        sha = subprocess.run(["git", "-C", str(self.fake), "rev-parse", "--short", "HEAD"],
+                             capture_output=True, text=True).stdout.strip()
+        self.assertEqual(r.stdout.strip(), f"2-{sha}",
+                         "did not read the repository it was run from")
+
+    def test_it_does_not_report_some_other_checkouts_version(self):
+        """The assertion a hardcoded default fails. Without it, this whole
+        class passes on the one machine where the old default resolved."""
+        r = self._run_without_the_env_var()
+        real = subprocess.run([str(RULECHECK), "--version"], capture_output=True,
+                              text=True, check=True).stdout.strip()
+        self.assertNotEqual(r.stdout.strip(), real,
+                            "reported the real repo's version -- the path is still hardcoded")
+
+    def test_the_env_var_still_overrides(self):
+        """Projects and tests point rulecheck at a specific rules checkout;
+        self-location must not take that away."""
+        env = dict(os.environ, COMMON_RULES_DIR=str(ROOT))
+        r = subprocess.run([str(self.fake / "bin" / "rulecheck"), "--version"],
+                           capture_output=True, text=True, env=env)
+        real = subprocess.run([str(RULECHECK), "--version"], capture_output=True,
+                              text=True, check=True).stdout.strip()
+        self.assertEqual(r.stdout.strip(), real)
+
+    def test_no_home_directory_is_baked_into_the_default(self):
+        """A structural guard, because the failure mode is silent on the only
+        machine anyone runs this on. Scoped to rulecheck's RULES default --
+        bin/pulse names an apps root deliberately, which is a different thing:
+        a machine-local location it reports ON, not the repo it lives IN."""
+        line = next(l for l in RULECHECK.read_text().splitlines()
+                    if l.startswith("RULES = "))
+        self.assertNotIn("/Users/", line, "a home directory is hardcoded again")
 
 
 class TheChangelogIsEvidenceNotVerdict(unittest.TestCase):
