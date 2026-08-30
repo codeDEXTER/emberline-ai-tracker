@@ -57,6 +57,327 @@ and the four title conventions were actually found. `test_tower_render`
 stayed green throughout (99/99) — no new fetches: milestones parse from the
 same `register_source()` text the feature register already reads, and
 proposals are local file reads with no `git` or `gh` call at all.
+## 2026-08-20 · The workflow bake-off becomes proposal 17
+
+The collision the check above found, fixed. `08` was claimed by two documents
+since 2026-08-07 and the ambiguity has been live ever since.
+
+**Which one keeps 08 was read, not chosen.** `08-proposal-work-packages.html`
+("The Tower keeps the record") was added 2026-08-06 in #37; the bake-off
+followed a day later in #47. More decisive than the dates: **ten passages in
+`CLAUDE-workflow.md` and this changelog say "proposal 08", and every one of
+them means the work-packages document** — "not proposal 08's logbook, which was
+rejected for exactly that reason", "no forecast of any kind (proposal 08
+refused an ETA)". That document says *logbook* twelve times; the bake-off says
+it zero times. So the number has effectively belonged to one of them in prose
+for two weeks, and moving the other one breaks no reference anywhere in the
+repo.
+
+**The bake-off had been invisible, and the collision is why.**
+`docs/proposals/README.md` is keyed by number and carries one row for `08` —
+the work-packages one. The bake-off has never appeared in the index at all. It
+is the proposal behind "Ceremony is opt-in", whose measurement (five arms, one
+frozen spec, 22/22 for all five, 2.4×–22.7× cost spread) is the evidence that
+rule tells people to argue against. Findable now.
+
+**Its Decided cell reads `—` rather than a date.** The document carries no
+`<meta name="proposal-decided">`, and the index's own header says the documents
+win where the two disagree. Writing 2026-08-07 there because that is when the
+PR merged would assert a decision date the record does not carry.
+
+**A test that cannot skip.** `test_this_repo_is_free_of_collisions` names
+`ROOT` directly instead of resolving through `apps_dir()`, because this is the
+repository the suite lives in: always present, so it can never quietly pass by
+finding nothing. That matters here more than elsewhere — common-rules carries
+no `.common-rules-version`, so every gate in `bin/land` skips it, and the rules
+repo is the one place a violation of its own rules cannot be refused. A test is
+the only mechanism that reaches it. Verified by restoring the old number: the
+new test fails, alone.
+
+**Two things left alone, and named rather than quietly fixed.** The index still
+stops at 14 — proposals 15 and 16 are missing from it too, and it claims to be
+"derived from the documents" while no generator exists to derive it. Its status
+vocabulary line is also behind the rules it points at (`draft`, `rejected`,
+`superseded-by NN` with a hyphen; no `completed` or `completed in part`). Both
+are real, both are wider than a renumber, and backfilling them under cover of
+this change would put unreviewed edits in a records file.
+
+Suite: 249 tests.
+
+## 2026-08-20 · A proposal number is claimed by exactly one document
+
+"Number every proposal" has said *"numbered sequentially per project, never
+reused"* since it was written. Nothing checked the second half.
+
+**Three collisions already existed and were found by accident.** Auditing four
+projects for the lead/section rule turned up finance-tracker ids 14, 15 and 20,
+each claimed by two different documents — surfaced only because somebody was
+reading every proposal for an unrelated reason. `proposalcheck` validated that
+decisions were recorded and that a lead carried a status, and passed both
+documents of every colliding pair. A fourth is live in this repo today: `08` is
+claimed by both `08-proposal-work-packages.html` and
+`08-proposal-workflow-bakeoff.html`.
+
+**A collision is worse than an ordinary violation because it breaks every
+reference *to* a proposal at once.** `proposal-part-of` names an id, the shared
+rules cite proposals by number, and the Tower groups a topic's pages by it.
+When two documents answer to "14", each of those is ambiguous and nothing says
+so.
+
+**Not grandfathered, and the difference is in kind rather than in leniency.**
+Every other rule here is date-floored because a proposal's history cannot be
+honestly reconstructed — inventing the answers would misstate it worse than the
+gap does. A collision is a live ambiguity, not a missing record, and
+renumbering fixes it exactly. Blast radius, measured: **zero collisions across
+finance-tracker, pockets, pip and mac-explorer; one in common-rules itself** —
+which `bin/land` does not gate, because this repo carries no
+`.common-rules-version`. So the one violation the new check finds is in the one
+place the gate cannot fire, which is proposal 16's *Where D5 lands* happening
+in real time rather than in the abstract.
+
+**Absent is not a value.** A document with no `proposal-id` does not
+participate. pip's `02a`/`02b` are two sections carrying none, and bucketing
+them together would have failed a project on day one for a rule about *reuse* —
+which is how a check gets disabled. Pinned by a test.
+
+**Real sections settled a design question the fixtures had hidden.** All 14 of
+finance-tracker's sections carry their *own* id and point at the lead through
+`part-of` — 33 through 38 all sit `part-of 32`. So a lead and its sections
+never share a number, and the check needs no exemption for them. This surfaced
+because `tests/test_proposal_lifecycle.py`'s `proposal()` helper hardcoded
+`content="01"` for every document it built, which made every two-document
+fixture a collision the moment collisions became checkable. The helper takes a
+`pid` now; the answer came from measuring the real files rather than deciding
+what a section ought to do.
+
+**The summary line now says what was looked at.** It read *"every proposal that
+asked decisions recorded them"* whatever it had examined — and across
+pockets' nineteen proposals, pip's four and mac-explorer's one, **not one
+carries a decisions list at all**, and common-rules' sixteen carry exactly one
+— proposal 16, merged hours ago. That sentence has been vacuously true for
+those three projects for the tool's whole life while reading as a clean pass,
+and was true of this repo too until today. Only finance-tracker has ever
+really given it anything to check: 7 of 38. The
+exit code already separated "checked and clean" from "could not check" (2); the
+line a person reads did not separate "checked and clean" from "there was
+nothing to check". It now reports both counts. Reporting only — the exit code is
+unchanged, because a vacuous pass is not a violation.
+
+Verified by reverting `bin/proposalcheck`: 5 of the 10 new tests fail.
+`tests/test_proposal_ids.py` (10). Suite: 248 tests.
+
+## 2026-08-20 · The real-project checks stop skipping where they are run
+
+**Follow-up, same PR: the third instance is fixed too.**
+`test_rulecheck.RealProjectsStillCheck` — raised in #113, left unfixed there,
+and named as out of scope when this branch opened — now takes the same
+`apps_dir()`. It carried a second bug the resolution had been hiding: its
+`skipTest` sat *outside* the `subTest`, so the first absent project aborted the
+whole test and the remaining three were never looked at even when present.
+Since `ROOT.parent` made the first one always absent, that was every run.
+
+**The helper is one module, not a copy in each.** `tests/projects.py`, imported
+by both, with `tests/test_projects.py` pinning it. Two copies of a path rule is
+how the two drift, and this is the rule that has now been got wrong three times
+in two days. It is not named `test_*.py`, so `discover` does not collect it;
+both callers put `tests/` on `sys.path` explicitly so the suite runs the same
+way under `discover -s tests` and under an explicit `tests.test_x` module path.
+
+**The structural guard widened with it** — it now scans every `*.py` in `tests/`
+rather than only its own file, which is what makes it catch a regression in a
+module other than the one it lives in. Verified: reverting `test_rulecheck`
+alone gives `FAILED (failures=1, skipped=1)`, the failure naming
+`test_rulecheck.py:196` from a guard in `test_projects.py`.
+
+**The suite now has no skips at all.** It reported `OK (skipped=1)` for as long
+as this bug existed, and that skip was the bug describing itself.
+
+
+`tests/test_proposal_lifecycle.py` resolved the projects it reads as
+`ROOT.parent` — `/Users/aashish/apps` from the main checkout, and
+`.worktrees/` from a task worktree, where it holds no projects at all. So
+both blast-radius checks found nothing and passed.
+
+**That is both places the suite is actually run.** `bin/land` tests the
+branch worktree; CI checks out a repo with no siblings. The checks could
+only ever fail in the one place nobody runs them — the same sentence
+#113 wrote about `test_rulecheck`'s copy of this bug, still true a day
+later in a second file.
+
+**One of the two was worse than a skip.** The pockets/pip loop used
+`continue`, not `skipTest`, so it ran zero assertions and reported `ok` —
+indistinguishable from a run that had actually read both projects. The
+finance-tracker one at least announced itself. Both now skip out loud,
+per project, inside their `subTest`.
+
+**The resolution is read, not assumed.** `apps_dir()` asks
+`git rev-parse --git-common-dir`, which names the *main* checkout's `.git`
+from inside a worktree as readily as from the checkout itself. This is the
+corrected form of what `ROOT.parent` was reaching for, not a new policy —
+`bin/milestones` and `bin/pulse` name `/Users/aashish/apps` outright and
+are right to: `--all` has to find every project on this Mac, which is a
+claim about the machine. A test needs the projects beside *this* checkout,
+which is a fact about the repo. Outside a git repository it returns None
+and the callers skip rather than resolve something arbitrary.
+
+**Asserting that the checks pass proves nothing — they pass hardest when
+they are skipping.** So the guard is structural, in the shape #116 used for
+its baked-in home directory: no `ROOT`+`.parent` on any line of the file.
+The forbidden token is assembled at runtime so the guard is not a hit for
+itself, and backticked prose is exempt so the docstrings can explain the
+bug they guard against. Alongside it, a hermetic test builds its own
+`<apps>/<repo>/.worktrees/<name>` layout and asserts the answer from both
+ends, rather than depending on this Mac having one — a regression test that
+needs the real machine stops testing the moment it runs anywhere else,
+which is the bug.
+
+**Verified by reverting**, and the numbers say it exactly: reverted, from a
+worktree, the file reports `FAILED (failures=1, skipped=1)` — the guard
+fails and the vacuity shows as the skip. Fixed, it reports 27 tests, **0
+skipped**, having genuinely read finance-tracker, pockets and pip from a
+worktree for the first time.
+
+**The third instance is untouched and is now the suite's only skip.**
+`test_rulecheck.RealProjectsStillCheck` (`ROOT.parent`, raised in #113 and
+never fixed) takes the same `apps_dir()` in one line. It is left out of
+scope deliberately rather than swept in; the full run reports
+`OK (skipped=1)` and that skip is it. Suite: 236 tests.
+## 2026-08-23 · A milestone that explains why it hands nothing over is no longer counted as a delivery
+
+*Ask, verbatim: "fix the milestones count bug."*
+
+Found while piloting proposal 16 against finance-tracker's real plan.
+`bin/milestones` decided whether a row hands something to the sponsor by
+testing the You-get cell for **equality** against a fixed refusal vocabulary
+(`^(nothing( to hold| yet)?|none|no|n/?a|—|-)$`). A row that merely *said*
+"nothing to hold" passed. A row that said **why** did not.
+
+So the meter answering "when do I get something" was inflated by exactly the
+rows that were most careful about saying they gave nothing. finance-tracker's
+money-correctness row — the one row whose entire point is that the sponsor
+holds nothing until the figures are trusted — reads `nothing to hold — this is
+the floor everything else stands on`, and has been counted as a deliverable for
+the whole life of that plan. Measured: its 13-row plan reported `13 hand
+something over`, and now reports 12; the 16-row pilot plan reported 16 and now
+reports 13.
+
+The rule requires the column be written rather than left blank *precisely so
+that "no" can be said out loud*. Punishing a row for saying it well inverts the
+rule it was built to serve.
+
+**The fix is a prefix match, not a wider vocabulary**: a refusal word, then
+either the end of the cell or a punctuation mark introducing the explanation.
+The punctuation requirement is the whole safety of the widening — it is what
+keeps a genuine deliverable that merely *starts* with one of those words ("no
+more waiting for the book to open") from being swallowed as a refusal. Both
+cases are pinned by tests, and the explained-nothing test was confirmed red
+against the old regex before the fix.
+
+**Two consequences worth stating.**
+
+The digest hashes the parsed rows, and `deliver` is one of them — so every
+adopting project's committed `docs/milestones.html` is now stale and
+`bin/land`'s `--check` gate will say so until it is regenerated. That is the
+gate working: a page showing the wrong count should fail loudly rather than
+pass quietly.
+
+`bin/tower`'s `milestone_delivers()` carries the **same bug by an independent
+route** — set membership against the same vocabulary, with a docstring
+describing precisely the case it gets wrong. The sponsor asked for the two to
+match. **They cannot be made to match from a clean branch**: that function
+exists only in `ac3d3f4`, an unpushed commit in the shared
+`/Users/aashish/apps/common-rules` checkout, under a further 130 uncommitted
+lines of in-progress work. It is absent from `origin/main` entirely. Editing
+it means editing an unreconciled working tree, which would put real
+in-progress work at risk to fix a dormant bug.
+
+So the matching is set up rather than done. `hands_something_over()` is now a
+**public function** in `bin/milestones` — the one definition of this predicate.
+When that Tower work is reconciled and pushed, `milestone_delivers()` should
+call it (`bin/tower` already loads `bin/pulse` and `bin/spend` this way, so the
+pattern is established) rather than get a second corrected copy of the
+vocabulary. Two independent implementations is exactly how one predicate came
+to be wrong in two places, each with a comment describing the case it missed.
+
+## 2026-08-20 · The milestone/feature vocabulary gets `completed`, matching proposal-status
+
+*Ask, verbatim: "I think we need some sort of that vocabulary that tells if a
+proposal has been completed or not in the end. Right now, it shows... but it
+doesn't show completed."*
+
+The register/milestone vocabulary (`in flight` / `next` / `blocked by #N` /
+`later` / `version N` / `built` / `done`) never had a word matching
+proposal-status's own `completed` — the two systems drifted onto different
+terminal words for the same idea (`done` here, `completed` there), and `built`
+carries different meanings in each: a grandfathered synonym for `completed` in
+proposal-status, but a genuinely distinct "shipped, not yet closed" state in the
+milestone/feature vocabulary (finance-tracker's own tracks generator already
+labels it "built, not closed").
+
+**The fix mirrors the one already applied to proposal-status.** `completed` is
+now the word for a milestone or feature fully finished; `done` is a
+grandfathered synonym, not mass-renamed where it's already written (this
+session's own finance-tracker milestone plan uses it), but write `completed`
+from here on. `built` keeps its own narrower meaning and is not folded into
+`completed` — collapsing the two would erase a distinction the tracks generator
+already draws on purpose.
+
+`bin/milestonecheck`'s `STATES` set gained `completed`;
+`tests/test_milestonecheck.py` gained a test pinning both `completed` and the
+grandfathered `done` as accepted, alongside the existing full-vocabulary test.
+`CLAUDE-workflow.md`'s register and milestone-plan sections both restate the
+vocabulary and the `done`→`completed` migration note.
+## 2026-08-20 · rulecheck locates itself instead of guessing a home directory
+
+`bin/rulecheck`'s rules-repo default was the literal string
+`/Users/aashish/apps/common-rules` — correct on exactly one machine. On a CI
+runner that path does not exist, so `git -C <missing>` fails,
+`current_version()` returns `None`, and `--version` exits 2. That errored
+**11 gate tests** across `test_land_alignment`, `test_land_proposalcheck` and
+`test_land_milestonecheck` on every CI run since CI existed.
+
+It surfaced only today because Actions had been blocked at the billing gate;
+the first run that actually executed after the account moved to Pro failed on
+this immediately. A correction to what this session said earlier: these errors
+were called "a CI-environment divergence, not a code bug". They were a code
+bug.
+
+**The default is now `Path(__file__).resolve().parent.parent`** — a script
+always knows where it lives. `COMMON_RULES_DIR` still wins when set, which is
+how tests and projects point it at a particular checkout.
+
+**One deliberate behaviour change.** Run from a task worktree, `--version` now
+reports *that worktree's* version rather than the main checkout's. That is the
+honest answer — the version should describe the rules actually being run — but
+it changes what every gate compares against inside a worktree, which is where
+`bin/land` does all its checking. Raised before the change rather than
+discovered after.
+
+**The test's shape is the point, and it is the reason this survived.** Asserting
+`--version` merely succeeds proves nothing: on the developer's Mac the
+hardcoded path resolves and the broken version passes too. So the test runs a
+*copy* of the script from a *different* repository and asserts it reports that
+repository's version — something only a self-located default can do. Verified
+by reverting the fix: 3 of the 4 new tests fail, including the structural guard
+that no home directory is baked into the default.
+
+**Third variant of one mistake, all found today**, and worth naming as a class:
+`RealProjectsStillCheck` resolving projects as `ROOT.parent` (skips everywhere
+it is run), `bin/milestones` deriving `APPS` the same way (silently found
+nothing from a worktree), and this. Each derived a path from an assumption
+rather than from something true at runtime, and each was invisible precisely
+where it was wrong.
+
+**And it exposed a second bug underneath it: CI has always cloned shallow.**
+The rules version *is* `git rev-list --count HEAD`, and `actions/checkout`
+defaults to depth 1 — so on a runner HEAD counts as commit 1, and
+`test_stamp_is_not_from_the_future` reads "stamp claims 163, but HEAD is only
+at 1". This could never have been seen before today: `rulecheck --version`
+exited 2 on a runner, so the version was never successfully computed there at
+all. One bug was standing in front of the other. `fetch-depth: 0` now, which
+`rulecheck`'s changelog diffing needs for the same reason.
+
+Suite: 231 tests.
 
 ## 2026-08-20 · The milestone plan gets a picture, and it is generated
 

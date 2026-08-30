@@ -87,11 +87,65 @@ class ThePageComesFromTheTable(Harness):
         self.assertIn('"deliver": false', data.replace('"deliver":false', '"deliver": false'))
         self.assertEqual(data.count("true"), 1, "exactly one row hands something over")
 
+    def test_a_nothing_that_explains_itself_is_still_nothing(self):
+        """The regression this test exists for: the check was an *equality*
+        test against a fixed vocabulary, so a row that said why it hands
+        nothing over failed it and was counted as a delivery.
+
+        finance-tracker's real plan hit this. Its money-correctness row --
+        the one row whose entire point is that the sponsor gets nothing to
+        hold until the figures are trusted -- reads "nothing to hold -- this
+        is the floor everything else stands on", and was counted as a
+        deliverable for as long as that plan had a page. The meter that
+        answers "when do I get something" was inflated by exactly the rows
+        that were most careful about saying they gave nothing.
+
+        The rule requires the column be written rather than left blank so
+        that "no" can be said out loud. Punishing a row for saying it *well*
+        inverts the rule.
+        """
+        self.write(PLAIN.replace(
+            "| nothing to hold |",
+            "| nothing to hold \u2014 this is the floor everything else stands on |"))
+        self.assertEqual(self.gen().returncode, 0)
+        data = re.search(r"const D=(\[.*?\]);", self.page(), re.S).group(1)
+        self.assertEqual(data.count("true"), 1,
+                         "an explained nothing is still nothing")
+
+    def test_a_real_deliverable_starting_with_no_is_not_swallowed(self):
+        """The negative case, which is the one that makes the fix safe to
+        widen: loosening equality to a prefix match risks eating any You-get
+        that merely *starts* with one of the words. It must not."""
+        self.write(PLAIN.replace(
+            "| nothing to hold |", "| no more waiting for the book to open |"))
+        self.assertEqual(self.gen().returncode, 0)
+        data = re.search(r"const D=(\[.*?\]);", self.page(), re.S).group(1)
+        self.assertEqual(data.count("true"), 2,
+                         "\"no more waiting ...\" is a deliverable, not a refusal")
+
     def test_the_page_says_it_is_generated(self):
         """A reader who edits it must be told the edit will be lost."""
         self.write(PLAIN)
         self.gen()
         self.assertIn("Regenerate rather than editing", self.page())
+
+    def test_completed_and_the_grandfathered_done_render_identically(self):
+        """`completed` and `done` are the same concept (2026-08-20) -- both
+        must count as proven, and the picture must show the word to write
+        going forward regardless of which of the two the table used."""
+        completed = PLAIN.replace("| done |", "| completed |")
+        self.write(completed)
+        self.assertEqual(self.gen().returncode, 0)
+        completed_data = re.search(r'"s": "(\w+)"', self.page()).group(1)
+
+        self.write(PLAIN)
+        self.gen()
+        done_data = re.search(r'"s": "(\w+)"', self.page()).group(1)
+
+        self.assertEqual(completed_data, done_data, "completed and done must share one class")
+        self.assertIn('"done": "completed"', self.page(),
+                      "the label shown must be 'completed', the word to write going forward, "
+                      "even for a plan that still writes the grandfathered 'done'")
 
 
 class ThePageIsTitledForTheProjectNotTheWorktree(unittest.TestCase):

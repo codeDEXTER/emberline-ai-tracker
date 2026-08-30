@@ -56,19 +56,52 @@ APPS = pathlib.Path("/Users/aashish/apps")
 # The register's vocabulary, mapped to what the drawing does with each. Order
 # is the plan's order, never sorted -- a milestone plan reordered by state
 # stops being a plan.
+#
+# `completed` and the grandfathered `done` are the same concept (2026-08-20,
+# matching proposal-status's own `built` -> `completed` migration) and share
+# one class, so a plan can write either word and still count as proven. The
+# label goes the other way: it always reads `completed`, regardless of which
+# of the two words the table actually uses, so the picture reflects the word
+# to write going forward rather than freezing whichever synonym is on disk.
 STATE_CLASS = {
-    "done": "done", "built": "built", "in flight": "now",
+    "done": "done", "completed": "done", "built": "built", "in flight": "now",
     "next": "next", "later": "later", "blocked": "blocked",
 }
 STATE_LABEL = {
-    "done": "done", "built": "built, not closed", "now": "in flight",
+    "done": "completed", "built": "built, not closed", "now": "in flight",
     "next": "next", "later": "later", "blocked": "blocked",
 }
 
 # A You-get that means "nothing, and that is fine". The rule requires the
 # column be written rather than left blank precisely so this can be said out
 # loud, so it must be recognised rather than treated as a deliverable.
-NOTHING = re.compile(r"^(nothing( to hold| yet)?|none|no|n/?a|—|-)$", re.I)
+#
+# It is deliberately NOT an equality test. This started as one, and a row that
+# said *why* it hands nothing over failed it and was counted as a delivery --
+# so the rows most careful about saying they give nothing were exactly the ones
+# that inflated the "in your hands" meter. finance-tracker's money-correctness
+# row ("nothing to hold -- this is the floor everything else stands on") sat
+# miscounted for the whole life of its plan.
+#
+# So: one of the refusal words, then either end-of-cell or a punctuation mark
+# introducing the explanation. The punctuation requirement is what keeps a
+# genuine deliverable that merely *starts* with one of these words -- "no more
+# waiting for the book to open" -- from being swallowed as a refusal.
+_NO = r"nothing(?:\s+to\s+hold|\s+yet)?|none|no|n/?a"
+NOTHING = re.compile(
+    rf"^\s*(?:[—–-]|(?:{_NO})\b\s*(?:[—–\-,;:.(].*)?)\s*$", re.I | re.S)
+
+
+def hands_something_over(you_get: str) -> bool:
+    """Does this You-get cell promise the sponsor something he can hold?
+
+    Public on purpose. Any other reader of the milestone table -- a dashboard,
+    a report, a second generator -- must call this rather than keep its own
+    copy of the vocabulary. Two independent implementations of this one
+    predicate is not hypothetical: it already happened, both got the same case
+    wrong, and both carried a comment describing the case they got wrong.
+    """
+    return bool(you_get) and not NOTHING.match(you_get.strip().strip("*"))
 
 
 def split_row(line: str) -> list[str]:
@@ -116,7 +149,7 @@ def parse(checklist: pathlib.Path):
         gt = cell("gt")
         out.append({
             "t": cell("t"), "pv": cell("pv"), "gt": gt, "tr": cell("tr").strip("*") or "",
-            "s": cls, "deliver": bool(gt) and not NOTHING.match(gt.strip().strip("*")),
+            "s": cls, "deliver": hands_something_over(gt),
         })
     return out or None
 
