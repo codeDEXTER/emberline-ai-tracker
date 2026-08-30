@@ -108,10 +108,20 @@ test_cmd() {
 # repro of that line exits 0. The death is the assignment above it. The
 # difference matters -- the reported fix would have left the bug in place and
 # looked like it had worked.
+# `issue`/`issues` is deliberately NOT a keyword here, though it was until
+# 2026-08-30. GitHub's own closing-keyword list has never included it, and
+# treating it as one meant any prose reference closed the ticket it named:
+# "unlike issue #700", "this does NOT fix issue #800", "see issue #123 for
+# the real fix" all emitted a Closes trailer. The `issue_here` filter below
+# does not catch this -- it only checks the number exists in this repo, not
+# that closing it was intended. It bit twice in one day: a document-only
+# proposal branch whose body read "issues #821-#826" closed the live bug
+# #821 on merge, and the reopen that followed left a landed fix showing as
+# open. Say `closes`/`fixes`/`resolves` when you mean it.
 closes_trailer() {
     local subjects="$1"
     printf '%s\n' "$subjects" \
-        | grep -oiE '(issues?|closes?d?|fix(es|ed)?|resolves?d?)[[:space:]]+#[0-9]+' \
+        | grep -oiE '(closes?d?|fix(es|ed)?|resolves?d?)[[:space:]]+#[0-9]+' \
         | grep -oE '#[0-9]+' \
         | sort -u -t'#' -k2 -n \
         | sed 's/^/Closes /' \
