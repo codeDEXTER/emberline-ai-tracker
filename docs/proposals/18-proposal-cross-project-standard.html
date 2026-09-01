@@ -1,0 +1,253 @@
+<title>common-rules · 18 · proposed · One standard across every project</title>
+<meta name="proposal-id" content="18">
+<meta name="proposal-topic" content="cross-project-standard">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="proposed">
+<style>
+  :root{
+    --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
+    --rule:#1B1E23; --accent:#2E6E8E; --gain:#2E7D5B; --loss:#A8434B; --warn:#B4761E;
+    --chip:#FBFAF9; --lane:#EFEDEA;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--ground:#0C0F14;--surface:#131820;--ink:#E8E6E1;--dim:#8B93A0;--border:#26303C;
+          --rule:#E8E6E1;--accent:#7FB2CE;--gain:#5FA985;--loss:#C97A81;--warn:#D2A05A;
+          --chip:#0C0F14;--lane:#101620;}
+  }
+  :root[data-theme="dark"]{--ground:#0C0F14;--surface:#131820;--ink:#E8E6E1;--dim:#8B93A0;
+          --border:#26303C;--rule:#E8E6E1;--accent:#7FB2CE;--gain:#5FA985;--loss:#C97A81;
+          --warn:#D2A05A;--chip:#0C0F14;--lane:#101620;}
+  :root[data-theme="light"]{--ground:#F4F3F1;--surface:#FBFAF9;--ink:#1B1E23;--dim:#6B6660;
+          --border:#DCD8D2;--rule:#1B1E23;--accent:#2E6E8E;--gain:#2E7D5B;--loss:#A8434B;
+          --warn:#B4761E;--chip:#FBFAF9;--lane:#EFEDEA;}
+  body{background:var(--ground);color:var(--ink);font-family:var(--sans);
+       line-height:1.55;font-size:15.5px;margin:0}
+  .page{max-width:1030px;margin:0 auto;padding:52px 28px 90px}
+  .brand{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+         color:var(--dim);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  h1{font-size:34px;font-weight:650;letter-spacing:-.015em;line-height:1.15;margin:18px 0 10px}
+  h1 .num{color:var(--dim);font-weight:400}
+  .standfirst{font-size:17px;color:var(--dim);max-width:66ch;margin:0 0 8px}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.12em;
+           text-transform:uppercase;margin:50px 0 0;padding-bottom:9px;
+           border-bottom:2px solid var(--rule);display:flex;justify-content:space-between;
+           align-items:baseline;gap:12px}
+  .eyebrow .tag{font-weight:400;letter-spacing:.06em;color:var(--dim);text-transform:none}
+  section>p{max-width:70ch}
+  p.note{color:var(--dim);font-size:13.5px;max-width:72ch}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--lane);border-radius:4px;padding:1px 5px}
+  pre{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 15px;
+      overflow-x:auto;font-family:var(--mono);font-size:12.3px;line-height:1.5}
+  pre code{background:none;padding:0}
+  .tablewrap{overflow-x:auto;margin-top:16px}
+  table{border-collapse:collapse;width:100%;font-size:13.4px;min-width:640px}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+     color:var(--dim);text-align:left;font-weight:600;padding:8px 14px 8px 0;
+     border-bottom:1px solid var(--border)}
+  td{padding:9px 14px 9px 0;border-bottom:1px solid var(--border);vertical-align:top}
+  td.k{font-family:var(--mono);font-size:12.1px;white-space:nowrap}
+  .lab{font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;
+       padding:2px 7px;border-radius:4px;color:var(--chip);white-space:nowrap;display:inline-block}
+  .lab.ok{background:var(--gain)} .lab.no{background:var(--loss)} .lab.mid{background:var(--warn)}
+  .verdict{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);
+           border-radius:0 10px 10px 0;padding:16px 20px;margin:22px 0;max-width:74ch}
+  .verdict.warn{border-left-color:var(--warn)} .verdict.bad{border-left-color:var(--loss)}
+  .verdict p{margin:0 0 8px} .verdict p:last-child{margin:0}
+  .decision{background:var(--lane);border:1px solid var(--border);border-radius:10px;
+            padding:15px 19px;margin:16px 0;max-width:76ch}
+  .decision h4{margin:0 0 6px;font-size:14.5px;font-family:var(--mono);letter-spacing:.02em}
+  .decision p{margin:0 0 8px;font-size:14px} .decision p:last-child{margin:0}
+  .decision .opts{font-size:13.5px;color:var(--dim)}
+  figure{margin:24px 0} figure svg{width:100%;height:auto;display:block}
+  figcaption{font-size:12.5px;color:var(--dim);margin-top:8px}
+  ul{max-width:70ch} li{margin:0 0 7px}
+</style>
+
+<div class="page">
+
+<div class="brand"><span>common-rules · proposal 18</span><span>proposed · 1 September 2026</span></div>
+
+<h1><span class="num">18 · proposed ·</span> One standard across every project</h1>
+<p class="standfirst">Eight projects, five of them adopting the shared rules. Milestone planning
+is already standard and works. What is not standard is everything <em>around</em> it: only one
+project has CI, two are running rules that are 56 and 80 versions old, and there is no durable
+cross-project status — the only one that exists is a live loopback screen that vanishes when you
+close it.</p>
+
+<div class="eyebrow"><span>Where things actually stand</span><span class="tag">measured 1 Sep 2026</span></div>
+<section>
+<div class="tablewrap">
+<table>
+<tr><th>Project</th><th>Adopted</th><th>Milestones</th><th>CI</th><th class="k">Rules version</th><th>Drift</th></tr>
+<tr><td>pockets</td><td><span class="lab ok">yes</span></td><td><span class="lab ok">yes</span></td><td><span class="lab no">none</span></td><td class="k">183</td><td><span class="lab ok">current</span></td></tr>
+<tr><td>finance-tracker</td><td><span class="lab ok">yes</span></td><td><span class="lab ok">yes</span></td><td><span class="lab ok">yes</span></td><td class="k">182</td><td>1 behind</td></tr>
+<tr><td>photo-vault</td><td><span class="lab ok">yes</span></td><td><span class="lab ok">yes</span></td><td><span class="lab no">none</span></td><td class="k">182</td><td>1 behind</td></tr>
+<tr><td>mac-explorer</td><td><span class="lab ok">yes</span></td><td><span class="lab ok">yes</span></td><td><span class="lab no">none</span></td><td class="k">127</td><td><span class="lab no">56 behind</span></td></tr>
+<tr><td>pip</td><td><span class="lab ok">yes</span></td><td><span class="lab ok">yes</span></td><td><span class="lab no">none</span></td><td class="k">103</td><td><span class="lab no">80 behind</span></td></tr>
+<tr><td>geospatial-analytics</td><td><span class="lab no">no</span></td><td>—</td><td>—</td><td class="k">—</td><td>—</td></tr>
+<tr><td>activity-manager</td><td><span class="lab no">no</span></td><td>—</td><td>—</td><td class="k">—</td><td>—</td></tr>
+<tr><td>idea-lab</td><td><span class="lab no">no</span></td><td>—</td><td>—</td><td class="k">—</td><td>—</td></tr>
+</table>
+</div>
+
+<div class="verdict">
+<p><strong>Milestone planning is already the success story — leave it alone.</strong> All five
+adopters carry a <code>## Milestones</code> table, a <code>## Features</code> table and a
+generated <code>docs/milestones.html</code>. That is genuine cross-project standardisation and
+it did not need proposing; it needs protecting.</p>
+</div>
+
+<div class="verdict bad">
+<p><strong>The drift is the real problem.</strong> <code>mac-explorer</code> is 56 versions
+behind and <code>pip</code> is 80. Every rule landed in the last three weeks — the test
+requirement, the GitHub rules, the proposal numbering, the milestone gates — is simply
+<em>not in effect</em> in two of the five adopting projects. <code>bin/land</code> refuses a
+stale project, so those two cannot land at all until someone realigns them; they have gone
+quiet rather than complained.</p>
+</div>
+</section>
+
+<div class="eyebrow"><span>What is missing</span><span class="tag">three gaps, in cost order</span></div>
+<section>
+<figure>
+<svg viewBox="0 0 880 250" role="img" aria-label="Three gaps. Rules drift affects two of five projects at 56 and 80 versions behind. CI exists in one of five. Cross-project status exists only as a live loopback screen with nothing durable.">
+  <title>The three gaps in cross-project standardisation</title>
+  <g font-family="-apple-system,sans-serif">
+  <rect x="20" y="20" width="270" height="200" rx="10" fill="var(--surface)" stroke="var(--loss)" stroke-width="1.6"/>
+  <text x="40" y="50" font-size="13.5" font-weight="700" fill="var(--ink)">1 · Rules drift</text>
+  <text x="40" y="76" font-size="11.5" fill="var(--dim)">2 of 5 projects are 56 and</text>
+  <text x="40" y="94" font-size="11.5" fill="var(--dim)">80 versions behind.</text>
+  <text x="40" y="122" font-size="11.5" fill="var(--dim)">Every rule from the last three</text>
+  <text x="40" y="140" font-size="11.5" fill="var(--dim)">weeks is not in effect there.</text>
+  <text x="40" y="168" font-size="11.5" fill="var(--loss)" font-weight="600">They cannot land at all —</text>
+  <text x="40" y="186" font-size="11.5" fill="var(--loss)" font-weight="600">and went quiet, not loud.</text>
+
+  <rect x="305" y="20" width="270" height="200" rx="10" fill="var(--surface)" stroke="var(--warn)" stroke-width="1.6"/>
+  <text x="325" y="50" font-size="13.5" font-weight="700" fill="var(--ink)">2 · CI</text>
+  <text x="325" y="76" font-size="11.5" fill="var(--dim)">1 of 5 adopters has it.</text>
+  <text x="325" y="104" font-size="11.5" fill="var(--dim)">pockets has 77 Swift test</text>
+  <text x="325" y="122" font-size="11.5" fill="var(--dim)">files and nothing runs them</text>
+  <text x="325" y="140" font-size="11.5" fill="var(--dim)">on push.</text>
+  <text x="325" y="168" font-size="11.5" fill="var(--warn)" font-weight="600">Both repos that lacked CI</text>
+  <text x="325" y="186" font-size="11.5" fill="var(--warn)" font-weight="600">have had an unnoticed red trunk.</text>
+
+  <rect x="590" y="20" width="270" height="200" rx="10" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.6"/>
+  <text x="610" y="50" font-size="13.5" font-weight="700" fill="var(--ink)">3 · Status reporting</text>
+  <text x="610" y="76" font-size="11.5" fill="var(--dim)">The Tower reads every project</text>
+  <text x="610" y="94" font-size="11.5" fill="var(--dim)">and shows it live —</text>
+  <text x="610" y="112" font-size="11.5" fill="var(--dim)">on loopback, in a window.</text>
+  <text x="610" y="140" font-size="11.5" fill="var(--dim)">Nothing durable. Nothing you</text>
+  <text x="610" y="158" font-size="11.5" fill="var(--dim)">can read on Monday about</text>
+  <text x="610" y="176" font-size="11.5" fill="var(--dim)">what happened last week.</text>
+  </g>
+</svg>
+<figcaption>Ordered by what they cost. Drift silently disables every recent rule in two projects;
+missing CI has already produced two unnoticed red trunks; status is a convenience, not a
+correctness problem.</figcaption>
+</figure>
+</section>
+
+<div class="eyebrow"><span>What I propose</span><span class="tag">smallest first</span></div>
+<section>
+
+<h3 style="margin-top:28px">A · Realign the two stale projects, and make drift loud</h3>
+<p>Run <code>rulecheck --align</code> on <code>mac-explorer</code> and <code>pip</code>, reading
+the changelog between their version and current so nothing lands as a surprise. Then make the
+drift visible rather than silent: today a project 80 versions behind looks identical to a
+current one until someone tries to land.</p>
+<p><strong>The cheap version:</strong> the Tower already reads every project — give it a rules
+version column, red when behind. <strong>The thorough version:</strong> a weekly check that
+opens an issue in any project more than N versions behind.</p>
+
+<h3 style="margin-top:28px">B · CI in every adopting project</h3>
+<p><code>derecord</code> already installs the enforceable half of the rules into a project. It
+should install the workflow too — one file, running that project's own test command, on push and
+pull request. That makes CI part of adoption rather than something each project remembers.</p>
+<p class="note">Caveat worth stating: <code>pockets</code> is Swift with six packages, so its
+command is not the shared Python one. <code>derecord</code> would need to detect the project
+type — which <code>bin/land</code>'s <code>test_cmd()</code> already does and could be reused.</p>
+
+<h3 style="margin-top:28px">C · One weekly status, generated, per project and across all</h3>
+<p>Not a new screen. A generated <strong>document</strong> — the thing the Tower cannot be,
+because it vanishes when the window closes:</p>
+<pre><code>bin/status --week            # every project, one page
+bin/status --week &lt;project&gt;  # just one</code></pre>
+<p>Built only from what already exists and is already measured: milestone rows moved, issues
+opened and closed, PRs merged, tests added, cost from <code>spend</code>, and red trunks. No new
+record file, nothing hand-written — the <code>AGENT-LOG</code> lesson applies, a status anyone
+has to remember to write is a status that will be wrong.</p>
+
+<div class="verdict warn">
+<p><strong>The honest risk on C.</strong> This project has built one reporting tool that nobody
+used: <code>spend agentlog</code> works, is tested, and has been run <strong>once</strong> in
+three weeks. A weekly status has exactly the same shape, and the same way of failing. It should
+only be built if it is generated on a schedule and delivered without being asked for — a report
+you have to remember to run is <code>agentlog</code> again.</p>
+</div>
+
+<h3 style="margin-top:28px">D · A standard shape for session-to-session messages</h3>
+<p>Sessions already message each other — three times in one day recently, all useful, all
+ad hoc, and none recorded anywhere afterwards. Two of the three carried a diagnosis that turned
+out to be <strong>wrong</strong> and was only caught because the receiving session reproduced it
+before acting.</p>
+<p>The proposal is a shape, not a system: <strong>what I observed · what I think it is · what I
+already verified · what I did not · what I need from you.</strong> Separating <em>observed</em>
+from <em>concluded</em> is the whole value — it is exactly the line both wrong diagnoses
+crossed.</p>
+</section>
+
+<div class="eyebrow"><span>What I deliberately do not propose</span></div>
+<section>
+<ul>
+<li><strong>Changing milestone planning.</strong> It is the one thing already standard across all
+five adopters. Touching it risks the only cross-project convention that works.</li>
+<li><strong>Adopting the three unadopted projects.</strong> <code>geospatial-analytics</code>,
+<code>activity-manager</code> and <code>idea-lab</code> may be experiments that should stay
+light. Adoption costs a checklist, a milestone plan and a version stamp — worth it for a product,
+not for a sketch. <em>That is your call, not a default.</em></li>
+<li><strong>A new record file of any kind.</strong> Every merge conflict on 5 August was in a
+record file this framework invented.</li>
+</ul>
+</section>
+
+<div class="eyebrow"><span>Decisions</span><span class="tag">answers get recorded here</span></div>
+<section>
+
+<div class="decision"><h4>D1 · Realign mac-explorer and pip?</h4>
+<p>They are 56 and 80 versions behind and cannot land until realigned.</p>
+<p class="opts"><strong>Options:</strong> realign both now · realign only the one you still work
+in · leave them, they are dormant</p></div>
+
+<div class="decision"><h4>D2 · Should <code>derecord</code> install CI?</h4>
+<p>Making CI part of adoption rather than per-project memory.</p>
+<p class="opts"><strong>Options:</strong> yes, detect the project type and install · yes but
+Python-only for now · no, keep CI a per-project decision</p></div>
+
+<div class="decision"><h4>D3 · Build the weekly status — and if so, scheduled or on demand?</h4>
+<p>On-demand is what <code>spend agentlog</code> was, and it died. Scheduled delivery is the
+difference between a report and a ritual.</p>
+<p class="opts"><strong>Options:</strong> build it, delivered on a schedule · build it, on demand
+only · do not build it — the Tower is enough</p></div>
+
+<div class="decision"><h4>D4 · Adopt a standard shape for cross-session messages?</h4>
+<p>Observed / concluded / verified / not verified / needed.</p>
+<p class="opts"><strong>Options:</strong> yes, as a rule · yes, as guidance only · no</p></div>
+
+<div class="decision"><h4>D5 · Do the three unadopted projects adopt?</h4>
+<p>geospatial-analytics, activity-manager, idea-lab.</p>
+<p class="opts"><strong>Options:</strong> all three · only ones that become products · none for
+now</p></div>
+</section>
+
+<div class="eyebrow"><span>Method</span></div>
+<section>
+<p class="note">State measured 1 September 2026 across eight directories under
+<code>/Users/aashish/apps</code>: adoption from <code>.common-rules-version</code>, milestone and
+feature tables from each <code>CLAUDE-checklist.md</code>, CI from
+<code>.github/workflows/</code>, drift against common-rules at version 183. Nothing here is
+implemented — this proposal exists to be decided on first.</p>
+</section>
+
+</div>
