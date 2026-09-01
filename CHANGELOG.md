@@ -50,6 +50,22 @@ accepted-proposal backlog itself is named but deliberately not fixed here —
 that needs its own numbered proposal, and bolting it on would repeat the
 mistake that got section C cut.
 
+**Section E added: one GitHub vocabulary.** The proposal covered GitHub only as
+a cost, never as a standard — the sponsor caught that. Measured across the four
+focus projects, the label taxonomies have diverged far enough that a
+cross-project question cannot be asked: `priority:*` exists in two of four,
+photo-vault calls a bug a `defect`, mac-explorer has nothing but GitHub's stock
+labels, and finance-tracker writes `ui` where pockets writes `area:ui`. The
+Tower reads every project and cannot filter them alike.
+
+The standard is taken from what already works rather than invented: three axes
+— `priority:now|next|later` (both mature projects already use it), one type from
+finance-tracker's existing five, and pockets' `area:<name>` namespacing. Stock
+GitHub labels stay and are ignored. It is a floor, not a ceiling —
+photo-vault's `approved`/`decision` labels encode something the others lack and
+are kept. `gh label edit --name` carries existing issues with the rename, so the
+migration is one command per project rather than a re-triage.
+
 ## 2026-09-01 · Rules for GitHub, for the project's own context budget, and for deprecating old app copies
 
 Three additions, each from something measured rather than imagined.

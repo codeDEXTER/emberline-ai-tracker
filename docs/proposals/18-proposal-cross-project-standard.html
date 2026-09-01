@@ -199,6 +199,50 @@ from <em>concluded</em> is the whole value — it is exactly the line both wrong
 crossed.</p>
 </section>
 
+
+<h3 style="margin-top:28px">E · One GitHub vocabulary across the four</h3>
+<p>The rules now say how to <em>use</em> GitHub — pass <code>--limit</code>, check the branch
+before opening a PR, say <code>closes</code> only when you mean it. They say nothing about the
+<strong>vocabulary</strong>, and it has diverged to the point where a cross-project question
+cannot be asked at all:</p>
+
+<div class="tablewrap">
+<table>
+<tr><th>Project</th><th class="k">Labels</th><th>priority:*</th><th>type</th><th>area</th></tr>
+<tr><td>finance-tracker</td><td class="k">21</td><td><span class="lab ok">yes</span></td>
+    <td>bug · chore · feature · improvement · research</td><td>bare: <code>ui</code> <code>backend</code> <code>infra</code></td></tr>
+<tr><td>pockets</td><td class="k">32</td><td><span class="lab ok">yes</span></td>
+    <td>same five</td><td>namespaced: <code>area:ui</code> <code>area:infra</code></td></tr>
+<tr><td>photo-vault</td><td class="k">14</td><td><span class="lab no">none</span></td>
+    <td><code>defect</code>, not <code>bug</code></td><td><span class="lab no">none</span></td></tr>
+<tr><td>mac-explorer</td><td class="k">9</td><td><span class="lab no">none</span></td>
+    <td>GitHub defaults only</td><td><span class="lab no">none</span></td></tr>
+</table>
+</div>
+
+<div class="verdict bad">
+<p><strong>"Show me everything at <code>priority:now</code>" works in two of four projects.</strong>
+photo-vault calls a bug a <code>defect</code>. mac-explorer has nothing but GitHub's out-of-the-box
+labels. finance-tracker writes <code>ui</code> where pockets writes <code>area:ui</code>, so even
+the two that agree on priority disagree on area. The Tower reads every project and cannot filter
+them the same way.</p>
+</div>
+
+<p><strong>The standard, taken from what already works rather than invented:</strong> three axes,
+every issue carries one of each.</p>
+<pre><code>priority:now | priority:next | priority:later     # both mature projects already use this
+bug | feature | improvement | chore | research    # finance-tracker's set, unchanged
+area:&lt;name&gt;                                       # pockets' namespacing — it sorts and greps
+</code></pre>
+<p>GitHub's stock labels (<code>duplicate</code>, <code>good first issue</code>, <code>wontfix</code>
+…) stay where they are and are ignored; deleting them buys nothing. photo-vault's
+<code>defect</code> becomes <code>bug</code> and its <code>approved</code>/<code>decision</code>
+labels are kept — they encode something real that the other projects do not have, and this
+standard is a floor, not a ceiling.</p>
+<p class="note"><code>gh label create</code> and <code>gh label edit --name</code> do the whole
+migration, and renaming a label carries its existing issues with it — so this costs one command
+per project, not a re-triage.</p>
+
 <div class="eyebrow"><span>What I deliberately do not propose</span></div>
 <section>
 <ul>
@@ -294,6 +338,7 @@ three are true, and not before:</p>
 <tr><td class="k">3</td><td>No hosted workflow in the four focus projects runs on both
     <code>push</code> and <code>pull_request</code></td>
     <td class="k">a test in <code>tests/</code></td></tr>
+<tr><td class="k">4</td><td>All four focus projects carry the three label axes — <code>priority:*</code>, a type, and <code>area:*</code></td><td class="k">a test in <code>tests/</code>, via <code>gh label list</code></td></tr>
 </table>
 </div>
 
