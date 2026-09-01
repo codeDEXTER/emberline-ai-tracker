@@ -1,8 +1,8 @@
-<title>common-rules · 18 · proposed · One standard across every project</title>
+<title>common-rules · 18 · accepted · One standard across every project</title>
 <meta name="proposal-id" content="18">
 <meta name="proposal-topic" content="cross-project-standard">
 <meta name="proposal-type" content="proposal">
-<meta name="proposal-status" content="proposed">
+<meta name="proposal-status" content="accepted">
 <style>
   :root{
     --ground:#F4F3F1; --surface:#FBFAF9; --ink:#1B1E23; --dim:#6B6660; --border:#DCD8D2;
@@ -67,9 +67,9 @@
 
 <div class="page">
 
-<div class="brand"><span>common-rules · proposal 18</span><span>proposed · 1 September 2026</span></div>
+<div class="brand"><span>common-rules · proposal 18</span><span>accepted · 1 September 2026</span></div>
 
-<h1><span class="num">18 · proposed ·</span> One standard across every project</h1>
+<h1><span class="num">18 · accepted ·</span> One standard across every project</h1>
 <p class="standfirst">Eight projects, five of them adopting the shared rules. Milestone planning
 is already standard and works. What is not standard is everything <em>around</em> it: only one
 project has CI, two are running rules that are 56 and 80 versions old, and there is no durable
@@ -241,6 +241,34 @@ only · do not build it — the Tower is enough</p></div>
 now</p></div>
 </section>
 
+
+<div class="eyebrow"><span>Answers</span><span class="tag">recorded 1 September 2026</span></div>
+<section>
+<div class="verdict">
+<p><strong>D1 — Realign.</strong> <code>mac-explorer</code> is realigned; it is one of the four
+projects in focus. <code>pip</code> is not in focus and is left where it is.</p>
+<p><strong>D2 — CI: yes, but offline.</strong> GitHub Actions is billed —
+<code>ai-sangam</code> is a private repo and ran <strong>100+ workflow runs in seven days</strong>,
+with <code>ci.yml</code> firing on both <code>push</code> and <code>pull_request</code> so every
+merge pays twice. The standard is local-first: the suite runs before landing, on this machine.</p>
+<p><strong>D3 — Status tracking: yes, and it is the real gap.</strong> Numbering and the
+<code>proposed → accepted → completed</code> lifecycle already exist and are already used. What
+does not happen is proposals <em>leaving</em> <code>accepted</code>: <strong>35 accepted across
+three projects, 6 ever marked done</strong>. pockets has 13 accepted and zero completed, some
+since 4 August.</p>
+<p><strong>D4 — Message shape:</strong> not decided; carried forward.</p>
+<p><strong>D5 — No new adoptions.</strong> Focus is <strong>pockets, finance-tracker,
+photo-vault and mac-explorer</strong>. <code>geospatial-analytics</code>,
+<code>activity-manager</code> and <code>idea-lab</code> stay unadopted.
+<code>pip</code> drops out of focus.</p>
+</div>
+
+<p><strong>Scope correction this proposal earned:</strong> section C proposed building a weekly
+status report. The measurement says that is the wrong build. Numbering, statuses and
+<code>proposalcheck</code> already exist — <strong>the missing piece is not a report, it is
+anything that moves a proposal from accepted to completed.</strong> A weekly page listing 35
+accepted proposals would restate the problem rather than fix it.</p>
+</section>
 <div class="eyebrow"><span>Method</span></div>
 <section>
 <p class="note">State measured 1 September 2026 across eight directories under

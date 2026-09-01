@@ -1,5 +1,33 @@
 # Changelog — common-rules
 
+## 2026-09-01 · Proposal 18 answered — and it cut its own biggest item
+
+The sponsor's decisions are recorded in
+`docs/proposals/18-proposal-cross-project-standard.html`, which moves to `accepted`.
+
+**Focus is four projects: pockets, finance-tracker, photo-vault, mac-explorer.**
+No new adoptions. `pip` drops out of focus; `geospatial-analytics`,
+`activity-manager` and `idea-lab` stay unadopted.
+
+**CI is local-first, not GitHub Actions.** Measured while answering: `ai-sangam`
+is a **private** repo, so minutes are billed, and it ran **100+ workflow runs in
+seven days** — with `ci.yml` triggering on both `push` and `pull_request`, so
+every merge pays for the same suite twice. `bin/land` already runs the suite
+before landing on this machine, for free. That is the standard.
+
+**The status-tracking ask turned out to be mostly already built.** Numbering
+(`NN-<type>-<slug>.html`), the `proposed → accepted → completed` lifecycle, and
+`proposalcheck` enforcing recorded decisions all exist and are in use in four
+projects. So the proposal's own section C — build a weekly status report — was
+cut rather than accepted: **the gap is not reporting, it is that proposals never
+leave `accepted`.** 35 accepted across three projects; 6 ever reached
+completed/built; pockets has 13 accepted and **zero** completed, some since
+4 August. A weekly page listing 35 accepted proposals would restate that rather
+than fix it.
+
+Checking before building is what saved the work here, and it is worth the
+sentence: three of the four things asked for already existed.
+
 ## 2026-09-01 · Rules for GitHub, for the project's own context budget, and for deprecating old app copies
 
 Three additions, each from something measured rather than imagined.
