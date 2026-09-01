@@ -105,7 +105,7 @@
 
 <div class="brand">
   <span>common-rules · reference</span>
-  <span>derived from CLAUDE-workflow.md · rules version 166 · 2026-08-20</span>
+  <span>derived from CLAUDE-workflow.md · rules version 183 · 2026-09-01</span>
 </div>
 
 <h1>The whole workflow, on one page</h1>
@@ -625,6 +625,8 @@ title.</p>
   <tr><td class="k">docs/proposals/</td><td>project manager</td><td>Decisions and the argument behind them. Conclusions immutable</td></tr>
   <tr><td class="k">CHANGELOG.md</td><td>whoever merges</td><td>Why a change was made, not what changed</td></tr>
   <tr><td class="k">LESSONS.md</td><td>agents, typed, append-only</td><td>bug · gotcha · attempt · resolved-dispute · requirements-gap</td></tr>
+  <tr><td class="k">GitHub</td><td>every session, via <code>gh</code></td><td>Pass <code>--limit</code> — <code>gh</code> caps at 30 rows and says nothing. Check <code>git log origin/main..HEAD</code> before opening a PR: a branch cut from a local <code>main</code> that was ahead carries the unpushed commits too. Say <code>closes</code>/<code>fixes</code>/<code>resolves</code> only when you mean it. Never paste real data into an issue, PR body or commit message — a push does not unpublish.</td></tr>
+  <tr><td class="k">CLAUDE.md</td><td>the project</td><td>Has a budget. These rules were cut 1,637 → 594 lines because a bloated instruction file gets ignored; that only works if the project file does not absorb the difference. finance-tracker currently loads <strong>2,218 lines</strong> per session. History belongs in <code>LESSONS.md</code>, decisions in a numbered proposal, anything universal in the shared rules.</td></tr>
   <tr><td class="k">tests/</td><td>whoever verified it — <code>code-engineer</code> writes them</td><td>One command everywhere: <code>python3 -m unittest discover -s tests -q</code>. <code>bin/land</code> and CI run the identical string, so a test written once is enforced in both. A probe you ran to prove something belongs here, not in a message — land refuses code with no test.</td></tr>
   <tr><td class="k">AGENT-LOG.md</td><td><em>generated</em> — <code>spend agentlog --write</code></td><td>Which agents ran, what each task cost, over what span. Regenerated from the session transcripts; never hand-edited.</td></tr>
   <tr><td class="k">ASKS.md</td><td>any session</td><td>What you've asked for about <em>how work is done</em>, and the patterns in it</td></tr>

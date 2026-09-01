@@ -150,6 +150,19 @@ land_one() {
     ahead=$($GIT rev-list --count "main..$branch")
     [ "$ahead" -gt 0 ] || { refuse "nothing main doesn't already have"; return 1; }
 
+    # Say what is actually about to land, not just how much.
+    #
+    # A branch cut from a local `main` that was ahead of `origin` carries the
+    # unpushed commits too, and a squash merge collapses the lot under this
+    # branch's title. It happened twice on 2026-08-07: a PR described as a
+    # one-line docs change landed 25 files and 1,109 insertions of another
+    # session's work, and published a real corpus identifier doing it.
+    #
+    # The cheapest guard is to print the subjects. If a line here is not
+    # yours, stop -- `git fetch && git rebase origin/main` before landing.
+    $GIT log "main..$branch" --pretty='      %h %s' | head -12
+    [ "$ahead" -gt 12 ] && say "      … and $((ahead - 12)) more"
+
     # --- aligned with common-rules -----------------------------------------
     #
     # Merging work produced under rules nobody read is the actual harm, and
