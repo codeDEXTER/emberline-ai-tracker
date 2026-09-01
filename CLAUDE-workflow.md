@@ -323,6 +323,61 @@ same file are one issue, or one queue.
 
 Record dependencies when issues are created, not when they collide.
 
+### Working with GitHub
+
+**`gh` truncates silently.** `gh issue list` and `gh pr list` default to **30 rows**
+and say nothing about the ones they dropped. A backlog reported as "30 open" was
+the page size, not the total. Always pass `--limit` — and when you report a count
+to the user, it came from a command that had one.
+
+**Check what your branch actually contains before opening a PR:**
+
+```
+git log --oneline origin/main..HEAD
+```
+
+If a line there is not yours, stop and rebase. A branch cut from a local `main`
+that was ahead of `origin` carries the unpushed commits too, and a squash merge
+collapses them all under your title. On 2026-08-07 a PR described as a one-line
+docs change landed **25 files and 1,109 insertions** of another session's work,
+and published a real corpus identifier doing it. `bin/land` now prints the
+subjects it is about to land for the same reason.
+
+**Say `closes` / `fixes` / `resolves` when you mean it, and only then.**
+`bin/land` writes the `Closes #N` trailer from your commit messages, so an issue
+closes with its fix instead of outliving it. The word *issue* is deliberately not
+a keyword: "unlike issue #700" closed the live bug it named, twice in one day.
+
+**An issue carries priority, type and area labels.** They are how the Tower and
+every `--label` query find anything. Currently 17 of 88 open issues in
+finance-tracker carry fewer than two.
+
+**Never paste real data into an issue, a PR body or a commit message.** They go
+to the remote, and a push does not unpublish. Real corpus identifiers reached
+`origin` this way and the history still carries them.
+
+---
+
+### The project's own context has a budget too
+
+These shared rules were cut from 1,637 lines to under 600 because a bloated
+instruction file gets ignored rather than followed. That cut works only if the
+project file does not absorb the difference — and it has:
+
+| loaded into every session | lines |
+|---|---:|
+| finance-tracker `CLAUDE.md` + checklist | **2,218** |
+| pockets `CLAUDE.md` + checklist | 1,128 |
+| these shared rules | 594 |
+
+A project's `CLAUDE.md` holds what is **specific and load-bearing**: test and
+build commands, repo name, labels, gitignored files a worktree needs, and the
+gotchas that have actually bitten. Anything that is history belongs in
+`LESSONS.md`, anything that is a decision belongs in a numbered proposal, and
+anything true of every project belongs here instead. If a section has not
+changed what a session did in a month, it is costing attention rather than
+buying it.
+
 ---
 
 ## Working alongside other sessions
@@ -551,6 +606,28 @@ a *development* copy: it carries a distinct name and identifier, and
 one identifier is a bug — macOS keys on `CFBundleIdentifier`, so that is not two
 copies but one identity with two bodies, and which one opens is undefined.
 `bin/appcheck` finds them; it should always report every identifier unique.
+
+**A superseded copy is removed, not left beside the new one.** `appcheck` only
+*reports*; nothing deletes for you, so deprecation is a step someone has to
+take:
+
+- **After every `--install`, run `bin/appcheck`.** It should say *every
+  identifier unique*. If it does not, the previous bundle survived the install
+  and both now answer to the same identifier — which one opens is undefined.
+- **A worktree's development build is deleted when its task ends.** It exists to
+  be looked at once. `dist/` is regenerable build output and can be cleared
+  freely.
+- **A renamed or replaced app's old bundle goes too**, along with its
+  LaunchServices registration — `appcheck --clear-ghosts`. A `rm` alone leaves a
+  ghost, which is why Spotlight and Launchpad keep offering copies that no
+  longer exist.
+- **Never touch `/Applications` by hand.** `--install` is the only path in, and
+  it is refused from anywhere but a stable build from `main`.
+
+The standing state is one bundle per project, built from `main`, and nothing
+else. Four `Sangam.app` bundles accumulated on 2026-08-05 precisely because
+verifying ordinary work built a `.app` each time and none of them were cleaned
+up.
 
 Never touch `/Applications` by hand — `--install` is the only path in, and it
 removes its own staged copy from `dist/` so the install cannot leave a duplicate
