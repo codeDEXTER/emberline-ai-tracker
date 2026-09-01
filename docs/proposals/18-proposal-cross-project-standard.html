@@ -152,7 +152,8 @@ correctness problem.</figcaption>
 <div class="eyebrow"><span>What I propose</span><span class="tag">smallest first</span></div>
 <section>
 
-<h3 style="margin-top:28px">A · Realign the two stale projects, and make drift loud</h3>
+<h3 style="margin-top:28px">A · Realign the two stale projects, <span style="color:var(--dim);font-weight:400">and make drift loud <em>— second half not adopted</em></span></h3>
+<div class="verdict warn"><p><strong>Struck on review.</strong> Realigning is adopted. Making drift <em>visible</em> is not: <code>bin/land</code> already <em>refuses</em> a stale project outright, which is stronger than a column. mac-explorer and pip did not go quiet for want of a signal — they are dormant. A column nobody reads is <code>spend agentlog</code> again, the exact trap this document names below.</p></div>
 <p>Run <code>rulecheck --align</code> on <code>mac-explorer</code> and <code>pip</code>, reading
 the changelog between their version and current so nothing lands as a surprise. Then make the
 drift visible rather than silent: today a project 80 versions behind looks identical to a
@@ -162,9 +163,8 @@ version column, red when behind. <strong>The thorough version:</strong> a weekly
 opens an issue in any project more than N versions behind.</p>
 
 <h3 style="margin-top:28px">B · CI in every adopting project</h3>
-<p><code>derecord</code> already installs the enforceable half of the rules into a project. It
-should install the workflow too — one file, running that project's own test command, on push and
-pull request. That makes CI part of adoption rather than something each project remembers.</p>
+<div class="verdict bad"><p><strong>Rewritten — the original contradicted D2.</strong> This section first said <code>derecord</code> should install a workflow running "on push and pull request". D2 then measured that GitHub Actions is billed on these private repos and ran 100+ times in seven days, paying twice per merge. Implementing B as first written would have rolled that cost out to three <em>more</em> projects. It was written before the measurement and not reconciled when the answer came back.</p></div>
+<p><strong>What is adopted instead: local-first.</strong> <code>bin/land</code> already runs the suite before landing, on this machine, for free — that <em>is</em> the CI, and it is already installed everywhere <code>land</code> is used. What <code>derecord</code> should carry is the project's own test command, so <code>land</code> can find it in a Swift project as readily as a Python one. A hosted workflow is opt-in per project, and if one exists it runs on <code>pull_request</code> only — never on both.</p>
 <p class="note">Caveat worth stating: <code>pockets</code> is Swift with six packages, so its
 command is not the shared Python one. <code>derecord</code> would need to detect the project
 type — which <code>bin/land</code>'s <code>test_cmd()</code> already does and could be reused.</p>
@@ -187,7 +187,8 @@ only be built if it is generated on a schedule and delivered without being asked
 you have to remember to run is <code>agentlog</code> again.</p>
 </div>
 
-<h3 style="margin-top:28px">D · A standard shape for session-to-session messages</h3>
+<h3 style="margin-top:28px">D · A standard shape for session-to-session messages <span style="color:var(--dim);font-weight:400"><em>— held, not adopted</em></span></h3>
+<div class="verdict warn"><p><strong>Held.</strong> It is prose, and every prose rule in this system measured <strong>1-in-7</strong> compliance before a guard existed. The observation behind it stands and is worth keeping; the rule waits until something can check it.</p></div>
 <p>Sessions already message each other — three times in one day recently, all useful, all
 ad hoc, and none recorded anywhere afterwards. Two of the three carried a diagnosis that turned
 out to be <strong>wrong</strong> and was only caught because the receiving session reproduced it
@@ -268,6 +269,38 @@ status report. The measurement says that is the wrong build. Numbering, statuses
 <code>proposalcheck</code> already exist — <strong>the missing piece is not a report, it is
 anything that moves a proposal from accepted to completed.</strong> A weekly page listing 35
 accepted proposals would restate the problem rather than fix it.</p>
+</section>
+
+<div class="eyebrow"><span>What completes this</span><span class="tag">so it does not become the 36th</span></div>
+<section>
+<div class="verdict bad">
+<p><strong>This document diagnoses that 35 proposals are accepted and 6 ever reach
+<code>completed</code> — and its own first act was to become another accepted proposal.</strong>
+On that base rate it has roughly a one-in-six chance of ever being marked done. A proposal that
+identifies a completion problem and then exhibits it is not evidence of anything.</p>
+</div>
+
+<p>So it carries its own exit condition. This proposal moves to <code>completed</code> when all
+three are true, and not before:</p>
+
+<div class="tablewrap">
+<table>
+<tr><th>#</th><th>Condition</th><th>Checkable by</th></tr>
+<tr><td class="k">1</td><td><code>mac-explorer</code> reports current against the shared rules</td>
+    <td class="k">rulecheck, exit 0</td></tr>
+<tr><td class="k">2</td><td><code>derecord</code> carries each project's own test command, so
+    <code>land</code> finds the suite in a Swift project as readily as a Python one</td>
+    <td class="k">a test in <code>tests/</code></td></tr>
+<tr><td class="k">3</td><td>No hosted workflow in the four focus projects runs on both
+    <code>push</code> and <code>pull_request</code></td>
+    <td class="k">a test in <code>tests/</code></td></tr>
+</table>
+</div>
+
+<p class="note">Nothing here mentions the accepted-proposal backlog itself — 35 open, 6 done.
+That is a real gap and it needs its own numbered proposal with its own exit condition, not a
+clause bolted to this one. Naming it here is deliberate so it is not lost; fixing it here would
+be the same mistake as section C.</p>
 </section>
 <div class="eyebrow"><span>Method</span></div>
 <section>

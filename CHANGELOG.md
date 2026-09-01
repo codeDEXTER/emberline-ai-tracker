@@ -28,6 +28,28 @@ than fix it.
 Checking before building is what saved the work here, and it is worth the
 sentence: three of the four things asked for already existed.
 
+**Amended the same day, on review.** Three objections, one of them a
+contradiction introduced in the drafting:
+
+- **Section B contradicted D2 inside one document.** It said `derecord` should
+  install a workflow running "on push and pull request" — written before the
+  cost was measured, and not reconciled when D2 answered that hosted CI is
+  billed. Implementing it would have rolled that cost out to three *more*
+  projects. Rewritten local-first: `bin/land` already runs the suite for free
+  and *is* the CI; what `derecord` should carry is each project's own test
+  command. A hosted workflow is opt-in and never fires on both triggers.
+- **Section A's second half is struck.** `land` already *refuses* a stale
+  project, which is stronger than a Tower column. The two stale projects are
+  dormant, not uninformed. A column nobody reads is `spend agentlog` again.
+- **Section D is held.** It is prose, and prose measured 1-in-7 compliance here.
+
+And the proposal now carries **its own exit condition**, because it diagnosed
+that 35 proposals sit accepted against 6 completed and then became another
+accepted proposal. Three checkable conditions, two of them tests. The
+accepted-proposal backlog itself is named but deliberately not fixed here —
+that needs its own numbered proposal, and bolting it on would repeat the
+mistake that got section C cut.
+
 ## 2026-09-01 · Rules for GitHub, for the project's own context budget, and for deprecating old app copies
 
 Three additions, each from something measured rather than imagined.
