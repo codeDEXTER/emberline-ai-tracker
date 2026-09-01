@@ -1,5 +1,38 @@
 # Changelog — common-rules
 
+## 2026-09-01 · Rules for GitHub, for the project's own context budget, and for deprecating old app copies
+
+Three additions, each from something measured rather than imagined.
+
+**A `### Working with GitHub` section.** `gh issue list` and `gh pr list` default
+to **30 rows** and say nothing about what they dropped — a backlog reported here
+as "30 open" was the page size, not the total, and a later count of 40 was
+actually 45. Always pass `--limit`. Alongside it: check
+`git log --oneline origin/main..HEAD` before opening a PR, because a branch cut
+from a local `main` that was ahead of `origin` carries the unpushed commits too
+and a squash collapses them under your title — on 2026-08-07 a PR described as a
+one-line docs change landed 25 files and 1,109 insertions of another session's
+work, and published a real corpus identifier doing it. `bin/land` now prints the
+commit subjects it is about to land, so that is visible before the merge instead
+of after; `tests/test_land_shows_what_it_lands.py` covers it and was run against
+the old script first, where all 3 cases failed.
+
+**A context budget for the project's own `CLAUDE.md`.** These rules were cut
+from 1,637 lines to under 600 because a bloated instruction file gets ignored
+rather than followed. That cut only works if the project file does not absorb
+the difference, and it has: finance-tracker loads **2,218 lines** of
+`CLAUDE.md` + checklist into every session, pockets 1,128, against 594 here.
+History belongs in `LESSONS.md`, decisions in a numbered proposal, anything
+universal in the shared rules.
+
+**Deprecating superseded app copies.** "One installed app per project" was
+already the rule and `bin/appcheck` already detects violations — but nothing
+removes anything, and `appcheck` is consumed by no gate (0 references in
+`bin/land`). So the deprecation step is now written down: run `appcheck` after
+every `--install`, delete a worktree's development build when its task ends,
+clear the LaunchServices ghost when a bundle is removed, and never touch
+`/Applications` by hand.
+
 ## 2026-08-20 · Milestones and proposals reach the Tower (proposal 15)
 
 Handed over from another session, at the sponsor's request, once every
