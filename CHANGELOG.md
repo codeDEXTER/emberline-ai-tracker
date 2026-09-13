@@ -1,5 +1,18 @@
 # Changelog — common-rules
 
+## 2026-09-13 · Proposal 19: Warm-up — proposed and accepted the same day
+
+`docs/proposals/19-proposal-warmup.html`. Analysed the PhotoVault engine
+sessions of 6–13 September (160 sponsor turns, 3,321 tool calls, 257
+agents) for what a cold chat has to be told and what it then does well. The
+proposal lifts the engine's working shape — HANDOFF, dated operating rules,
+a JSON ledger rendered to HTML, complexity classes deciding tier and model,
+a lead prompt and a checkpoint — into one standard with a `/warmup` skill,
+templates seeded by `derecord`, a `bin/tracker` renderer and gate, an ask
+ledger so sponsor input in chat is catalogued (three of five asks on 9 Sep
+were not), and a five-heading brief that carries tier, effort and scope,
+not only a model name. Eleven decisions asked and all answered on 13 September: D3 = Ruflo mandatory ("i want ruflo to be mandatory"), every other decision accepted ("D1 accept, D2 accept, D4 to D11 accept"). Status moves to `accepted`. Nothing built yet; D6 sets the pilot order — PhotoVault engine, pockets, finance-tracker, mac-explorer. Section H checks the design against three independent research passes and folds in six additions.
+
 ## 2026-09-13 · Baseline: main green again, before the rules are rewritten
 
 main had been red since 2026-08-30. f9ed133 deliberately stopped `land`
