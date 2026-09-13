@@ -161,6 +161,48 @@ class TestDerecordSeeding(DerecordCase):
         self.assertIn("HANDOFF.md exists, left alone", r.stdout)
 
 
+class TestDerecordSkill(DerecordCase):
+    """Step 6: derecord installs the /warmup skill (proposal 19, W-11).
+
+    The skill lives once, at skills/warmup/SKILL.md in common-rules. A project
+    must not keep a divergent copy: this matches, not merely adds -- same
+    principle as the .gitattributes and hooks steps above.
+    """
+
+    SKILL_SRC = ROOT / "skills" / "warmup" / "SKILL.md"
+    SKILL_REL = Path(".claude") / "skills" / "warmup" / "SKILL.md"
+
+    def test_missing_skill_is_installed_byte_identical(self):
+        r = self.run_derecord()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        dest = self.proj / self.SKILL_REL
+        self.assertTrue(dest.exists(), "skill was not installed")
+        self.assertEqual(dest.read_bytes(), self.SKILL_SRC.read_bytes())
+        self.assertIn(f"  {self.SKILL_REL}: installed", r.stdout)
+
+    def test_a_second_run_leaves_it_byte_identical_and_says_so(self):
+        self.run_derecord()
+        before = (self.proj / self.SKILL_REL).read_bytes()
+        second = self.run_derecord()
+        self.assertEqual(before, (self.proj / self.SKILL_REL).read_bytes())
+        self.assertIn(f"  {self.SKILL_REL}: already current", second.stdout)
+
+    def test_a_stale_copy_is_corrected_to_the_source(self):
+        dest = self.proj / self.SKILL_REL
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text("stale copy, not what common-rules has\n")
+        r = self.run_derecord()
+        self.assertEqual(dest.read_bytes(), self.SKILL_SRC.read_bytes())
+        self.assertIn(f"  {self.SKILL_REL}: corrected", r.stdout)
+
+    def test_a_sibling_skill_survives_byte_identical(self):
+        sibling = self.proj / ".claude" / "skills" / "other" / "SKILL.md"
+        sibling.parent.mkdir(parents=True, exist_ok=True)
+        sibling.write_text("unrelated skill, do not touch\n")
+        self.run_derecord()
+        self.assertEqual(sibling.read_text(), "unrelated skill, do not touch\n")
+
+
 class TestDerecordHooks(DerecordCase):
     """Step 5: derecord installs the checkpoint hooks (proposal 19, D8 / W-08)."""
 
