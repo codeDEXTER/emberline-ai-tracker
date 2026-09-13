@@ -1,0 +1,258 @@
+<title>common-rules · 19 · proposed · Warm-up</title>
+<meta name="proposal-id" content="19">
+<meta name="proposal-topic" content="warmup">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="proposed">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ground:#ECEEF0; --surface:#F8F9FA; --lane:#E2E6EA; --ink:#171B1F; --dim:#66707A; --border:#CBD2D9;
+    --ember:#D4531F; --ember-soft:#F6DED2; --cold:#5C7A94; --cold-soft:#D9E3EC;
+    --gain:#2F855A; --warn:#B7791F; --loss:#B23A48;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:"Archivo",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){--ground:#12161A;--surface:#1A2026;--lane:#20272E;--ink:#E6E9EC;--dim:#8F9AA5;--border:#2E3840;
+      --ember:#F0733E;--ember-soft:#3A241B;--cold:#8FB0C9;--cold-soft:#1E2C38;--gain:#5FB58A;--warn:#D8A34A;--loss:#D06A77;}
+  }
+  :root[data-theme="dark"]{--ground:#12161A;--surface:#1A2026;--lane:#20272E;--ink:#E6E9EC;--dim:#8F9AA5;--border:#2E3840;
+      --ember:#F0733E;--ember-soft:#3A241B;--cold:#8FB0C9;--cold-soft:#1E2C38;--gain:#5FB58A;--warn:#D8A34A;--loss:#D06A77;}
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.55}
+  .wrap{max-width:1040px;margin:0 auto;padding:48px 28px 96px}
+  h1,h2,h3{font-family:var(--sans);text-wrap:balance;margin:0}
+  h1{font-size:44px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+  h2{font-size:26px;font-weight:700;letter-spacing:-.01em;margin-top:64px}
+  h3{font-size:18px;font-weight:700;margin-top:28px}
+  p{max-width:68ch;margin:14px 0}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+  .lede{font-size:21px;line-height:1.45;max-width:60ch;margin-top:18px}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;font-family:var(--mono);font-size:13px;color:var(--dim);margin-top:22px}
+  .meta b{color:var(--ink);font-weight:500}
+  code,.mono{font-family:var(--mono);font-size:.88em}
+  code{background:var(--lane);padding:1px 5px;border-radius:3px}
+  pre{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--surface);border:1px solid var(--border);padding:16px 18px;overflow-x:auto;margin:16px 0}
+  .lane{background:var(--lane);padding:26px 28px;margin:24px -28px;overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:15px;font-variant-numeric:tabular-nums}
+  th{font-family:var(--sans);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);text-align:left;padding:8px 10px;border-bottom:1px solid var(--ink)}
+  td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  td.n{text-align:right;font-family:var(--mono);font-size:14px}
+  .tag{font-family:var(--mono);font-size:12.5px;background:var(--surface);border:1px solid var(--border);padding:2px 7px;border-radius:3px;white-space:nowrap}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:18px}
+  @media (max-width:720px){.two{grid-template-columns:1fr}}
+  .col h3{margin-top:0;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+  .col.good h3{border-color:var(--gain)}
+  .col.bad h3{border-color:var(--loss)}
+  ul{padding-left:20px;margin:10px 0}
+  li{margin:7px 0;max-width:62ch}
+  .fig{margin:24px 0}
+  .fig svg{width:100%;height:auto;display:block}
+  .cap{font-family:var(--sans);font-size:13px;color:var(--dim);margin-top:8px}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px}
+  @media (max-width:720px){.kpi{grid-template-columns:repeat(2,1fr)}}
+  .kpi div{background:var(--surface);border-top:2px solid var(--ink);padding:12px 14px}
+  .kpi b{display:block;font-family:var(--sans);font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1}
+  .kpi span{font-family:var(--sans);font-size:13px;color:var(--dim)}
+  .dec{border:1px solid var(--border);background:var(--surface);padding:18px 20px;margin-top:16px}
+  .dec .q{font-family:var(--sans);font-weight:700;font-size:17px}
+  .dec .r{margin-top:8px;font-size:15.5px}
+  .dec .r b{color:var(--ember)}
+  .dec .id{font-family:var(--mono);color:var(--dim);font-size:13px;margin-right:8px}
+  .step{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start;margin:10px 0}
+  .step .no{font-family:var(--mono);font-size:13px;color:var(--ember);padding-top:4px}
+  .warm{color:var(--ember)} .coldc{color:var(--cold)}
+  .fold{margin-top:12px}
+  summary{cursor:pointer;font-family:var(--sans);font-size:15px;font-weight:600}
+</style>
+
+<div class="wrap">
+<div class="eyebrow">common-rules · proposal 19 · proposed · 13 September 2026</div>
+<h1>Warm-up</h1>
+<p class="lede">A cold chat becomes a lead in one command. The PhotoVault engine session already works the way every project should — plan as data, ledger updated on every change, agents tiered by complexity, rules learned the hard way written down. This proposal lifts what it did into one standard, one set of templates, and one <code>/warmup</code> that loads it all before the first question.</p>
+<div class="meta"><span>evidence <b>PhotoVault engine, 6–13 Sep</b></span><span>sessions read <b>2 · 160 sponsor turns · 3,321 tool calls</b></span><span>decisions asked <b>6</b></span></div>
+
+<h2>What the engine session proved</h2>
+<p>Two sessions, 6–13 September, the second running six days across six context compactions. The measured shape:</p>
+<div class="kpi">
+  <div><b>126</b><span>sponsor turns in the long session</span></div>
+  <div><b>185</b><span>agents spawned, 98 with a <span class="mono">[tier · model]</span> tag</span></div>
+  <div><b>66 / 37</b><span>messages sent to / received from the app session</span></div>
+  <div><b>58</b><span>ledger commits in one day (13 Sep)</span></div>
+</div>
+
+<div class="two">
+  <div class="col good"><h3>What worked</h3>
+    <ul>
+      <li><b>The handoff.</b> <code>HANDOFF.md</code> — 201 lines, prohibitions verbatim, standing rulings marked VERIFIED or [INFERRED], state as measured with the command that measured it. The 7 Sep session was spawning gate agents 90 minutes after "start".</li>
+      <li><b>The plan is data.</b> Proposal 71 is a JSON ledger: 39 items, each with class, tier, model, tag, owned files, red-first test, done-when, dependencies, a <code>log</code> array and an issue number. The HTML is rendered from it.</li>
+      <li><b>Complexity decides the model.</b> C1 haiku · C2 sonnet · C3 opus · C4 lead. Every agent named <span class="tag">[ruflo · high · opus] R-01 …</span>. The tag is the ledger row's first column.</li>
+      <li><b>Rules with dates and causes.</b> <code>OPERATING-RULES.md</code>, 398 lines, each rule carrying the day and the incident. Stale-base incidents went 3 → 0 in one day once "fast-forward first" was written.</li>
+      <li><b>A lead prompt that does not stop.</b> 72 lines: read these seven files in this order, Ruflo or halt, spawn every unblocked C1/C2 in one message, checkpoint before you stop, four sponsor-owned blockers and no others.</li>
+      <li><b>Continuous merge.</b> His ruling of 9 Sep after seven commits piled behind one gate.</li>
+    </ul>
+  </div>
+  <div class="col bad"><h3>What did not</h3>
+    <ul>
+      <li><b>Status was pulled, not pushed.</b> "Update the plan and show the burn down" ×6, "What is the current status?" ×5. The ledger now updates on every state change — that rule arrived on 13 Sep, day eight.</li>
+      <li><b>Sponsor asks fell out of the chat.</b> On 9 Sep he asked five things in one morning. Two became issues. Three — a HEIC sidecar for analytics, an early pass to filter images, "will a rerun be faster?" — exist nowhere: no issue, no ledger row, no word "research" in the tracker.</li>
+      <li><b>Ruflo cost and did not return.</b> Its own ledger, 27 agents without vs 43 with: tokens unchanged at every tier, memory never a usable hit, daemon auto-started and had to be stopped, npx pin drifted. "No measurable difference… a small measurable cost."</li>
+      <li><b>Briefs named a model and forgot the scope.</b> An E2-01 agent launched the real Photos app; agents swept other agents' files into commits four times (W10-8, W11-6, W16-1, W18-B). Each was a missing MUST NOT, not a wrong model.</li>
+      <li><b>Six compactions.</b> Each summary is a paraphrase; the session later quoted paraphrase as his words (the provenance audit exists because of it).</li>
+      <li><b>Nothing of this is shared.</b> Every rule above lives in one repo. pockets, finance-tracker and mac-explorer each start cold.</li>
+    </ul>
+  </div>
+</div>
+
+<h2>The idea, in one picture</h2>
+<div class="lane"><div class="fig">
+<svg viewBox="0 0 980 300" xmlns="http://www.w3.org/2000/svg" font-family="Archivo, sans-serif">
+  <rect x="0" y="0" width="980" height="300" fill="none"/>
+  <!-- cold -->
+  <rect x="20" y="30" width="400" height="240" rx="4" fill="var(--cold-soft)" stroke="var(--cold)"/>
+  <text x="40" y="60" font-size="13" fill="var(--cold)" letter-spacing="1" font-weight="700">TODAY · COLD START</text>
+  <g font-size="14" fill="var(--ink)" font-family="Source Serif 4, serif">
+    <text x="40" y="95">"Start a new session… reread the handoff"</text>
+    <text x="40" y="122">"Are you using ruflo?"</text>
+    <text x="40" y="149">"Also in the agent name append if ruflo or not"</text>
+    <text x="40" y="176">"Keep documenting the operation rules"</text>
+    <text x="40" y="203">"Update the plan and show the burn down" ×6</text>
+    <text x="40" y="230">"What is the current status?" ×5</text>
+  </g>
+  <text x="40" y="258" font-size="12" fill="var(--dim)">34 turns before the plan existed · the same instructions in every project</text>
+  <!-- arrow -->
+  <path d="M440 150 H520" stroke="var(--ember)" stroke-width="3" fill="none"/>
+  <path d="M512 140 L530 150 L512 160 Z" fill="var(--ember)"/>
+  <text x="480" y="132" text-anchor="middle" font-size="12" fill="var(--ember)" font-weight="700">/warmup</text>
+  <!-- warm -->
+  <rect x="550" y="30" width="410" height="240" rx="4" fill="var(--ember-soft)" stroke="var(--ember)"/>
+  <text x="570" y="60" font-size="13" fill="var(--ember)" letter-spacing="1" font-weight="700">PROPOSED · WARM IN ONE COMMAND</text>
+  <g font-size="13.5" fill="var(--ink)" font-family="IBM Plex Mono, monospace">
+    <text x="570" y="95">read  HANDOFF · OPERATING-RULES · ledger.json</text>
+    <text x="570" y="120">check ruflo · worktree · test command · gates</text>
+    <text x="570" y="145">print prohibitions · 26 done / 3 / 1 / 9</text>
+    <text x="570" y="170">print next unblocked items with tier + model</text>
+    <text x="570" y="195">print open asks (A-nn) awaiting an answer</text>
+    <text x="570" y="220">ask   nothing</text>
+  </g>
+  <text x="570" y="258" font-size="12" fill="var(--dim)">same files, same names, same tracker in every project</text>
+</svg>
+<div class="cap">Left: what he had to type into the engine session, quoted. Right: what the warm-up does before he types anything.</div>
+</div></div>
+
+<h2>A · <code>/warmup</code> — a skill, plus a check</h2>
+<p>A Claude Code skill shipped from common-rules and installed into every focus project by <code>derecord</code>, so "warm up" is the same word everywhere. It does not explain the rules; it <em>loads</em> them, in a fixed order, and ends with a state card instead of a question.</p>
+<div class="step"><span class="no">01</span><div><b>Read, in order:</b> <code>HANDOFF.md</code> → <code>docs/OPERATING-RULES.md</code> → the plan of record's <code>.json</code> ledger → the latest <code>docs/handovers/*-checkpoint.md</code> → the shared <code>CLAUDE-workflow.md</code>. Nothing else before the card.</div></div>
+<div class="step"><span class="no">02</span><div><b>Verify, not assume:</b> Ruflo tools exposed or not; <code>git rev-parse --show-toplevel</code> is a worktree or the main checkout; the test command <code>land</code> would run; <code>rulecheck</code> exit code.</div></div>
+<div class="step"><span class="no">03</span><div><b>Print the warm card:</b> the two prohibitions verbatim · ledger count done / in progress / blocked / not started · the next unblocked items with their <span class="tag">[tier · model]</span> · open asks · what only the sponsor can decide.</div></div>
+<div class="step"><span class="no">04</span><div><b>Start.</b> Spawn every unblocked C1/C2 item in one message; take the first C3 yourself. The card is the first message he reads; the second is work.</div></div>
+<p><code>bin/warmup --check</code> is the same thing as a gate: it exits 1 when a focus project lacks any of the standard files, and <code>land</code> consumes it — the same shape as <code>rulecheck</code>, <code>proposalcheck</code>, <code>milestonecheck</code>.</p>
+
+<h2>B · One set of templates, rendered by one tool</h2>
+<p>"In every chat I don't have to see different templates." Six files, all generated or seeded from <code>common-rules/templates/</code>, all recognisable at a glance because they are the same in every project.</p>
+<table>
+<tr><th>File</th><th>Seeded from</th><th>Carries</th><th>Exists today in</th></tr>
+<tr><td><code>HANDOFF.md</code></td><td>template</td><td>start here · prohibitions verbatim · rulings VERIFIED/[INFERRED] · state measured, with the command · plan of record pointer · how to verify</td><td>engine</td></tr>
+<tr><td><code>docs/OPERATING-RULES.md</code></td><td>template, grows by incident</td><td>dated rules with the cause; promoted to common-rules only on his word</td><td>engine</td></tr>
+<tr><td><code>docs/proposals/NN-….json</code></td><td>schema</td><td>the ledger: items, classes, tags, log, proposed_changes, priority, <b>asks</b></td><td>engine (71)</td></tr>
+<tr><td><code>docs/proposals/NN-….html</code></td><td><code>bin/tracker render</code></td><td>rendered from the JSON — never hand-edited, so it cannot drift from it</td><td>engine (hand-kept)</td></tr>
+<tr><td><code>docs/handovers/&lt;date&gt;-lead-prompt.md</code></td><td>template</td><td>plan is the law · read order · Ruflo or halt · parallelism · checkpoint before stopping · sponsor-owned blockers listed</td><td>engine</td></tr>
+<tr><td><code>docs/handovers/&lt;date&gt;-checkpoint.md</code></td><td>template</td><td>ledger count · where the code is · in progress · blocked and why · exact next action</td><td>engine</td></tr>
+</table>
+<p class="cap">Item IDs keep the engine's convention: a phase letter and a number (<code>R-01</code>, <code>E1-09</code>). The letters are the plan's; the shape is the standard's.</p>
+
+<h2>C · The tracker updates itself — by rule, by render, by gate</h2>
+<p>"Automatically" here means the same three things the engine already does on its best day (58 ledger commits on 13 Sep), made unconditional:</p>
+<div class="lane"><div class="fig">
+<svg viewBox="0 0 980 170" xmlns="http://www.w3.org/2000/svg" font-family="Archivo, sans-serif" font-size="13">
+  <g fill="var(--surface)" stroke="var(--border)">
+    <rect x="20" y="40" width="200" height="80" rx="4"/><rect x="270" y="40" width="200" height="80" rx="4"/><rect x="520" y="40" width="200" height="80" rx="4"/><rect x="770" y="40" width="190" height="80" rx="4"/>
+  </g>
+  <g fill="var(--ink)" font-weight="700" text-anchor="middle">
+    <text x="120" y="70">state changes</text><text x="370" y="70">ledger.json</text><text x="620" y="70">bin/tracker render</text><text x="865" y="70">land gate</text>
+  </g>
+  <g fill="var(--dim)" text-anchor="middle" font-size="12">
+    <text x="120" y="95">agent reports · merge · block</text><text x="370" y="95">status + log entry, same turn</text><text x="620" y="95">html · index · artifact db</text><text x="865" y="95">row moved, or refuse</text>
+  </g>
+  <g stroke="var(--ember)" stroke-width="2.5" fill="var(--ember)">
+    <path d="M220 80 H262" fill="none"/><path d="M256 74 L268 80 L256 86 Z"/>
+    <path d="M470 80 H512" fill="none"/><path d="M506 74 L518 80 L506 86 Z"/>
+    <path d="M720 80 H762" fill="none"/><path d="M756 74 L768 80 L756 86 Z"/>
+  </g>
+  <text x="20" y="150" fill="var(--dim)" font-size="12">Rule: the ledger row moves in the same turn as the state. Render: one tool for every project. Gate: a commit that names an item whose row did not move does not land.</text>
+</svg>
+</div></div>
+<p>The gate is the part that makes it stick: prose rules measured 1-in-7 compliance in this repo; the executable ones (<code>land</code>, 601 uses) get used. <code>bin/tracker check</code> reads the commit range for item IDs and refuses when the named row's <code>log</code> has no entry newer than the branch point.</p>
+
+<h2>D · The ask ledger — nothing he says falls out</h2>
+<p>His words: <em>"I have to sometimes give it some input about research and all, but then that does not get cataloged in the tracker."</em> Measured on 9 September:</p>
+<table>
+<tr><th>Time</th><th>What he said</th><th>Where it went</th></tr>
+<tr><td class="n">06:18</td><td>"commands should have progress bars… funny text animations"</td><td><span style="color:var(--gain)">#203, #207</span></td></tr>
+<tr><td class="n">12:43</td><td>"Would it make sense to have a high quality JPEG sidecar for HEIC for analytics"</td><td><span style="color:var(--loss)">nowhere</span></td></tr>
+<tr><td class="n">13:00</td><td>"parallel research how these processes can be optimized… an initial pass to filter images"</td><td><span style="color:var(--loss)">nowhere</span></td></tr>
+<tr><td class="n">13:02</td><td>"if I want to rerun the analysis, will it be faster?"</td><td><span style="color:var(--loss)">answered in chat, unrecorded</span></td></tr>
+<tr><td class="n">18:38</td><td>"one person might look different over the years… a mechanism to say these are the same"</td><td><span style="color:var(--gain)">#225, #227</span></td></tr>
+</table>
+<p>The pattern: an ask that sounds like work gets an issue; an ask that sounds like a thought gets a reply. Both are input. The rule:</p>
+<pre>Every sponsor message that is not an answer to a question becomes an ask row, in the same turn.
+
+  "asks": [{
+    "id":     "A-07",                     ← its own sequence, never reused
+    "at":     "2026-09-09T12:43:00+02:00",
+    "kind":   "research",                 ← research · feature · defect · decision · question
+    "quote":  "Would it make sense to have a high quality JPEG sidecar for HEIC for analytics",
+    "became": null,                       ← an item id (E2-09), an issue (#231), or a proposal (72)
+    "state":  "open"                      ← open · answered · became-item · declined (with why)
+  }]</pre>
+<p>Research asks get a <code>research</code> kind and a <span class="tag">[low · haiku]</span> or <span class="tag">[medium · sonnet]</span> agent by default — they are reading, not writing — and their report lands in <code>docs/research/</code> with the ask id in its name. The warm card prints every <code>open</code> ask, so a new session cannot lose one. New task naming: an accepted ask becomes an item in the phase it belongs to and takes that phase's next number; the ask row points at it. No new letters are invented for asks.</p>
+
+<h2>E · The brief: tier, effort and scope — not just a model name</h2>
+<p>His note today: <em>"it defines different models like Opus, Haiku and Sonnet, but it forgets the scope of it… we can also use a low, medium or high model."</em> The engine's briefs are good on MUST/MUST NOT — and every incident in the right-hand column above was still a scope hole, not a model choice. So the class decides three things, and the brief carries all three explicitly:</p>
+<table>
+<tr><th>Class</th><th>Tier</th><th>Model today</th><th>Effort</th><th>Scope it may take</th><th>Typical</th></tr>
+<tr><td><code>C1</code></td><td>low</td><td>haiku</td><td>low</td><td>one owned file, fully specified, no design choice</td><td>rename, doc sync, a comment fix</td></tr>
+<tr><td><code>C2</code></td><td>medium</td><td>sonnet</td><td>medium</td><td>one or two owned files and their tests, a clear spec</td><td>a bounded fix, tests for a spec, research reading</td></tr>
+<tr><td><code>C3</code></td><td>high</td><td>opus</td><td>high</td><td>cross-module; anything the drive or catalogue records; loses data if wrong</td><td>a schema change, a write path</td></tr>
+<tr><td><code>C4</code></td><td>lead</td><td>the lead's</td><td>—</td><td>merging, reconciling, the real library, a sponsor decision</td><td>never delegated</td></tr>
+</table>
+<p>The tag stays <span class="tag">[ruflo · high · opus]</span>: the <b>tier</b> is the durable word, the model is today's mapping of it. When the mapping changes (a new Haiku, a cheaper Sonnet) the ledger does not have to be rewritten — and the agent definitions in <code>common-rules/agents/*.md</code> carry <code>effort:</code> in their frontmatter so tier and effort travel together.</p>
+<pre>[ruflo · medium · sonnet] E1-10 flutter-read locations          ← name = tag + id + title
+
+OWNS      photo_vault/flutter_contract.py, tests/test_flutter_contract.py
+MUST      red-first test named in the ledger; commit by pathspec; report what you could not verify
+MUST NOT  touch cli.py or db.py (lead-only); open Photos; run the full suite; git stash / amend / reset
+OUTPUT    branch + commit hash · tests run with counts · red-first evidence · defects seen and left alone
+EFFORT    medium — do not redesign; if the spec is wrong, record it under proposed_changes and stop</pre>
+<p>Five headings, always in this order, so a missing one is visible. <code>OWNS</code> lists the tests with the code (the W-flag incident). <code>OUTPUT</code> is the report shape the lead re-verifies against; no self-certification.</p>
+
+<h2>F · Ruflo, measured</h2>
+<p>The engine kept an honest ledger because he asked it to "track if it makes a difference". The verdict after 70 agents: rework fell to near zero — in wave 3, from the fast-forward and no-stash rules, before Ruflo was switched on. Tokens did not move at any tier. Its memory never returned a usable hit. Cost: a daemon to stop after nearly every agent, a drifting <code>npx</code> pin, MCP tools registered but not exposed in the lead session (it fell back to the CLI).</p>
+<p>This proposal does not decide Ruflo; it puts the decision in front of him with the numbers (D3). Whichever way, the standard keeps the ledger's <code>execution.ruflo_route</code> field and the <code>ruflo</code>/<code>no-ruflo</code> tag, so the measurement continues wherever it is on.</p>
+
+<h2>Decisions</h2>
+<p>Six. Answer in one line each, the way proposal 54 was answered (<code>D1 accept</code>, with a note where you want one); the answers are recorded here and in CHANGELOG.</p>
+<div class="dec"><div class="q"><span class="id">D1</span>The warm-up is a skill (<code>/warmup</code>) plus <code>bin/warmup --check</code> consumed by <code>land</code>?</div><div class="r"><b>Recommend accept.</b> A skill is one word he types; the check is what makes a project that lacks the files fail loudly rather than start cold.</div></div>
+<div class="dec"><div class="q"><span class="id">D2</span>Templates live in <code>common-rules/templates/</code> and <code>derecord</code> seeds the six files into a project that lacks them?</div><div class="r"><b>Recommend accept.</b> Seed, never overwrite: an existing HANDOFF.md is the project's, and only its missing sections are proposed.</div></div>
+<div class="dec"><div class="q"><span class="id">D3</span>Ruflo: (a) mandatory everywhere, (b) opt-in per project recorded in the ledger, (c) off, tag kept for a later matched test?</div><div class="r"><b>Recommend (b).</b> The engine's own measurement found no difference at any tier and a small cost; mac-explorer's ruling of 13 Sep stands where he made it. (b) keeps both without arguing either.</div></div>
+<div class="dec"><div class="q"><span class="id">D4</span>The ask ledger rule — every non-answer sponsor message becomes an <code>A-nn</code> row in the same turn, printed by the warm card while open?</div><div class="r"><b>Recommend accept.</b> Three of five asks on 9 Sep vanished. The row costs one JSON object; a lost research direction costs the morning he spent forming it.</div></div>
+<div class="dec"><div class="q"><span class="id">D5</span>Briefs carry five fixed headings — OWNS · MUST · MUST NOT · OUTPUT · EFFORT — and the tag keeps tier as the durable word, model as today's mapping?</div><div class="r"><b>Recommend accept.</b> This is his note of today, made checkable: <code>bin/tracker check</code> can refuse an agent log entry whose brief lacks a heading.</div></div>
+<div class="dec"><div class="q"><span class="id">D6</span>Pilot order: PhotoVault engine first (already 5 of 6 files), then pockets (13 accepted proposals, 0 completed), then finance-tracker, then mac-explorer?</div><div class="r"><b>Recommend accept.</b> The engine costs almost nothing and proves the renderer against a real ledger; pockets is where the tracker gap is largest.</div></div>
+
+<pre>common-rules · proposal 19 · answers
+D1  ·  D2  ·  D3 (a/b/c)  ·  D4  ·  D5  ·  D6</pre>
+
+<h2>What completes this</h2>
+<ul>
+  <li><code>/warmup</code> in every focus project prints the warm card in under a minute from a cold start, asks nothing, and its <code>--check</code> exits 0 in all four.</li>
+  <li><code>bin/tracker render</code> produces the engine's proposal 71 page from its JSON with no hand edits, and the same tool renders pockets' first ledger.</li>
+  <li>A test in common-rules: a commit naming an item whose ledger row did not move is refused by <code>land</code>.</li>
+  <li>Every sponsor message in the pilot week has an ask row or is an answer — measured from the transcript, not claimed.</li>
+  <li>Every agent brief in the pilot week carries the five headings — measured the same way.</li>
+</ul>
+<details class="fold"><summary>Method and sources</summary>
+<p>Transcripts <code>~/.claude/projects/-Users-aashish-apps-PhotoVault-engine/7f2b2509…</code> (6–8 Sep, 34 turns, 652 tool calls, 72 agents) and <code>18ce8954…</code> (7–13 Sep, 126 turns, 2,669 tool calls, 185 agents, 66 sends, 37 inbound, 6 compactions). Repository <code>/Users/aashish/apps/PhotoVault/engine</code>: <code>HANDOFF.md</code>, <code>docs/OPERATING-RULES.md</code>, <code>docs/proposals/71-engine-1-3-programme.{md,json}</code> (39 items: 26 done, 3 in progress, 1 blocked, 9 not started; 20 proposed_changes; 58 commits to the JSON on 13 Sep), <code>docs/handovers/2026-09-13-proposal-71-lead-prompt.md</code> and <code>-checkpoint.md</code>, <code>docs/reports/ruflo-effect-ledger.md</code>. Ask outcomes checked against <code>gh issue list --state all --limit 400</code>. Counts of "update the plan" and "status" are from the transcript's human turns, not the compaction summaries.</p>
+</details>
+</div>
