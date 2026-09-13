@@ -5,6 +5,7 @@
   tracker render   ...                 ledger.json -> the proposal's page          (W-02)
   tracker check    ...                 did the ledger move with the code?          (W-03)
   tracker sync     ...                 mirror items to GitHub issues, one way      (W-04)
+  tracker checkpoint ...               write docs/handovers/<date>-checkpoint.md   (W-07)
   tracker import   ...                 an existing plan -> a ledger                (W-09)
 
 Each command is a module in tools/tracker/ with a `main(argv) -> int`, so
@@ -19,7 +20,7 @@ from pathlib import Path
 RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
-COMMANDS = ("validate", "render", "check", "sync", "import")
+COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import")
 
 
 def validate(argv):
