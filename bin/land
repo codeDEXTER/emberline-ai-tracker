@@ -18,6 +18,10 @@
 #   - the branch touches a path the user reserved (see RESERVED below)
 #   - the project is not aligned with the current common-rules (see below)
 #   - the branch changes code and touches no test (see below)
+#
+# The test suite it runs is the one the project declares in .common-rules-test
+# (first non-blank, non-comment line), else a guess: tests/*.py -> unittest,
+# package.json -> npm test.
 #   - a proposal asked numbered decisions or claims partial completion and
 #     recorded neither (see below)
 #   - a commit names a ledger item whose row did not move (see below)
@@ -74,6 +78,20 @@ say() { printf '%s\n' "$*"; }
 refuse() { say "  not landing: $*"; return 1; }
 
 test_cmd() {
+    # A declared gate wins. `.common-rules-test` at the project root, beside
+    # `.common-rules-version`: the first line that is neither blank nor a
+    # comment is the command. Guessing from the tree ran the wrong gate for the
+    # PhotoVault engine, whose tests are pytest with markers -- found in
+    # proposal 19's pilot, 13 Sep, and named as a gap in proposal 18 B.
+    # bin/warmup reads the same line; tests/test_warmup.py pins them equal.
+    if [ -f .common-rules-test ]; then
+        local declared
+        declared="$(grep -v '^[[:space:]]*#' .common-rules-test | grep -v '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)"
+        if [ -n "$declared" ]; then
+            echo "$declared"
+            return
+        fi
+    fi
     if [ -d tests ] && ls tests/*.py >/dev/null 2>&1; then
         echo "python3 -m unittest discover -s tests -q"
     elif [ -f package.json ] && grep -q '"test"' package.json; then

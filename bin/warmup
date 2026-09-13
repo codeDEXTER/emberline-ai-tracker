@@ -72,7 +72,14 @@ def behind(project: Path, rel: str) -> int | None:
 
 def test_command(project: Path) -> str:
     """land's test_cmd(), in the same order with the same tests. Pinned equal
-    to land's own answer by tests/test_warmup.py."""
+    to land's own answer by tests/test_warmup.py. A declared gate in
+    .common-rules-test wins over the guess."""
+    declared = project / ".common-rules-test"
+    if declared.is_file():
+        for line in declared.read_text(errors="replace").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                return line
     if (project / "tests").is_dir() and glob.glob(str(project / "tests" / "*.py")):
         return "python3 -m unittest discover -s tests -q"
     pkg = project / "package.json"
