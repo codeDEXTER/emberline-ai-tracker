@@ -4,7 +4,7 @@
 #
 #   derecord [project-dir]     default: current directory
 #
-# Installs five things:
+# Installs six things:
 #   1. .gitattributes merge rules for the record files
 #   2. a pre-commit hook that refuses to commit conflict markers
 #   3. a SessionStart hook that runs rulecheck --quiet
@@ -13,6 +13,8 @@
 #      project does not already have its own copy
 #   5. the PreCompact, Stop and SessionStart checkpoint hooks (proposal 19,
 #      D8) that close the checkpoint loop
+#   6. the /warmup skill (proposal 19, D1), kept identical to common-rules'
+#      copy rather than seeded once and left to drift
 #
 # Idempotent, and in the strong sense: running it makes the project MATCH the
 # shared rules, rather than merely not adding the same line twice. A rule whose
@@ -249,6 +251,29 @@ for name, event in (("precompact", "PreCompact"), ("stop", "Stop"), ("sessionsta
 if changed:
     json.dump(d, open(path, "w"), indent=2)
 PY
+
+# --- 6. the /warmup skill: kept identical to common-rules', not seeded once --
+#
+# Claude Code loads a project's skills from <project>/.claude/skills/<name>/
+# SKILL.md. The skill is common-rules' file, not the project's, so a project
+# must not keep a divergent copy: this MATCHES the source, the same principle
+# as the .gitattributes rules and the hooks above, not a one-time seed like
+# step 4's prose. Only .claude/skills/warmup/SKILL.md is ever touched here --
+# every other file and directory under .claude/skills is left exactly alone.
+SKILL_SRC="$RULES_DIR/skills/warmup/SKILL.md"
+SKILL_DEST=".claude/skills/warmup/SKILL.md"
+if [ ! -f "$SKILL_SRC" ]; then
+    echo "  /warmup skill not found in $RULES_DIR/skills/warmup -- skipped"
+elif [ ! -f "$SKILL_DEST" ]; then
+    mkdir -p "$(dirname "$SKILL_DEST")"
+    cp "$SKILL_SRC" "$SKILL_DEST"
+    echo "  $SKILL_DEST: installed"
+elif cmp -s "$SKILL_SRC" "$SKILL_DEST"; then
+    echo "  $SKILL_DEST: already current"
+else
+    cp "$SKILL_SRC" "$SKILL_DEST"
+    echo "  $SKILL_DEST: corrected"
+fi
 
 echo "derecord: $TOP is done."
 
