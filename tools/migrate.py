@@ -40,7 +40,23 @@ sys.path.insert(0, str(RULES_DIR))
 from tools.tracker import ledger as L  # noqa: E402
 
 BEGIN, END = "<!-- common-rules:warmup -->", "<!-- /common-rules:warmup -->"
-BULLET = re.compile(r"^- \*\*(.+?)\*\*")
+BOLD_BULLET = re.compile(r"^- \*\*(.+?)\*\*")
+PLAIN_BULLET = re.compile(r"^- (\S.*)$")
+
+
+def bullet_lead(line: str) -> str | None:
+    """A rule's lead: the bold text of "- **lead** ...", or the first sentence
+    of a plain "- lead. ..." bullet. The PhotoVault app writes its rules plain,
+    and reading only bold bullets made its dry run report "nothing to
+    supersede" over a rule the standard replaces (13 Sep)."""
+    m = BOLD_BULLET.match(line)
+    if m:
+        return m.group(1)
+    m = PLAIN_BULLET.match(line)
+    if not m:
+        return None
+    sentence = re.match(r"(.+?[.!?])(?:\s|$)", m.group(1))
+    return sentence.group(1) if sentence else m.group(1)
 SUPERSEDED_INTRO = ("Rules this project followed that a later standard replaced. Moved here verbatim and "
                     "dated, never deleted: a session that still remembers one can see what replaced it, and why.")
 
@@ -58,8 +74,8 @@ def supersedes() -> list[dict]:
 
 
 def rule_blocks(lines: list[str]) -> list[tuple[int, int, str, str]]:
-    """(start, end, lead, section) for every `- **lead**` rule outside
-    ## Superseded. A rule runs on through indented lines, and through blank
+    """(start, end, lead, section) for every rule -- a `- **lead**` or a plain
+    `- lead.` bullet -- outside ## Superseded. A rule runs on through indented lines, and through blank
     lines when the next non-blank line is still indented -- so a rule with a
     second paragraph moves whole, never split."""
     out, section, retired, i, n = [], "", False, 0, len(lines)
@@ -70,8 +86,8 @@ def rule_blocks(lines: list[str]) -> list[tuple[int, int, str, str]]:
             retired = line.strip().lower().startswith("## superseded")
             i += 1
             continue
-        m = BULLET.match(line)
-        if m and not retired:
+        lead = bullet_lead(line)
+        if lead is not None and not retired:
             j = i + 1
             while j < n:
                 if lines[j].strip() and lines[j][:1] in (" ", "\t"):
@@ -85,7 +101,7 @@ def rule_blocks(lines: list[str]) -> list[tuple[int, int, str, str]]:
                         j = k
                         continue
                 break
-            out.append((i, j, m.group(1), section))
+            out.append((i, j, lead, section))
             i = j
             continue
         i += 1

@@ -176,6 +176,19 @@ class TestDerecordSeeding(DerecordCase):
         self.assertEqual("# the real one\n", existing.read_text())
 
 
+    def test_a_lead_prompt_kept_elsewhere_under_docs_is_found_too(self):
+        """The PhotoVault app keeps docs/proposals/70-lead-prompt.md and has no
+        docs/handovers/ at all; looking only in handovers/ would have seeded a
+        second lead prompt there (found in its migration dry run, 13 Sep)."""
+        existing = self.proj / "docs" / "proposals" / "70-lead-prompt.md"
+        existing.parent.mkdir(parents=True, exist_ok=True)
+        existing.write_text("# the app's own\n")
+        r = self.run_derecord()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.proj / "docs" / "handovers" / "lead-prompt.md").exists())
+        self.assertIn("70-lead-prompt.md", r.stdout)
+
+
 class TestDerecordSkill(DerecordCase):
     """Step 6: derecord installs the /warmup skill (proposal 19, W-11).
 
