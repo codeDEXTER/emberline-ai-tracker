@@ -156,10 +156,14 @@ class TestTheCommand(unittest.TestCase):
             self.assertIn("no open ledger", r.stdout)
             self.assertFalse((Path(tmp) / "docs" / "handovers").exists())
 
-    def test_an_unbuilt_command_says_so_rather_than_crashing(self):
-        r = self.run_tracker("import")
+    def test_an_unknown_command_says_so_rather_than_crashing(self):
+        """This used `import` as its example of an unbuilt command until W-09
+        built it; every listed command now exists. What stays worth pinning is
+        that a mistyped one exits 2 with a sentence, not a traceback."""
+        r = self.run_tracker("frobnicate")
         self.assertEqual(2, r.returncode)
-        self.assertIn("not built yet", r.stderr)
+        self.assertIn("unknown command", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
 
 
 if __name__ == "__main__":
