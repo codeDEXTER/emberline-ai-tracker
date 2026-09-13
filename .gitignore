@@ -23,3 +23,9 @@ dist/
 # `grep -q __pycache__` guard matched the bin/ line and skipped the append.
 __pycache__/
 *.pyc
+
+# Agent and session worktrees. Each is a full checkout of this repo; left
+# unignored, fourteen of them showed up as one untracked directory and hid
+# real changes in `git status`.
+.worktrees/
+.claude/worktrees/
