@@ -1,5 +1,16 @@
 # Changelog — common-rules
 
+## 2026-09-13 · The PhotoVault app is on the warm-up standard
+
+The app's own session converted its Proposal 70 ledger to the standard shape
+(48 items, now validating) and ran the migration; the lead verified it
+read-only, and the app's warm card reads ready. W-13 is done. What it taught,
+recorded for proposal 20: the warm-up pointer migrate writes assumes HANDOFF.md
+comes first, which contradicts a project whose CLAUDE.md is its entry point;
+generated checkpoints create a commit per ledger batch; and a project tracking
+Ruflo's runtime files has a dirty tree after every Ruflo call. The engine's
+migration (W-10) is still to run at its checkpoint.
+
 ## 2026-09-13 · The PhotoVault app's dry run: plain-bullet rules and lead prompts anywhere
 
 Asked to migrate the PhotoVault app too, dry run first. The dry run said
