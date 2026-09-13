@@ -102,8 +102,21 @@ def supersede(text: str, rules: list[dict], date: str) -> tuple[str, list[tuple[
     if not chosen:
         return text, []
 
+    # The rule as it stands now goes where the old one stood, so a project
+    # that already has its own OPERATING-RULES keeps what still holds. Moving
+    # the whole rule and leaving only a one-line replaced_by in a heading cost
+    # the PhotoVault engine "never scrap old content" and "green is merged with
+    # its tests run" -- found by that engine reviewing the dry run, 13 Sep,
+    # before anything was written.
     removed = {i for start, end, *_ in chosen for i in range(start, end)}
-    keep = [l for i, l in enumerate(lines) if i not in removed]
+    starts = {start: rule for start, _end, _lead, _section, rule in chosen}
+    keep = []
+    for i, l in enumerate(lines):
+        if i in starts and starts[i].get("replacement"):
+            keep += starts[i]["replacement"].splitlines()
+            keep.append(f"  (Replaced {date} under common-rules proposal 19; the earlier wording is under Superseded, below.)")
+        if i not in removed:
+            keep.append(l)
     while keep and not keep[-1].strip():
         keep.pop()
 
@@ -215,7 +228,11 @@ def migrate(project: Path, at: str, dry_run: bool) -> int:
             out.append("3 supersede: nothing to supersede (templates/supersedes.json matches no rule here)")
         else:
             out.append(f"3 supersede: {would}move {len(moved)} rule(s) into ## Superseded, verbatim and dated:")
-            out += [f"  “{lead}” (from “{section}”) → {rule['replaced_by']}" for lead, section, rule in moved]
+            for lead, section, rule in moved:
+                out.append(f"  “{lead}” (from “{section}”) → {rule['replaced_by']}")
+                m = re.match(r"^- \*\*(.+?)\*\*", rule.get("replacement", ""))
+                out.append(f"    {'would be ' if dry_run else ''}replaced in place by “{m.group(1)}”" if m
+                           else "    no replacement rule in supersedes.json -- only the replaced_by sentence remains")
             if not dry_run:
                 rules_path.write_text(new)
 
