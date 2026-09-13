@@ -315,6 +315,32 @@ class TestTheTestCommandIsLands(unittest.TestCase):
             p.close()
 
 
+    def test_a_declared_command_wins_over_the_guess(self):
+        """Found by the PhotoVault engine rehearsing its migration, 13 Sep: its
+        gate is pytest, but the card said unittest because tests/*.py exists.
+        .common-rules-test declares the command; land and the card read it."""
+        p = Project(seeded=True)
+        try:
+            p.write("tests/test_x.py", "import unittest\n")
+            p.write(".common-rules-test", "# the merge gate: the full suite\n\npython3 -m pytest -q -p no:cacheprovider\n")
+            p.commit("declare the gate")
+            self.assertEqual("python3 -m pytest -q -p no:cacheprovider", self.land_test_cmd(p.root))
+            self.assertEqual(self.land_test_cmd(p.root), self.reported(p.root))
+        finally:
+            p.close()
+
+    def test_a_declaration_with_no_command_falls_back_to_the_guess(self):
+        p = Project(seeded=True)
+        try:
+            p.write("tests/test_x.py", "import unittest\n")
+            p.write(".common-rules-test", "# nothing declared yet\n\n")
+            p.commit("empty declaration")
+            self.assertEqual("python3 -m unittest discover -s tests -q", self.land_test_cmd(p.root))
+            self.assertEqual(self.land_test_cmd(p.root), self.reported(p.root))
+        finally:
+            p.close()
+
+
 class TestSince(Case):
 
     def test_nothing_moved_says_so(self):

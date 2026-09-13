@@ -1,5 +1,21 @@
 # Changelog — common-rules
 
+## 2026-09-13 · A project declares its test gate: `.common-rules-test`
+
+`bin/land`'s `test_cmd()` guessed the suite from the tree -- `tests/*.py`
+means unittest, `package.json` means `npm test` -- and `/warmup`'s card reports
+the same answer. The PhotoVault engine's gate is pytest with markers, so both
+named the wrong one, found when the engine rehearsed its migration; proposal
+18 B had named the gap ("derecord carries each project's test command").
+
+A project now declares it in `.common-rules-test` at its root, beside
+`.common-rules-version`: the first line that is neither blank nor a comment is
+the command. Declare the merge gate -- the one `land` runs before landing.
+
+**Behaviour change for a project that creates the file:** `land` runs the
+declared command instead of its guess. No project has the file today, so
+nothing changes until one adds it.
+
 ## 2026-09-13 · Migration keeps the rule that still holds
 
 The PhotoVault engine, asked to migrate onto proposal 19, reviewed the dry run
