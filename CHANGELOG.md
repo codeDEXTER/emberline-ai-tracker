@@ -39,6 +39,18 @@ earlier items (`ledger.find` read a data file as a ledger; `tracker check`
 crashed on a JSON array, which `land` would have reported as a refusal). The
 engine's warm-up reads ~195 KB (~49k tokens) -- measured, not guessed.
 
+**Then `tracker import` and `warmup --migrate`.** Import turns an existing
+milestone plan into a ledger (finance-tracker's CLAUDE-milestones.json, or a
+`## Milestones` table read with `bin/milestones`' own parser). Migrate moves a
+running project onto the standard: derecord, import, and each rule the
+standard replaces moved verbatim into a dated `## Superseded` block -- only
+rules `templates/supersedes.json` names; nothing guessed, nothing deleted --
+plus a CLAUDE.md pointer left for the sponsor to commit. Dry-run on the three
+real projects: the engine would supersede exactly the two rules the list was
+written from; pockets and finance-tracker would gain ledgers of 25 and 78 rows.
+`bin/milestones` was deliberately left unchanged: its digest hashes whole rows,
+so adding a field would have staled every project's milestone page at once.
+
 Found while building: an installed `tools` package on the shared interpreter
 (`Sangam/Sangam-engine/tools`) shadowed this repo's `tools/`, fixed with a
 package marker; the mandatory Ruflo loop errored for one agent (W-06) while
