@@ -29,3 +29,16 @@ __pycache__/
 # real changes in `git status`.
 .worktrees/
 .claude/worktrees/
+
+# Ruflo (claude-flow) runtime state. The CLI writes these wherever it runs --
+# daemon and policy state, logs, neural patterns, and its memory databases with
+# their WAL files -- and proposal 19 made the Ruflo loop mandatory, so every
+# item run from this checkout leaves them behind. Machine-local, regenerated,
+# never content. Only Ruflo's own files under .claude/ are ignored: settings.json
+# and skills/ are what derecord installs, and stay committable.
+.claude-flow/
+.swarm/
+ruvector.db
+.claude/memory.db
+.claude/proven-config.json
+.claude/.proven-config-version
