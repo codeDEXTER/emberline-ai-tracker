@@ -1,6 +1,19 @@
 # Changelog — common-rules
 
-## 2026-09-14 · Ruflo's runtime files are ignored
+## 2026-09-13 · Proposal 19's ledger timestamps corrected
+
+The lead wrote estimated clock times into proposal 19's ledger instead of
+reading the clock: 47 of 52 log entries and all three proposed changes were dated
+later than the commits that recorded them, some past midnight, written
+before 22:05. Each now carries the author time of the commit that first
+recorded it; entries that were not future-dated are unchanged. The seven
+asks carry the time the sponsor's message arrived in the session transcript,
+and three evidence sentences that stated estimated times now cite commits.
+The rule is recorded in the ledger's `execution.timestamps_corrected`. The
+entry below was also dated the 14th; it was the 13th. Order, hashes and
+evidence were right; only the times were not.
+
+## 2026-09-13 · Ruflo's runtime files are ignored
 
 Running the mandatory Ruflo loop from this checkout while building proposal 19
 left twenty untracked files: `.claude-flow/` (daemon, policy, logs, neural,
