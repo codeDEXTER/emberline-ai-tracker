@@ -129,6 +129,15 @@ class TestTheCommand(unittest.TestCase):
             broken = Path(tmp) / "21-z.json"; broken.write_text("{nope")
             self.assertEqual(2, self.run_tracker("validate", str(broken)).returncode)
 
+    def test_checkpoint_is_routed_by_the_dispatcher(self):
+        """W-07 built tools/tracker/checkpoint.py; the lead wires the command.
+        A project with no open ledger is an ordinary shape: exit 0, a note."""
+        with tempfile.TemporaryDirectory() as tmp:
+            r = self.run_tracker("checkpoint", "--project", tmp)
+            self.assertEqual(0, r.returncode, r.stderr)
+            self.assertIn("no open ledger", r.stdout)
+            self.assertFalse((Path(tmp) / "docs" / "handovers").exists())
+
     def test_an_unbuilt_command_says_so_rather_than_crashing(self):
         r = self.run_tracker("import")
         self.assertEqual(2, r.returncode)
