@@ -297,6 +297,26 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
   <li><b>Any agent can propose research.</b> A finding mid-task that needs looking into is a <code>proposed_changes</code> entry the lead turns into an X row — the engine already records these (20 on 13 Sep); today they wait for the sponsor instead of becoming work.</li>
 </ul>
 
+<h2>K · Surviving a compaction</h2>
+<p>The engine session was compacted six times. Each summary is a paraphrase written by the model, and the provenance audit found ten paraphrases later quoted as your words. A compaction can only lose what lived nowhere but the chat, so the defence is not a better summary — it is that nothing important lives only in the chat.</p>
+<div class="two">
+  <div class="col"><h3>Before the cut</h3>
+    <ul>
+      <li><b>Written same-turn, never later.</b> Every decision, ask, state change and ruling is in the ledger, <code>SPONSOR-CONSTRAINTS.md</code> or an issue in the turn it happened (D4, D9). If it is on disk, the summary cannot lose it.</li>
+      <li><b>PreCompact hook writes the checkpoint</b> (D8) — current item, its ticked steps, blockers, open asks, the exact next action — before the summary is made, from the ledger, not from memory.</li>
+      <li><b>The pointers live in <code>CLAUDE.md</code>,</b> which the harness reloads after every compaction: the two prohibitions, "read HANDOFF → RULES → ledger → checkpoint", and "the summary is a paraphrase; the ledger is the record". The rule that says where the truth is survives because it is not in the window.</li>
+    </ul>
+  </div>
+  <div class="col"><h3>After the cut</h3>
+    <ul>
+      <li><b>Re-warm fires automatically</b> (SessionStart, <code>source: compact</code>) and re-reads the chain from disk. The card it prints is the record; the summary is context.</li>
+      <li><b>Verbatim comes from disk.</b> A ruling is quoted from <code>SPONSOR-CONSTRAINTS.md</code> or the issue, never from the summary — the memory rule "summaries are not citations", made a step.</li>
+      <li><b>The diff is logged.</b> Where the summary and the disk disagree, the lead records the correction in the ledger log (<code>compaction: summary said X, ledger says Y</code>). Six compactions in one session is a measurement of what summaries get wrong, not a cost to be absorbed.</li>
+    </ul>
+  </div>
+</div>
+<p>Covered by D8, which grows to "the hooks on both sides of a compaction"; no new decision.</p>
+
 <h2>H · Checked against the field</h2>
 <p>Three independent research passes (13 Sep) on how others handle cold starts, plan-as-data trackers, model routing, orchestration layers and ad-hoc human input. Nothing contradicted the design; six things sharpen it and are folded in below.</p>
 <table>
