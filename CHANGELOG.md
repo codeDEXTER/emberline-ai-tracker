@@ -11,7 +11,7 @@ a lead prompt and a checkpoint — into one standard with a `/warmup` skill,
 templates seeded by `derecord`, a `bin/tracker` renderer and gate, an ask
 ledger so sponsor input in chat is catalogued (three of five asks on 9 Sep
 were not), and a five-heading brief that carries tier, effort and scope,
-not only a model name. Six decisions asked; nothing built.
+not only a model name. Seven decisions asked; nothing built.
 
 ## 2026-09-13 · Baseline: main green again, before the rules are rewritten
 

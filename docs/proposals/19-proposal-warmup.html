@@ -72,7 +72,7 @@
 <div class="eyebrow">common-rules · proposal 19 · proposed · 13 September 2026</div>
 <h1>Warm-up</h1>
 <p class="lede">A cold chat becomes a lead in one command. The PhotoVault engine session already works the way every project should — plan as data, ledger updated on every change, agents tiered by complexity, rules learned the hard way written down. This proposal lifts what it did into one standard, one set of templates, and one <code>/warmup</code> that loads it all before the first question.</p>
-<div class="meta"><span>evidence <b>PhotoVault engine, 6–13 Sep</b></span><span>sessions read <b>2 · 160 sponsor turns · 3,321 tool calls</b></span><span>decisions asked <b>6</b></span></div>
+<div class="meta"><span>evidence <b>PhotoVault engine, 6–13 Sep</b></span><span>sessions read <b>2 · 160 sponsor turns · 3,321 tool calls</b></span><span>decisions asked <b>7</b></span></div>
 
 <h2>What the engine session proved</h2>
 <p>Two sessions, 6–13 September, the second running six days across six context compactions. The measured shape:</p>
@@ -232,8 +232,27 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 <p>The engine kept an honest ledger because he asked it to "track if it makes a difference". The verdict after 70 agents: rework fell to near zero — in wave 3, from the fast-forward and no-stash rules, before Ruflo was switched on. Tokens did not move at any tier. Its memory never returned a usable hit. Cost: a daemon to stop after nearly every agent, a drifting <code>npx</code> pin, MCP tools registered but not exposed in the lead session (it fell back to the CLI).</p>
 <p>This proposal does not decide Ruflo; it puts the decision in front of him with the numbers (D3). Whichever way, the standard keeps the ledger's <code>execution.ruflo_route</code> field and the <code>ruflo</code>/<code>no-ruflo</code> tag, so the measurement continues wherever it is on.</p>
 
+<h2>G · How the lead talks while it works</h2>
+<p>Two habits of the engine session he wants kept, named so every project gets them:</p>
+<div class="two">
+  <div class="col"><h3>A steps list before a task starts</h3>
+    <p>When a new item begins, the lead writes the steps first — a short numbered list, the ledger item id on top — and then works down it. Steps are ticked as they complete, in place. The list is the item's <code>log</code> in draft: what did not get ticked is what the checkpoint reports.</p>
+  </div>
+  <div class="col"><h3>Short, repeated status while running or waiting</h3>
+    <p>While agents run, or while the lead waits on him, one line every few minutes in a fixed shape: <code>done / in progress / blocked / not started · what just changed · what it is waiting for · what he owes it</code>. Never a paragraph. The same line is what <code>/warmup</code> prints and what the checkpoint opens with, so the vocabulary is one.</p>
+  </div>
+</div>
+<pre>E1-10 flutter-read locations
+  [x] 1  memory search + hooks route, issue #253 opened
+  [x] 2  agent spawned [ruflo · medium · sonnet], worktree p71/e1-10
+  [ ] 3  verify in clean worktree at HEAD
+  [ ] 4  ff-merge, ledger row → done, render
+
+26 done / 3 in progress / 1 blocked / 9 not started · E1-09 merged 17:32 · waiting: R-03, R-04 reports · yours: E0-03 go</pre>
+<p>Goes into the lead-prompt template (§7 "How you report") and the warm card, so it is loaded, not remembered.</p>
+
 <h2>Decisions</h2>
-<p>Six. Answer in one line each, the way proposal 54 was answered (<code>D1 accept</code>, with a note where you want one); the answers are recorded here and in CHANGELOG.</p>
+<p>Seven. Answer in one line each, the way proposal 54 was answered (<code>D1 accept</code>, with a note where you want one); the answers are recorded here and in CHANGELOG.</p>
 <div class="dec"><div class="q"><span class="id">D1</span>The warm-up is a skill (<code>/warmup</code>) plus <code>bin/warmup --check</code> consumed by <code>land</code>?</div><div class="r"><b>Recommend accept.</b> A skill is one word he types; the check is what makes a project that lacks the files fail loudly rather than start cold.</div></div>
 <div class="dec"><div class="q"><span class="id">D2</span>Templates live in <code>common-rules/templates/</code> and <code>derecord</code> seeds the six files into a project that lacks them?</div><div class="r"><b>Recommend accept.</b> Seed, never overwrite: an existing HANDOFF.md is the project's, and only its missing sections are proposed.</div></div>
 <div class="dec"><div class="q"><span class="id">D3</span>Ruflo: (a) mandatory everywhere, (b) opt-in per project recorded in the ledger, (c) off, tag kept for a later matched test?</div><div class="r"><b>Recommend (b).</b> The engine's own measurement found no difference at any tier and a small cost; mac-explorer's ruling of 13 Sep stands where he made it. (b) keeps both without arguing either.</div></div>
@@ -241,8 +260,10 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 <div class="dec"><div class="q"><span class="id">D5</span>Briefs carry five fixed headings — OWNS · MUST · MUST NOT · OUTPUT · EFFORT — and the tag keeps tier as the durable word, model as today's mapping?</div><div class="r"><b>Recommend accept.</b> This is his note of today, made checkable: <code>bin/tracker check</code> can refuse an agent log entry whose brief lacks a heading.</div></div>
 <div class="dec"><div class="q"><span class="id">D6</span>Pilot order: PhotoVault engine first (already 5 of 6 files), then pockets (13 accepted proposals, 0 completed), then finance-tracker, then mac-explorer?</div><div class="r"><b>Recommend accept.</b> The engine costs almost nothing and proves the renderer against a real ledger; pockets is where the tracker gap is largest.</div></div>
 
+<div class="dec"><div class="q"><span class="id">D7</span>The steps list at task start and the one-line repeated status become part of the lead-prompt template and the warm card?</div><div class="r"><b>Recommend accept.</b> Both exist in the engine session by habit; a template makes them survive the next cold start.</div></div>
+
 <pre>common-rules · proposal 19 · answers
-D1  ·  D2  ·  D3 (a/b/c)  ·  D4  ·  D5  ·  D6</pre>
+D1  ·  D2  ·  D3 (a/b/c)  ·  D4  ·  D5  ·  D6  ·  D7</pre>
 
 <h2>What completes this</h2>
 <ul>
