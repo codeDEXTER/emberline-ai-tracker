@@ -72,7 +72,7 @@
 <div class="eyebrow">common-rules · proposal 19 · proposed · 13 September 2026</div>
 <h1>Warm-up</h1>
 <p class="lede">A cold chat becomes a lead in one command. The PhotoVault engine session already works the way every project should — plan as data, ledger updated on every change, agents tiered by complexity, rules learned the hard way written down. This proposal lifts what it did into one standard, one set of templates, and one <code>/warmup</code> that loads it all before the first question.</p>
-<div class="meta"><span>evidence <b>PhotoVault engine, 6–13 Sep</b></span><span>sessions read <b>2 · 160 sponsor turns · 3,321 tool calls</b></span><span>decisions asked <b>8</b></span></div>
+<div class="meta"><span>evidence <b>PhotoVault engine, 6–13 Sep</b></span><span>sessions read <b>2 · 160 sponsor turns · 3,321 tool calls</b></span><span>decisions asked <b>9</b></span></div>
 
 <h2>What the engine session proved</h2>
 <p>Two sessions, 6–13 September, the second running six days across six context compactions. The measured shape:</p>
@@ -251,6 +251,18 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 26 done / 3 in progress / 1 blocked / 9 not started · E1-09 merged 17:32 · waiting: R-03, R-04 reports · yours: E0-03 go</pre>
 <p>Goes into the lead-prompt template (§7 "How you report") and the warm card, so it is loaded, not remembered.</p>
 
+<h2>I · GitHub issues — the ledger's public face, not a second tracker</h2>
+<p>The engine already does most of this: every proposal 71 item has an <code>issue</code> number, the lead opens each as <code>gh issue create "&lt;ID&gt; &lt;title&gt;" --label proposal-71</code>, and <code>land</code>'s <code>Closes #N</code> trailer closes it on merge (240 closed, 18 open). What it lacks is a rule for which side is the truth when they disagree — and today nothing checks that they agree.</p>
+<table>
+<tr><th></th><th>Ledger (JSON in git)</th><th>GitHub issue</th></tr>
+<tr><td>Holds</td><td>class, tier, model, owned files, red-first test, done-when, dependencies, log, asks</td><td>the conversation: comments, the sponsor's answers, links to PRs, the close</td></tr>
+<tr><td>Source of truth for</td><td>plan, status, order</td><td>nothing — it mirrors the row</td></tr>
+<tr><td>Written by</td><td>the lead, by pathspec, same turn</td><td><code>bin/tracker sync</code>: create on <em>in progress</em>, label, close on <em>done</em></td></tr>
+<tr><td>Read back</td><td>—</td><td><code>bin/tracker render</code> shows drift: an issue closed while its row is open, or a row done while its issue is open</td></tr>
+<tr><td>Labels</td><td>—</td><td>proposal 18's three axes + <code>proposal:NN</code>; the class as <code>tier:high</code></td></tr>
+</table>
+<p>Why not the other way round: <code>gh</code> truncates at 30 rows and says nothing; an issue has no class, no dependencies, no log; CI is offline here, so nothing on GitHub can gate. The ledger gates, GitHub records. Asks become issues only when they become items — an open ask is a row on the warm card, not an issue nobody triages. Cross-session requests (the app session's G0–G12) arrive as issues labelled <code>from:app</code> and are folded into the ledger as items or declined with a comment, so the other session sees the answer where it asked.</p>
+
 <h2>H · Checked against the field</h2>
 <p>Three independent research passes (13 Sep) on how others handle cold starts, plan-as-data trackers, model routing, orchestration layers and ad-hoc human input. Nothing contradicted the design; six things sharpen it and are folded in below.</p>
 <table>
@@ -289,8 +301,10 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 
 <div class="dec"><div class="q"><span class="id">D8</span>A Stop/PreCompact hook writes the checkpoint and ledger count automatically, and <code>/warmup</code> flags any file in its chain that is stale against HEAD?</div><div class="r"><b>Recommend accept.</b> It closes the loop the field found weakest: handoffs rot when writing them is a memory task. From the research pass, not the engine session.</div></div>
 
+<div class="dec"><div class="q"><span class="id">D9</span>GitHub issues mirror the ledger one way — <code>bin/tracker sync</code> opens on in-progress, closes on done, and the render shows any drift between the two?</div><div class="r"><b>Recommend accept.</b> It keeps what already works (issues, labels, land's Closes trailer) and removes the one thing that does not: two trackers that can disagree in silence.</div></div>
+
 <pre>common-rules · proposal 19 · answers
-D1  ·  D2  ·  D3 (a/b/c)  ·  D4  ·  D5  ·  D6  ·  D7  ·  D8</pre>
+D1  ·  D2  ·  D3 (a/b/c)  ·  D4  ·  D5  ·  D6  ·  D7  ·  D8  ·  D9</pre>
 
 <h2>What completes this</h2>
 <ul>
