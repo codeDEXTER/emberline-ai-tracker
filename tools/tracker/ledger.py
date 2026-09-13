@@ -163,6 +163,24 @@ def validate(ledger: dict) -> list[str]:
 
 
 def find(project) -> list[Path]:
-    """Every ledger under a project's docs/proposals, sorted by number."""
+    """Every ledger under a project's docs/proposals, sorted by number.
+
+    A file named NN-*.json is a ledger only if it is one: a JSON object with an
+    `items` list. docs/proposals also holds data files with the same name shape
+    -- the PhotoVault engine's 56-proposal-the-sample-sheet.sidecar.json -- and
+    every tool built on this function printed "Proposal None · 0 done" for it
+    (found running warm-up read-only on the engine, 13 September 2026). A file
+    that does not parse is kept, so validate can report it: only its contents
+    could say it is not a ledger.
+    """
     root = Path(project) / "docs" / "proposals"
-    return sorted(root.glob("[0-9][0-9]*-*.json"), key=lambda p: int(p.name.split("-")[0]))
+    found = []
+    for p in root.glob("[0-9][0-9]*-*.json"):
+        try:
+            data = json.loads(p.read_text())
+        except (OSError, ValueError):
+            found.append(p)
+            continue
+        if isinstance(data, dict) and isinstance(data.get("items"), list):
+            found.append(p)
+    return sorted(found, key=lambda p: int(p.name.split("-")[0]))

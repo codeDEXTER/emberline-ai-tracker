@@ -63,7 +63,13 @@ def rows_at(project: Path, ref: str, paths: list[str]) -> dict[str, dict[str, st
             data = json.loads(git(project, "show", f"{ref}:{path}"))
         except (GitError, json.JSONDecodeError):
             continue
-        out[path] = {i["id"]: json.dumps(i, sort_keys=True) for i in data.get("items") or [] if "id" in i}
+        # docs/proposals holds data files with a ledger's name shape. One whose
+        # JSON is an array crashed here, and land reads Python's exit 1 as "the
+        # row did not move" -- a refusal with a traceback for its reason.
+        if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+            continue
+        out[path] = {i["id"]: json.dumps(i, sort_keys=True)
+                     for i in data["items"] if isinstance(i, dict) and "id" in i}
     return out
 
 
