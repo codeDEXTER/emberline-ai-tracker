@@ -1,0 +1,407 @@
+#!/usr/bin/env python3
+"""warmup -- the warm card, the check, and the delta (proposal 19, W-05, D1).
+
+  warmup [--project DIR]                     print the warm card
+  warmup --check                             exit 1 if anything verifiable is missing or stale
+  warmup --json                              the card's state as JSON
+  warmup --state PATH                        also save the state (for a later --since)
+  warmup --since PATH                        print only what moved since that state
+  warmup --no-recall | --recall-corpus GLOB  control the recall step
+
+A cold session and a running one ask the same question -- what is the state,
+and what do I read -- and before this they were answered by the sponsor
+typing it: "reread the handoff", "are you using ruflo", "update the plan and
+show the burn down" (six times in one engine session), "what is the current
+status" (five). The card answers it from disk, in the same order every time,
+and asks nothing.
+
+WHAT --check FAILS ON, and what it only shows. It fails on what can be
+verified: a missing standard file, an invalid ledger, a rendered page or a
+checkpoint whose digest no longer matches its ledger, and a HANDOFF.md or
+OPERATING-RULES.md still carrying {{PLACEHOLDERS}} a seed left for the lead.
+It shows, and never fails on, how many commits the prose files are behind
+HEAD: prose cannot be digest-checked, and failing on a count of commits
+punishes the busiest projects rather than the neglected ones.
+
+It never runs Ruflo. The CLI auto-starts a daemon that spends tokens until
+stopped (measured in the PhotoVault engine, 7 September). Warm-up says where
+the CLI is; the loop runs per item, by the lead, who stops what it started.
+
+Exit codes: 0 ready (or a card printed), 1 --check found problems, 2 could
+not check (not a git repository).
+"""
+from __future__ import annotations
+
+import argparse
+import glob
+import hashlib
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+RULES_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RULES_DIR))
+
+from tools.tracker import checkpoint as CP  # noqa: E402
+from tools.tracker import ledger as L  # noqa: E402
+from tools.tracker import render as R  # noqa: E402
+
+PROSE = ("HANDOFF.md", "docs/OPERATING-RULES.md")
+PLACEHOLDER = re.compile(r"\{\{[A-Z0-9_]+\}\}")
+STOP = {"with", "from", "that", "this", "into", "when", "what", "their", "does", "and", "the", "for"}
+
+
+def git(project: Path, *args: str) -> str | None:
+    r = subprocess.run(["git", "-C", str(project), *args], capture_output=True, text=True, check=False)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def behind(project: Path, rel: str) -> int | None:
+    last = git(project, "log", "-1", "--format=%H", "--", rel)
+    if not last:
+        return None
+    n = git(project, "rev-list", "--count", f"{last}..HEAD")
+    return int(n) if n and n.isdigit() else None
+
+
+def test_command(project: Path) -> str:
+    """land's test_cmd(), in the same order with the same tests. Pinned equal
+    to land's own answer by tests/test_warmup.py."""
+    if (project / "tests").is_dir() and glob.glob(str(project / "tests" / "*.py")):
+        return "python3 -m unittest discover -s tests -q"
+    pkg = project / "package.json"
+    if pkg.is_file() and '"test"' in pkg.read_text(errors="replace"):
+        return "npm test --silent"
+    return ""
+
+
+def ruflo_cli() -> str | None:
+    import shutil
+    for name in ("claude-flow", "ruflo"):
+        found = shutil.which(name)
+        if found:
+            return found
+    cached = sorted(glob.glob(str(Path.home() / ".npm/_npx/*/node_modules/.bin/claude-flow")),
+                    key=lambda p: Path(p).stat().st_mtime, reverse=True)
+    return cached[0] if cached else None
+
+
+def rules_status(project: Path) -> str:
+    if not (project / ".common-rules-version").is_file():
+        return "not adopted (.common-rules-version absent)"
+    rc = subprocess.run([str(RULES_DIR / "bin" / "rulecheck"), "--project", str(project), "--quiet"],
+                        capture_output=True, text=True, check=False).returncode
+    return {0: "aligned", 1: "STALE -- run rulecheck and read what changed"}.get(rc, "could not check")
+
+
+def prohibitions(handoff: Path) -> list[str]:
+    if not handoff.is_file():
+        return []
+    out, inside = [], False
+    for line in handoff.read_text(errors="replace").splitlines():
+        if line.startswith("## "):
+            # "## Prohibitions, verbatim" in the template; "## Two prohibitions.
+            # Verbatim, non-negotiable." in the PhotoVault engine, whose card
+            # said "none found" until this matched the word, not the prefix.
+            inside = "prohibition" in line.lower()
+            continue
+        s = line.strip()
+        # "1. **Never ...**" (template) and "**1. Never ...**" (engine), or a bullet.
+        if inside and (re.match(r"^(\*\*)?\d+\.\s*\S", s) or re.match(r"^[-*]\s+\S", s)):
+            out.append(s)
+    return out[:6]
+
+
+def page_state(ledger_path: Path) -> tuple[str, Path]:
+    page = R.default_out(ledger_path)
+    if not page.exists():
+        return "missing", page
+    m = re.search(r'<meta name="ledger-digest" content="([0-9a-f]{64})">', page.read_text(errors="replace"))
+    return ("ok" if m and m.group(1) == R.digest(ledger_path) else "stale"), page
+
+
+def checkpoint_state(project: Path) -> tuple[str, Path | None]:
+    open_ = CP.open_ledgers(project)
+    latest = CP.latest_checkpoint(project)
+    if not open_:
+        return "not needed", latest
+    if latest is None:
+        return "missing", None
+    m = re.search(r"<!--\s*ledger-digest:\s*([0-9a-f]{64})\s*-->", latest.read_text(errors="replace"))
+    if not m:
+        # Hand-written (the engine's 2026-09-13 checkpoint is): it cannot be
+        # checked against the ledger at all, which is not the same as having
+        # been checked and found behind. "stale" said the second.
+        return "unverifiable", latest
+    current = CP.digest_of([p for p, _ in open_])
+    return ("ok" if m.group(1) == current else "stale"), latest
+
+
+def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
+    top = git(project, "rev-parse", "--show-toplevel")
+    if top is None:
+        raise SystemExit(2)
+    project = Path(top)
+    gitdir, common = git(project, "rev-parse", "--git-dir"), git(project, "rev-parse", "--git-common-dir")
+    state: dict = {
+        "project": str(project), "name": project.name,
+        "branch": git(project, "rev-parse", "--abbrev-ref", "HEAD") or "?",
+        "head": git(project, "rev-parse", "--short", "HEAD") or "no commits",
+        "checkout": "worktree" if gitdir and common and Path(project, gitdir).resolve() != Path(project, common).resolve()
+                    else "main checkout",
+        "prohibitions": prohibitions(project / "HANDOFF.md"),
+        "problems": [], "chain": [], "ledgers": {}, "files": {},
+        "test_command": test_command(project), "rules": rules_status(project), "ruflo": ruflo_cli(),
+    }
+    read: list[Path] = []
+
+    for rel in PROSE:
+        p = project / rel
+        if not p.is_file():
+            state["problems"].append(f"{rel} is missing -- derecord seeds it; fill it in")
+            state["chain"].append(("✗", f"{rel} · missing"))
+            continue
+        read.append(p)
+        state["files"][rel] = sha256(p)
+        holes = sorted(set(PLACEHOLDER.findall(p.read_text(errors="replace"))))
+        n = behind(project, rel)
+        where = "not committed" if n is None else f"{n} commit{'s' if n != 1 else ''} behind HEAD"
+        if holes:
+            state["problems"].append(f"{rel} has {len(holes)} unfilled placeholder(s): {' '.join(holes)}")
+            state["chain"].append(("✗", f"{rel} · {where} · unfilled placeholder(s) {' '.join(holes)}"))
+        else:
+            state["chain"].append(("✓", f"{rel} · {where}"))
+
+    ledgers = L.find(project)
+    if not ledgers:
+        state["problems"].append("no ledger under docs/proposals (docs/proposals/NN-*.json) -- a plan of record is a ledger")
+        state["chain"].append(("✗", "ledger · none under docs/proposals"))
+    for lp in ledgers:
+        rel = str(lp.relative_to(project))
+        read.append(lp)
+        state["files"][rel] = sha256(lp)
+        try:
+            data = L.load(lp)
+        except ValueError as exc:
+            state["problems"].append(str(exc))
+            state["chain"].append(("✗", f"ledger {rel} · unreadable"))
+            continue
+        bad = L.validate(data)
+        if bad:
+            state["problems"].extend(f"{rel}: {b}" for b in bad)
+            state["chain"].append(("✗", f"ledger {rel} · {len(bad)} problem(s)"))
+        else:
+            state["chain"].append(("✓", f"ledger {rel} · well-formed"))
+        ps, page = page_state(lp)
+        prel = str(page.relative_to(project))
+        if ps == "ok":
+            state["chain"].append(("✓", f"page {prel} · matches the ledger"))
+        else:
+            state["problems"].append(f"page {prel} is {ps} -- run: tracker render {rel}")
+            state["chain"].append(("✗", f"page {prel} · {ps}"))
+        unblocked = {i["id"] for i in L.unblocked(data)}
+        state["ledgers"][rel] = {
+            "proposal": data.get("proposal"), "title": data.get("title", ""),
+            "status_line": L.status_line(data),
+            "items": {i["id"]: {"status": i.get("status"), "title": i.get("title", ""), "tag": i.get("tag", ""),
+                                "next": i["id"] in unblocked} for i in L.items(data) if "id" in i},
+            "asks": {a["id"]: {"state": a.get("state"), "kind": a.get("kind"), "quote": a.get("quote", "")}
+                     for a in (data.get("asks") or []) if "id" in a},
+        }
+
+    cs, cpath = checkpoint_state(project)
+    if cpath is not None:
+        read.append(cpath)
+        state["files"][str(cpath.relative_to(project))] = sha256(cpath)
+    if cs in ("ok", "not needed"):
+        state["chain"].append(("✓" if cs == "ok" else "·",
+                               f"checkpoint {cpath.relative_to(project) if cpath else ''} · "
+                               f"{'matches the open ledgers' if cs == 'ok' else 'not needed, no open ledger'}".replace("  ", " ")))
+    elif cs == "unverifiable":
+        rel_cp = cpath.relative_to(project)
+        state["problems"].append(f"checkpoint {rel_cp} has no ledger digest -- written by hand, so it cannot be "
+                                 f"checked against the ledger; run: tracker checkpoint --project {project}")
+        state["chain"].append(("✗", f"checkpoint {rel_cp} · no ledger digest (hand-written)"))
+    else:
+        state["problems"].append(f"checkpoint is {cs} -- run: tracker checkpoint --project {project}")
+        state["chain"].append(("✗", f"checkpoint {cpath.relative_to(project) if cpath else ''} · {cs}".replace("  ", " ")))
+    state["checkpoint"] = cs
+
+    workflow = RULES_DIR / "CLAUDE-workflow.md"
+    if workflow.is_file():
+        read.append(workflow)
+    rules_file = project / "docs" / "OPERATING-RULES.md"
+    state["superseded"] = re.findall(r"^### (\d{4}-\d{2}-\d{2} · superseded by .+)$",
+                                     rules_file.read_text(errors="replace"), re.M) if rules_file.is_file() else []
+    state["read_order"] = [str(p.relative_to(project)) if p.is_relative_to(project) else str(p) for p in read]
+    state["read_bytes"] = sum(p.stat().st_size for p in read if p.is_file())
+
+    state["recall"] = []
+    if recall:
+        for rel, led in state["ledgers"].items():
+            focus = [iid for iid, it in led["items"].items() if it["status"] == "in progress"] + \
+                    [iid for iid, it in led["items"].items() if it["next"]]
+            for iid in focus[:2]:
+                words = [w for w in re.findall(r"[a-z]{4,}", led["items"][iid]["title"].lower()) if w not in STOP][:4]
+                if not words:
+                    continue
+                cmd = [str(RULES_DIR / "bin" / "recall"), "--limit", "3"]
+                for g in corpus:
+                    cmd += ["--corpus", g]
+                r = subprocess.run(cmd + words, capture_output=True, text=True, check=False)
+                state["recall"].append({"item": iid, "words": words, "hits": r.stdout.strip().splitlines()[:3]})
+    return state
+
+
+def card(s: dict) -> str:
+    out = [f"WARM · {s['name']} · {s['branch']} @ {s['head']} · {s['checkout']}"]
+    if s["prohibitions"]:
+        out.append("Prohibitions (HANDOFF.md, verbatim):")
+        out += [f"  {p}" for p in s["prohibitions"]]
+    else:
+        out.append("Prohibitions: none found in HANDOFF.md -- write them before any work")
+    for rel, led in s["ledgers"].items():
+        out.append(f"Proposal {led['proposal']} · {led['title']}: {led['status_line']}")
+        for iid, it in led["items"].items():
+            if it["status"] == "in progress":
+                out.append(f"  in progress  {iid} {it['tag']} {it['title']}")
+            elif it["status"] == "blocked":
+                out.append(f"  blocked      {iid} {it['tag']} {it['title']}")
+        for iid, it in led["items"].items():
+            if it["next"]:
+                out.append(f"  next         {iid} {it['tag']} {it['title']}")
+        for aid, a in led["asks"].items():
+            if a["state"] == "open":
+                out.append(f"  open ask     {aid} ({a['kind']}) “{a['quote']}”")
+    out.append("Chain:")
+    out += [f"  {mark} {text}" for mark, text in s["chain"]]
+    if s.get("superseded"):
+        out.append("Superseded (docs/OPERATING-RULES.md) -- if you catch yourself following one of these, stop:")
+        out += [f"  {line}" for line in s["superseded"]]
+    out.append("Tools:")
+    out.append(f"  test command  {s['test_command'] or 'none found -- land will land on the gate alone'}")
+    out.append(f"  rules         {s['rules']}")
+    out.append(f"  ruflo         {'CLI at ' + s['ruflo'] + ' -- not run by warm-up; the loop runs per item, stop the daemon you start' if s['ruflo'] else 'CLI NOT FOUND -- Ruflo is mandatory: stop and report'}")
+    for r in s["recall"]:
+        out.append(f"Recall for {r['item']} ({' '.join(r['words'])}): {len(r['hits'])} hit(s)")
+        out += [f"  {h}" for h in r["hits"]]
+    out.append("Read in order: " + " → ".join(s["read_order"]))
+    if s["problems"]:
+        out.append(f"{len(s['problems'])} problem(s) -- fix first, or record each in the ledger as blocked with the reason")
+    out.append(f"warm-up read {s['read_bytes']:,} bytes (~{s['read_bytes'] // 4:,} tokens)")
+    return "\n".join(out)
+
+
+def check_report(s: dict) -> str:
+    lines = [f"  {mark} {text}" for mark, text in s["chain"]]
+    lines.append(f"warmup --check: {'ready' if not s['problems'] else str(len(s['problems'])) + ' problem(s)'}")
+    lines += [f"  ✗ {p}" for p in s["problems"]]
+    return "\n".join(lines)
+
+
+def delta(old: dict, new: dict) -> str:
+    out = []
+    if old.get("head") != new.get("head"):
+        out.append(f"HEAD {old.get('head')} → {new.get('head')}")
+    for rel, led in new["ledgers"].items():
+        before = old.get("ledgers", {}).get(rel)
+        if before is None:
+            out.append(f"new ledger {rel}: Proposal {led['proposal']} · {led['title']}: {led['status_line']}")
+            continue
+        lines = []
+        if before["status_line"] != led["status_line"]:
+            lines.append(f"Proposal {led['proposal']} · {led['title']}: {before['status_line']} → {led['status_line']}")
+        for iid, it in led["items"].items():
+            was = before["items"].get(iid)
+            if was is None:
+                lines.append(f"  {iid} new · {it['status']} · {it['title']}")
+            elif was["status"] != it["status"]:
+                lines.append(f"  {iid} {was['status']} → {it['status']} · {it['title']}")
+        for iid in before["items"]:
+            if iid not in led["items"]:
+                lines.append(f"  {iid} removed from the ledger")
+        for aid, a in led["asks"].items():
+            was = before["asks"].get(aid)
+            if was is None:
+                lines.append(f"  {aid} new ask ({a['kind']}) “{a['quote']}” · {a['state']}")
+            elif was["state"] != a["state"]:
+                lines.append(f"  {aid} {was['state']} → {a['state']}")
+        out += lines
+    for rel in PROSE:
+        if old.get("files", {}).get(rel) and new["files"].get(rel) and old["files"][rel] != new["files"][rel]:
+            out.append(f"{rel} changed since the last warm-up -- re-read it")
+    if old.get("checkpoint") != new.get("checkpoint"):
+        out.append(f"checkpoint {old.get('checkpoint')} → {new.get('checkpoint')}")
+    if len(old.get("problems", [])) != len(new["problems"]):
+        out.append(f"problems {len(old.get('problems', []))} → {len(new['problems'])}")
+    if not out:
+        summary = " · ".join(f"Proposal {l['proposal']}: {l['status_line']}" for l in new["ledgers"].values())
+        return f"no change since the last warm-up · {summary}".rstrip(" ·")
+    return "\n".join(out)
+
+
+def main(argv) -> int:
+    ap = argparse.ArgumentParser(prog="warmup", description=__doc__.splitlines()[0])
+    ap.add_argument("--project", type=Path, default=Path.cwd())
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--check", action="store_true")
+    mode.add_argument("--json", action="store_true")
+    mode.add_argument("--since", type=Path)
+    mode.add_argument("--migrate", action="store_true",
+                      help="move a running project onto the standard (seed, import, supersede, CLAUDE.md)")
+    ap.add_argument("--dry-run", action="store_true", help="with --migrate: say what would change, write nothing")
+    ap.add_argument("--at", help="with --migrate: the timestamp recorded (default: now)")
+    ap.add_argument("--state", type=Path)
+    ap.add_argument("--no-recall", action="store_true")
+    ap.add_argument("--recall-corpus", action="append", default=[])
+    args = ap.parse_args(argv)
+
+    if args.migrate:
+        import datetime
+        from tools import migrate as M
+        at = args.at or datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+        code = M.migrate(args.project, at, args.dry_run)
+        if code != 2 and not args.dry_run:
+            print()
+            print(card(gather(args.project, recall=not args.no_recall, corpus=args.recall_corpus)))
+        return code
+
+    try:
+        s = gather(args.project, recall=not args.no_recall and not args.check, corpus=args.recall_corpus)
+    except SystemExit:
+        print(f"warmup: {args.project} is not inside a git repository -- could not check", file=sys.stderr)
+        return 2
+
+    if args.check:
+        print(check_report(s))
+        code = 1 if s["problems"] else 0
+    elif args.json:
+        print(json.dumps(s, indent=2, ensure_ascii=False, default=str))
+        code = 0
+    elif args.since:
+        try:
+            old = json.loads(args.since.read_text())
+        except (OSError, json.JSONDecodeError):
+            print(f"warmup: no earlier state at {args.since}; the full card follows\n")
+            print(card(s))
+        else:
+            print(delta(old, s))
+        code = 0
+    else:
+        print(card(s))
+        code = 0
+
+    if args.state:
+        args.state.parent.mkdir(parents=True, exist_ok=True)
+        args.state.write_text(json.dumps(s, indent=2, ensure_ascii=False, default=str))
+    return code
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
