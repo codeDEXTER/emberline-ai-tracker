@@ -102,6 +102,24 @@ class TestProblemsAreNamed(unittest.TestCase):
         self.assertIn("A-01: became-item but `became` names nothing", self.problems(d))
 
 
+class TestFind(unittest.TestCase):
+
+    def test_find_skips_json_that_is_not_a_ledger(self):
+        """Found by running warm-up read-only on the PhotoVault engine, 13 Sep:
+        docs/proposals/56-proposal-the-sample-sheet.sidecar.json matches the
+        NN-*.json name and is a data file, so every tool built on find() --
+        warm-up, the checkpoint hook -- printed "Proposal None · 0 done".
+        A file that does not parse is still returned: a broken ledger must be
+        reported, and only its contents can say it is not one."""
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp) / "docs" / "proposals"
+            d.mkdir(parents=True)
+            (d / "71-programme.json").write_text(json.dumps(minimal(proposal=71)))
+            (d / "56-proposal-the-sample-sheet.sidecar.json").write_text(json.dumps({"sheet": [1, 2]}))
+            (d / "57-broken.json").write_text("{nope")
+            self.assertEqual(["57-broken.json", "71-programme.json"], [p.name for p in ledger.find(tmp)])
+
+
 class TestTheRealLedger(unittest.TestCase):
 
     @unittest.skipUnless(ENGINE_71.exists(), f"{ENGINE_71} is not on this machine")
