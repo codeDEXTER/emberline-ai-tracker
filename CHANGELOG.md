@@ -28,6 +28,17 @@ override `LAND_ALLOW_UNLOGGED_ITEM=1`. It applies only to a project with
 none of them -- the templates and hooks reach projects through `derecord`
 in W-08.
 
+**Later the same evening: `/warmup` and `derecord` seeding.** `bin/warmup`
+prints the warm card and `--check`s a project; `skills/warmup/SKILL.md` is the
+chat side. `derecord` now seeds HANDOFF.md, docs/OPERATING-RULES.md and the
+lead prompt (three files, not D2's six -- recorded for the sponsor) and
+installs the PreCompact, Stop and SessionStart hooks. Run read-only on the
+PhotoVault engine, the first card printed three wrong lines about the project
+the standard came from; each was fixed test-first, and two were defects in
+earlier items (`ledger.find` read a data file as a ledger; `tracker check`
+crashed on a JSON array, which `land` would have reported as a refusal). The
+engine's warm-up reads ~195 KB (~49k tokens) -- measured, not guessed.
+
 Found while building: an installed `tools` package on the shared interpreter
 (`Sangam/Sangam-engine/tools`) shadowed this repo's `tools/`, fixed with a
 package marker; the mandatory Ruflo loop errored for one agent (W-06) while
