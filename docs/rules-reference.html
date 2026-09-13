@@ -1,0 +1,306 @@
+<title>The shared rules — what a new project gets</title>
+<style>
+  body, .viz-root {
+    color-scheme: light;
+    --ground:#f4f3f1; --surface-1:#fcfcfb; --surface-2:#f0eee9; --border:#dcd8d2;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#6b6660;
+    --series-1:#2a78d6; --series-2:#eb6834; --good:#2f6b46; --bad:#a8434b; --warn:#b4761e;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:where(:not([data-theme="light"])) body, :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --ground:#0c0f14; --surface-1:#1a1a19; --surface-2:#22221f; --border:#2b2b29;
+      --text-primary:#fff; --text-secondary:#c3c2b7; --text-muted:#8b8b82;
+      --series-1:#3987e5; --series-2:#d95926; --good:#5fa985; --bad:#c97a81; --warn:#d2a05a;
+    }
+  }
+  :root[data-theme="dark"] body, :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --ground:#0c0f14; --surface-1:#1a1a19; --surface-2:#22221f; --border:#2b2b29;
+    --text-primary:#fff; --text-secondary:#c3c2b7; --text-muted:#8b8b82;
+    --series-1:#3987e5; --series-2:#d95926; --good:#5fa985; --bad:#c97a81; --warn:#d2a05a;
+  }
+  body{background:var(--ground);color:var(--text-primary);font-family:var(--sans);
+       line-height:1.55;font-size:15.5px;margin:0}
+  .page{max-width:1000px;margin:0 auto;padding:52px 26px 90px}
+  .brand{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+         color:var(--text-muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  h1{font-size:33px;font-weight:650;letter-spacing:-.015em;line-height:1.15;margin:18px 0 10px}
+  .standfirst{font-size:17px;color:var(--text-secondary);max-width:66ch;margin:0 0 8px}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.12em;
+           text-transform:uppercase;margin:50px 0 0;padding-bottom:9px;
+           border-bottom:2px solid var(--text-primary);display:flex;justify-content:space-between;
+           align-items:baseline;gap:12px}
+  .eyebrow .tag{font-weight:400;letter-spacing:.06em;color:var(--text-muted);text-transform:none}
+  section>p{max-width:70ch}
+  p.note{color:var(--text-muted);font-size:13.5px;max-width:72ch}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);
+       border-radius:4px;padding:1px 5px}
+  pre{background:var(--surface-1);border:1px solid var(--border);border-radius:8px;
+      padding:12px 15px;overflow-x:auto;font-family:var(--mono);font-size:12.4px;line-height:1.5}
+  pre code{background:none;padding:0}
+  figure{margin:24px 0;background:var(--surface-1);border:1px solid var(--border);
+         border-radius:12px;padding:18px 20px 12px}
+  figure svg{width:100%;height:auto;display:block}
+  figcaption{font-size:12.5px;color:var(--text-muted);margin-top:10px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:13px;margin:20px 0}
+  .card{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:15px 17px}
+  .card.core{border-left:3px solid var(--series-1)}
+  .card h4{margin:0 0 6px;font-size:14.5px}
+  .card p{margin:0;font-size:13px;color:var(--text-secondary);line-height:1.45}
+  .card .why{display:block;margin-top:8px;font-size:11.5px;color:var(--text-muted);font-style:italic}
+  .scroll{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:13.4px;min-width:580px;margin-top:14px}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+     color:var(--text-muted);text-align:left;font-weight:600;padding:8px 14px 8px 0;
+     border-bottom:1px solid var(--border)}
+  td{padding:9px 14px 9px 0;border-bottom:1px solid var(--border);vertical-align:top}
+  td.k{font-family:var(--mono);font-size:12.2px;white-space:nowrap}
+  .lab{font-family:var(--mono);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;
+       padding:2px 7px;border-radius:4px;color:#fff;white-space:nowrap;display:inline-block}
+  .lab.auto{background:var(--good)} .lab.manual{background:var(--warn)} .lab.you{background:var(--bad)}
+  .box{background:var(--surface-1);border:1px solid var(--border);border-left:3px solid var(--series-1);
+       border-radius:0 10px 10px 0;padding:15px 19px;margin:20px 0;max-width:74ch}
+  .box.you{border-left-color:var(--bad)}
+  .box p{margin:0 0 8px} .box p:last-child{margin:0}
+  ul{max-width:70ch} li{margin:0 0 7px}
+  ol{max-width:70ch} ol li{margin:0 0 10px}
+</style>
+
+<div class="page viz-root">
+
+<div class="brand"><span>common-rules · reference</span><span>rules version 182 · 1 September 2026</span></div>
+
+<h1>The shared rules, and what a new project gets</h1>
+<p class="standfirst">One file of rules, twelve tools, eight agent roles. A project adopts it by
+adding four lines to its own <code>CLAUDE.md</code> and running one command. This is what those
+rules actually say — and, more usefully, which of them are enforced by a program rather than
+asked for in prose.</p>
+
+<div class="eyebrow"><span>The four that carry it</span><span class="tag">measured, not asserted</span></div>
+<section>
+<p>The rules file was 1,637 lines and is now 594. The cut was made after measuring four days of
+real sessions. These four are what the measurement said was load-bearing:</p>
+
+<div class="cards">
+  <div class="card core"><h4>1 · A worktree per task</h4>
+  <p>Separate folder, separate branch, always.</p>
+  <span class="why">Sessions sharing a checkout overwrite each other's work. Seven parallel sessions ran with one collision all week.</span></div>
+  <div class="card core"><h4>2 · Tool grants, not instructions</h4>
+  <p>Only <code>code-engineer</code> holds Edit and Write. The other roles <em>cannot</em> change code.</p>
+  <span class="why">A rule the AI cannot break needs no paragraph.</span></div>
+  <div class="card core"><h4>3 · A gate that reads the diff</h4>
+  <p><code>quality-manager</code> checks against acceptance criteria. It reports; it never fixes and never merges.</p>
+  <span class="why">A role that can fix what it finds will stop reporting.</span></div>
+  <div class="card core"><h4>4 · Tests, run before landing</h4>
+  <p><code>bin/land</code> refuses to merge a red branch.</p>
+  <span class="why">Green suites are not evidence unless something consults them at the moment of merge.</span></div>
+</div>
+</section>
+
+<div class="eyebrow"><span>The shape of a task</span><span class="tag">idea to merged</span></div>
+<section>
+<figure>
+<svg viewBox="0 0 880 300" role="img" aria-label="A task flows from the sponsor approving a feature, through requirements and one batched decision, to a worktree where code-engineer builds and test-engineer and quality-manager verify, then bin/land runs nine checks and merges, then the app is installed from main. The sponsor is involved at three points only: approving the feature, answering one batch of decisions, and approving the merge of rules changes.">
+  <title>How a task moves from idea to merged</title>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="var(--text-muted)"/></marker></defs>
+
+  <text x="20" y="18" font-family="var(--mono)" font-size="10" fill="var(--bad)">● = you</text>
+
+  <g font-family="var(--sans)">
+  <rect x="20" y="32" width="150" height="62" rx="8" fill="var(--surface-2)" stroke="var(--bad)" stroke-width="1.5"/>
+  <circle cx="36" cy="48" r="6" fill="var(--bad)"/>
+  <text x="34" y="70" font-size="12.5" font-weight="600" fill="var(--text-primary)">Feature</text>
+  <text x="34" y="87" font-size="10.5" fill="var(--text-muted)">you own this</text>
+
+  <path d="M176,63 L196,63" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#a)"/>
+
+  <rect x="202" y="32" width="150" height="62" rx="8" fill="var(--surface-2)" stroke="var(--bad)" stroke-width="1.5"/>
+  <circle cx="218" cy="48" r="6" fill="var(--bad)"/>
+  <text x="216" y="70" font-size="12.5" font-weight="600" fill="var(--text-primary)">Spec + decisions</text>
+  <text x="216" y="87" font-size="10.5" fill="var(--text-muted)">one batch, before code</text>
+
+  <path d="M358,63 L378,63" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#a)"/>
+
+  <rect x="384" y="32" width="150" height="62" rx="8" fill="var(--surface-1)" stroke="var(--border)"/>
+  <text x="398" y="63" font-size="12.5" font-weight="600" fill="var(--text-primary)">Issues, cut</text>
+  <text x="398" y="80" font-size="10.5" fill="var(--text-muted)">vertically · one per surface</text>
+
+  <path d="M540,63 L560,63" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#a)"/>
+
+  <rect x="566" y="32" width="150" height="62" rx="8" fill="var(--surface-1)" stroke="var(--border)"/>
+  <text x="580" y="63" font-size="12.5" font-weight="600" fill="var(--text-primary)">Worktree</text>
+  <text x="580" y="80" font-size="10.5" fill="var(--text-muted)">one per task</text>
+
+  <path d="M641,100 L641,120" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#a)"/>
+
+  <rect x="384" y="126" width="332" height="70" rx="8" fill="var(--surface-1)" stroke="var(--series-1)" stroke-width="1.5"/>
+  <text x="400" y="150" font-size="12.5" font-weight="600" fill="var(--text-primary)">code-engineer builds · test-engineer + quality-manager verify</text>
+  <text x="400" y="168" font-size="10.5" fill="var(--text-muted)">only code-engineer can write. The gate reports, never fixes.</text>
+  <text x="400" y="185" font-size="10.5" fill="var(--text-muted)">the probe you ran to check it becomes a test in tests/</text>
+
+  <path d="M378,161 L358,161" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#a)"/>
+
+  <rect x="20" y="126" width="332" height="70" rx="8" fill="var(--surface-1)" stroke="var(--good)" stroke-width="1.5"/>
+  <text x="36" y="150" font-size="12.5" font-weight="600" fill="var(--text-primary)">bin/land — nine checks, then merge</text>
+  <text x="36" y="168" font-size="10.5" fill="var(--text-muted)">clean tree · ahead of main · no conflict · nothing reserved</text>
+  <text x="36" y="185" font-size="10.5" fill="var(--text-muted)">tests green · a test exists · milestones · proposals · rules current</text>
+
+  <path d="M186,202 L186,222" stroke="var(--text-muted)" stroke-width="1.4" marker-end="url(#a)"/>
+
+  <rect x="20" y="228" width="332" height="56" rx="8" fill="var(--surface-2)" stroke="var(--border)"/>
+  <text x="36" y="252" font-size="12.5" font-weight="600" fill="var(--text-primary)">Install from green main</text>
+  <text x="36" y="270" font-size="10.5" fill="var(--text-muted)">at the end of a feature — one app, one icon</text>
+
+  <rect x="384" y="228" width="332" height="56" rx="8" fill="var(--surface-1)" stroke="var(--bad)" stroke-width="1.5"/>
+  <circle cx="400" cy="244" r="6" fill="var(--bad)"/>
+  <text x="416" y="249" font-size="12.5" font-weight="600" fill="var(--text-primary)">Rules changes: you merge</text>
+  <text x="398" y="270" font-size="10.5" fill="var(--text-muted)">land refuses common-rules by design</text>
+  </g>
+</svg>
+<figcaption>Everything not marked <span style="color:var(--bad)">●</span> happens without you.
+The sponsor owns <strong>features</strong>; the AI owns <strong>issues</strong>.</figcaption>
+</figure>
+</section>
+
+<div class="eyebrow"><span>Enforced vs. asked for</span><span class="tag">the distinction that matters</span></div>
+<section>
+<p>The rules file's own opening principle: <em>"Rules that can be enforced are not written here.
+A rule the AI cannot break needs no paragraph."</em> Three weeks of measurement backed it —
+executable guards are used ~99% of the time; prose rules were followed 1 time in 7.</p>
+
+<div class="scroll">
+<table>
+<tr><th>Rule</th><th>How it holds</th><th>Enforced by</th></tr>
+<tr><td>A worktree per task</td><td class="k"><span class="lab manual">habit</span></td><td><code>bin/whoelse</code> reports collisions</td></tr>
+<tr><td>Only code-engineer writes code</td><td class="k"><span class="lab auto">structural</span></td><td>tool grants in <code>agents/*.md</code></td></tr>
+<tr><td>Tests green before merge</td><td class="k"><span class="lab auto">structural</span></td><td><code>bin/land</code> refuses</td></tr>
+<tr><td>A code change arrives with a test</td><td class="k"><span class="lab auto">structural</span></td><td><code>bin/land</code> refuses · override is explicit</td></tr>
+<tr><td>Record files never conflict</td><td class="k"><span class="lab auto">structural</span></td><td><code>.gitattributes</code> union-merge via <code>derecord</code></td></tr>
+<tr><td>No conflict markers committed</td><td class="k"><span class="lab auto">structural</span></td><td>pre-commit hook via <code>derecord</code></td></tr>
+<tr><td>Project stays on current rules</td><td class="k"><span class="lab auto">structural</span></td><td><code>rulecheck</code> · <code>land</code> refuses if stale</td></tr>
+<tr><td>Proposals record their decisions</td><td class="k"><span class="lab auto">structural</span></td><td><code>proposalcheck</code> · <code>land</code> refuses</td></tr>
+<tr><td>A milestone plan exists and is well-formed</td><td class="k"><span class="lab auto">structural</span></td><td><code>milestonecheck</code> · <code>land</code> refuses</td></tr>
+<tr><td>AGENT-LOG is accurate</td><td class="k"><span class="lab auto">structural</span></td><td>generated by <code>spend agentlog</code>, never typed</td></tr>
+<tr><td>Ask in one batch, before code</td><td class="k"><span class="lab manual">prose</span></td><td>— judgement</td></tr>
+<tr><td>Show, don't summarise</td><td class="k"><span class="lab manual">prose</span></td><td>— judgement</td></tr>
+<tr><td>Verify in the browser pane, not a real app</td><td class="k"><span class="lab manual">prose</span></td><td><code>apprun</code> tracks what is running</td></tr>
+<tr><td>Merging a rules change</td><td class="k"><span class="lab you">yours</span></td><td><code>land</code> exits 3 for common-rules</td></tr>
+</table>
+</div>
+</section>
+
+<div class="eyebrow"><span>The twelve tools</span><span class="tag">bin/ — this is the real product</span></div>
+<section>
+<div class="scroll">
+<table>
+<tr><th>Tool</th><th>What it does</th><th class="k">Uses (3 wks)</th></tr>
+<tr><td class="k">land</td><td>Takes a finished branch to main — nine checks, then merges. The spine.</td><td class="k">601</td></tr>
+<tr><td class="k">milestones</td><td>Renders a project's milestone plan as a live page with a graph.</td><td class="k">92</td></tr>
+<tr><td class="k">proposalcheck</td><td>Did a proposal that asked numbered decisions record the answers?</td><td class="k">76</td></tr>
+<tr><td class="k">rulecheck</td><td>Is this project working against the current shared rules?</td><td class="k">—</td></tr>
+<tr><td class="k">whoelse</td><td>Who else is working here, and do we collide?</td><td class="k">—</td></tr>
+<tr><td class="k">derecord</td><td>Installs the enforceable rules into a project: git attributes + hooks.</td><td class="k">6</td></tr>
+<tr><td class="k">tower</td><td>The autopilot, live on one screen.</td><td class="k">—</td></tr>
+<tr><td class="k">pulse</td><td>Where you see the autopilot running.</td><td class="k">—</td></tr>
+<tr><td class="k">apprun</td><td>The run registry — what is running, on which port, for whom.</td><td class="k">—</td></tr>
+<tr><td class="k">appcheck</td><td>Finds app bundles that claim to be the same app.</td><td class="k">—</td></tr>
+<tr><td class="k">milestonecheck</td><td>Is the milestone plan present and well-formed? Consumed by land.</td><td class="k">—</td></tr>
+<tr><td class="k">spend</td><td>What a task cost, from the session transcripts. <em>Its <code>agentlog</code> subcommand has been run once in three weeks.</em></td><td class="k">1</td></tr>
+</table>
+</div>
+</section>
+
+<div class="eyebrow"><span>The eight roles</span><span class="tag">and what each may touch</span></div>
+<section>
+<div class="scroll">
+<table>
+<tr><th>Role</th><th>For</th><th>Tools it holds</th></tr>
+<tr><td class="k">research-agent</td><td>Before a direction exists: precedent, options, tradeoffs</td><td class="k">read + web</td></tr>
+<tr><td class="k">requirements-engineer</td><td>A chosen direction written as testable criteria</td><td class="k">read + write docs</td></tr>
+<tr><td class="k">design-explorer</td><td>Several structurally different concepts, early</td><td class="k">read + write docs</td></tr>
+<tr><td class="k">design-engineer</td><td>One locked direction turned into a buildable spec</td><td class="k">read + write docs</td></tr>
+<tr><td class="k"><strong>code-engineer</strong></td><td><strong>Building it — the only role that may write code</strong></td><td class="k">read + <strong>write</strong> + bash</td></tr>
+<tr><td class="k">test-engineer</td><td>Validating against criteria, raising bug reports</td><td class="k">read + bash · <em>no write</em></td></tr>
+<tr><td class="k">quality-manager</td><td>The pre-merge gate. Reports, never fixes, never merges</td><td class="k">read + bash · <em>no write</em></td></tr>
+<tr><td class="k">proposal-auditor</td><td>How far requirements drifted from the accepted proposal</td><td class="k">read only</td></tr>
+</table>
+</div>
+
+<div class="box">
+<p><strong>Ceremony is opt-in.</strong> The full chain runs only on work the sponsor has flagged
+as a feature they care about. It is not the default, and that is measured rather than preferred:
+five process architectures built one frozen spec, all scored identically, and cost varied
+<strong>17×</strong>. The lightest arm is what the default already prescribes.</p>
+</div>
+</section>
+
+<div class="eyebrow"><span>Reserved to you, always</span></div>
+<section>
+<div class="box you">
+<ul style="margin:0">
+<li>Anything under <code>common-rules/</code> — surface and ask, never edit unprompted</li>
+<li>Merging a change to these rules — the AI opens the PR, you merge</li>
+<li>Creating, picking and closing <strong>features</strong></li>
+<li>Clearing orphaned processes or archiving sessions</li>
+<li><code>finance_data/</code>, <code>auth.json</code>, <code>.env</code> — never leave the machine in the clear</li>
+</ul>
+</div>
+<p class="note">Everything downstream — cutting issues, sequencing them, resolving disagreements
+between sessions, choosing between implementations — is the AI's job, done without asking.
+<em>"A question to the user is a cost, not a safety move."</em></p>
+</section>
+
+<div class="eyebrow"><span>Adopting it in a new project</span><span class="tag">two steps</span></div>
+<section>
+<ol>
+<li><strong>Point at the rules from the project's own <code>CLAUDE.md</code></strong> — four
+lines near the top. Never copy the text inline; that defeats the sharing.
+<pre><code>Shared workflow rules (worktree-per-task, pre-merge gate, issue
+tracking, confirmation gates): ../common-rules/CLAUDE-workflow.md —
+read that first. This project's specifics: test command is &lt;…&gt;,
+build/run is &lt;…&gt;, GitHub repo is &lt;owner/repo&gt;.</code></pre></li>
+
+<li><strong>Install the enforceable half</strong>, once:
+<pre><code>common-rules/bin/derecord /Users/the-sponsor/apps/&lt;project&gt;</code></pre>
+That installs the <code>.gitattributes</code> union-merge rules, a pre-commit hook that refuses
+conflict markers, and a SessionStart hook running <code>rulecheck --quiet</code>.</li>
+</ol>
+
+<p>Then keep only the project's own specifics in its <code>CLAUDE.md</code>: exact test and build
+commands, repo name, label taxonomy, and any gitignored files a fresh worktree needs copied in.</p>
+
+<div class="box">
+<p><strong>What the project should also have, and what happens without it:</strong> a
+<code>tests/</code> directory (<code>land</code> lands "on the gate alone" without one), a
+<code>## Features</code> table and a <code>## Milestones</code> table in
+<code>CLAUDE-checklist.md</code> (<code>land</code> refuses without a well-formed plan), and a CI
+workflow running the identical test command. <em>Currently only two of three projects have that
+last one — and both repos that lack it have had an unnoticed red trunk.</em></p>
+</div>
+</section>
+
+<div class="eyebrow"><span>Honest limits</span></div>
+<section>
+<ul>
+<li><strong>The prose half is weakly held.</strong> Everything marked <em>prose</em> above depends
+on judgement, and judgement measured at 1-in-7 compliance before the guards existed.</li>
+<li><strong><code>common-rules</code> is exempt from its own gate.</strong> <code>land</code>
+exits 3 for it, so the repo hosting every check is the one where none apply at merge time. Its
+trunk is red as of this writing, for exactly that reason.</li>
+<li><strong>The eight-role org is thinning.</strong> <code>code-engineer</code> is now 65% of all
+dispatches, and both verification roles have fallen in absolute terms. The guards absorbed their
+job — which is arguably right, but it happened by drift.</li>
+<li><strong>One tool is dead.</strong> <code>spend agentlog</code> works, is tested, and has been
+run once in three weeks.</li>
+</ul>
+</section>
+
+<p class="note" style="margin-top:44px">Derived from <code>CLAUDE-workflow.md</code> at rules
+version 182 and <code>README.md</code>; usage counts parsed from session transcripts,
+11 Aug – 1 Sep. Where this page and <code>CLAUDE-workflow.md</code> disagree, that file wins.</p>
+
+</div>
