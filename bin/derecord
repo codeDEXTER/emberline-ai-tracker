@@ -202,11 +202,12 @@ PY
 }
 seed_prose "$RULES_DIR/templates/HANDOFF.md" "HANDOFF.md"
 seed_prose "$RULES_DIR/templates/OPERATING-RULES.md" "docs/OPERATING-RULES.md"
-# A project that already keeps a dated lead prompt (the PhotoVault engine's
-# docs/handovers/2026-09-13-proposal-71-lead-prompt.md) gets no generic one
-# beside it: two lead prompts leave a later session choosing between them.
-# Found by that engine reviewing the migration dry run, 13 Sep.
-existing_prompt="$(ls docs/handovers/*-lead-prompt.md 2>/dev/null | head -1 || true)"
+# A project that already keeps a lead prompt anywhere under docs/ gets no
+# generic one: two lead prompts leave a later session choosing between them.
+# The PhotoVault engine keeps docs/handovers/2026-09-13-proposal-71-lead-prompt.md;
+# the PhotoVault app keeps docs/proposals/70-lead-prompt.md and has no
+# handovers/ folder at all, which a handovers-only look missed (13 Sep).
+existing_prompt="$(find docs -maxdepth 3 -type f -name '*lead-prompt*.md' ! -path 'docs/handovers/lead-prompt.md' 2>/dev/null | sort | head -1 || true)"
 if [ -n "$existing_prompt" ] && [ ! -f docs/handovers/lead-prompt.md ]; then
     echo "  docs/handovers/lead-prompt.md not seeded -- this project already keeps $existing_prompt"
 else

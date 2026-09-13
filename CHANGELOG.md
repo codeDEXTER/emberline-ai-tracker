@@ -1,5 +1,17 @@
 # Changelog — common-rules
 
+## 2026-09-13 · The PhotoVault app's dry run: plain-bullet rules and lead prompts anywhere
+
+Asked to migrate the PhotoVault app too, dry run first. The dry run said
+"nothing to supersede", and that was false: the app writes its rules as plain
+`- ` bullets, and migrate only read `- **bold**` ones, while the app's section 1
+opens with the very rule the standard replaces ("One plan, updated in place").
+A plain bullet's first sentence is now read as its lead. `derecord` also looked
+for an existing lead prompt only in `docs/handovers/`; the app keeps
+`docs/proposals/70-lead-prompt.md`, so it now looks three levels under `docs/`.
+Nothing was written to the app. Its ledger uses its own vocabulary and fails
+validation 138 times; migrating it waits on the sponsor's decision (W-13).
+
 ## 2026-09-13 · A project declares its test gate: `.common-rules-test`
 
 `bin/land`'s `test_cmd()` guessed the suite from the tree -- `tests/*.py`

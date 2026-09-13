@@ -193,6 +193,49 @@ class TestSupersede(Case):
         self.assertIn("the earlier wording is under Superseded", section1)
 
 
+PLAIN_RULES = """# Operating rules
+
+## 1. Proposals and the plan
+- One plan, updated in place. `docs/proposals/53-proposal-x.html` is
+  the plan of record. Never a new plan document, never scrap old content.
+- Proposals are numbered `NN-proposal-name.html`.
+
+## 2. Running work
+- Every task gets an issue before it starts.
+"""
+
+
+class TestPlainBulletRules(Case):
+    """The PhotoVault app's rules, 13 Sep, write "- One plan, updated in
+    place." with no bold. Its dry run said "nothing to supersede" because only
+    "- **lead**" bullets were read -- a false negative reported as a finding."""
+
+    def test_a_plain_bullet_rule_is_seen_replaced_and_nothing_else_moves(self):
+        self.p.write("docs/OPERATING-RULES.md", PLAIN_RULES)
+        self.p.git("add", "-A")
+        self.p.git("commit", "-qm", "plain rules")
+        self.migrated()
+        text = self.p.read("docs/OPERATING-RULES.md")
+        live, retired = text.split("## Superseded", 1)
+        self.assertNotIn("- One plan, updated in place.", live)
+        self.assertIn("One plan, updated in place.", retired)
+        self.assertIn("**The ledger is the plan of record, updated in place.**", live)
+        self.assertIn("- Proposals are numbered", live)
+        self.assertIn("- Every task gets an issue before it starts.", live)
+        new = collections.Counter(l for l in text.splitlines() if l.strip())
+        old = collections.Counter(l for l in PLAIN_RULES.splitlines() if l.strip())
+        self.assertEqual({}, dict(old - new), "lines lost from a plain-bullet rules file")
+
+    def test_a_plain_bullet_migration_is_idempotent(self):
+        self.p.write("docs/OPERATING-RULES.md", PLAIN_RULES)
+        self.p.git("add", "-A")
+        self.p.git("commit", "-qm", "plain rules")
+        self.migrated()
+        first = self.p.snapshot()
+        self.migrated()
+        self.assertEqual(first, self.p.snapshot())
+
+
 class TestClaudeMd(Case):
 
     def test_the_pointer_is_added_and_the_projects_own_text_stays(self):
