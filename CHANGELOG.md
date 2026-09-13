@@ -1,5 +1,63 @@
 # Changelog — common-rules
 
+## 2026-09-13 · Proposal 19 building: the ledger toolkit, templates, recall and hooks
+
+Built on the integration branch `p19-foundation`, in the order proposal 19's
+own ledger (`docs/proposals/19-proposal-warmup.json`, the first written in
+the shape it proposes) sets. Seven of eleven items done; each verified by the
+lead in a clean worktree at its pushed tip, not by the agent that wrote it.
+
+- **`bin/tracker`** — one tool, one module per command in `tools/tracker/`:
+  `validate` (the ledger contract; the PhotoVault engine's proposal 71
+  ledger validates unchanged), `render` (a generated page in
+  `docs/proposals/tracker/`, digest-checked, deterministic), `check` (did the
+  ledger move with the code), `sync` (GitHub issues mirror the ledger one
+  way, drift shown), `checkpoint` (writes `docs/handovers/<date>-checkpoint.md`).
+- **`templates/`** — HANDOFF, OPERATING-RULES, ledger.json, lead-prompt,
+  checkpoint, and the five-heading brief.
+- **`bin/recall`, `bin/remember`** — recall over every project's memory,
+  LESSONS, operating rules and ledger logs; remember writes one fact file.
+- **`hooks/`** — PreCompact and Stop write the checkpoint (Stop only when
+  the ledger changed); SessionStart after a compaction says the summary is a
+  paraphrase and names the files to re-read.
+
+**Behaviour change for adopted projects:** `bin/land` gains a gate. A branch
+whose commits name a ledger item and do not move that item's row is refused;
+override `LAND_ALLOW_UNLOGGED_ITEM=1`. It applies only to a project with
+`.common-rules-version` and a ledger under `docs/proposals/`, which today is
+none of them -- the templates and hooks reach projects through `derecord`
+in W-08.
+
+**Later the same evening: `/warmup` and `derecord` seeding.** `bin/warmup`
+prints the warm card and `--check`s a project; `skills/warmup/SKILL.md` is the
+chat side. `derecord` now seeds HANDOFF.md, docs/OPERATING-RULES.md and the
+lead prompt (three files, not D2's six -- recorded for the sponsor) and
+installs the PreCompact, Stop and SessionStart hooks. Run read-only on the
+PhotoVault engine, the first card printed three wrong lines about the project
+the standard came from; each was fixed test-first, and two were defects in
+earlier items (`ledger.find` read a data file as a ledger; `tracker check`
+crashed on a JSON array, which `land` would have reported as a refusal). The
+engine's warm-up reads ~195 KB (~49k tokens) -- measured, not guessed.
+
+**Then `tracker import` and `warmup --migrate`.** Import turns an existing
+milestone plan into a ledger (finance-tracker's CLAUDE-milestones.json, or a
+`## Milestones` table read with `bin/milestones`' own parser). Migrate moves a
+running project onto the standard: derecord, import, and each rule the
+standard replaces moved verbatim into a dated `## Superseded` block -- only
+rules `templates/supersedes.json` names; nothing guessed, nothing deleted --
+plus a CLAUDE.md pointer left for the sponsor to commit. Dry-run on the three
+real projects: the engine would supersede exactly the two rules the list was
+written from; pockets and finance-tracker would gain ledgers of 25 and 78 rows.
+`bin/milestones` was deliberately left unchanged: its digest hashes whole rows,
+so adding a field would have staled every project's milestone page at once.
+
+Found while building: an installed `tools` package on the shared interpreter
+(`Sangam/Sangam-engine/tools`) shadowed this repo's `tools/`, fixed with a
+package marker; the mandatory Ruflo loop errored for one agent (W-06) while
+working for three others, recorded in its row and unattributed; and the lead
+built W-03 without moving its row to in progress -- the exact slip the W-03
+gate refuses, caught by a script and recorded rather than back-dated.
+
 ## 2026-09-13 · Proposal 19: Warm-up — proposed and accepted the same day
 
 `docs/proposals/19-proposal-warmup.html`. Analysed the PhotoVault engine

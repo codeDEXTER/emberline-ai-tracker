@@ -20,6 +20,7 @@
 #   - the branch changes code and touches no test (see below)
 #   - a proposal asked numbered decisions or claims partial completion and
 #     recorded neither (see below)
+#   - a commit names a ledger item whose row did not move (see below)
 #
 # main is protected on some remotes, so it lands through a PR when one is
 # needed and by fast-forward when it is not.
@@ -31,6 +32,7 @@
 #   LAND_ALLOW_UNRECORDED_DECISIONS=1   land a proposal missing its answers
 #   LAND_ALLOW_NO_MILESTONES=1          land a project with no milestone plan
 #   LAND_ALLOW_STALE_MILESTONE_PAGE=1   land with docs/milestones.html out of date
+#   LAND_ALLOW_UNLOGGED_ITEM=1          land a commit naming an item whose ledger row did not move
 set -euo pipefail
 
 GIT=git; command -v git >/dev/null 2>&1 || GIT=/Library/Developer/CommandLineTools/usr/bin/git
@@ -308,6 +310,36 @@ land_one() {
       Then commit docs/milestones.html alongside the plan change that moved it.
       If this branch genuinely must land before that, re-run with
       LAND_ALLOW_STALE_MILESTONE_PAGE=1 -- it is recorded in the PR either way."
+            refuse "$msg"
+            return 1
+        fi
+    fi
+
+    # --- the ledger moved with the code --------------------------------------
+    #
+    # Proposal 19 (W-03). A branch whose commits name a ledger item -- "W-01
+    # the templates", "E1-10 flutter-read locations" -- must also move that
+    # item's row in docs/proposals/NN-*.json. The PhotoVault engine kept this
+    # as prose and kept it on its best day (58 ledger commits on 13 September);
+    # prose rules measured 1-in-7 compliance here. `tracker check` reads
+    # "moved" from git -- the item's JSON differs between the merge-base and
+    # the branch tip -- never from a timestamp an agent typed.
+    #
+    # Wired in the same change that added the checker, for the reason the
+    # milestone gate above gives: a checker with no caller is a suggestion.
+    # Same opt-in guard as every gate above. Only exit 1 refuses; 2 is "could
+    # not check", and a project with no ledger exits 0.
+    if [ -f "$stamp_file" ] && [ -x "$RULES_DIR/bin/tracker" ]; then
+        local tk_out tk_rc=0
+        tk_out="$("$RULES_DIR/bin/tracker" check --project "$TOP" --base main --head "$branch" 2>&1)" || tk_rc=$?
+        if [ "$tk_rc" = 1 ] && [ "${LAND_ALLOW_UNLOGGED_ITEM:-0}" != 1 ]; then
+            local msg
+            msg="a commit names a ledger item and its ledger row did not move --
+$tk_out
+      The ledger is the record: add the log entry (and status) for each item
+      named above to its docs/proposals/NN-*.json on this branch, then land.
+      If this branch genuinely must land before that, re-run with
+      LAND_ALLOW_UNLOGGED_ITEM=1 -- it is recorded in the PR either way."
             refuse "$msg"
             return 1
         fi

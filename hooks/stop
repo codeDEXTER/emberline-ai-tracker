@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""Stop hook (proposal 19, D8 / W-07). Refreshes the checkpoint after every
+turn, without depending on the session remembering to write one (proposal
+19, section H, "the write side").
+
+Fires on every assistant turn, so it writes only `--if-changed` -- a
+checkpoint is not rewritten just because a turn happened, only when the
+ledger it is built from moved. Does nothing at all when `stop_hook_active`
+is true (Claude Code re-invoking Stop hooks on a hook-triggered continuation
+would otherwise recurse the same write). Never fails the session: every
+exception is swallowed, the exit code is always 0, and nothing is printed
+on success.
+"""
+from __future__ import annotations
+
+import contextlib
+import io
+import json
+import os
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
+
+
+def _read_payload() -> dict:
+    try:
+        raw = sys.stdin.read()
+    except Exception:
+        return {}
+    if not raw or not raw.strip():
+        return {}
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def main() -> int:
+    try:
+        payload = _read_payload()
+        if payload.get("stop_hook_active") is True:
+            return 0
+        project = payload.get("cwd") or os.getcwd()
+        from tools.tracker import checkpoint
+        with contextlib.redirect_stdout(io.StringIO()):
+            checkpoint.main(["--project", str(project), "--reason", "stop", "--if-changed"])
+    except Exception:
+        pass
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

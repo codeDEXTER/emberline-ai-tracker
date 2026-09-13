@@ -1,0 +1,30 @@
+{
+  "proposal": 0,
+  "title": "{{TITLE}}",
+  "status": "accepted",
+  "updated": "{{DATE}}",
+  "tiers": {
+    "C1": {"tier": "low", "model": "haiku", "effort": "low", "rule": "Mechanical, one owned file, fully specified, no design choice"},
+    "C2": {"tier": "medium", "model": "sonnet", "effort": "medium", "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"},
+    "C3": {"tier": "high", "model": "opus", "effort": "high", "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"},
+    "C4": {"tier": "lead", "model": "lead model", "effort": "-", "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"}
+  },
+  "phases": [
+    {"id": "B", "name": "{{PHASE_NAME}}", "goal": "{{PHASE_GOAL}}", "exit": "{{PHASE_EXIT}}"},
+    {"id": "X", "name": "Research", "goal": "Questions that need reading, not writing, before they become items, a proposal, or a decline.", "exit": "Every X row is done only when it becomes items, a numbered proposal, or a recorded decline with the reason -- never a report nobody acted on."}
+  ],
+  "items": [
+    {"id": "B-01", "phase": "B", "cx": "C2", "title": "{{ITEM_TITLE}}",
+     "what": "{{ITEM_WHAT}}", "files": [], "tests": [], "done": "{{ITEM_DONE}}",
+     "depends": [], "status": "not started", "tier": "medium", "model": "sonnet",
+     "tag": "[ruflo · medium · sonnet]", "issue": null, "log": []},
+    {"id": "X-01", "phase": "X", "cx": "C2", "title": "{{RESEARCH_TITLE}}",
+     "what": "{{RESEARCH_WHAT}}", "files": [], "tests": [],
+     "done": "One of: new items recorded (each tagged discovered_from), a new numbered proposal, or a decline with the reason -- a report nobody acted on is not done.",
+     "depends": [], "status": "not started", "tier": "medium", "model": "sonnet",
+     "tag": "[ruflo · medium · sonnet]", "issue": null, "log": []}
+  ],
+  "asks": [],
+  "proposed_changes": [],
+  "execution": {"ruflo_route": "{{RUFLO_ROUTE}}"}
+}

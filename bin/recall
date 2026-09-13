@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""recall — grep over what is already written (proposal 19, D11, W-06).
+
+Ruflo's `memory search` returned nothing usable in 43 tries (proposal 19,
+section L). Meanwhile three memories already exist and are never searched:
+Claude Code's auto-memory (`~/.claude/projects/*/memory/*.md`), each
+project's `LESSONS.md`, its `docs/OPERATING-RULES.md`, and the proposal
+ledgers' own log entries and asks. This is recall over those, not a new
+store: a grep, ranked, dated, nothing indexed, nothing rewritten.
+
+  recall [--corpus GLOB] [--limit N] [--json] WORD [WORD ...]
+
+  --corpus GLOB   repeatable; replaces the default corpus entirely when given
+  --limit N       how many hits to print (default 20)
+  --json          print a JSON list of {score, date, location, text} instead
+
+A markdown line's score is how many distinct query words it contains
+(case-insensitive substring match); a JSON ledger's item log entries and
+asks are searched the same way, one "line" per log entry or ask. Hits are
+ranked by score, then by date, both descending.
+
+Exit codes: 0 with hits, 1 with none, 2 on a bad argument. Strictly
+read-only — recall never writes anything, anywhere.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime
+import glob as globmod
+import json
+import re
+import sys
+from pathlib import Path
+
+DEFAULT_CORPUS = (
+    "~/.claude/projects/*/memory/*.md",
+    "~/apps/*/LESSONS.md",
+    "~/apps/*/*/LESSONS.md",
+    "~/apps/*/docs/OPERATING-RULES.md",
+    "~/apps/*/*/docs/OPERATING-RULES.md",
+    "~/apps/*/docs/proposals/[0-9]*.json",
+    "~/apps/*/*/docs/proposals/[0-9]*.json",
+)
+
+ISO_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+
+MONTHS = {
+    "jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3,
+    "apr": 4, "april": 4, "may": 5, "jun": 6, "june": 6, "jul": 7, "july": 7,
+    "aug": 8, "august": 8, "sep": 9, "sept": 9, "september": 9,
+    "oct": 10, "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12,
+}
+DM_DATE = re.compile(
+    r"\b(\d{1,2})\s+([A-Za-z]+)\.?(?:\s+(\d{4}))?\b"
+)
+
+LOOKBACK_LINES = 15
+TEXT_LIMIT = 160
+
+
+def find_date_in_line(line: str) -> str | None:
+    """The date substring on this line, in whichever supported form it is
+    written, or None. ISO takes priority over a month name when both appear."""
+    m = ISO_DATE.search(line)
+    if m:
+        return m.group(0)
+    for m in DM_DATE.finditer(line):
+        if m.group(2).lower() in MONTHS:
+            return m.group(0)
+    return None
+
+
+def date_for_line(lines: list[str], i: int, mtime_date: str) -> str:
+    """The date attributed to line i: on the line itself, else the nearest
+    preceding line within LOOKBACK_LINES that has one, else the file's mtime
+    date, marked with a leading `~` so it's visibly not from the text."""
+    d = find_date_in_line(lines[i])
+    if d:
+        return d
+    for j in range(i - 1, max(-1, i - 1 - LOOKBACK_LINES), -1):
+        d = find_date_in_line(lines[j])
+        if d:
+            return d
+    return f"~{mtime_date}"
+
+
+def date_sort_key(date: str) -> tuple[int, int, int]:
+    """A sortable (year, month, day). Unparsable or year-less dates sort as
+    oldest -- this is a ranking tiebreaker, not the displayed value."""
+    s = date.lstrip("~")
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
+    if m:
+        return (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    m = re.match(r"^(\d{1,2})\s+([A-Za-z]+)\.?(?:\s+(\d{4}))?$", s)
+    if m and m.group(2).lower() in MONTHS:
+        year = int(m.group(3)) if m.group(3) else 0
+        return (year, MONTHS[m.group(2).lower()], int(m.group(1)))
+    return (0, 0, 0)
+
+
+def trim(text: str) -> str:
+    return text.strip().replace("\n", " ")[:TEXT_LIMIT]
+
+
+def score_words(text: str, words: list[str]) -> int:
+    low = text.lower()
+    return len({w for w in words if w in low})
+
+
+def search_markdown(path: Path, words: list[str]) -> list[dict]:
+    hits = []
+    text = path.read_text(encoding="utf-8", errors="strict")
+    lines = text.splitlines()
+    mtime_date = datetime.date.fromtimestamp(path.stat().st_mtime).isoformat()
+    for i, line in enumerate(lines):
+        score = score_words(line, words)
+        if score < 1:
+            continue
+        hits.append({
+            "score": score,
+            "date": date_for_line(lines, i, mtime_date),
+            "location": f"{path}:{i + 1}",
+            "text": trim(line),
+        })
+    return hits
+
+
+def search_ledger(path: Path, words: list[str]) -> list[dict]:
+    hits = []
+    ledger = json.loads(path.read_text(encoding="utf-8", errors="strict"))
+    for item in ledger.get("items") or []:
+        iid = item.get("id", "?")
+        for i, entry in enumerate(item.get("log") or []):
+            combined = f"{entry.get('event', '')} {entry.get('evidence', '')}"
+            score = score_words(combined, words)
+            if score < 1:
+                continue
+            hits.append({
+                "score": score,
+                "date": str(entry.get("at", "")),
+                "location": f"{path}#{iid}.log[{i}]",
+                "text": trim(combined),
+            })
+    for ask in ledger.get("asks") or []:
+        aid = ask.get("id", "?")
+        quote = ask.get("quote", "")
+        score = score_words(quote, words)
+        if score < 1:
+            continue
+        hits.append({
+            "score": score,
+            "date": str(ask.get("at", "")),
+            "location": f"{path}#{aid}",
+            "text": trim(quote),
+        })
+    return hits
+
+
+def expand_corpus(globs: list[str]) -> list[Path]:
+    found: set[Path] = set()
+    for pattern in globs:
+        expanded = str(Path(pattern).expanduser())
+        for hit in globmod.glob(expanded):
+            p = Path(hit)
+            if p.is_file():
+                found.add(p)
+    return sorted(found)
+
+
+def search_file(path: Path, words: list[str]) -> tuple[list[dict], bool]:
+    """(hits, unreadable). Never raises."""
+    try:
+        if path.suffix == ".json":
+            return search_ledger(path, words), False
+        return search_markdown(path, words), False
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return [], True
+
+
+def run(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="recall", add_help=True)
+    parser.add_argument("--corpus", action="append", metavar="GLOB", default=None,
+                         help="a glob pattern; repeatable; replaces the default corpus")
+    parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--json", action="store_true", dest="as_json")
+    parser.add_argument("words", nargs="+", metavar="WORD")
+    args = parser.parse_args(argv)
+
+    if args.limit < 0:
+        print("recall: --limit must not be negative", file=sys.stderr)
+        return 2
+
+    words = [w.lower() for w in args.words]
+    globs = args.corpus if args.corpus else list(DEFAULT_CORPUS)
+    files = expand_corpus(globs)
+
+    all_hits: list[dict] = []
+    unreadable = 0
+    for path in files:
+        hits, bad = search_file(path, words)
+        if bad:
+            unreadable += 1
+            continue
+        all_hits.extend(hits)
+
+    all_hits.sort(key=lambda h: (h["score"], date_sort_key(h["date"]), h["location"]), reverse=True)
+    shown = all_hits[: args.limit]
+
+    if args.as_json:
+        print(json.dumps(shown, indent=2))
+    else:
+        for h in shown:
+            print(f"{h['score']}  {h['date']}  {h['location']}  {h['text']}")
+
+    print(f"recall: {len(all_hits)} hits in {len(files)} files ({unreadable} unreadable)",
+          file=sys.stderr)
+    return 0 if all_hits else 1
+
+
+if __name__ == "__main__":
+    sys.exit(run(sys.argv[1:]))

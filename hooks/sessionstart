@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""SessionStart hook (proposal 19, D8 / W-07). After a compaction, points the
+session back at the ledger rather than the summary it just lost context to
+(proposal 19, section K, "after the cut"); at an ordinary start, nudges
+toward `/warmup` when there is an open ledger to read.
+
+Reads the hook's JSON on stdin (fields including `cwd`, `source` -- both
+optional, per Claude Code's SessionStart contract; `source` is one of
+startup | resume | clear | compact). Anything printed to stdout here is
+added to the session's context. Never fails the session: every exception is
+swallowed and the exit code is always 0.
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
+
+
+def _read_payload() -> dict:
+    try:
+        raw = sys.stdin.read()
+    except Exception:
+        return {}
+    if not raw or not raw.strip():
+        return {}
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def main() -> int:
+    try:
+        payload = _read_payload()
+        project = payload.get("cwd") or os.getcwd()
+        source = payload.get("source")
+
+        from tools.tracker import checkpoint, ledger
+
+        open_ledgers = checkpoint.open_ledgers(Path(project))
+        if not open_ledgers:
+            return 0
+
+        if source == "compact":
+            ledger_paths = ", ".join(str(p) for p, _ in open_ledgers)
+            latest = checkpoint.latest_checkpoint(Path(project))
+            latest_str = str(latest) if latest else "no checkpoint yet"
+            statuses = "; ".join(
+                f"Proposal {d.get('proposal')}: {ledger.status_line(d)}"
+                for _, d in open_ledgers
+            )
+            print("Context was compacted. The summary above is a paraphrase; the ledger is the record.")
+            print(f"Re-read, in order: HANDOFF.md → docs/OPERATING-RULES.md → {ledger_paths} → {latest_str}.")
+            print(f"Quote rulings from disk, never from the summary. Status: {statuses}.")
+        else:
+            for _, d in open_ledgers:
+                print(f"Proposal {d.get('proposal')}: {ledger.status_line(d)} · run /warmup")
+    except Exception:
+        pass
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
