@@ -61,8 +61,20 @@ While working, keep to one status line in the lead prompt's form:
 Every sponsor message that is not an answer to a question becomes an `A-nn`
 ask row in the ledger, in the same turn.
 
-## Not yet
+## Moving a running project onto the standard
 
-`/warmup --migrate` — moving a running project onto this standard, with
-replaced rules kept in a dated Superseded block — is ledger item W-09 of
-proposal 19 and is not built. Until it is, say so rather than improvising it.
+1. `RULES/bin/warmup --project . --migrate --dry-run` first. It writes nothing
+   and lists what it would do: run derecord, import the plan into a ledger
+   under the next free proposal number, supersede rules, point CLAUDE.md at
+   the read order. Only rules `RULES/templates/supersedes.json` names are
+   superseded -- nothing is guessed. Show the sponsor that list.
+2. `RULES/bin/warmup --project . --migrate`. Each superseded rule moves,
+   verbatim and dated, into `## Superseded` in docs/OPERATING-RULES.md; nothing
+   is deleted. Nothing is committed.
+3. CLAUDE.md is the sponsor's: land will not land a branch that touches it.
+   Say that it changed and let him commit it.
+
+The card afterwards lists what was superseded. When you catch yourself
+following a rule on that list, stop: the line names what replaced it. When a
+migration shows a rule the standard replaces that the list does not name, add
+an entry to supersedes.json with where it was seen -- do not move it by hand.
