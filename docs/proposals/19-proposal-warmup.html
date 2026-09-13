@@ -72,7 +72,7 @@
 <div class="eyebrow">common-rules · proposal 19 · proposed · 13 September 2026</div>
 <h1>Warm-up</h1>
 <p class="lede">A cold chat becomes a lead in one command. The PhotoVault engine session already works the way every project should — plan as data, ledger updated on every change, agents tiered by complexity, rules learned the hard way written down. This proposal lifts what it did into one standard, one set of templates, and one <code>/warmup</code> that loads it all before the first question.</p>
-<div class="meta"><span>evidence <b>PhotoVault engine, 6–13 Sep</b></span><span>sessions read <b>2 · 160 sponsor turns · 3,321 tool calls</b></span><span>decisions asked <b>7</b></span></div>
+<div class="meta"><span>evidence <b>PhotoVault engine, 6–13 Sep</b></span><span>sessions read <b>2 · 160 sponsor turns · 3,321 tool calls</b></span><span>decisions asked <b>8</b></span></div>
 
 <h2>What the engine session proved</h2>
 <p>Two sessions, 6–13 September, the second running six days across six context compactions. The measured shape:</p>
@@ -251,8 +251,33 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 26 done / 3 in progress / 1 blocked / 9 not started · E1-09 merged 17:32 · waiting: R-03, R-04 reports · yours: E0-03 go</pre>
 <p>Goes into the lead-prompt template (§7 "How you report") and the warm card, so it is loaded, not remembered.</p>
 
+<h2>H · Checked against the field</h2>
+<p>Three independent research passes (13 Sep) on how others handle cold starts, plan-as-data trackers, model routing, orchestration layers and ad-hoc human input. Nothing contradicted the design; six things sharpen it and are folded in below.</p>
+<table>
+<tr><th>Practice here</th><th>What the field does</th><th>Verdict</th></tr>
+<tr><td>Read-order warm-up</td><td>SessionStart hooks inject a handoff before the first prompt; a Stop hook writes it back (claude-mem, OpenHands handoff research)</td><td><span style="color:var(--gain)">supports</span> — and adds the write side</td></tr>
+<tr><td>JSON ledger in git</td><td>Beads (dependency-graph tracker for agents, <code>bd ready --json</code>), Backlog.md, Ralph loop's commit-per-task, OpenSpec's pre-commit validators</td><td><span style="color:var(--gain)">supports</span>; Beads adds typed dependency edges</td></tr>
+<tr><td>land gate on the ledger</td><td>Spec-driven tools "govern by convention, not enforcement" — nobody ships the gate; pre-commit is the accepted point</td><td><span style="color:var(--gain)">supports</span> building it ourselves</td></tr>
+<tr><td>C1–C4 → tier → model</td><td>RouteLLM (learned router), cascade routing (cheap first, escalate on low confidence); one vendor reports 70/20/10 Haiku/Sonnet/Opus at −75% cost, uncorroborated</td><td><span style="color:var(--gain)">supports</span>; adds escalation</td></tr>
+<tr><td>Five-heading brief</td><td>Converging on GOAL / CONSTRAINTS / CONTEXT / OUTPUT plus ownership and a machine-readable result line</td><td><span style="color:var(--gain)">supports</span>; adds the result line</td></tr>
+<tr><td>Ruflo opt-in after a null result</td><td>Anthropic: multi-agent pays for parallel research, ~15× tokens, and is "weaker for tightly interdependent tasks such as coding"; no independent claude-flow benchmark exists; frameworks cluster at 54–62% completion on hard tasks</td><td><span style="color:var(--gain)">supports</span>, and generalises to any orchestration layer</td></tr>
+<tr><td>Ask ledger</td><td>Decision-inbox products exist for exactly this; no outcome data either way</td><td>good practice by analogy</td></tr>
+<tr><td>Steps list · status line</td><td>Anthropic's own guidance; note TodoWrite is legacy — anchor to the current task tools</td><td><span style="color:var(--gain)">supports</span></td></tr>
+<tr><td>Rules read in full every session</td><td>Cursor users: the common failure is a rule that never loads; the second is a monolith that applies to everything — keep CLAUDE.md short (~200 lines), measure the tax</td><td><span style="color:var(--warn)">tempers</span> — measure the warm-up's own cost</td></tr>
+</table>
+<h3>Six additions, folded in</h3>
+<ul>
+  <li><b>Freshness, not presence (→ A).</b> Each file in the chain carries its commit; the warm card prints "checkpoint 40 commits behind HEAD" instead of trusting that the file exists. A stale link is flagged, never faked.</li>
+  <li><b>The write side (→ A, new D8).</b> A Stop/PreCompact hook writes the checkpoint and refreshes the ledger count automatically. "A session that ends without a checkpoint has failed" stops depending on the session remembering.</li>
+  <li><b>The warm-up prints its own cost (→ A).</b> Tokens read by <code>/warmup</code> on the card, beside the project's context budget, so bloat is visible the day it starts.</li>
+  <li><b>Typed edges (→ B).</b> Items carry <code>depends</code> already; add <code>discovered_from</code> so work an agent uncovered mid-task is a row with a parent, not a note in a report.</li>
+  <li><b>Escalate one tier, logged (→ E).</b> An agent that finds its item above its class stops, records <code>escalate: C2→C3</code> in the row's log, and the lead re-spawns. Cheaper than guessing the class right every time.</li>
+  <li><b>A machine-readable last line (→ E).</b> Every report ends <code>HANDOFF: status=… commit=… needs=…</code>, so the gate and the next brief parse it without re-reading prose.</li>
+</ul>
+<p>Not taken: making an ask structurally blocking (it would fight "do not stop"; the card and the gate are enough), and moving the operating rules into a tool-agnostic <code>AGENTS.md</code> (only Claude runs here today; noted for later).</p>
+
 <h2>Decisions</h2>
-<p>Seven. Answer in one line each, the way proposal 54 was answered (<code>D1 accept</code>, with a note where you want one); the answers are recorded here and in CHANGELOG.</p>
+<p>Eight. Answer in one line each, the way proposal 54 was answered (<code>D1 accept</code>, with a note where you want one); the answers are recorded here and in CHANGELOG.</p>
 <div class="dec"><div class="q"><span class="id">D1</span>The warm-up is a skill (<code>/warmup</code>) plus <code>bin/warmup --check</code> consumed by <code>land</code>?</div><div class="r"><b>Recommend accept.</b> A skill is one word he types; the check is what makes a project that lacks the files fail loudly rather than start cold.</div></div>
 <div class="dec"><div class="q"><span class="id">D2</span>Templates live in <code>common-rules/templates/</code> and <code>derecord</code> seeds the six files into a project that lacks them?</div><div class="r"><b>Recommend accept.</b> Seed, never overwrite: an existing HANDOFF.md is the project's, and only its missing sections are proposed.</div></div>
 <div class="dec"><div class="q"><span class="id">D3</span>Ruflo: (a) mandatory everywhere, (b) opt-in per project recorded in the ledger, (c) off, tag kept for a later matched test?</div><div class="r"><b>Recommend (b).</b> The engine's own measurement found no difference at any tier and a small cost; mac-explorer's ruling of 13 Sep stands where he made it. (b) keeps both without arguing either.</div></div>
@@ -262,8 +287,10 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 
 <div class="dec"><div class="q"><span class="id">D7</span>The steps list at task start and the one-line repeated status become part of the lead-prompt template and the warm card?</div><div class="r"><b>Recommend accept.</b> Both exist in the engine session by habit; a template makes them survive the next cold start.</div></div>
 
+<div class="dec"><div class="q"><span class="id">D8</span>A Stop/PreCompact hook writes the checkpoint and ledger count automatically, and <code>/warmup</code> flags any file in its chain that is stale against HEAD?</div><div class="r"><b>Recommend accept.</b> It closes the loop the field found weakest: handoffs rot when writing them is a memory task. From the research pass, not the engine session.</div></div>
+
 <pre>common-rules · proposal 19 · answers
-D1  ·  D2  ·  D3 (a/b/c)  ·  D4  ·  D5  ·  D6  ·  D7</pre>
+D1  ·  D2  ·  D3 (a/b/c)  ·  D4  ·  D5  ·  D6  ·  D7  ·  D8</pre>
 
 <h2>What completes this</h2>
 <ul>
