@@ -72,7 +72,7 @@
 <div class="eyebrow">common-rules · proposal 19 · proposed · 13 September 2026</div>
 <h1>Warm-up</h1>
 <p class="lede">A cold chat becomes a lead in one command. The PhotoVault engine session already works the way every project should — plan as data, ledger updated on every change, agents tiered by complexity, rules learned the hard way written down. This proposal lifts what it did into one standard, one set of templates, and one <code>/warmup</code> that loads it all before the first question.</p>
-<div class="meta"><span>evidence <b>PhotoVault engine, 6–13 Sep</b></span><span>sessions read <b>2 · 160 sponsor turns · 3,321 tool calls</b></span><span>decisions asked <b>9</b></span></div>
+<div class="meta"><span>evidence <b>PhotoVault engine, 6–13 Sep</b></span><span>sessions read <b>2 · 160 sponsor turns · 3,321 tool calls</b></span><span>decisions asked <b>10</b></span></div>
 
 <h2>What the engine session proved</h2>
 <p>Two sessions, 6–13 September, the second running six days across six context compactions. The measured shape:</p>
@@ -148,6 +148,8 @@
 <div class="step"><span class="no">02</span><div><b>Verify, not assume:</b> Ruflo tools exposed or not; <code>git rev-parse --show-toplevel</code> is a worktree or the main checkout; the test command <code>land</code> would run; <code>rulecheck</code> exit code.</div></div>
 <div class="step"><span class="no">03</span><div><b>Print the warm card:</b> the two prohibitions verbatim · ledger count done / in progress / blocked / not started · the next unblocked items with their <span class="tag">[tier · model]</span> · open asks · what only the sponsor can decide.</div></div>
 <div class="step"><span class="no">04</span><div><b>Start.</b> Spawn every unblocked C1/C2 item in one message; take the first C3 yourself. The card is the first message he reads; the second is work.</div></div>
+<h3>Re-warm: the same command in a running session</h3>
+<p>The field's finding is that cold starts are the smaller problem — a long session rots as its context fills with stale state. So <code>/warmup</code> is idempotent: run mid-session it re-reads the same chain, compares against the card it printed last, and prints only the delta — ledger rows that moved, rules added since, asks opened or answered, how far the checkpoint has drifted from HEAD, and its own token cost. Three triggers: you type it; the lead runs it after every context compaction (a SessionStart hook fires with <code>source: compact</code>); and every N merges, so a six-day session like the engine's re-reads its own rules six times instead of once on 7 September.</p>
 <p><code>bin/warmup --check</code> is the same thing as a gate: it exits 1 when a focus project lacks any of the standard files, and <code>land</code> consumes it — the same shape as <code>rulecheck</code>, <code>proposalcheck</code>, <code>milestonecheck</code>.</p>
 
 <h2>B · One set of templates, rendered by one tool</h2>
@@ -263,6 +265,38 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 </table>
 <p>Why not the other way round: <code>gh</code> truncates at 30 rows and says nothing; an issue has no class, no dependencies, no log; CI is offline here, so nothing on GitHub can gate. The ledger gates, GitHub records. Asks become issues only when they become items — an open ask is a row on the warm card, not an issue nobody triages. Cross-session requests (the app session's G0–G12) arrive as issues labelled <code>from:app</code> and are folded into the ledger as items or declined with a comment, so the other session sees the answer where it asked.</p>
 
+<h2>J · Research is a lane, and it feeds the plan</h2>
+<p>Your ruling of 29 August in finance-tracker: everything goes in the milestone plan, research too, in its own lane. The engine kept research beside the ledger, not in it — <code>docs/research/</code> holds five reports and proposal 71 has no research row, which is why the 9 Sep asks had nowhere to land. The lifecycle:</p>
+<div class="lane"><div class="fig">
+<svg viewBox="0 0 980 250" xmlns="http://www.w3.org/2000/svg" font-family="Archivo, sans-serif" font-size="12.5">
+  <g fill="var(--surface)" stroke="var(--border)">
+    <rect x="16" y="30" width="150" height="70" rx="4"/><rect x="216" y="30" width="170" height="70" rx="4"/><rect x="436" y="30" width="170" height="70" rx="4"/>
+    <rect x="676" y="10" width="290" height="58" rx="4"/><rect x="676" y="96" width="290" height="58" rx="4"/><rect x="676" y="182" width="290" height="58" rx="4"/>
+  </g>
+  <g fill="var(--ink)" text-anchor="middle" font-weight="700">
+    <text x="91" y="58">ask A-07</text><text x="301" y="58">row X-03 · research</text><text x="521" y="58">docs/research/X-03.md</text>
+  </g>
+  <g fill="var(--dim)" text-anchor="middle" font-size="11.5">
+    <text x="91" y="80">"HEIC sidecar?"</text><text x="301" y="80">[medium · sonnet] · owns the report</text><text x="521" y="80">question · findings · options · recommendation</text>
+  </g>
+  <g stroke="var(--ember)" stroke-width="2.5" fill="var(--ember)">
+    <path d="M166 65 H208" fill="none"/><path d="M202 59 L214 65 L202 71 Z"/>
+    <path d="M386 65 H428" fill="none"/><path d="M422 59 L434 65 L422 71 Z"/>
+    <path d="M606 65 C640 65 640 39 668 39" fill="none"/><path d="M662 33 L674 39 L662 45 Z"/>
+    <path d="M606 65 C640 65 640 125 668 125" fill="none"/><path d="M662 119 L674 125 L662 131 Z"/>
+    <path d="M606 65 C640 65 640 211 668 211" fill="none"/><path d="M662 205 L674 211 L662 217 Z"/>
+  </g>
+  <g fill="var(--ink)" font-weight="700"><text x="690" y="32">→ items</text><text x="690" y="118">→ proposal NN</text><text x="690" y="204">→ declined</text></g>
+  <g fill="var(--dim)" font-size="11.5"><text x="690" y="52">E2-09 … with discovered_from: X-03; no decision needed</text><text x="690" y="138">it changes scope or needs your answer; accepted items flow back</text><text x="690" y="224">reason in the row; the ask closes as answered</text></g>
+</svg>
+</div></div>
+<ul>
+  <li><b>A research row is an ordinary item</b> in a lane named for it (<code>X-nn</code> here; the plan's own letter), class C2 by default — reading, not writing — with <code>OWNS</code> the report only and a fixed report shape: question, findings with sources, options, recommendation, what only you can decide.</li>
+  <li><b>Its done-when is an outcome, not a document.</b> The row is <em>done</em> only when one of three things is recorded: new items (each with <code>discovered_from</code>), a new numbered proposal (when it changes scope or needs your answer — the proposal's accepted items come back as rows tagged <code>proposal:NN</code>), or a decline with the reason. A report nobody acted on stays <em>in progress</em> on the warm card.</li>
+  <li><b>The tracker shows the lane</b> with the same bars as the build lanes, so "what is being looked into" is visible beside "what is being built".</li>
+  <li><b>Any agent can propose research.</b> A finding mid-task that needs looking into is a <code>proposed_changes</code> entry the lead turns into an X row — the engine already records these (20 on 13 Sep); today they wait for the sponsor instead of becoming work.</li>
+</ul>
+
 <h2>H · Checked against the field</h2>
 <p>Three independent research passes (13 Sep) on how others handle cold starts, plan-as-data trackers, model routing, orchestration layers and ad-hoc human input. Nothing contradicted the design; six things sharpen it and are folded in below.</p>
 <table>
@@ -290,7 +324,7 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 
 <h2>Decisions</h2>
 <p>Eight. Answer in one line each, the way proposal 54 was answered (<code>D1 accept</code>, with a note where you want one); the answers are recorded here and in CHANGELOG.</p>
-<div class="dec"><div class="q"><span class="id">D1</span>The warm-up is a skill (<code>/warmup</code>) plus <code>bin/warmup --check</code> consumed by <code>land</code>?</div><div class="r"><b>Recommend accept.</b> A skill is one word he types; the check is what makes a project that lacks the files fail loudly rather than start cold.</div></div>
+<div class="dec"><div class="q"><span class="id">D1</span>The warm-up is a skill (<code>/warmup</code>) plus <code>bin/warmup --check</code> consumed by <code>land</code>?</div><div class="r"><b>Recommend accept.</b> A skill is one word he types — cold, or mid-session to refresh, where it prints only what changed; the check is what makes a project that lacks the files fail loudly rather than start cold.</div></div>
 <div class="dec"><div class="q"><span class="id">D2</span>Templates live in <code>common-rules/templates/</code> and <code>derecord</code> seeds the six files into a project that lacks them?</div><div class="r"><b>Recommend accept.</b> Seed, never overwrite: an existing HANDOFF.md is the project's, and only its missing sections are proposed.</div></div>
 <div class="dec"><div class="q"><span class="id">D3</span>Ruflo: (a) mandatory everywhere, (b) opt-in per project recorded in the ledger, (c) off, tag kept for a later matched test?</div><div class="r"><b>Recommend (b).</b> The engine's own measurement found no difference at any tier and a small cost; mac-explorer's ruling of 13 Sep stands where he made it. (b) keeps both without arguing either.</div></div>
 <div class="dec"><div class="q"><span class="id">D4</span>The ask ledger rule — every non-answer sponsor message becomes an <code>A-nn</code> row in the same turn, printed by the warm card while open?</div><div class="r"><b>Recommend accept.</b> Three of five asks on 9 Sep vanished. The row costs one JSON object; a lost research direction costs the morning he spent forming it.</div></div>
@@ -303,8 +337,10 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 
 <div class="dec"><div class="q"><span class="id">D9</span>GitHub issues mirror the ledger one way — <code>bin/tracker sync</code> opens on in-progress, closes on done, and the render shows any drift between the two?</div><div class="r"><b>Recommend accept.</b> It keeps what already works (issues, labels, land's Closes trailer) and removes the one thing that does not: two trackers that can disagree in silence.</div></div>
 
+<div class="dec"><div class="q"><span class="id">D10</span>Research is a lane in the ledger: an X row per question, done only when it becomes items, a proposal, or a recorded decline?</div><div class="r"><b>Recommend accept.</b> It is your 29 August ruling applied to the tracker; the engine's five research reports and twenty proposed changes would all have been rows.</div></div>
+
 <pre>common-rules · proposal 19 · answers
-D1  ·  D2  ·  D3 (a/b/c)  ·  D4  ·  D5  ·  D6  ·  D7  ·  D8  ·  D9</pre>
+D1  ·  D2  ·  D3 (a/b/c)  ·  D4  ·  D5  ·  D6  ·  D7  ·  D8  ·  D9  ·  D10</pre>
 
 <h2>What completes this</h2>
 <ul>
