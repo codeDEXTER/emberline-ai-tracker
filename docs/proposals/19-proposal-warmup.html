@@ -239,7 +239,7 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 
 <h2>F · Ruflo, measured</h2>
 <p>The engine kept an honest ledger because he asked it to "track if it makes a difference". The verdict after 70 agents: rework fell to near zero — in wave 3, from the fast-forward and no-stash rules, before Ruflo was switched on. Tokens did not move at any tier. Its memory never returned a usable hit. Cost: a daemon to stop after nearly every agent, a drifting <code>npx</code> pin, MCP tools registered but not exposed in the lead session (it fell back to the CLI).</p>
-<p>This proposal does not decide Ruflo; it puts the decision in front of him with the numbers (D3). Whichever way, the standard keeps the ledger's <code>execution.ruflo_route</code> field and the <code>ruflo</code>/<code>no-ruflo</code> tag, so the measurement continues wherever it is on.</p>
+<p><b>Decided 13 Sep 2026: mandatory (D3 a), his ruling.</b> The numbers above stay as the baseline the effect ledger keeps measuring against. The standard keeps the ledger's <code>execution.ruflo_route</code> field and the <code>ruflo</code>/<code>no-ruflo</code> tag, so the measurement continues wherever it is on.</p>
 
 <h2>G · How the lead talks while it works</h2>
 <p>Two habits of the engine session he wants kept, named so every project gets them:</p>
@@ -350,6 +350,7 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 <tr><td>Steps list · status line</td><td>Anthropic's own guidance; note TodoWrite is legacy — anchor to the current task tools</td><td><span style="color:var(--gain)">supports</span></td></tr>
 <tr><td>Rules read in full every session</td><td>Cursor users: the common failure is a rule that never loads; the second is a monolith that applies to everything — keep CLAUDE.md short (~200 lines), measure the tax</td><td><span style="color:var(--warn)">tempers</span> — measure the warm-up's own cost</td></tr>
 </table>
+<p><b>Consequence for D11:</b> Ruflo's <code>memory store</code>/<code>memory search</code> stay in every item's loop as ruled; <code>bin/recall</code> runs beside them over the files Ruflo does not index, and both results go in the brief's CONTEXT. Where they disagree, the ledger log says which one had the answer.</p>
 <h3>Six additions, folded in</h3>
 <ul>
   <li><b>Freshness, not presence (→ A).</b> Each file in the chain carries its commit; the warm card prints "checkpoint 40 commits behind HEAD" instead of trusting that the file exists. A stale link is flagged, never faked.</li>
@@ -365,7 +366,7 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 <p>Eight. Answer in one line each, the way proposal 54 was answered (<code>D1 accept</code>, with a note where you want one); the answers are recorded here and in CHANGELOG.</p>
 <div class="dec"><div class="q"><span class="id">D1</span>The warm-up is a skill (<code>/warmup</code>) plus <code>bin/warmup --check</code> consumed by <code>land</code>?</div><div class="r"><b>Recommend accept.</b> A skill is one word he types — cold, or mid-session to refresh, where it prints only what changed; the check is what makes a project that lacks the files fail loudly rather than start cold.</div></div>
 <div class="dec"><div class="q"><span class="id">D2</span>Templates live in <code>common-rules/templates/</code> and <code>derecord</code> seeds the six files into a project that lacks them?</div><div class="r"><b>Recommend accept.</b> Seed, never overwrite: an existing HANDOFF.md is the project's, and only its missing sections are proposed.</div></div>
-<div class="dec"><div class="q"><span class="id">D3</span>Ruflo: (a) mandatory everywhere, (b) opt-in per project recorded in the ledger, (c) off, tag kept for a later matched test?</div><div class="r"><b>Recommend (b).</b> The engine's own measurement found no difference at any tier and a small cost; mac-explorer's ruling of 13 Sep stands where he made it. (b) keeps both without arguing either.</div></div>
+<div class="dec"><div class="q"><span class="id">D3</span>Ruflo: (a) mandatory everywhere, (b) opt-in per project, (c) off?</div><div class="r"><b>Answered 13 Sep 2026: (a).</b> His words: <em>"i want ruflo to be mandatory."</em> The measurement in §F stands as a measurement; the ruling is his and this proposal follows it. Every item runs the Ruflo loop — <code>memory search</code> and <code>hooks route</code> before, <code>hooks post-task</code> and <code>memory store</code> after — and the effect ledger keeps recording per agent so the numbers stay in view.</div></div>
 <div class="dec"><div class="q"><span class="id">D4</span>The ask ledger rule — every non-answer sponsor message becomes an <code>A-nn</code> row in the same turn, printed by the warm card while open?</div><div class="r"><b>Recommend accept.</b> Three of five asks on 9 Sep vanished. The row costs one JSON object; a lost research direction costs the morning he spent forming it.</div></div>
 <div class="dec"><div class="q"><span class="id">D5</span>Briefs carry five fixed headings — OWNS · MUST · MUST NOT · OUTPUT · EFFORT — and the tag keeps tier as the durable word, model as today's mapping?</div><div class="r"><b>Recommend accept.</b> This is his note of today, made checkable: <code>bin/tracker check</code> can refuse an agent log entry whose brief lacks a heading.</div></div>
 <div class="dec"><div class="q"><span class="id">D6</span>Pilot order: PhotoVault engine first (already 5 of 6 files), then pockets (13 accepted proposals, 0 completed), then finance-tracker, then mac-explorer?</div><div class="r"><b>Recommend accept.</b> The engine costs almost nothing and proves the renderer against a real ledger; pockets is where the tracker gap is largest.</div></div>
@@ -381,7 +382,7 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 <div class="dec"><div class="q"><span class="id">D11</span>Memory is recall over what is already written — <code>bin/recall</code> across every project's memory, LESSONS, rules and ledger logs, run by <code>/warmup</code> and put into every brief — with <code>bin/remember</code> as the write side?</div><div class="r"><b>Recommend accept.</b> It delivers the step Ruflo's loop promised (search before, store after) from three stores that already exist and were never searched. A vector index is measured against it later, if grep ever misses on wording.</div></div>
 
 <pre>common-rules · proposal 19 · answers
-D1  ·  D2  ·  D3 (a/b/c)  ·  D4  ·  D5  ·  D6  ·  D7  ·  D8  ·  D9  ·  D10  ·  D11</pre>
+D1  ·  D2  ·  D3 = a ✓  ·  D4  ·  D5  ·  D6  ·  D7  ·  D8  ·  D9  ·  D10  ·  D11</pre>
 
 <h2>What completes this</h2>
 <ul>
