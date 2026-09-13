@@ -3,7 +3,7 @@
 ## 2026-09-13 · Proposal 19's ledger timestamps corrected
 
 The lead wrote estimated clock times into proposal 19's ledger instead of
-reading the clock: 49 log entries and all three proposed changes were dated
+reading the clock: 47 of 52 log entries and all three proposed changes were dated
 later than the commits that recorded them, some past midnight, written
 before 22:05. Each now carries the author time of the commit that first
 recorded it; entries that were not future-dated are unchanged. The seven
