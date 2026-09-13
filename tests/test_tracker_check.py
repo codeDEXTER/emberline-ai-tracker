@@ -151,6 +151,19 @@ class TestWhatDoesNotCount(CheckCase):
         self.assertEqual(0, out.returncode)
         self.assertIn("no ledger", out.stdout)
 
+    def test_a_data_file_shaped_like_a_ledger_does_not_crash_the_gate(self):
+        """docs/proposals holds data files named NN-*.json (the engine's
+        56-proposal-the-sample-sheet.sidecar.json). One whose JSON is an array
+        made rows_at call .get on a list: Python exits 1 on the traceback, and
+        land reads exit 1 as "the row did not move" -- a refusal with a stack
+        trace for its reason. Found 13 Sep reading check.py for the find() fix."""
+        self.r.write("docs/proposals/58-samples.sidecar.json", "[1, 2, 3]")
+        self.r.write("README.md", "seed\ndata\n")
+        self.r.commit("add sample data")
+        out = self.r.check()
+        self.assertEqual(0, out.returncode, out.stdout + out.stderr)
+        self.assertNotIn("Traceback", out.stderr)
+
     def test_a_ref_that_does_not_exist_is_exit_2(self):
         self.assertEqual(2, self.r.check("--base", "no-such-branch").returncode)
 
