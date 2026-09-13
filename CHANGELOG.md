@@ -1,5 +1,71 @@
 # Changelog — common-rules
 
+## 2026-09-01 · Proposal 18 answered — and it cut its own biggest item
+
+The sponsor's decisions are recorded in
+`docs/proposals/18-proposal-cross-project-standard.html`, which moves to `accepted`.
+
+**Focus is four projects: pockets, finance-tracker, photo-vault, mac-explorer.**
+No new adoptions. `pip` drops out of focus; `geospatial-analytics`,
+`activity-manager` and `idea-lab` stay unadopted.
+
+**CI is local-first, not GitHub Actions.** Measured while answering: `ai-sangam`
+is a **private** repo, so minutes are billed, and it ran **100+ workflow runs in
+seven days** — with `ci.yml` triggering on both `push` and `pull_request`, so
+every merge pays for the same suite twice. `bin/land` already runs the suite
+before landing on this machine, for free. That is the standard.
+
+**The status-tracking ask turned out to be mostly already built.** Numbering
+(`NN-<type>-<slug>.html`), the `proposed → accepted → completed` lifecycle, and
+`proposalcheck` enforcing recorded decisions all exist and are in use in four
+projects. So the proposal's own section C — build a weekly status report — was
+cut rather than accepted: **the gap is not reporting, it is that proposals never
+leave `accepted`.** 35 accepted across three projects; 6 ever reached
+completed/built; pockets has 13 accepted and **zero** completed, some since
+4 August. A weekly page listing 35 accepted proposals would restate that rather
+than fix it.
+
+Checking before building is what saved the work here, and it is worth the
+sentence: three of the four things asked for already existed.
+
+**Amended the same day, on review.** Three objections, one of them a
+contradiction introduced in the drafting:
+
+- **Section B contradicted D2 inside one document.** It said `derecord` should
+  install a workflow running "on push and pull request" — written before the
+  cost was measured, and not reconciled when D2 answered that hosted CI is
+  billed. Implementing it would have rolled that cost out to three *more*
+  projects. Rewritten local-first: `bin/land` already runs the suite for free
+  and *is* the CI; what `derecord` should carry is each project's own test
+  command. A hosted workflow is opt-in and never fires on both triggers.
+- **Section A's second half is struck.** `land` already *refuses* a stale
+  project, which is stronger than a Tower column. The two stale projects are
+  dormant, not uninformed. A column nobody reads is `spend agentlog` again.
+- **Section D is held.** It is prose, and prose measured 1-in-7 compliance here.
+
+And the proposal now carries **its own exit condition**, because it diagnosed
+that 35 proposals sit accepted against 6 completed and then became another
+accepted proposal. Three checkable conditions, two of them tests. The
+accepted-proposal backlog itself is named but deliberately not fixed here —
+that needs its own numbered proposal, and bolting it on would repeat the
+mistake that got section C cut.
+
+**Section E added: one GitHub vocabulary.** The proposal covered GitHub only as
+a cost, never as a standard — the sponsor caught that. Measured across the four
+focus projects, the label taxonomies have diverged far enough that a
+cross-project question cannot be asked: `priority:*` exists in two of four,
+photo-vault calls a bug a `defect`, mac-explorer has nothing but GitHub's stock
+labels, and finance-tracker writes `ui` where pockets writes `area:ui`. The
+Tower reads every project and cannot filter them alike.
+
+The standard is taken from what already works rather than invented: three axes
+— `priority:now|next|later` (both mature projects already use it), one type from
+finance-tracker's existing five, and pockets' `area:<name>` namespacing. Stock
+GitHub labels stay and are ignored. It is a floor, not a ceiling —
+photo-vault's `approved`/`decision` labels encode something the others lack and
+are kept. `gh label edit --name` carries existing issues with the rename, so the
+migration is one command per project rather than a re-triage.
+
 ## 2026-09-01 · Rules for GitHub, for the project's own context budget, and for deprecating old app copies
 
 Three additions, each from something measured rather than imagined.
