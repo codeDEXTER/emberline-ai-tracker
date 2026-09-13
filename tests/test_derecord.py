@@ -161,6 +161,21 @@ class TestDerecordSeeding(DerecordCase):
         self.assertIn("HANDOFF.md exists, left alone", r.stdout)
 
 
+    def test_an_existing_dated_lead_prompt_is_not_joined_by_a_generic_one(self):
+        """The PhotoVault engine's review, 13 Sep: it already keeps
+        docs/handovers/2026-09-13-proposal-71-lead-prompt.md, and a generic
+        docs/handovers/lead-prompt.md beside it would leave a later session two
+        lead prompts to choose between."""
+        existing = self.proj / "docs" / "handovers" / "2026-09-13-proposal-71-lead-prompt.md"
+        existing.parent.mkdir(parents=True, exist_ok=True)
+        existing.write_text("# the real one\n")
+        r = self.run_derecord()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.proj / "docs" / "handovers" / "lead-prompt.md").exists())
+        self.assertIn("2026-09-13-proposal-71-lead-prompt.md", r.stdout)
+        self.assertEqual("# the real one\n", existing.read_text())
+
+
 class TestDerecordSkill(DerecordCase):
     """Step 6: derecord installs the /warmup skill (proposal 19, W-11).
 

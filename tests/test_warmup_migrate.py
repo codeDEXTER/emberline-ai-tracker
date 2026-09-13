@@ -174,6 +174,25 @@ class TestSupersede(Case):
         self.assertEqual({}, dict(missing), "lines lost from OPERATING-RULES.md")
 
 
+    def test_a_replacement_rule_keeps_what_still_holds_where_the_old_one_stood(self):
+        """The PhotoVault engine's review of the real dry run, 13 Sep, before any
+        write: moving the whole rule left only a one-line replaced_by inside a
+        Superseded heading. A project that already has its own OPERATING-RULES
+        gets nothing seeded, so it would have lost substance it still follows --
+        "never scrap old content" and "green is merged with its tests run". The
+        replacement rule now stands in the same section, carrying both."""
+        self.migrated()
+        whole = self.p.read("docs/OPERATING-RULES.md")
+        live = whole.split("## Superseded", 1)[0]
+        section1 = live.split("## 1. Proposals and the plan", 1)[1].split("## 2.", 1)[0]
+        self.assertIn("**The ledger is the plan of record, updated in place.**", section1)
+        self.assertIn("never scraps old content", section1)
+        section3 = live.split("## 3. Merging and shipping", 1)[1]
+        self.assertIn("**Progress is measured, never estimated.**", section3)
+        self.assertIn("merged with its tests run", section3)
+        self.assertIn("the earlier wording is under Superseded", section1)
+
+
 class TestClaudeMd(Case):
 
     def test_the_pointer_is_added_and_the_projects_own_text_stays(self):
@@ -227,6 +246,21 @@ class TestNotARepo(unittest.TestCase):
             r = subprocess.run([sys.executable, str(WARMUP), "--project", tmp, "--migrate", "--no-recall"],
                                capture_output=True, text=True, check=False)
             self.assertEqual(2, r.returncode)
+
+
+class TestSupersedesData(unittest.TestCase):
+    """templates/supersedes.json is data the migration trusts; hold it to shape."""
+
+    def test_every_entry_carries_a_live_replacement_its_own_pattern_cannot_match(self):
+        import json
+        import re
+        rules = json.loads((ROOT / "templates" / "supersedes.json").read_text())["rules"]
+        self.assertTrue(rules)
+        for r in rules:
+            m = re.match(r"^- \*\*(.+?)\*\*", r.get("replacement", ""))
+            self.assertIsNotNone(m, f"{r['id']}: replacement must be a '- **lead** ...' rule")
+            self.assertIsNone(re.search(r["match"], m.group(1)),
+                              f"{r['id']}: a second migration would supersede its own replacement")
 
 
 if __name__ == "__main__":

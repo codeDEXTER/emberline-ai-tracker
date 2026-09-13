@@ -1,5 +1,18 @@
 # Changelog — common-rules
 
+## 2026-09-13 · Migration keeps the rule that still holds
+
+The PhotoVault engine, asked to migrate onto proposal 19, reviewed the dry run
+and did not apply it: superseding a rule moved the whole rule into
+`## Superseded` and left only a one-line summary in a heading, and a project
+that already has its own `docs/OPERATING-RULES.md` gets nothing seeded -- so
+the engine would have lost "never a new plan document, never scrap old
+content" and its definition of done ("merged with tests run here"). Each
+`templates/supersedes.json` entry now carries a `replacement` rule that migrate
+puts where the old rule stood; the old wording still moves, verbatim and
+dated. `derecord` also stops seeding a generic lead prompt beside a project's
+own dated one. Nothing had been written to the engine.
+
 ## 2026-09-13 · Proposal 19's ledger timestamps corrected
 
 The lead wrote estimated clock times into proposal 19's ledger instead of
