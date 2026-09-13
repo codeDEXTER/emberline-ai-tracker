@@ -1,8 +1,9 @@
-<title>common-rules · 19 · proposed · Warm-up</title>
+<title>common-rules · 19 · accepted · Warm-up</title>
 <meta name="proposal-id" content="19">
 <meta name="proposal-topic" content="warmup">
 <meta name="proposal-type" content="proposal">
-<meta name="proposal-status" content="proposed">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-13">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
   :root{
@@ -69,7 +70,7 @@
 </style>
 
 <div class="wrap">
-<div class="eyebrow">common-rules · proposal 19 · proposed · 13 September 2026</div>
+<div class="eyebrow">common-rules · proposal 19 · accepted 13 September 2026</div>
 <h1>Warm-up</h1>
 <p class="lede">A cold chat becomes a lead in one command. The PhotoVault engine session already works the way every project should — plan as data, ledger updated on every change, agents tiered by complexity, rules learned the hard way written down. This proposal lifts what it did into one standard, one set of templates, and one <code>/warmup</code> that loads it all before the first question.</p>
 <div class="meta"><span>evidence <b>PhotoVault engine, 6–13 Sep</b></span><span>sessions read <b>2 · 160 sponsor turns · 3,321 tool calls</b></span><span>decisions asked <b>11</b></span></div>
@@ -364,25 +365,26 @@ EFFORT    medium — do not redesign; if the spec is wrong, record it under prop
 
 <h2>Decisions</h2>
 <p>Eight. Answer in one line each, the way proposal 54 was answered (<code>D1 accept</code>, with a note where you want one); the answers are recorded here and in CHANGELOG.</p>
-<div class="dec"><div class="q"><span class="id">D1</span>The warm-up is a skill (<code>/warmup</code>) plus <code>bin/warmup --check</code> consumed by <code>land</code>?</div><div class="r"><b>Recommend accept.</b> A skill is one word he types — cold, or mid-session to refresh, where it prints only what changed; the check is what makes a project that lacks the files fail loudly rather than start cold.</div></div>
-<div class="dec"><div class="q"><span class="id">D2</span>Templates live in <code>common-rules/templates/</code> and <code>derecord</code> seeds the six files into a project that lacks them?</div><div class="r"><b>Recommend accept.</b> Seed, never overwrite: an existing HANDOFF.md is the project's, and only its missing sections are proposed.</div></div>
+<div class="dec"><div class="q"><span class="id">D1</span>The warm-up is a skill (<code>/warmup</code>) plus <code>bin/warmup --check</code> consumed by <code>land</code>?</div><div class="r"><b>Accepted 13 Sep 2026.</b> A skill is one word he types — cold, or mid-session to refresh, where it prints only what changed; the check is what makes a project that lacks the files fail loudly rather than start cold.</div></div>
+<div class="dec"><div class="q"><span class="id">D2</span>Templates live in <code>common-rules/templates/</code> and <code>derecord</code> seeds the six files into a project that lacks them?</div><div class="r"><b>Accepted 13 Sep 2026.</b> Seed, never overwrite: an existing HANDOFF.md is the project's, and only its missing sections are proposed.</div></div>
 <div class="dec"><div class="q"><span class="id">D3</span>Ruflo: (a) mandatory everywhere, (b) opt-in per project, (c) off?</div><div class="r"><b>Answered 13 Sep 2026: (a).</b> His words: <em>"i want ruflo to be mandatory."</em> The measurement in §F stands as a measurement; the ruling is his and this proposal follows it. Every item runs the Ruflo loop — <code>memory search</code> and <code>hooks route</code> before, <code>hooks post-task</code> and <code>memory store</code> after — and the effect ledger keeps recording per agent so the numbers stay in view.</div></div>
-<div class="dec"><div class="q"><span class="id">D4</span>The ask ledger rule — every non-answer sponsor message becomes an <code>A-nn</code> row in the same turn, printed by the warm card while open?</div><div class="r"><b>Recommend accept.</b> Three of five asks on 9 Sep vanished. The row costs one JSON object; a lost research direction costs the morning he spent forming it.</div></div>
-<div class="dec"><div class="q"><span class="id">D5</span>Briefs carry five fixed headings — OWNS · MUST · MUST NOT · OUTPUT · EFFORT — and the tag keeps tier as the durable word, model as today's mapping?</div><div class="r"><b>Recommend accept.</b> This is his note of today, made checkable: <code>bin/tracker check</code> can refuse an agent log entry whose brief lacks a heading.</div></div>
-<div class="dec"><div class="q"><span class="id">D6</span>Pilot order: PhotoVault engine first (already 5 of 6 files), then pockets (13 accepted proposals, 0 completed), then finance-tracker, then mac-explorer?</div><div class="r"><b>Recommend accept.</b> The engine costs almost nothing and proves the renderer against a real ledger; pockets is where the tracker gap is largest.</div></div>
+<div class="dec"><div class="q"><span class="id">D4</span>The ask ledger rule — every non-answer sponsor message becomes an <code>A-nn</code> row in the same turn, printed by the warm card while open?</div><div class="r"><b>Accepted 13 Sep 2026.</b> Three of five asks on 9 Sep vanished. The row costs one JSON object; a lost research direction costs the morning he spent forming it.</div></div>
+<div class="dec"><div class="q"><span class="id">D5</span>Briefs carry five fixed headings — OWNS · MUST · MUST NOT · OUTPUT · EFFORT — and the tag keeps tier as the durable word, model as today's mapping?</div><div class="r"><b>Accepted 13 Sep 2026.</b> This is his note of today, made checkable: <code>bin/tracker check</code> can refuse an agent log entry whose brief lacks a heading.</div></div>
+<div class="dec"><div class="q"><span class="id">D6</span>Pilot order: PhotoVault engine first (already 5 of 6 files), then pockets (13 accepted proposals, 0 completed), then finance-tracker, then mac-explorer?</div><div class="r"><b>Accepted 13 Sep 2026.</b> The engine costs almost nothing and proves the renderer against a real ledger; pockets is where the tracker gap is largest.</div></div>
 
-<div class="dec"><div class="q"><span class="id">D7</span>The steps list at task start and the one-line repeated status become part of the lead-prompt template and the warm card?</div><div class="r"><b>Recommend accept.</b> Both exist in the engine session by habit; a template makes them survive the next cold start.</div></div>
+<div class="dec"><div class="q"><span class="id">D7</span>The steps list at task start and the one-line repeated status become part of the lead-prompt template and the warm card?</div><div class="r"><b>Accepted 13 Sep 2026.</b> Both exist in the engine session by habit; a template makes them survive the next cold start.</div></div>
 
-<div class="dec"><div class="q"><span class="id">D8</span>A Stop/PreCompact hook writes the checkpoint and ledger count automatically, and <code>/warmup</code> flags any file in its chain that is stale against HEAD?</div><div class="r"><b>Recommend accept.</b> It closes the loop the field found weakest: handoffs rot when writing them is a memory task. From the research pass, not the engine session.</div></div>
+<div class="dec"><div class="q"><span class="id">D8</span>A Stop/PreCompact hook writes the checkpoint and ledger count automatically, and <code>/warmup</code> flags any file in its chain that is stale against HEAD?</div><div class="r"><b>Accepted 13 Sep 2026.</b> It closes the loop the field found weakest: handoffs rot when writing them is a memory task. From the research pass, not the engine session.</div></div>
 
-<div class="dec"><div class="q"><span class="id">D9</span>GitHub issues mirror the ledger one way — <code>bin/tracker sync</code> opens on in-progress, closes on done, and the render shows any drift between the two?</div><div class="r"><b>Recommend accept.</b> It keeps what already works (issues, labels, land's Closes trailer) and removes the one thing that does not: two trackers that can disagree in silence.</div></div>
+<div class="dec"><div class="q"><span class="id">D9</span>GitHub issues mirror the ledger one way — <code>bin/tracker sync</code> opens on in-progress, closes on done, and the render shows any drift between the two?</div><div class="r"><b>Accepted 13 Sep 2026.</b> It keeps what already works (issues, labels, land's Closes trailer) and removes the one thing that does not: two trackers that can disagree in silence.</div></div>
 
-<div class="dec"><div class="q"><span class="id">D10</span>Research is a lane in the ledger: an X row per question, done only when it becomes items, a proposal, or a recorded decline?</div><div class="r"><b>Recommend accept.</b> It is your 29 August ruling applied to the tracker; the engine's five research reports and twenty proposed changes would all have been rows.</div></div>
+<div class="dec"><div class="q"><span class="id">D10</span>Research is a lane in the ledger: an X row per question, done only when it becomes items, a proposal, or a recorded decline?</div><div class="r"><b>Accepted 13 Sep 2026.</b> It is your 29 August ruling applied to the tracker; the engine's five research reports and twenty proposed changes would all have been rows.</div></div>
 
-<div class="dec"><div class="q"><span class="id">D11</span>Memory is recall over what is already written — <code>bin/recall</code> across every project's memory, LESSONS, rules and ledger logs, run by <code>/warmup</code> and put into every brief — with <code>bin/remember</code> as the write side?</div><div class="r"><b>Recommend accept.</b> It delivers the step Ruflo's loop promised (search before, store after) from three stores that already exist and were never searched. A vector index is measured against it later, if grep ever misses on wording.</div></div>
+<div class="dec"><div class="q"><span class="id">D11</span>Memory is recall over what is already written — <code>bin/recall</code> across every project's memory, LESSONS, rules and ledger logs, run by <code>/warmup</code> and put into every brief — with <code>bin/remember</code> as the write side?</div><div class="r"><b>Accepted 13 Sep 2026.</b> It delivers the step Ruflo's loop promised (search before, store after) from three stores that already exist and were never searched. A vector index is measured against it later, if grep ever misses on wording.</div></div>
 
-<pre>common-rules · proposal 19 · answers
-D1  ·  D2  ·  D3 = a ✓  ·  D4  ·  D5  ·  D6  ·  D7  ·  D8  ·  D9  ·  D10  ·  D11</pre>
+<pre>common-rules · proposal 19 · answers · 2026-09-13
+D1 accept · D2 accept · D3 a (mandatory) · D4 accept · D5 accept · D6 accept
+D7 accept · D8 accept · D9 accept · D10 accept · D11 accept</pre>
 
 <h2>What completes this</h2>
 <ul>
