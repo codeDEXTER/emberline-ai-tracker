@@ -1,0 +1,301 @@
+"""tracker render -- a ledger's page, generated (proposal 19, W-02).
+
+  tracker render LEDGER.json [--out PATH] [--repo OWNER/NAME]
+  tracker render LEDGER.json --check
+
+Writes docs/proposals/tracker/<ledger stem>.html beside the ledger. Two
+reasons it is a subdirectory and not the proposal page itself:
+
+  * the proposal page is authored prose -- decisions, reasoning, pictures --
+    and a generator that owns it would erase exactly what makes it a
+    proposal. The ledger page is the other half: the numbers, always current.
+  * every checker that reads proposals globs docs/proposals/*.html:
+    common-rules' proposalcheck (one number, one document), and the engine's
+    build_proposal_index.py and check_proposals.py. A second file claiming the
+    same number at that level would fail the first and pollute the other two.
+
+The page carries a digest of the ledger's bytes, and `--check` compares that
+rather than modification times: a checkout or a rebase resets mtimes, so a
+timestamp test passes on a page rendered from a different ledger.
+
+Output is deterministic -- no "generated at" clock -- so rendering an
+unchanged ledger produces an unchanged file and a diff means something moved.
+
+Exit codes: 0 rendered / fresh, 1 stale or invalid ledger, 2 unreadable.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import html
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+from tools.tracker import ledger as L
+
+STATUS_ORDER = ("done", "in progress", "blocked", "not started")
+
+
+def e(value) -> str:
+    return html.escape("" if value is None else str(value), quote=True)
+
+
+def slug(status: str) -> str:
+    return "s-" + status.replace(" ", "-")
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def default_out(ledger_path: Path) -> Path:
+    return ledger_path.parent / "tracker" / f"{ledger_path.stem}.html"
+
+
+def infer_repo(ledger_path: Path) -> str | None:
+    """owner/name from the ledger's own git remote, or None. Never guessed."""
+    try:
+        url = subprocess.run(["git", "-C", str(ledger_path.parent), "remote", "get-url", "origin"],
+                             capture_output=True, text=True, check=True, timeout=5).stdout.strip()
+    except (subprocess.SubprocessError, OSError):
+        return None
+    m = re.search(r"github\.com[:/]([^/\s]+/[^/\s]+?)(?:\.git)?/?$", url)
+    return m.group(1) if m else None
+
+
+def bar(counts: dict, cls: str) -> str:
+    total = sum(counts.values())
+    if not total:
+        return f'<div class="{cls}"><span class="seg s-empty" style="width:100%"></span></div>'
+    segs = []
+    for s in STATUS_ORDER:
+        if counts[s]:
+            segs.append(f'<span class="seg {slug(s)}" style="width:{counts[s] * 100 / total:.2f}%" '
+                        f'title="{counts[s]} {e(s)}"></span>')
+    return f'<div class="{cls}">{"".join(segs)}</div>'
+
+
+def issue_cell(number, repo) -> str:
+    if not number:
+        return '<span class="dim">—</span>'
+    if repo:
+        return f'<a href="https://github.com/{e(repo)}/issues/{e(number)}">#{e(number)}</a>'
+    return f"#{e(number)}"
+
+
+def last_log(item: dict) -> str:
+    """The last log entry: event and time, with its evidence on hover -- and
+    in full when the item is blocked, because "blocked" without the reason
+    is the one status a reader cannot act on."""
+    log = item.get("log") or []
+    if not log:
+        return '<span class="dim">no entries</span>'
+    last = log[-1]
+    when = str(last.get("at", ""))[:16].replace("T", " ")
+    evidence = last.get("evidence") or ""
+    cell = f'<span title="{e(evidence)}">{e(last.get("event"))}</span> <span class="dim">{e(when)}</span>'
+    if item.get("status") == "blocked" and evidence:
+        cell += f'<div class="why">{e(evidence)}</div>'
+    return cell
+
+
+def item_row(item: dict, repo) -> str:
+    status = item.get("status", "")
+    deps = L.as_list(item.get("depends"))
+    dep = f'<div class="dep">after {e(" ".join(deps))}</div>' if deps else ""
+    found = f'<div class="dep">from {e(item["discovered_from"])}</div>' if item.get("discovered_from") else ""
+    return (f'<tr class="item" data-id="{e(item.get("id"))}" data-status="{e(status)}">'
+            f'<td class="id">{e(item.get("id"))}</td>'
+            f'<td>{e(item.get("title"))}{dep}{found}</td>'
+            f'<td class="tag">{e(item.get("tag") or item.get("cx"))}</td>'
+            f'<td><span class="pill {slug(status)}">{e(status)}</span></td>'
+            f'<td class="issue">{issue_cell(item.get("issue"), repo)}</td>'
+            f'<td class="last">{last_log(item)}</td></tr>')
+
+
+def phase_section(phase: dict, its_items: list, repo) -> str:
+    counts = {s: 0 for s in STATUS_ORDER}
+    for i in its_items:
+        if i.get("status") in counts:
+            counts[i["status"]] += 1
+    head = (f'<section class="phase" data-phase="{e(phase.get("id"))}">'
+            f'<h2>{e(phase.get("id"))} · {e(phase.get("name"))} '
+            f'<span class="count">{counts["done"]}/{len(its_items)}</span></h2>')
+    goal = f'<p class="goal">{e(phase.get("goal"))}</p>' if phase.get("goal") else ""
+    exit_ = f'<p class="goal"><b>Exit:</b> {e(phase.get("exit"))}</p>' if phase.get("exit") else ""
+    rows = "".join(item_row(i, repo) for i in its_items)
+    table = ('<div class="scroll"><table class="items"><thead><tr><th>ID</th><th>Item</th><th>Tag</th>'
+             f'<th>Status</th><th>Issue</th><th>Last</th></tr></thead><tbody>{rows}</tbody></table></div>'
+             if its_items else '<p class="empty">No items in this phase.</p>')
+    return head + goal + exit_ + bar(counts, "bar") + table + "</section>"
+
+
+def asks_section(asks: list) -> str:
+    if not asks:
+        return ""
+    rows = "".join(
+        f'<tr class="ask" data-id="{e(a.get("id"))}" data-state="{e(a.get("state"))}">'
+        f'<td class="id">{e(a.get("id"))}</td><td>{e(a.get("kind"))}</td>'
+        f'<td>“{e(a.get("quote"))}”</td><td>{e(a.get("became") or "—")}</td>'
+        f'<td><span class="pill a-{e(str(a.get("state", "")).replace(" ", "-"))}">{e(a.get("state"))}</span></td></tr>'
+        for a in asks)
+    open_n = sum(1 for a in asks if a.get("state") == "open")
+    return (f'<section class="asks"><h2>Asks <span class="count">{open_n} open</span></h2>'
+            '<div class="scroll"><table class="items"><thead><tr><th>ID</th><th>Kind</th><th>In his words</th>'
+            f'<th>Became</th><th>State</th></tr></thead><tbody>{rows}</tbody></table></div></section>')
+
+
+def changes_section(changes: list) -> str:
+    if not changes:
+        return ""
+    rows = "".join(
+        f'<tr><td class="last">{e(str(c.get("at", ""))[:16].replace("T", " "))}</td><td>{e(c.get("from"))}</td>'
+        f'<td class="id">{e(c.get("item"))}</td><td>{e(c.get("change"))}</td><td>{e(c.get("state"))}</td></tr>'
+        for c in changes)
+    return ('<section class="changes"><h2>Proposed changes</h2><div class="scroll"><table class="items"><thead><tr>'
+            '<th>At</th><th>From</th><th>Item</th><th>Change</th><th>State</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></section>')
+
+
+def tiers_section(tiers: dict) -> str:
+    if not tiers:
+        return ""
+    rows = "".join(
+        f'<tr><td class="id">{e(k)}</td><td>{e(v.get("tier"))}</td><td>{e(v.get("model"))}</td>'
+        f'<td>{e(v.get("effort", ""))}</td><td>{e(v.get("rule"))}</td></tr>'
+        for k, v in tiers.items())
+    return ('<section class="tiers"><h2>Classes</h2><div class="scroll"><table class="items"><thead><tr><th>Class</th>'
+            '<th>Tier</th><th>Model</th><th>Effort</th><th>Rule</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></section>')
+
+
+def priority_section(priority: dict) -> str:
+    if not priority or not priority.get("order"):
+        return ""
+    order = " → ".join(e(x) for x in priority.get("order", []))
+    who = e(priority.get("by", ""))
+    return (f'<section class="changes"><h2>Priority</h2><p class="goal">{e(priority.get("instruction", ""))}</p>'
+            f'<p class="goal"><b>Order:</b> {order} <span class="dim">· set by {who}</span></p></section>')
+
+
+CSS = """
+:root{--ground:#EEF0F2;--surface:#FAFBFC;--ink:#161A1E;--dim:#67707A;--rule:#CDD3D9;
+--done:#2F855A;--prog:#D4531F;--block:#B23A48;--todo:#C3CAD1;
+--mono:"SF Mono",ui-monospace,Menlo,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ground:#121619;--surface:#1A1F24;--ink:#E5E8EB;
+--dim:#909AA4;--rule:#2E363E;--done:#5FB58A;--prog:#F0733E;--block:#D06A77;--todo:#3A434C}}
+:root[data-theme="dark"]{--ground:#121619;--surface:#1A1F24;--ink:#E5E8EB;--dim:#909AA4;--rule:#2E363E;
+--done:#5FB58A;--prog:#F0733E;--block:#D06A77;--todo:#3A434C}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.5 var(--sans)}
+.wrap{max-width:1120px;margin:0 auto;padding:36px 22px 80px}
+.head h1{font-size:30px;margin:4px 0 0;letter-spacing:-.01em;text-wrap:balance}
+.eyebrow{font:12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0}
+.status{margin-top:18px}
+.line{font:600 15px var(--mono);margin:0 0 8px;font-variant-numeric:tabular-nums}
+.overall,.bar{display:flex;height:10px;background:var(--todo);overflow:hidden;border-radius:2px}
+.overall{height:14px}
+.bar{margin:10px 0 12px}
+.seg{display:block;height:100%}
+.seg.s-done{background:var(--done)}.seg.s-in-progress{background:var(--prog)}
+.seg.s-blocked{background:var(--block)}.seg.s-not-started{background:var(--todo)}.seg.s-empty{background:var(--todo)}
+section{margin-top:34px}
+h2{font-size:18px;margin:0}
+.count{font:500 13px var(--mono);color:var(--dim);margin-left:6px}
+.goal{color:var(--dim);margin:6px 0 0;max-width:80ch}
+.scroll{overflow-x:auto}
+.items{width:100%;border-collapse:collapse;background:var(--surface);font-size:14px}
+.items th{text-align:left;font:600 11px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);
+padding:8px 10px;border-bottom:1px solid var(--ink)}
+.items td{padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+.id,.tag,.issue,.last{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+.issue a{color:var(--prog)}
+.dep{font:12px var(--mono);color:var(--dim);margin-top:2px}
+.why{font:12px var(--sans);color:var(--block);white-space:normal;max-width:48ch;margin-top:3px}
+.dim{color:var(--dim)}
+.empty{color:var(--dim);font-style:italic}
+.pill{display:inline-block;font:600 11.5px var(--mono);padding:1px 7px;border-radius:9px;border:1px solid currentColor;white-space:nowrap}
+.pill.s-done,.pill.a-became-item,.pill.a-answered{color:var(--done)}
+.pill.s-in-progress,.pill.a-open{color:var(--prog)}
+.pill.s-blocked{color:var(--block)}
+.pill.s-not-started,.pill.a-declined{color:var(--dim)}
+.asks,.changes,.tiers,.phase{display:block}
+"""
+
+
+def render(data: dict, source: Path, repo: str | None) -> str:
+    counts = L.counts(data)
+    phases = list(data.get("phases") or [])
+    known = {p.get("id") for p in phases}
+    loose = [i for i in L.items(data) if i.get("phase") not in known]
+    if loose:
+        phases.append({"id": "", "name": "Unphased"})
+    sections = []
+    for p in phases:
+        its = [i for i in L.items(data) if (i.get("phase") == p.get("id")) or (p.get("id") == "" and i in loose)]
+        sections.append(phase_section(p, its, repo))
+    n, status, title = data.get("proposal"), data.get("status", ""), data.get("title", "")
+    return (
+        f"<!-- generated by bin/tracker render from {e(source.name)} -- edit the ledger, not this page -->\n"
+        f"<title>{e(n)} · {e(status)} · {e(title)} · tracker</title>\n"
+        f'<meta name="ledger-source" content="{e(source.name)}">\n'
+        f'<meta name="ledger-digest" content="{digest(source)}">\n'
+        f"<style>{CSS}</style>\n"
+        '<main class="wrap">'
+        f'<header class="head"><p class="eyebrow">Proposal {e(n)} · {e(status)} · updated {e(data.get("updated", ""))}</p>'
+        f"<h1>{e(title)}</h1></header>"
+        f'<section class="status" data-done="{counts["done"]}" data-in-progress="{counts["in progress"]}" '
+        f'data-blocked="{counts["blocked"]}" data-not-started="{counts["not started"]}">'
+        f'<p class="line">{e(L.status_line(data))}</p>{bar(counts, "overall")}</section>'
+        + "".join(sections)
+        + asks_section(data.get("asks") or [])
+        + priority_section(data.get("priority") or {})
+        + changes_section(data.get("proposed_changes") or [])
+        + tiers_section(data.get("tiers") or {})
+        + "</main>\n"
+    )
+
+
+def main(argv) -> int:
+    ap = argparse.ArgumentParser(prog="tracker render", description=__doc__.splitlines()[0])
+    ap.add_argument("ledger", type=Path)
+    ap.add_argument("--out", type=Path)
+    ap.add_argument("--repo", help="owner/name for issue links (default: the ledger's git remote)")
+    ap.add_argument("--check", action="store_true", help="exit 1 if the page is missing or stale; write nothing")
+    args = ap.parse_args(argv)
+
+    try:
+        data = L.load(args.ledger)
+    except (OSError, ValueError) as exc:
+        print(f"tracker render: {exc}", file=sys.stderr)
+        return 2
+    out = args.out or default_out(args.ledger)
+
+    if args.check:
+        if not out.exists():
+            print(f"stale: {out} is missing -- run: tracker render {args.ledger}")
+            return 1
+        m = re.search(r'<meta name="ledger-digest" content="([0-9a-f]{64})">', out.read_text(errors="replace"))
+        if not m or m.group(1) != digest(args.ledger):
+            print(f"stale: {out} was rendered from a different {args.ledger.name} -- run: tracker render {args.ledger}")
+            return 1
+        print(f"ok {out} matches {args.ledger.name}")
+        return 0
+
+    problems = L.validate(data)
+    if problems:
+        print(f"tracker render: {args.ledger} is not well-formed; a page of it would show numbers nobody can trust:",
+              file=sys.stderr)
+        for p in problems:
+            print(f"  {p}", file=sys.stderr)
+        return 1
+
+    repo = args.repo or infer_repo(args.ledger)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    text = render(data, args.ledger, repo)
+    if not out.exists() or out.read_text() != text:
+        out.write_text(text)
+    print(f"rendered {out} · {L.status_line(data)}")
+    return 0
