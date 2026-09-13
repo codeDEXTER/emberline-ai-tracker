@@ -236,6 +236,9 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
     workflow = RULES_DIR / "CLAUDE-workflow.md"
     if workflow.is_file():
         read.append(workflow)
+    rules_file = project / "docs" / "OPERATING-RULES.md"
+    state["superseded"] = re.findall(r"^### (\d{4}-\d{2}-\d{2} · superseded by .+)$",
+                                     rules_file.read_text(errors="replace"), re.M) if rules_file.is_file() else []
     state["read_order"] = [str(p.relative_to(project)) if p.is_relative_to(project) else str(p) for p in read]
     state["read_bytes"] = sum(p.stat().st_size for p in read if p.is_file())
 
@@ -278,6 +281,9 @@ def card(s: dict) -> str:
                 out.append(f"  open ask     {aid} ({a['kind']}) “{a['quote']}”")
     out.append("Chain:")
     out += [f"  {mark} {text}" for mark, text in s["chain"]]
+    if s.get("superseded"):
+        out.append("Superseded (docs/OPERATING-RULES.md) -- if you catch yourself following one of these, stop:")
+        out += [f"  {line}" for line in s["superseded"]]
     out.append("Tools:")
     out.append(f"  test command  {s['test_command'] or 'none found -- land will land on the gate alone'}")
     out.append(f"  rules         {s['rules']}")
@@ -347,10 +353,24 @@ def main(argv) -> int:
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--json", action="store_true")
     mode.add_argument("--since", type=Path)
+    mode.add_argument("--migrate", action="store_true",
+                      help="move a running project onto the standard (seed, import, supersede, CLAUDE.md)")
+    ap.add_argument("--dry-run", action="store_true", help="with --migrate: say what would change, write nothing")
+    ap.add_argument("--at", help="with --migrate: the timestamp recorded (default: now)")
     ap.add_argument("--state", type=Path)
     ap.add_argument("--no-recall", action="store_true")
     ap.add_argument("--recall-corpus", action="append", default=[])
     args = ap.parse_args(argv)
+
+    if args.migrate:
+        import datetime
+        from tools import migrate as M
+        at = args.at or datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+        code = M.migrate(args.project, at, args.dry_run)
+        if code != 2 and not args.dry_run:
+            print()
+            print(card(gather(args.project, recall=not args.no_recall, corpus=args.recall_corpus)))
+        return code
 
     try:
         s = gather(args.project, recall=not args.no_recall and not args.check, corpus=args.recall_corpus)
