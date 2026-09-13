@@ -202,7 +202,16 @@ PY
 }
 seed_prose "$RULES_DIR/templates/HANDOFF.md" "HANDOFF.md"
 seed_prose "$RULES_DIR/templates/OPERATING-RULES.md" "docs/OPERATING-RULES.md"
-seed_prose "$RULES_DIR/templates/lead-prompt.md" "docs/handovers/lead-prompt.md"
+# A project that already keeps a dated lead prompt (the PhotoVault engine's
+# docs/handovers/2026-09-13-proposal-71-lead-prompt.md) gets no generic one
+# beside it: two lead prompts leave a later session choosing between them.
+# Found by that engine reviewing the migration dry run, 13 Sep.
+existing_prompt="$(ls docs/handovers/*-lead-prompt.md 2>/dev/null | head -1 || true)"
+if [ -n "$existing_prompt" ] && [ ! -f docs/handovers/lead-prompt.md ]; then
+    echo "  docs/handovers/lead-prompt.md not seeded -- this project already keeps $existing_prompt"
+else
+    seed_prose "$RULES_DIR/templates/lead-prompt.md" "docs/handovers/lead-prompt.md"
+fi
 
 # --- 5. checkpoint hooks: PreCompact, Stop, SessionStart ----------------------
 #
