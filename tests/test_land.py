@@ -37,11 +37,13 @@ def closes_trailer(subjects: str) -> list[str]:
 
 
 class ClosesTrailerTests(unittest.TestCase):
-    def test_explicit_issue_reference_is_linked(self):
+    def test_the_word_issue_is_a_mention_not_a_closing_keyword(self):
+        """f9ed133, 2026-08-30: "issues #821-#826" in a proposal branch's body
+        closed a live finance-tracker bug on merge. GitHub's own closing
+        keywords never included "issue"; land's no longer does either."""
         self.assertEqual(
-            ["Closes #362"],
-            closes_trailer("Guard /people's four mutation handlers (issue #362)"),
-        )
+            [], closes_trailer("Guard /people's four mutation handlers (issue #362)"))
+        self.assertEqual([], closes_trailer("this does NOT fix issue #800"))
 
     def test_fix_and_resolve_wording_also_count(self):
         self.assertEqual(["Closes #376"], closes_trailer("Fix #376: opening balances"))
@@ -56,7 +58,7 @@ class ClosesTrailerTests(unittest.TestCase):
     def test_pr_number_alongside_a_real_issue_takes_only_the_issue(self):
         self.assertEqual(
             ["Closes #362"],
-            closes_trailer("Guard the handlers (issue #362) (#390)"),
+            closes_trailer("Guard the handlers (fixes #362) (#390)"),
         )
 
     def test_nothing_named_means_no_trailer(self):
@@ -66,7 +68,7 @@ class ClosesTrailerTests(unittest.TestCase):
     def test_several_issues_across_commits_are_deduped_and_sorted(self):
         self.assertEqual(
             ["Closes #7", "Closes #41", "Closes #362"],
-            closes_trailer("issue #41\nfixes #7 (#380)\nissue #41 again\nCloses #362"),
+            closes_trailer("resolves #41\nfixes #7 (#380)\nissue #41 again\nCloses #362"),
         )
 
     def test_body_lines_count_not_just_subjects(self):

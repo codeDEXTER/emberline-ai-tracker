@@ -1,5 +1,21 @@
 # Changelog — common-rules
 
+## 2026-09-13 · Baseline: main green again, before the rules are rewritten
+
+main had been red since 2026-08-30. f9ed133 deliberately stopped `land`
+treating the word "issue" as a closing keyword (it had closed a live
+finance-tracker bug from a proposal's prose), but `tests/test_land.py` still
+asserted the old behaviour in three places. The tests now assert the new
+rule; `bin/land` is unchanged.
+
+Also ignores `.worktrees/` and `.claude/worktrees/`: fourteen stale
+worktrees had collapsed into one untracked directory in `git status`.
+
+Everything retired in the cleanup is kept as tags under
+`archive/2026-09-13/` on origin: 68 of them, covering every branch tip that
+was not on main, the uncommitted `bin/tower` multi-lane arc, a stray
+`AGENTS.md`, and the old stash.
+
 ## 2026-09-01 · Proposal 18 answered — and it cut its own biggest item
 
 The sponsor's decisions are recorded in
