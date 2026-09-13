@@ -1,5 +1,15 @@
 # Changelog — common-rules
 
+## 2026-09-14 · Ruflo's runtime files are ignored
+
+Running the mandatory Ruflo loop from this checkout while building proposal 19
+left twenty untracked files: `.claude-flow/` (daemon, policy, logs, neural,
+metrics), `.swarm/` (two memory databases and their WAL files), `ruvector.db`,
+and two `proven-config` files under `.claude/`. All machine-local runtime
+state. `.gitignore` now covers them; under `.claude/` only Ruflo's own files are
+ignored, so a committed `.claude/settings.json` or `.claude/skills/` -- what
+`derecord` installs -- is still seen. No behaviour change for any project.
+
 ## 2026-09-13 · Proposal 19 building: the ledger toolkit, templates, recall and hooks
 
 Built on the integration branch `p19-foundation`, in the order proposal 19's
