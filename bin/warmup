@@ -36,6 +36,16 @@ declaration the card and --check are unchanged. --json and --state carry four
 more keys either way -- prose, prohibitions_from, quick_gate and
 merge_gate_declared -- and tests/test_project_declaration.py pins the set.
 
+PAGE CHANGED SINCE LAST PUBLISH (proposal 20, V-09, D1). A page is published
+only through a session's Artifact tool, which no script can call; `tracker
+published` records the URL and the page's digest in
+docs/proposals/tracker/<stem>.published.json. When the page on disk no longer
+matches that digest the card prints `page changed since last publish: <stem>
+→ <url>` -- and --since prints it when it is news. It is a to-do, not a
+broken standard, so --check never fails on it. No sidecar, or
+switches.publish off: no line. A sidecar that cannot be read is a problem.
+Each ledger in --json/--state carries `published` (None without a record).
+
 It never runs Ruflo. The CLI auto-starts a daemon that spends tokens until
 stopped (measured in the PhotoVault engine, 7 September). Warm-up says where
 the CLI is; the loop runs per item, by the lead, who stops what it started.
@@ -263,6 +273,41 @@ def page_state(ledger_path: Path) -> tuple[str, Path]:
     return ("ok" if m and m.group(1) == R.digest(ledger_path) else "stale"), page
 
 
+def publish_state(project: Path, ledger_path: Path, data: dict, page: Path) -> tuple[dict | None, str | None]:
+    """(the ledger's last recorded publish, or None) · (a named problem, or None).
+
+    Proposal 20, V-09 (D1). Only a session's Artifact tool can publish, so
+    `tracker published` records the URL and the page's digest in a sidecar,
+    and this compares that digest with the page on disk. None -- and no card
+    line -- when there is no sidecar (a project that never publishes) or the
+    ledger switches publishing off. A sidecar that cannot be read or does not
+    hold a valid record is a problem, named without echoing its contents.
+    `changed` is a to-do, never a problem: --check does not fail on it. A
+    missing page is already a problem of its own, so it is not also "changed"."""
+    if not L.switch_on(data, "publish"):
+        return None, None
+    sidecar = R.published_path(ledger_path)
+    if not sidecar.is_file():
+        return None, None
+    srel, lrel = shown(sidecar.relative_to(project)), shown(ledger_path.relative_to(project))
+    fix = f"republish the page and run: tracker published {lrel} --url <artifact url>"
+    try:
+        record = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        return None, f"{srel} is malformed ({type(exc).__name__}) -- {fix}"
+    bad = R.published_problems(record)
+    if bad:
+        return None, f"{srel} is malformed: {'; '.join(bad)} -- {fix}"
+    current = R.digest(page) if page.is_file() else None
+    return {"stem": ledger_path.stem, "url": record["url"], "digest": record["digest"],
+            "at": record["at"], "by": record["by"], "page_digest": current,
+            "changed": current is not None and current != record["digest"]}, None
+
+
+def publish_line(pub: dict) -> str:
+    return f"  page changed since last publish: {shown(pub['stem'])} → {shown(pub['url'])}"
+
+
 def checkpoint_state(project: Path) -> tuple[str, Path | None]:
     open_ = CP.open_ledgers(project)
     latest = CP.latest_checkpoint(project)
@@ -366,6 +411,10 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
         else:
             state["problems"].append(f"page {prel} is {ps} -- run: tracker render {rel}")
             state["chain"].append(("✗", f"page {prel} · {ps}"))
+        published, problem = publish_state(project, lp, data, page)
+        if problem:
+            state["problems"].append(problem)
+            state["chain"].append(("✗", f"{shown(R.published_path(lp).relative_to(project))} · malformed"))
         unblocked = {i["id"] for i in L.unblocked(data)}
         switches_off = []
         for name in L.SWITCHES:
@@ -390,6 +439,9 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             "switches_off": switches_off,
             "requests": requests,
             "routing": routing_table(data),
+            # Proposal 20, V-09 (D1): the page's last recorded publish, or
+            # None with no sidecar or with switches.publish off.
+            "published": published,
         }
         if "session" in data:
             clean, problem = _session_problem(data["session"], rel)
@@ -505,6 +557,9 @@ def ledger_v2_lines(led: dict, session: str | None) -> list[str]:
         if skipped:
             line += f" (+{skipped} not shown)"
         lines.append(line)
+    pub = led.get("published")
+    if pub and pub.get("changed"):
+        lines.append(publish_line(pub))
     return lines
 
 
@@ -588,6 +643,12 @@ def delta(old: dict, new: dict) -> str:
                 lines.append(f"  {aid} new ask ({a['kind']}) “{a['quote']}” · {a['state']}")
             elif was["state"] != a["state"]:
                 lines.append(f"  {aid} {was['state']} → {a['state']}")
+        # V-09: named again only when it is news -- newly changed, or the page
+        # (or the URL) moved again since the state being compared with.
+        pub, old_pub = led.get("published"), before.get("published") or {}
+        if pub and pub.get("changed") and not (old_pub.get("changed") and old_pub.get("url") == pub["url"]
+                                                and old_pub.get("page_digest") == pub["page_digest"]):
+            lines.append(publish_line(pub))
         out += lines
     for rel in new.get("prose", PROSE):
         if old.get("files", {}).get(rel) and new["files"].get(rel) and old["files"][rel] != new["files"][rel]:
