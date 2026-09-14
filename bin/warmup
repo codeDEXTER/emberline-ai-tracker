@@ -20,7 +20,13 @@ verified: a missing standard file, an invalid ledger, a rendered page or a
 checkpoint whose digest no longer matches its ledger, a file in the declared
 read order (HANDOFF.md and docs/OPERATING-RULES.md, by default) still
 carrying {{PLACEHOLDERS}} a seed left for the lead, and a declared
-safety_rules heading that is not in its file (proposal 20, V-02). It shows,
+safety_rules heading that is not in its file (proposal 20, V-02), and each
+CHANGELOG entry since the project's .common-rules-version stamp that carries a
+`**Standard change (mandatory):**` line (proposal 21, S-09) -- the card lists
+them under `rules  behind · N mandatory Standard change(s) to implement
+first:`, from rulecheck's own mandatory_pending(). A stamp behind only on
+informational entries is STALE, shown and never failed; no stamp is "not
+adopted" with a count of the CHANGELOG's mandatory entries, never failed. It shows,
 and never fails on, how many commits the prose files are behind HEAD: prose
 cannot be digest-checked, and failing on a count of commits punishes the
 busiest projects rather than the neglected ones.
@@ -126,12 +132,70 @@ def ruflo_cli() -> str | None:
     return cached[0] if cached else None
 
 
-def rules_status(project: Path) -> str:
+def _load_rulecheck():
+    """bin/rulecheck as a module: mandatory_pending() is one answer, shared
+    with `rulecheck --mandatory` and bin/conformance, never re-derived here."""
+    import importlib.machinery
+    import importlib.util
+    loader = importlib.machinery.SourceFileLoader("rulecheck", str(RULES_DIR / "bin" / "rulecheck"))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+RC = _load_rulecheck()
+
+
+def rules_status(project: Path) -> tuple[str, list[str]]:
+    """The card's rules value, and the problems it carries (proposal 21, S-09).
+
+    A CHANGELOG entry since the stamp that carries `**Standard change
+    (mandatory):**` is work to do before the stamp moves (the sponsor, A-03),
+    so each is a problem and --check fails naming it. The value is then
+    several lines -- the count, then one shown() heading per line -- joined
+    with "\\n". shown() leaves no real newline inside a heading, so the split in
+    card() is exact; the state keeps its key set (tests/test_project_declaration.py
+    pins it). Behind only on informational entries stays STALE, shown and never
+    failed. No stamp stays "not adopted", with a count of the mandatory entries
+    in the whole CHANGELOG, and never fails.
+
+    Round 2: a stamp that cannot be resolved (not a sha, or a commit the rules
+    repo does not have) fails --check -- it used to read "could not check" and
+    pass -- and the card lists every mandatory entry in the CHANGELOG. A stamp
+    ahead of the rules checkout is named, and never fails."""
     if not (project / ".common-rules-version").is_file():
-        return "not adopted (.common-rules-version absent)"
-    rc = subprocess.run([str(RULES_DIR / "bin" / "rulecheck"), "--project", str(project), "--quiet"],
-                        capture_output=True, text=True, check=False).returncode
-    return {0: "aligned", 1: "STALE -- run rulecheck and read what changed"}.get(rc, "could not check")
+        whole = RC.mandatory_in_changelog()
+        count = "" if whole is None else f" · {len(whole)} mandatory Standard change(s) in the rules CHANGELOG"
+        return "not adopted (.common-rules-version absent)" + count, []
+    p = RC.mandatory_pending(project)
+    if p.state == "aligned":
+        return "aligned", []
+    if p.state == "ahead":
+        return "ahead of this rules checkout -- update common-rules", []
+    if p.state == "unresolvable":
+        stamp = "(unreadable)" if p.stamp is None else shown(p.stamp)
+        problem = ["rules stamp cannot be resolved -- rulecheck --align after implementing every "
+                   "mandatory Standard change"]
+        # S-09 final review: --check named no entry; the card alone did.
+        problem += [f"mandatory Standard change not implemented: {e.heading} -- implement it first, then "
+                    f"rulecheck --align (rulecheck --project {project} --mandatory quotes what it asks)"
+                    for e in p.entries]
+        if not p.entries:
+            return f"stamp {stamp} cannot be resolved · the rules CHANGELOG carries no mandatory Standard change", problem
+        lines = [f"stamp {stamp} cannot be resolved · {len(p.entries)} mandatory Standard change(s) "
+                 f"to implement first:"]
+        return "\n".join(lines + [shown(e.heading) for e in p.entries]), problem
+    if p.state == "behind" and p.entries:
+        lines = [f"behind · {len(p.entries)} mandatory Standard change(s) to implement first:"]
+        lines += [shown(e.heading) for e in p.entries]
+        problems = [f"mandatory Standard change not implemented: {e.heading} -- implement it first, then "
+                    f"rulecheck --align (rulecheck --project {project} --mandatory quotes what it asks)"
+                    for e in p.entries]
+        return "\n".join(lines), problems
+    if p.state == "behind":
+        return "STALE -- run rulecheck and read what changed", []
+    return "could not check", []
 
 
 def prohibitions(project: Path, safety_rules=P.DEFAULTS["safety_rules"], confine: bool = False) -> list[str]:
@@ -409,6 +473,7 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
     project = Path(top)
     gitdir, common = git(project, "rev-parse", "--git-dir"), git(project, "rev-parse", "--git-common-dir")
     decl, own = P.load(project), P.declared(project)
+    rules, rules_problems = rules_status(project)
     state: dict = {
         "project": str(project), "name": project.name,
         "branch": git(project, "rev-parse", "--abbrev-ref", "HEAD") or "?",
@@ -421,7 +486,7 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
         "problems": [], "chain": [], "ledgers": {}, "files": {},
         "test_command": test_command(project), "quick_gate": decl["gates"].get("quick"),
         "merge_gate_declared": bool(own.get("gates", {}).get("merge")),
-        "rules": rules_status(project), "ruflo": ruflo_cli(),
+        "rules": rules, "ruflo": ruflo_cli(),
         "session": None,  # proposal 20, V-02: named by a ledger's or the declaration's own `session`
     }
     read: list[Path] = []
@@ -551,6 +616,8 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
         state["problems"].append(f"checkpoint is {cs} -- run: tracker checkpoint --project {project}")
         state["chain"].append(("✗", f"checkpoint {cpath.relative_to(project) if cpath else ''} · {cs}".replace("  ", " ")))
     state["checkpoint"] = cs
+    # Proposal 21, S-09: each mandatory Standard change since the stamp.
+    state["problems"].extend(rules_problems)
 
     workflow = RULES_DIR / "CLAUDE-workflow.md"
     if workflow.is_file():
@@ -674,7 +741,11 @@ def card(s: dict) -> str:
         out.append(f"  merge gate    {s['test_command']} -- what land runs")
     else:
         out.append(f"  test command  {s['test_command'] or 'none found -- land will land on the gate alone'}")
-    out.append(f"  rules         {s['rules']}")
+    # The rules value is one line, or (S-09) a count and one shown() heading
+    # per line; see rules_status().
+    first, *headings = str(s["rules"]).split("\n")
+    out.append(f"  rules         {first}")
+    out += [f"                  {h}" for h in headings]
     out.append(f"  ruflo         {'CLI at ' + s['ruflo'] + ' -- not run by warm-up; the loop runs per item, stop the daemon you start' if s['ruflo'] else 'CLI NOT FOUND -- Ruflo is mandatory: stop and report'}")
     for r in s["recall"]:
         out.append(f"Recall for {shown(r['item'])} ({' '.join(r['words'])}): {len(r['hits'])} hit(s)")
