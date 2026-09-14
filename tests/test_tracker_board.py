@@ -270,13 +270,16 @@ class TestReviewRoundOne(unittest.TestCase):
         self.assertEqual(sorted(ids), ["S-01", "S-02", "S-03", "W-01", "W-02", "W-03"])
 
     def test_board_and_list_search_the_same_text(self):
+        # Round 2: the search string is stored once, on the card; the page's
+        # script gives each list row its card's string, so the page is not
+        # doubled in size and the two views cannot drift apart.
         two_ledgers(self.p)
         self.p.run()
         text = self.p.page.read_text()
         cards = dict(re.findall(r'<article class="card"[^>]*data-id="([^"]+)"[^>]*data-search="([^"]*)"', text))
-        rows = dict(re.findall(r'<tr class="row"[^>]*data-id="([^"]+)"[^>]*data-search="([^"]*)"', text))
         self.assertEqual(len(cards), 6)
-        self.assertEqual(cards, rows)
+        self.assertNotRegex(text, r'<tr class="row"[^>]*data-search=')
+        self.assertIn("rows.forEach", text)
         self.assertIn("waits on the sponsor", cards["W-03"])
         self.assertIn("blocked", cards["W-03"])
 
@@ -318,6 +321,64 @@ class TestReviewRoundOne(unittest.TestCase):
         self.assertIsNotNone(m)
         self.assertIn('data-owner="sponsor"', m.group(0))
         self.assertIn('data-search="', m.group(0))
+
+
+class TestReviewRoundTwo(unittest.TestCase):
+    """The final round's remaining findings on 1e3afa9, fixed by the lead."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.p = Project(Path(self._tmp.name))
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_inline_free_text_is_bidi_isolated(self):
+        self.p.write("19-x.json", ledger(19, "X", [
+            item("W-01", "in progress", log=[{"at": "2026-09-14T10:00:00+02:00", "event": "‮evt",
+                                              "by": "lead", "evidence": "e"}])]))
+        r = self.p.run("--name", "‮name")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        text = self.p.page.read_text()
+        self.assertIn("<bdi>‮evt</bdi>", text)
+        self.assertIn("<bdi>‮name</bdi>", text)
+
+    def test_search_text_is_lowercase_and_carries_the_status(self):
+        self.p.write("19-x.json", ledger(19, "X", [item("W-01", "in progress", title="Render The PAGE")]))
+        self.p.run()
+        m = re.search(r'<article class="card"[^>]*data-id="W-01"[^>]*data-search="([^"]*)"', self.p.page.read_text())
+        self.assertIsNotNone(m)
+        self.assertIn("w-01", m.group(1))
+        self.assertIn("in progress", m.group(1))
+        self.assertIn("render the page", m.group(1))
+        self.assertEqual(m.group(1), m.group(1).lower())
+
+    def test_requests_are_escaped_and_unblocks_is_a_list(self):
+        data = ledger(19, "X", [item("W-01", "not started")])
+        data["requests"] = [{"id": "RQ-01", "from": "session:<rf>", "to": "lead", "state": "open",
+                             "unblocks": ["W-01"]}]
+        self.p.write("19-x.json", data)
+        r = self.p.run()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        text = self.p.page.read_text()
+        self.assertNotIn("<rf>", text)
+        self.assertIn("unblocks W-01", text)
+        self.assertIn('data-request="RQ-01"', text)
+
+    def test_a_log_entry_that_is_not_an_object_does_not_crash(self):
+        self.p.write("19-x.json", ledger(19, "X", [item("W-01", "done", log=["just a string"])]))
+        r = self.p.run()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_the_asks_headers_follow_the_filters(self):
+        self.p.write("19-x.json", ledger(19, "X", [item("W-01", "done")], asks=[
+            {"id": "A-01", "at": "2026-09-14", "kind": "question", "state": "open", "quote": "open one"},
+            {"id": "A-02", "at": "2026-09-14", "kind": "decision", "state": "answered", "quote": "answered one"}]))
+        self.p.run()
+        text = self.p.page.read_text()
+        self.assertIn('id="attention"', text)
+        self.assertIn('id="answered-n"', text)
 
 
 if __name__ == "__main__":

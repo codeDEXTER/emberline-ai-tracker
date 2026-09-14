@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-14 20:24
+# Checkpoint — 2026-09-14 20:45
 
-Reason: manual · branch: p22 · HEAD: f97fada
+Reason: manual · branch: p22 · HEAD: 1e3afa9
 
-<!-- ledger-digest: 77c15f0f5a4fe7f64bbbfe01fb53d5baa3ce61b9831bc392ba46b58317e68334 -->
+<!-- ledger-digest: 198c4a06ddc301d2c08b795232456a18e57bc84b16c2648e83e576f426950fbc -->
 
 ## Proposal 19 · Warm-up
 
@@ -47,11 +47,11 @@ Reason: manual · branch: p22 · HEAD: f97fada
 
 ## Proposal 22 · One tracker per project
 
-0 done / 1 in progress / 0 blocked / 4 not started
+1 done / 0 in progress / 0 blocked / 4 not started
 
 ### In progress
 
-- T-01 · [ruflo · high · opus] · tracker board: the project's one tracker page · lead fix, round 1
+- none
 
 ### Blocked, and why
 
@@ -63,7 +63,7 @@ Reason: manual · branch: p22 · HEAD: f97fada
 
 ### Next unblocked
 
-- none
+- T-02 · [ruflo · high · opus] · The chain reads the project page, not one page per proposal
 
 ## Exact next action
 
