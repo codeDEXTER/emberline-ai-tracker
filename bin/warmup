@@ -158,52 +158,100 @@ def safety_heading_problems(project: Path, safety_rules, confine: bool) -> list[
     return out
 
 
-def declared_session(project: Path) -> str | None:
+def shown(value) -> str:
+    """A ledger or declaration value, safe to print on one line (proposal 20,
+    V-02 round 2, HIGH: switches by/at, requests from/to, ids, routing keys
+    and values and session all reach the card unescaped; a title of
+    "safe\\nwarmup --check: ready" forges a status line, the class
+    .common-rules.json was already hardened against in V-00). C0, DEL and C1
+    control characters become visible escapes ("\\n", "\\x1b", ...); a lone
+    surrogate -- valid inside a Python str, unprintable as UTF-8 -- becomes
+    U+FFFD. None becomes "". The result never contains a real control
+    character, so it is always exactly one line, however many are fed in."""
+    if value is None:
+        return ""
+    out = []
+    for ch in str(value):
+        cp = ord(ch)
+        if 0xD800 <= cp <= 0xDFFF:
+            out.append("�")
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\t":
+            out.append("\\t")
+        elif cp < 0x20 or cp == 0x7F or 0x80 <= cp <= 0x9F:
+            out.append(f"\\x{cp:02x}")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _session_problem(value, source: str) -> tuple[str | None, str | None]:
+    """(the clean session name, or None) · (None, the problem naming `source`).
+    Validated with tools/project.py's own one-line and UTF-8 checks, imported
+    rather than re-implemented -- the same rule a declared gate or read_order
+    entry already follows. An invalid session is never used for a request's
+    arrow direction (proposal 20, V-02 round 2)."""
+    if not isinstance(value, str) or not value.strip():
+        return None, f"{source}: session must be a non-empty string"
+    if not P._utf8(value):
+        return None, f"{source}: session is not valid UTF-8"
+    if not P._one_line(value):
+        return None, f"{source}: session must be one line"
+    return value.strip(), None
+
+
+def session_from_declaration(project: Path) -> tuple[str | None, str | None]:
     """The project's own session name, when .common-rules.json names one
     (proposal 20, V-02). Read directly: the declaration's schema (tools/
     project.py) does not carry this key yet, and a project may name itself
     without adopting anything else there."""
     path = project / P.FILE
     if not path.is_file():
-        return None
+        return None, None
     try:
         data = json.loads(path.read_text())
     except (OSError, ValueError):
-        return None
-    if isinstance(data, dict) and isinstance(data.get("session"), str) and data["session"].strip():
-        return data["session"].strip()
-    return None
+        return None, None  # P.problems() already names a broken declaration
+    if not isinstance(data, dict) or "session" not in data:
+        return None, None
+    return _session_problem(data["session"], P.FILE)
 
 
-def _is_model_name(value) -> bool:
-    """A routing target reads as one word (haiku, sonnet, gpt-4-mini): the
-    PhotoVault app's own model_routing carries a `note` key alongside the
-    words it routes -- a sentence, with spaces -- and that is not a fourth
-    row of the table, never mind a fifth model. Only what looks like a model
-    name is printed; the card stays one line, not a paragraph."""
-    return isinstance(value, str) and bool(value.strip()) and not re.search(r"\s", value.strip())
+def routing_table(data: dict) -> tuple[str, list[tuple[str, str]], int] | None:
+    """(label, [(key, model), ...], skipped) from the ledger's own `tiers`
+    (C1-C4) or, failing that, an app's `model_routing` keyed by complexity
+    words -- printed exactly as declared, through shown() at the card, never
+    translated between the two (D2). "TBD" and "claude sonnet 5" are honest
+    values, not malformed ones, so nothing is filtered on shape or length.
+    Skipped: a `note` key (an annotation, not a route -- never counted) and
+    any non-string, non-{model: str} value (counted, so the line can say how
+    many, round 2 finding 3)."""
+    def extract(table: dict) -> tuple[list[tuple[str, str]], int]:
+        rows, skipped = [], 0
+        for key, value in table.items():
+            if key == "note":
+                continue
+            if isinstance(value, str):
+                rows.append((key, value))
+            elif isinstance(value, dict) and isinstance(value.get("model"), str):
+                rows.append((key, value["model"]))
+            else:
+                skipped += 1
+        return rows, skipped
 
-
-def routing_table(data: dict) -> tuple[str, list[tuple[str, str]]] | None:
-    """(label, [(key, model), ...]) from the ledger's own `tiers` (C1-C4) or,
-    failing that, an app's `model_routing` keyed by complexity words -- printed
-    as declared, never translated between the two (proposal 20, D2 and V-02)."""
     tiers = data.get("tiers")
     if isinstance(tiers, dict):
-        table = [(cx, tiers[cx]["model"]) for cx in L.CLASSES
-                 if isinstance(tiers.get(cx), dict) and _is_model_name(tiers[cx].get("model"))]
-        if table:
-            return "tiers", table
+        rows, skipped = extract({cx: tiers[cx] for cx in L.CLASSES if cx in tiers})
+        if rows:
+            return "tiers", rows, skipped
     routing = data.get("model_routing")
     if isinstance(routing, dict):
-        table = []
-        for key, value in routing.items():
-            if _is_model_name(value):
-                table.append((key, value))
-            elif isinstance(value, dict) and _is_model_name(value.get("model")):
-                table.append((key, value["model"]))
-        if table:
-            return "model_routing", table
+        rows, skipped = extract(routing)
+        if rows:
+            return "model_routing", rows, skipped
     return None
 
 
@@ -343,10 +391,19 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             "requests": requests,
             "routing": routing_table(data),
         }
-        if state.get("session") is None and isinstance(data.get("session"), str) and data["session"].strip():
-            state["session"] = data["session"].strip()
+        if "session" in data:
+            clean, problem = _session_problem(data["session"], rel)
+            if problem:
+                state["problems"].append(problem)
+            elif state.get("session") is None:
+                state["session"] = clean
 
-    state["session"] = state.get("session") or declared_session(project)
+    if state.get("session") is None:
+        clean, problem = session_from_declaration(project)
+        if problem:
+            state["problems"].append(problem)
+        elif clean:
+            state["session"] = clean
 
     cs, cpath = checkpoint_state(project)
     if cpath is not None:
@@ -402,7 +459,9 @@ def _joined(items: list[str], sep: str = ", ", cap: int = 6) -> str:
 
 
 def _num(x) -> str:
-    return f"{x:g}"
+    """Always one decimal (round 2 finding 2): 23.3, 0.0 -- never a bare 0
+    that reads as though the part earned nothing was never measured."""
+    return f"{float(x):.1f}"
 
 
 def ledger_v2_lines(led: dict, session: str | None) -> list[str]:
@@ -410,31 +469,42 @@ def ledger_v2_lines(led: dict, session: str | None) -> list[str]:
     awaiting-evidence, the sponsor's "yours" line, switches that are off,
     requests both ways, and the project's routing table -- each only when the
     ledger has the data. Kept as one function, one line-kind at a time, so
-    V-09's "page changed since last publish" line is one more entry here."""
+    V-09's "page changed since last publish" line is one more entry here.
+    Every value that came from the ledger is routed through shown() here, at
+    the last moment before it is printed -- ids, owners, by/at, from/to,
+    routing keys and values -- so a forged newline or escape sequence in the
+    ledger can never reach the card as a real control character (round 2,
+    HIGH). This runs even when the ledger failed validate(): the card is
+    printed for an invalid ledger too, so the escaping cannot be conditional
+    on the ledger being well-formed."""
     lines: list[str] = []
     r = led.get("readiness")
     if r is not None:
         lines.append(f"  readiness    {r['readiness']}% (work {_num(r['work'])} · gates {_num(r['gates'])} · "
                      f"floors {_num(r['floors'])} · receipts {_num(r['receipts'])})")
     if led.get("merged_waiting"):
-        lines.append(f"  merged, awaiting evidence: {_joined(led['merged_waiting'])}")
+        lines.append(f"  merged, awaiting evidence: {_joined([shown(i) for i in led['merged_waiting']])}")
     if led.get("yours"):
-        lines.append(f"  {'yours':<13}{_joined(led['yours'])}")
+        lines.append(f"  {'yours':<13}{_joined([shown(i) for i in led['yours']])}")
     for sw in led.get("switches_off") or []:
-        lines.append(f"  {sw['name']} off (by {sw['by']}, {sw['at']})")
+        lines.append(f"  {shown(sw['name'])} off (by {shown(sw['by'])}, {shown(sw['at'])})")
     if led.get("requests"):
         parts = []
         for r in led["requests"]:
+            rid, frm, to, state = shown(r["id"]), shown(r["from"]), shown(r["to"]), shown(r["state"])
             if session and r["from"] == session:
-                parts.append(f"{r['id']} → {r['to']} ({r['state']})")
+                parts.append(f"{rid} → {to} ({state})")
             elif session and r["to"] == session:
-                parts.append(f"{r['id']} ← {r['from']} ({r['state']})")
+                parts.append(f"{rid} ← {frm} ({state})")
             else:
-                parts.append(f"{r['id']} {r['from']} → {r['to']} ({r['state']})")
+                parts.append(f"{rid} {frm} → {to} ({state})")
         lines.append("  requests: " + _joined(parts, sep=" · "))
     if led.get("routing"):
-        label, table = led["routing"]
-        lines.append(f"  {label}  " + "  ".join(f"{k}→{v}" for k, v in table))
+        label, table, skipped = led["routing"]
+        line = f"  {label}  " + "  ".join(f"{shown(k)}→{shown(v)}" for k, v in table)
+        if skipped:
+            line += f" (+{skipped} not shown)"
+        lines.append(line)
     return lines
 
 
@@ -447,18 +517,18 @@ def card(s: dict) -> str:
     else:
         out.append(f"Prohibitions: none found in {where} -- write them before any work")
     for rel, led in s["ledgers"].items():
-        out.append(f"Proposal {led['proposal']} · {led['title']}: {led['status_line']}")
+        out.append(f"Proposal {shown(led['proposal'])} · {shown(led['title'])}: {led['status_line']}")
         for iid, it in led["items"].items():
             if it["status"] == "in progress":
-                out.append(f"  in progress  {iid} {it['tag']} {it['title']}")
+                out.append(f"  in progress  {shown(iid)} {shown(it['tag'])} {shown(it['title'])}")
             elif it["status"] == "blocked":
-                out.append(f"  blocked      {iid} {it['tag']} {it['title']}")
+                out.append(f"  blocked      {shown(iid)} {shown(it['tag'])} {shown(it['title'])}")
         for iid, it in led["items"].items():
             if it["next"]:
-                out.append(f"  next         {iid} {it['tag']} {it['title']}")
+                out.append(f"  next         {shown(iid)} {shown(it['tag'])} {shown(it['title'])}")
         for aid, a in led["asks"].items():
             if a["state"] == "open":
-                out.append(f"  open ask     {aid} ({a['kind']}) “{a['quote']}”")
+                out.append(f"  open ask     {shown(aid)} ({shown(a['kind'])}) “{shown(a['quote'])}”")
         out += ledger_v2_lines(led, s.get("session"))
     out.append("Chain:")
     out += [f"  {mark} {text}" for mark, text in s["chain"]]
@@ -475,7 +545,7 @@ def card(s: dict) -> str:
     out.append(f"  rules         {s['rules']}")
     out.append(f"  ruflo         {'CLI at ' + s['ruflo'] + ' -- not run by warm-up; the loop runs per item, stop the daemon you start' if s['ruflo'] else 'CLI NOT FOUND -- Ruflo is mandatory: stop and report'}")
     for r in s["recall"]:
-        out.append(f"Recall for {r['item']} ({' '.join(r['words'])}): {len(r['hits'])} hit(s)")
+        out.append(f"Recall for {shown(r['item'])} ({' '.join(r['words'])}): {len(r['hits'])} hit(s)")
         out += [f"  {h}" for h in r["hits"]]
     out.append("Read in order: " + " → ".join(s["read_order"]))
     if s["problems"]:
