@@ -10,8 +10,10 @@
 <!--
   Written by common-rules bin/new-proposal from templates/proposal.html
   (proposal 21, S-02). Replace every highlighted passage; delete none of
-  the sections. Status lives in three places that must agree: the
-  proposal-status meta above, the <title>, and the <h1>.
+  the sections. The status appears in four places that must agree: the
+  proposal-status meta above, the <title>, the <h1>, and the
+  "Proposal NN · proposed DATE" line under the heading. The Decided
+  section below says exactly what to change when the sponsor answers.
 -->
 <style>
   :root {
@@ -44,7 +46,9 @@
   ol.decisions { background: var(--surface); border: 1px solid var(--border); margin: 12px 0 0; padding: 14px 20px 14px 44px; }
   ol.decisions li + li { margin-top: 6px; }
   .slot { border: 1px dashed var(--border); padding: 14px 20px; margin-top: 12px; color: var(--dim); }
+  .slot li + li { margin-top: 8px; }
   .m { font-family: var(--mono); font-size: .9em; }
+  pre.m { background: var(--surface); color: var(--ink); border: 1px solid var(--border); padding: 8px 12px; margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
   .fill { background: var(--fill); color: var(--fill-ink); padding: 0 3px; }
   .src { font-size: 13px; color: var(--dim); margin-top: 36px; }
 </style>
@@ -91,14 +95,20 @@
 
 <h2>Decided</h2>
 <section class="slot">
-  <p>Not decided yet. When the sponsor answers, in this same page:</p>
-  <ul>
-    <li>give this section the id <span class="m">decided</span>, and replace this text with his answer quoted from disk, the date, and what each of D1, D2 ... was decided as;</li>
-    <li>add the <span class="m">proposal-decided</span> meta with that date, and set the status to <span class="m">accepted</span> in the meta, the title and the heading;</li>
-    <li>add the items to the ledger beside this page (same number, <span class="m">.json</span>).</li>
-  </ul>
-  <p>The id is added by hand, on purpose. A page that shipped with an empty answers block would pass <span class="m">bin/proposalcheck</span> while recording nothing.</p>
-  <p><b>Completed in part.</b> A proposal closed as <span class="m">completed in part</span> also needs a block with the id <span class="m">exceptions</span> beside the decisions: what was not built, and why. The same rule applies: add it when it is true, never in advance.</p>
+  <p>Not decided yet. When the sponsor answers, change this page in this order.</p>
+  <ol>
+    <li><b>The date, first.</b> Copy this line into the head, directly under the status meta, and put the real date in place of YYYY-MM-DD:
+      <pre class="m">&lt;meta name="proposal-decided" content="YYYY-MM-DD"&gt;</pre>
+      Without it, bin/proposalcheck treats the page as decided before its rules existed and checks nothing.</li>
+    <li><b>Then the status.</b> Replace the proposed status meta with this line:
+      <pre class="m">&lt;meta name="proposal-status" content="accepted"&gt;</pre>
+      and change "proposed" to "accepted" in the title, the heading, and the "Proposal NN · proposed DATE" line under it.</li>
+    <li>Write both lines exactly as shown. Do not self-close them with <span class="m">/&gt;</span>: bin/proposalcheck does not read that form, and the page would read as undecided.</li>
+    <li>Give this section the id <span class="m">decided</span>, and replace this text with the sponsor's answer quoted from disk, the date, and what each of D1, D2 ... was decided as.</li>
+    <li>Add the items to the ledger beside this page (same number, <span class="m">.json</span>).</li>
+  </ol>
+  <p>The id is added by hand, on purpose. A page that shipped with an empty answers block would pass bin/proposalcheck while recording nothing.</p>
+  <p><b>Completed in part.</b> A proposal closed as <span class="m">completed in part</span> also needs a block with the id exceptions beside the <span class="m">&lt;ol class="decisions"&gt;</span> list, naming what was not built and why. The same rule applies: add it when it is true, never in advance.</p>
 </section>
 
 <p class="src"><span class="fill">Sources: every claim above, with the file, command, transcript or measurement it rests on, and what was not verified.</span></p>
