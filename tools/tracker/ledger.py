@@ -283,34 +283,48 @@ def merged_waiting(ledger: dict) -> list[str]:
 def readiness(ledger: dict) -> dict | None:
     """Readiness from the ledger's declared weights (D8), or None when it declares none.
 
-    Work: a done row earns its weight, a row in progress that is merged (or has
-    passing tests) earns half; weight defaults to 1. Gates, floors and receipts
-    score the share passed, met or captured. Never typed -- computed each time.
+    The PhotoVault app's tools/build_plan.py score(), generalised:
+      work      a done row earns its weight; a row in progress earns half only
+                when its focused tests pass (evidence.tests is true). Merged
+                code earns nothing until it is done: merged_waiting() shows it.
+                A row's weight is size_weights[size] when the ledger declares
+                size_weights, else its own `weight`, else 1. Dropped rows are
+                left out.
+      gates     the share passed; floors the share met (rounded to 0.1 before
+                the total, as the app does).
+      receipts  the share of native_receipts recorded, over primary_surfaces
+                when declared, else over every receipt key.
+    Never typed: computed each time from the rows.
     """
     w = ledger.get("readiness_weights")
     if not isinstance(w, dict):
         return None
-    rows = items(ledger)
-    total = sum(float(i.get("weight", 1)) for i in rows) or 1.0
+    sizes = ledger.get("size_weights") if isinstance(ledger.get("size_weights"), dict) else None
+
+    def weight(i: dict) -> float:
+        if sizes is not None and i.get("size") in sizes:
+            return float(sizes[i["size"]])
+        return float(i.get("weight", 1))
+
+    rows = [i for i in items(ledger) if i.get("status") != "dropped"]
+    total = sum(weight(i) for i in rows) or 1.0
     earned = 0.0
     for i in rows:
-        weight = float(i.get("weight", 1))
         ev = i.get("evidence") if isinstance(i.get("evidence"), dict) else {}
         if i.get("status") == "done":
-            earned += weight
-        elif i.get("status") == "in progress" and (i.get("merged") not in (None, False, "") or ev.get("tests") is True):
-            earned += weight / 2
+            earned += weight(i)
+        elif i.get("status") == "in progress" and ev.get("tests") is True:
+            earned += weight(i) / 2
     gates = [g for g in (ledger.get("gates") or []) if isinstance(g, dict)]
     floors = [f for f in (ledger.get("quality_floors") or []) if isinstance(f, dict)]
     native = ledger.get("native_receipts") if isinstance(ledger.get("native_receipts"), dict) else {}
-    part = {
-        "work": round(float(w.get("work", 0)) * earned / total, 1),
-        "gates": round(float(w.get("gates", 0)) * sum(1 for g in gates if g.get("passed") is True) / len(gates), 1) if gates else 0.0,
-        "floors": round(float(w.get("floors", 0)) * sum(1 for f in floors if f.get("met") is True) / len(floors), 1) if floors else 0.0,
-        "receipts": round(float(w.get("receipts", 0)) * sum(1 for v in native.values() if v) / len(native), 1) if native else 0.0,
-    }
-    part["readiness"] = round(sum(part.values()))
-    return part
+    surfaces = ledger.get("primary_surfaces") if isinstance(ledger.get("primary_surfaces"), list) else list(native)
+    work = float(w.get("work", 0)) * earned / total
+    gate = float(w.get("gates", 0)) * sum(1 for g in gates if g.get("passed") is True) / (len(gates) or 1)
+    floor = round(float(w.get("floors", 0)) * sum(1 for f in floors if f.get("met") is True) / (len(floors) or 1), 1)
+    receipt = float(w.get("receipts", 0)) * sum(1 for s in surfaces if native.get(s)) / (len(surfaces) or 1)
+    return {"work": round(work, 1), "gates": round(gate, 1), "floors": floor,
+            "receipts": round(receipt, 1), "readiness": round(work + gate + floor + receipt)}
 
 
 def find(project) -> list[Path]:
