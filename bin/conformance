@@ -119,11 +119,17 @@ THE TWELVE RULES
      a Ruflo step -- `ruflo-item`, `post-task` or `memory store`,
      case-insensitive. The bare word "ruflo" does not count.
 10 Publishing recorded. Every docs/proposals/tracker/*.published.json is
-   well-formed. One beside its ledger is read by bin/warmup's own
-   publish_state(), and a problem it names does not hold. One without a
-   ledger is read with tools/tracker/render.published_problems(), and never
-   through a symlink or outside DIR. "Page changed since publish" is a
-   to-do, not a failure. No sidecar holds.
+   well-formed. index.published.json, the project page's record (proposal 22,
+   T-03), is read by bin/warmup's own project_publish_state(). A per-ledger
+   record beside its ledger is read by bin/warmup's publish_state(), but only
+   for a ledger that records its own tracker (`tracker.own`) or where
+   .common-rules.json declares plan_page; a leftover per-ledger sidecar of any
+   other ledger does not hold -- nothing renders or publishes that page any
+   more -- and the fix is to `git rm` it and record the project page with
+   `tracker published --project`. A sidecar with no ledger at all is read with
+   tools/tracker/render.published_problems(). None is read through a symlink
+   or from outside DIR. "Page changed since publish" is a to-do, not a
+   failure. No sidecar holds.
 11 CLAUDE.md pointer. A CLAUDE.md that is a symlink, or resolves outside the
    project, is not read and does not hold -- the policy of items 5 and 10.
    CLAUDE.md contains the `<!-- common-rules:warmup -->`
@@ -816,8 +822,16 @@ def check_publishing(ctx: Context) -> Result:
     sidecars = sorted(tracker.glob("*.published.json")) if tracker.is_dir() else []
     if not sidecars:
         return holds("no published page recorded")
-    bad = []
+    plan_page = "plan_page" in ctx.declared()
+    bad, leftover = [], False
     for sidecar in sidecars:
+        if sidecar.name == B.PUBLISHED_NAME:
+            # Proposal 22, T-03: the project's one page, read as bin/warmup reads it.
+            _pub, problem, _label = W.project_publish_state(
+                ctx.root, B.default_out(ctx.root), [d for _p, d, err in ctx.ledgers() if not err])
+            if problem:
+                bad.append(problem)
+            continue
         stem = sidecar.name[:-len(".published.json")]
         ledger = ctx.root / "docs" / "proposals" / f"{stem}.json"
         data = None
@@ -827,6 +841,13 @@ def check_publishing(ctx: Context) -> Result:
             except (OSError, ValueError):
                 data = None
         if isinstance(data, dict):
+            if not (L.own_tracker(data) or plan_page or W.records_a_page(sidecar)):
+                # T-03: nothing renders or publishes this page any more.
+                leftover = True
+                bad.append(f"{ctx.rel(sidecar)} records a page for {stem}.json, which records no tracker of its "
+                           f"own -- the project publishes one page, and that record is "
+                           f"docs/proposals/tracker/{B.PUBLISHED_NAME}")
+                continue
             _pub, problem, _label = W.publish_state(ctx.root, ledger, data, R.default_out(ledger))
             if problem:
                 bad.append(problem)
@@ -844,9 +865,12 @@ def check_publishing(ctx: Context) -> Result:
         if problems:
             bad.append(f"{rel} is malformed: {'; '.join(problems)}")
     if bad:
-        return not_hold("; ".join(bad[:3]) + (f" (+{len(bad) - 3} more)" if len(bad) > 3 else ""),
-                        f"republish the page and record it with {RULES_DIR}/bin/tracker published <ledger> --url "
-                        f"<url> (--page <path> for a declared plan_page), then commit the sidecar on its own")
+        record = (f"republish the page and record it with {RULES_DIR}/bin/tracker published --project "
+                  f"{ctx.root} --url <url>, then commit the sidecar on its own (a ledger with a tracker of "
+                  f"its own, or a declared plan_page: tracker published <ledger> --url <url> [--page <path>])")
+        if leftover:
+            record = "git rm the per-ledger sidecar named above, then " + record
+        return not_hold("; ".join(bad[:3]) + (f" (+{len(bad) - 3} more)" if len(bad) > 3 else ""), record)
     return holds(f"{len(sidecars)} publish record(s), each well-formed")
 
 

@@ -7,11 +7,15 @@
   tracker sync     ...                 mirror items to GitHub issues, one way      (W-04)
   tracker checkpoint ...               write docs/handovers/<date>-checkpoint.md   (W-07)
   tracker import   ...                 an existing plan -> a ledger                (W-09)
-  tracker published LEDGER.json --url URL [--by NAME] [--page PATH]
-                                       record the page a session just published    (P20 V-09;
-                                       --page is required when plan_page is declared, V-11)
   tracker board [--project DIR] [--check]
                                        every ledger -> the project's one tracker page (P22 T-01)
+  tracker published --project [DIR] --url URL [--by NAME]
+                                       record the project page a session just       (P22 T-03)
+                                       published: docs/proposals/tracker/index.html
+  tracker published LEDGER.json --url URL [--by NAME] [--page PATH]
+                                       record a page of its own: a ledger that       (P20 V-09;
+                                       records `tracker.own`, or the declared         V-11;
+                                       plan_page with --page                          P22 T-03)
 
 Each command is a module in tools/tracker/ with a `main(argv) -> int`, so
 commands built in parallel never edit the same file.
