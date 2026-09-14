@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-14 18:04
+# Checkpoint — 2026-09-14 18:16
 
-Reason: manual · branch: p21 · HEAD: e4165d5
+Reason: manual · branch: p21 · HEAD: bce07d6
 
-<!-- ledger-digest: 1bd444a8633985abdde6e1666a9604e2e3fbff4c2d134c70971a837e619bf6b5 -->
+<!-- ledger-digest: 4e05320eac48f159b54f83f63b39fad4f143173c46e86898847210ed58b69341 -->
 
 ## Proposal 19 · Warm-up
 
@@ -26,11 +26,11 @@ Reason: manual · branch: p21 · HEAD: e4165d5
 
 ## Proposal 21 · The standard is mandatory
 
-7 done / 1 in progress / 0 blocked / 2 not started
+8 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
-- S-10 · [ruflo · lead · lead model] · common-rules on its own standard · review passed
+- none
 
 ### Blocked, and why
 
