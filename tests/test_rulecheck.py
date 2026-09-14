@@ -353,5 +353,288 @@ class TheChangelogIsEvidenceNotVerdict(unittest.TestCase):
                       "bin/rulecheck no longer prints this heading -- update verdict()")
 
 
+# --- Proposal 21, S-09: unimplemented Standard changes ----------------------
+
+MARKER = "**Standard change (mandatory):**"
+
+
+class FakeRules:
+    """A throwaway rules repo whose CHANGELOG a test writes one entry at a time.
+
+    Hermetic for the same reason as TheChangelogIsEvidenceNotVerdict: a test
+    that read the real CHANGELOG would change meaning every time an entry is
+    written. tests/test_warmup.py imports this too."""
+
+    SEED = "## 2026-01-01 · Seed\n\nNothing here.\n"
+
+    def __init__(self, parent: Path):
+        self.root = Path(parent) / "rules"
+        self.root.mkdir()
+        for a in (("init", "-q", "-b", "main"), ("config", "user.email", "t@example.com"),
+                  ("config", "user.name", "t")):
+            self.git(*a)
+        (self.root / "CLAUDE-workflow.md").write_text("# rules\n")
+        self.blocks: list[str] = []          # newest first
+        self.seed = self.SEED
+        self._write()
+        self.commit("seed")
+
+    def git(self, *a):
+        return subprocess.run(["git", "-C", str(self.root), *a], capture_output=True, text=True, check=False)
+
+    def commit(self, msg="entry"):
+        self.git("add", "-A")
+        self.git("commit", "-qm", msg)
+
+    def _write(self):
+        (self.root / "CHANGELOG.md").write_text("# Changelog\n\n" + "".join(self.blocks) + self.seed)
+
+    def add(self, heading: str, mandatory: str | None = None, body: str = "Why it changed.\n") -> str:
+        block = f"## {heading}\n\n{body}\n"
+        if mandatory is not None:
+            block += f"{MARKER} {mandatory}\n\n"
+        self.blocks.insert(0, block)
+        self._write()
+        self.commit()
+        return self.version()
+
+    def write_raw(self, raw: bytes) -> str:
+        (self.root / "CHANGELOG.md").write_bytes(raw)
+        self.commit()
+        return self.version()
+
+    def version(self) -> str:
+        count = self.git("rev-list", "--count", "HEAD").stdout.strip()
+        sha = self.git("rev-parse", "--short", "HEAD").stdout.strip()
+        return f"{count}-{sha}"
+
+
+def load_rulecheck():
+    """bin/rulecheck as a module -- how bin/warmup and bin/conformance use it."""
+    import importlib.machinery
+    import importlib.util
+    loader = importlib.machinery.SourceFileLoader("rulecheck_under_test", str(RULECHECK))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    mod = importlib.util.module_from_spec(spec)
+    loader.exec_module(mod)
+    return mod
+
+
+def raw_controls(text: str) -> list[str]:
+    """Characters that must never reach a terminal raw: C0 other than the
+    newline that ends a line, DEL, C1, and the bidi/invisible set."""
+    return [c for c in text if (ord(c) < 0x20 and c != "\n") or 0x7F <= ord(c) <= 0x9F
+            or c in "\u202e\u200b\u2066\ufeff"]
+
+
+class MandatoryStandardChanges(unittest.TestCase):
+    """`rulecheck --mandatory`: the CHANGELOG entries since the stamp that carry
+    a `**Standard change (mandatory):**` line. The sponsor ruled (P21, A-03)
+    that each is implemented before the stamp moves; this is what makes one
+    visible. Exit 0 nothing to do, 1 pending, 2 could not check."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = Path(self._tmp.name)
+        self.rules = FakeRules(self.tmp)
+        self.proj = self.tmp / "app"
+        self.proj.mkdir()
+        (self.proj / "CLAUDE.md").write_text(POINTER)
+
+    def stamp(self, version: str):
+        (self.proj / STAMP).write_text(version + "\n")
+
+    def mandatory(self, *extra):
+        return run(self.proj, "--mandatory", *extra, rules_dir=self.rules.root)
+
+    def test_a_stamp_before_one_mandatory_entry_is_pending_and_named(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat in every project")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("1 mandatory Standard change(s)", r.stdout)
+        self.assertIn("2026-09-14 · Reheat is mandatory", r.stdout)
+        self.assertIn("run derecord --reheat in every project", r.stdout)
+
+    def test_a_stamp_before_only_informational_entries_has_nothing_to_do(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · A wording fix")
+        self.rules.add("2026-09-14 · Another note", body=f"Mentions `{MARKER}` in passing.\n")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("no mandatory Standard change", r.stdout)
+        self.assertNotIn("A wording fix", r.stdout)
+
+    def test_aligned_past_the_entry_has_nothing_to_do(self):
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
+        self.stamp(self.rules.version())
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("Reheat is mandatory", r.stdout)
+
+    def test_an_informational_entry_after_the_aligned_one_stays_informational(self):
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-15 · A wording fix")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("Reheat is mandatory", r.stdout)
+
+    def test_two_mandatory_entries_count_two(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · First", "do one")
+        self.rules.add("2026-09-14 · Informational")
+        self.rules.add("2026-09-15 · Second", "do two")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("2 mandatory Standard change(s)", r.stdout)
+        rc = load_rulecheck()
+        pending = rc.mandatory_pending(self.proj, rules=self.rules.root)
+        self.assertEqual(pending.state, "behind")
+        self.assertEqual([e.heading for e in pending.entries], ["2026-09-15 · Second", "2026-09-14 · First"])
+        self.assertEqual(pending.entries[0].line, f"{MARKER} do two")
+
+    def test_a_marker_added_to_an_older_entry_counts_under_that_heading(self):
+        self.stamp(self.rules.version())
+        self.rules.seed = FakeRules.SEED + f"\n{MARKER} added later\n"
+        self.rules.add("2026-09-14 · Unrelated")
+        pending = load_rulecheck().mandatory_pending(self.proj, rules=self.rules.root)
+        self.assertEqual([(e.heading, e.line) for e in pending.entries],
+                         [("2026-01-01 · Seed", f"{MARKER} added later")])
+
+    def test_a_wrapped_standard_change_is_quoted_whole(self):
+        """The real CHANGELOG wraps the paragraph: the first run on the
+        PhotoVault app quoted "...the standard reads" and cut off what the
+        project must do. The line runs to the next blank line or heading."""
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · Wrapped", "a project that has adopted the standard reads\n"
+                                                "the entries since its stamp at each /warmup.\n"
+                                                "## 2026-09-14 · Next heading, not part of it")
+        pending = load_rulecheck().mandatory_pending(self.proj, rules=self.rules.root)
+        self.assertEqual([e.line for e in pending.entries],
+                         [f"{MARKER} a project that has adopted the standard reads "
+                          "the entries since its stamp at each /warmup."])
+        r = self.mandatory()
+        self.assertIn("the entries since its stamp at each /warmup.", r.stdout)
+        self.assertNotIn("Next heading, not part of it", r.stdout.split("Wrapped", 1)[1])
+
+    def test_only_a_line_that_starts_with_the_marker_counts(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · Examples", body=f"  {MARKER} indented, an example\n"
+                                                     f"> {MARKER} quoted\n"
+                                                     f"a line that ends with {MARKER}\n")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_malformed_changelogs_never_traceback(self):
+        cases = {
+            "not utf-8, with a NUL": b"\xff\xfe\x00garbage\n## \xc3(\n" + MARKER.encode() + b" broken bytes\n",
+            "marker before any heading": MARKER.encode() + b" no heading at all\n",
+            "crlf line endings": b"# Changelog\r\n\r\n## CRLF\r\n\r\n" + MARKER.encode() + b" crlf\r\n",
+            "empty": b"",
+            "no trailing newline": b"## Last\n\n" + MARKER.encode() + b" eof",
+            "a lone heading marker": b"## \n##\n#\n",
+        }
+        for name, raw in cases.items():
+            with self.subTest(case=name):
+                self.stamp(self.rules.version())
+                self.rules.write_raw(raw)
+                r = self.mandatory()
+                self.assertNotIn("Traceback", r.stderr, r.stderr)
+                self.assertIn(r.returncode, (0, 1, 2))
+                if name in ("marker before any heading", "crlf line endings", "no trailing newline",
+                            "not utf-8, with a NUL"):
+                    self.assertEqual(r.returncode, 1, f"{name}: the marker line was missed\n{r.stdout}")
+        with self.subTest(case="CHANGELOG deleted"):
+            self.stamp(self.rules.version())
+            self.rules.git("rm", "-q", "CHANGELOG.md")
+            self.rules.commit()
+            r = self.mandatory()
+            self.assertNotIn("Traceback", r.stderr, r.stderr)
+            self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        for bad in ("", "garbage", "1-", "1-zzzzzzz", "1-" + "a" * 41, "-\x1b[2J"):
+            with self.subTest(stamp=bad):
+                self.stamp(bad)
+                r = self.mandatory()
+                self.assertNotIn("Traceback", r.stderr, r.stderr)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertEqual(raw_controls(r.stdout + r.stderr), [])
+
+    def test_a_heading_with_control_characters_is_escaped(self):
+        self.stamp(self.rules.version())
+        heading = "2026-09-14 · evil\x1b[31m\x0bforged\x0c\u202eend\x85 \x7f"
+        self.rules.add(heading, "line\x1b[2Jtwo")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertEqual(raw_controls(r.stdout), [], repr(r.stdout))
+        self.assertIn("evil\\x1b[31m\\x0bforged\\x0c\\u202eend\\x85 \\x7f", r.stdout)
+        self.assertEqual(sum("evil" in line for line in r.stdout.splitlines()), 1)
+
+    def test_rulecheck_escapes_exactly_as_the_card_does(self):
+        """Two escapers would drift; this pins bin/rulecheck's to warmup's shown()."""
+        import importlib.machinery
+        import importlib.util
+        loader = importlib.machinery.SourceFileLoader("warmup_under_test", str(ROOT / "bin" / "warmup"))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        warmup = importlib.util.module_from_spec(spec)
+        loader.exec_module(warmup)
+        rc = load_rulecheck()
+        for s in ("plain · text → ok", "a\nb\rc\td", "\x00\x1b\x7f\x85\x9f", "\u202e\u200b\u2066\ufeff",
+                  "\ud800 lone", "ZWJ \u200d stays", None, 7):
+            with self.subTest(value=repr(s)):
+                self.assertEqual(rc.shown(s), warmup.shown(s))
+
+    def test_mandatory_writes_nothing(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
+
+        def snapshot():
+            # Every file, the rules repo's .git included, by content and mtime.
+            # No `git status` here: it can refresh .git/index itself.
+            return {str(p.relative_to(self.tmp)): (p.stat().st_mtime_ns, p.read_bytes())
+                    for p in self.tmp.rglob("*") if p.is_file()}
+        before = snapshot()
+        self.mandatory()
+        self.mandatory("--quiet")
+        self.assertEqual(before, snapshot())
+
+    def test_a_stamp_that_is_not_a_sha_is_never_handed_to_git(self):
+        """A stamp is a committed file in someone else's project. Its sha part
+        went into `git diff <sha>..HEAD` unchecked, so a stamp of
+        `1---output=<path>` made rulecheck -- a read-only check -- create a file."""
+        target = self.tmp / "pwned"
+        self.stamp(f"1---output={target}")
+        for args in ((), ("--mandatory",)):
+            with self.subTest(args=args):
+                r = run(self.proj, *args, rules_dir=self.rules.root)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertEqual(sorted(p.name for p in self.tmp.iterdir() if p.name.startswith("pwned")), [])
+
+    def test_align_still_just_records_the_version(self):
+        """--align's semantics are not changed: the docs forbid aligning past an
+        unimplemented entry, and the card is what makes that visible."""
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
+        r = run(self.proj, "--align", rules_dir=self.rules.root)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual((self.proj / STAMP).read_text().strip(), self.rules.version())
+
+    def test_no_stamp_lists_every_mandatory_entry_in_the_changelog(self):
+        self.rules.add("2026-09-14 · First", "do one")
+        self.rules.add("2026-09-15 · Second", "do two")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("2 mandatory Standard change(s)", r.stdout)
+        pending = load_rulecheck().mandatory_pending(self.proj, rules=self.rules.root)
+        self.assertEqual((pending.state, len(pending.entries)), ("no stamp", 2))
+
+    def test_a_non_adopting_project_could_not_check(self):
+        (self.proj / "CLAUDE.md").write_text("Deliberately separate.\n")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("does not adopt", r.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -8,6 +8,7 @@ before any work starts, and shows *what* changed rather than only that
 something did.
 
   rulecheck                 # compare this project against current, list what changed
+  rulecheck --mandatory     # only the Standard change entries since the stamp (proposal 21, S-09)
   rulecheck --align         # record the current version, after reading the changes
   rulecheck --version       # print the current rules version and exit
   rulecheck --quiet         # print nothing when aligned (for hooks)
@@ -33,13 +34,34 @@ adoption is now read rather than assumed, from the pointer README.md already
 prescribes: a project adopts by referencing CLAUDE-workflow.md in its own
 CLAUDE.md. Deriving it from that pointer means there is no second list to drift
 out of date — the declaration and the check are the same fact.
+
+MANDATORY STANDARD CHANGES (proposal 21, S-09; the sponsor's ruling A-03). A
+CHANGELOG entry that changes the standard carries a line beginning
+`**Standard change (mandatory):**`, and every adopting project implements it
+before its stamp moves past it. `--mandatory` lists the entries that carry
+such a line among the lines added to CHANGELOG.md since the stamp -- the same
+`<stamp sha>..HEAD` delta the plain report quotes -- each under its `## `
+heading. Exit 0 nothing to do (aligned, or behind only on information), 1
+entries pending (or, with no stamp, the CHANGELOG carries any), 2 could not
+check. `mandatory_pending()` is the same answer for bin/warmup's card and
+bin/conformance. `--align` is unchanged: it records the version and nothing
+else. Aligning past an unimplemented entry is forbidden by /standard, and the
+card failing is what makes that visible, not a refusal here.
+
+A stamp is a committed file in the project, not something this tool wrote, so
+its sha part reaches git only when it is a hex sha. It used to go into
+`git diff <sha>..HEAD` unchecked: a stamp of `1---output=<path>` made this
+read-only check create a file.
 """
+from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 # Self-located, not a hardcoded path. The default used to be
 # "/Users/aashish/apps/common-rules" -- correct on exactly one machine, and
@@ -57,15 +79,66 @@ STAMP = ".common-rules-version"
 GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
                         "/usr/bin/git") if Path(g).exists()), "git")
 
+MARKER = "**Standard change (mandatory):**"
+NO_HEADING = "(before the first ## heading)"
+_SHA = re.compile(r"[0-9a-f]{4,40}")
+_HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+
 
 def git(*args, cwd=RULES):
-    r = subprocess.run([GIT, "-C", str(cwd), *args], capture_output=True, text=True)
+    # errors="replace": a CHANGELOG that is not UTF-8 is a malformed record,
+    # not a reason for a traceback.
+    r = subprocess.run([GIT, "-C", str(cwd), *args], capture_output=True, text=True, errors="replace")
     return r.stdout.strip() if r.returncode == 0 else None
 
 
-def current_version():
-    count, sha = git("rev-list", "--count", "HEAD"), git("rev-parse", "--short", "HEAD")
+def _read(cwd, *args):
+    """git's stdout exactly -- unstripped, so line numbers still line up -- or None."""
+    try:
+        r = subprocess.run([GIT, "-C", str(cwd), *args], capture_output=True, check=False)
+    except OSError:
+        return None
+    return r.stdout.decode("utf-8", errors="replace") if r.returncode == 0 else None
+
+
+def current_version(cwd=RULES):
+    count, sha = git("rev-list", "--count", "HEAD", cwd=cwd), git("rev-parse", "--short", "HEAD", cwd=cwd)
     return f"{count}-{sha}" if count and sha else None
+
+
+# Bidi controls and invisible characters; see shown().
+_REORDER_OR_HIDE = frozenset([0x061C, 0x200B, 0x200E, 0x200F, *range(0x202A, 0x202F),
+                              *range(0x2060, 0x2065), *range(0x2066, 0x206A), 0xFEFF])
+
+
+def shown(value) -> str:
+    """A value from a CHANGELOG or a stamp, safe to print on one line.
+
+    The same escaping as bin/warmup's shown(), which the card uses, and pinned
+    equal to it by tests/test_rulecheck.py. Copied rather than imported:
+    rulecheck is imported by warmup, and it must stay loadable on its own.
+    C0, DEL and C1 become visible escapes, a lone surrogate becomes U+FFFD,
+    bidi controls and invisible characters become \\uXXXX, None becomes ""."""
+    if value is None:
+        return ""
+    out = []
+    for ch in str(value):
+        cp = ord(ch)
+        if 0xD800 <= cp <= 0xDFFF:
+            out.append("�")
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\t":
+            out.append("\\t")
+        elif cp < 0x20 or cp == 0x7F or 0x80 <= cp <= 0x9F:
+            out.append(f"\\x{cp:02x}")
+        elif cp in _REORDER_OR_HIDE:
+            out.append(f"\\u{cp:04x}")
+        else:
+            out.append(ch)
+    return "".join(out)
 
 
 def find_project(start):
@@ -81,7 +154,7 @@ def find_project(start):
     return p
 
 
-def adopts_rules(proj):
+def adopts_rules(proj, rules=RULES):
     """Does this project declare that it follows the shared rules?
 
     README.md, "How a project adopts this": add a short pointer near the top of
@@ -94,7 +167,7 @@ def adopts_rules(proj):
     declared itself, and a check should never un-adopt a project because someone
     reworded its CLAUDE.md.
     """
-    if proj == RULES:
+    if proj == rules or Path(proj).resolve() == Path(rules).resolve():
         return False            # the rules do not adopt themselves
     if (proj / STAMP).exists():
         return True
@@ -107,8 +180,18 @@ def adopts_rules(proj):
         return False
 
 
+def stamp_sha(stamp_value):
+    """The commit a stamp's `<count>-<sha>` names, or None when the sha part is
+    not a hex sha. Checked before it reaches git as an argument: a stamp of
+    `1---output=<path>` otherwise becomes `git diff --output=<path>..HEAD`."""
+    sha = str(stamp_value).split("-", 1)[-1]
+    return sha if _SHA.fullmatch(sha) else None
+
+
 def changes_since(old_sha):
     """Lines added to CHANGELOG.md since that commit — the actual delta."""
+    if not old_sha or not _SHA.fullmatch(old_sha):
+        return None
     diff = git("diff", f"{old_sha}..HEAD", "--", "CHANGELOG.md")
     if diff is None:
         return None
@@ -121,14 +204,209 @@ def changes_since(old_sha):
     return out
 
 
+class Entry(NamedTuple):
+    """One CHANGELOG entry carrying a Standard change: its `## ` heading (without
+    the `## `) and, for every marker line in it that counted, that line's
+    paragraph joined onto one line, in file order. Raw: escape with shown()."""
+    heading: str
+    lines: tuple
+
+    @property
+    def line(self) -> str:
+        return self.lines[0]
+
+
+class Pending(NamedTuple):
+    """mandatory_pending()'s answer.
+
+    state    aligned · behind · no stamp · not adopting · could not check
+    stamp    the stamp as written (None with no stamp)
+    current  the rules version (None when the rules repo cannot be read)
+    entries  behind: the entries since the stamp; no stamp: every entry in the
+             CHANGELOG; otherwise empty. Topmost (newest) first.
+    why      for could not check, what could not be read"""
+    state: str
+    stamp: str | None
+    current: str | None
+    entries: tuple
+    why: str = ""
+
+
+def _entries(text, wanted=None):
+    """The entries in CHANGELOG text with a line starting MARKER, topmost first.
+
+    A marker line counts only at column 0 -- an indented, quoted or mid-line
+    mention is prose about the convention, not an instance of it. `wanted`
+    restricts marker lines to those 1-based line numbers (the lines added since
+    the stamp); None counts every one. Lines are split on "\\n" only, the way
+    git numbers them: str.splitlines() also splits on \\x0b, \\x0c, \\x85 and
+    U+2028, which would shift every line number after one.
+
+    The line's text is its whole paragraph: the marker line and the lines that
+    follow it up to a blank line, a `## ` heading or another marker line,
+    joined with single spaces. The CHANGELOG wraps at 80 columns, and the
+    first physical line alone cut off what the project must do."""
+    found: dict[int, tuple[str, list[str]]] = {}
+    heading_at, heading = 0, NO_HEADING
+    lines = [raw[:-1] if raw.endswith("\r") else raw for raw in text.split("\n")]
+    for i, line in enumerate(lines):
+        n = i + 1
+        if line.startswith("## "):
+            # strip(" \t") only: str.strip() would also eat a trailing \x85 or
+            # \x0c, and those must reach shown() to be escaped, not vanish.
+            heading_at, heading = n, (line[3:].strip(" \t") or "(untitled heading)")
+            continue
+        if line.startswith(MARKER) and (wanted is None or n in wanted):
+            parts = [line.rstrip(" \t")]
+            for nxt in lines[i + 1:]:
+                if not nxt.strip(" \t") or nxt.startswith("## ") or nxt.startswith(MARKER):
+                    break
+                parts.append(nxt.strip(" \t"))
+            found.setdefault(heading_at, (heading, []))[1].append(" ".join(parts))
+    return tuple(Entry(h, tuple(ls)) for _, (h, ls) in sorted(found.items()))
+
+
+def _added_line_numbers(diff):
+    """1-based line numbers, in the new file, of every line a -U0 diff adds."""
+    added, n = set(), None
+    for line in diff.split("\n"):
+        m = _HUNK.match(line)
+        if m:
+            n = int(m.group(1))
+            continue
+        if n is None:
+            continue
+        if line.startswith("+"):
+            added.add(n)
+            n += 1
+        elif line.startswith(" "):
+            n += 1
+        elif line.startswith("-") or line.startswith("\\"):
+            pass
+        else:
+            n = None            # a file header: not hunk content
+    return added
+
+
+def mandatory_in_changelog(rules=RULES):
+    """Every Standard change entry in the rules CHANGELOG at HEAD, or None when
+    it cannot be read."""
+    head = _read(rules, "show", "--no-textconv", "HEAD:CHANGELOG.md")
+    return None if head is None else _entries(head)
+
+
+def mandatory_since(sha, rules=RULES):
+    """The Standard change entries among the CHANGELOG lines added since `sha`
+    -- the same `<sha>..HEAD` delta changes_since() quotes -- or None when that
+    cannot be told (not a sha, not a commit here, no CHANGELOG at HEAD).
+
+    Edge cases, all deliberate: a marker line added inside an older entry
+    counts, under that entry's heading; an entry whose marker line was reworded
+    counts again, because what it asks changed; an entry moved within the file
+    counts again, because a diff cannot tell a move from an addition --
+    conservative, and cleared by aligning. --text, because a NUL byte would
+    otherwise make git print "Binary files differ" and hide every line."""
+    if not sha or not _SHA.fullmatch(sha):
+        return None
+    if _read(rules, "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}") is None:
+        return None
+    head = _read(rules, "show", "--no-textconv", "HEAD:CHANGELOG.md")
+    if head is None:
+        return None
+    diff = _read(rules, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--text", "-U0",
+                 f"{sha}..HEAD", "--", "CHANGELOG.md")
+    if diff is None:
+        return None
+    return _entries(head, _added_line_numbers(diff))
+
+
+def mandatory_pending(project, rules=None) -> Pending:
+    """What `project` must implement before its stamp may move. Reads only."""
+    rules = Path(rules) if rules is not None else RULES
+    proj = Path(project).resolve()
+    cur = current_version(rules)
+    if not cur:
+        return Pending("could not check", None, None, (), f"cannot read the rules repo at {rules}")
+    if not adopts_rules(proj, rules):
+        return Pending("not adopting", None, cur, ())
+    stamp = proj / STAMP
+    if not stamp.exists():
+        whole = mandatory_in_changelog(rules)
+        if whole is None:
+            return Pending("could not check", None, cur, (), "the rules CHANGELOG.md cannot be read")
+        return Pending("no stamp", None, cur, whole)
+    try:
+        was = stamp.read_text(errors="replace").strip()
+    except OSError:
+        return Pending("could not check", None, cur, (), f"{STAMP} cannot be read")
+    if was == cur:
+        return Pending("aligned", was, cur, ())
+    sha = stamp_sha(was)
+    if sha is None:
+        return Pending("could not check", was, cur, (), f"{STAMP} does not name a commit")
+    since = mandatory_since(sha, rules)
+    if since is None:
+        return Pending("could not check", was, cur, (),
+                       f"cannot read the rules CHANGELOG.md since {sha} -- that commit is not in the "
+                       f"rules repo, or CHANGELOG.md is gone")
+    return Pending("behind", was, cur, since)
+
+
+def report_mandatory(proj, quiet):
+    p = mandatory_pending(proj)
+    name = shown(proj.name)
+    if p.state == "could not check":
+        print(f"{name}: could not check for mandatory Standard changes -- {shown(p.why)}. "
+              f"Not guessing: re-read the rules in full.")
+        return 2
+    if p.state == "not adopting":
+        if not quiet:
+            if proj == RULES:
+                print(f"common-rules is the rules themselves — nothing to align against. "
+                      f"Current version: {p.current}.")
+            else:
+                print(f"{name} does not adopt the shared rules — nothing to check.")
+        return 2
+    if p.state == "aligned":
+        if not quiet:
+            print(f"{name} is aligned with common-rules {p.current} -- no mandatory Standard change pending.")
+        return 0
+    if not p.entries:
+        if not quiet:
+            if p.state == "no stamp":
+                print(f"{name} has never recorded a rules version (current: {p.current}); the rules "
+                      f"CHANGELOG carries no mandatory Standard change.")
+            else:
+                print(f"{name} is on common-rules {shown(p.stamp)}; current is {p.current}: no mandatory "
+                      f"Standard change since the stamp -- what changed is information. Read it "
+                      f"(`rulecheck`), then `rulecheck --align`.")
+        return 0
+    n = len(p.entries)
+    if p.state == "no stamp":
+        print(f"{name} has never recorded a rules version (current: {p.current}). The rules CHANGELOG "
+              f"carries {n} mandatory Standard change(s) -- implement each first, then `rulecheck --align`:")
+    else:
+        print(f"{name} is on common-rules {shown(p.stamp)}; current is {p.current}. {n} mandatory "
+              f"Standard change(s) since the stamp -- implement each first, then `rulecheck --align`:")
+    for e in p.entries:
+        print(f"  {shown(e.heading)}")
+        for line in e.lines:
+            print(f"    {shown(line)}")
+    return 1
+
+
 def main():
     ap = argparse.ArgumentParser(prog="rulecheck", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--project", default=None, help="default: nearest project above cwd")
     ap.add_argument("--align", action="store_true", help="record the current version")
+    ap.add_argument("--mandatory", action="store_true",
+                    help="list the Standard change entries since the stamp; exit 1 while any is pending")
     ap.add_argument("--version", action="store_true", help="print current version, exit")
     ap.add_argument("--quiet", action="store_true", help="say nothing when aligned")
     a = ap.parse_args()
+    if a.align and a.mandatory:
+        ap.error("--mandatory reads; --align writes. Run them separately.")
 
     cur = current_version()
     if not cur:
@@ -141,6 +419,9 @@ def main():
 
     proj = Path(a.project).resolve() if a.project else find_project(os.getcwd())
     stamp = proj / STAMP
+
+    if a.mandatory:
+        return report_mandatory(proj, a.quiet)
 
     if not adopts_rules(proj):
         if proj == RULES:
@@ -188,11 +469,11 @@ def main():
             print(f"{proj.name} is aligned with common-rules {cur}.")
         return 0
 
-    print(f"{proj.name} is on common-rules {was}; current is {cur}.")
-    old_sha = was.split("-", 1)[-1]
-    added = changes_since(old_sha)
+    print(f"{proj.name} is on common-rules {shown(was)}; current is {cur}.")
+    old_sha = stamp_sha(was)
+    added = changes_since(old_sha) if old_sha else None
     if added is None:
-        print(f"Cannot diff from {old_sha} — that commit is not in this repo. "
+        print(f"Cannot diff from {shown(was)} — that is not a commit in this repo. "
               f"Re-read the rules in full rather than trusting the stamp.")
         return 2
     if added:
