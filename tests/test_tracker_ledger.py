@@ -166,5 +166,173 @@ class TestTheCommand(unittest.TestCase):
         self.assertNotIn("Traceback", r.stderr)
 
 
+APP_70 = Path("/Users/the-sponsor/apps/PhotoVault/app/docs/proposals/70-r9-delivery-plan.json")
+
+
+def v2(**over):
+    """A ledger using proposal 20's optional contract additions."""
+    d = minimal()
+    d["tiers"] = {"C2": {"tier": "medium", "model": "sonnet"}, "C3": {"tier": "high", "model": "opus"}}
+    d["items"][0]["model"] = "sonnet"
+    d["items"][1]["model"] = "opus"
+    d.update(over)
+    return d
+
+
+class TestRouting(unittest.TestCase):
+    """D2: one routing table, and a row's model agrees with it."""
+
+    def problems(self, d):
+        return "\n".join(ledger.validate(d))
+
+    def test_a_row_whose_model_disagrees_with_its_class_is_named(self):
+        d = v2(); d["items"][0]["model"] = "opus"
+        self.assertIn("W-01: model 'opus' disagrees with tiers C2 (sonnet)", self.problems(d))
+
+    def test_a_reason_allows_the_override(self):
+        d = v2(); d["items"][0]["model"] = "opus"; d["items"][0]["model_override_reason"] = "needs design"
+        self.assertEqual([], ledger.validate(d))
+
+    def test_no_tiers_means_no_routing_check(self):
+        d = minimal(); d["items"][0]["model"] = "anything"
+        self.assertEqual([], ledger.validate(d))
+
+
+class TestOwner(unittest.TestCase):
+    """D4: blocked rows and decisions say whose call they are."""
+
+    def test_the_three_owner_shapes_are_accepted(self):
+        d = minimal()
+        d["items"][1]["status"] = "blocked"; d["items"][1]["owner"] = "sponsor"
+        d["items"][2]["owner"] = "session:PhotoVault Engine"
+        d["asks"][0]["owner"] = "lead"
+        self.assertEqual([], ledger.validate(d))
+
+    def test_an_unknown_owner_is_named(self):
+        d = minimal(); d["items"][1]["owner"] = "boss"
+        self.assertIn("W-02: owner 'boss' is not sponsor, lead or session:<name>", "\n".join(ledger.validate(d)))
+
+    def test_waiting_on_lists_blocked_rows_and_open_asks_by_owner(self):
+        d = minimal()
+        d["items"][1]["status"] = "blocked"; d["items"][1]["owner"] = "sponsor"
+        d["items"][2]["status"] = "blocked"; d["items"][2]["owner"] = "session:PhotoVault Engine"
+        d["asks"][0]["owner"] = "sponsor"
+        self.assertEqual(["W-02", "A-01"], ledger.waiting_on(d, "sponsor"))
+        self.assertEqual(["W-03"], ledger.waiting_on(d, "session:PhotoVault Engine"))
+
+
+class TestSwitches(unittest.TestCase):
+    """D5: a project turns a part of the standard off, on the record."""
+
+    def test_a_recorded_switch_is_honoured(self):
+        d = minimal(switches={"issues": {"on": False, "by": "sponsor", "at": "2026-09-13T16:03", "quote": "skip GitHub issues for now"}})
+        self.assertEqual([], ledger.validate(d))
+        self.assertFalse(ledger.switch_on(d, "issues"))
+        self.assertTrue(ledger.switch_on(d, "publish"))
+        self.assertTrue(ledger.switch_on(minimal(), "issues"))
+
+    def test_a_misspelt_switch_is_a_problem_not_silently_ignored(self):
+        d = minimal(switches={"isues": {"on": False, "by": "sponsor", "at": "x"}})
+        self.assertIn("switches: 'isues' is not one of issues, publish, ruflo", "\n".join(ledger.validate(d)))
+
+    def test_off_without_who_is_a_problem(self):
+        d = minimal(switches={"issues": {"on": False}})
+        self.assertIn("switches.issues: off without `by` and `at`", "\n".join(ledger.validate(d)))
+
+
+class TestRequests(unittest.TestCase):
+    """D7: requests between sessions are rows both sides can read."""
+
+    def req(self, **over):
+        r = {"id": "RQ-01", "at": "2026-09-14", "from": "session:PhotoVault App", "to": "session:PhotoVault Engine",
+             "what": "Runner data mode", "unblocks": ["W-02", "all VL5 receipts after W-02"], "state": "open"}
+        r.update(over)
+        return r
+
+    def test_a_request_is_well_formed(self):
+        d = minimal(requests=[self.req()])
+        self.assertEqual([], ledger.validate(d))
+        self.assertEqual(["RQ-01"], [r["id"] for r in ledger.open_requests(d)])
+
+    def test_request_problems_are_named(self):
+        d = minimal(requests=[self.req(id="R1"), self.req(state="waiting"), self.req(unblocks=["W-99"]),
+                              self.req(id="RQ-02", state="answered")])
+        text = "\n".join(ledger.validate(d))
+        self.assertIn("R1: request id is not RQ-NN", text)
+        self.assertIn("RQ-01: state 'waiting'", text)
+        self.assertIn("unblocks W-99, which is not an item", text)
+        self.assertIn("RQ-02: answered without `answered_by`", text)
+
+
+class TestEvidenceAndVerify(unittest.TestCase):
+    """D6: done needs evidence, and a row names its verification level."""
+
+    def test_a_verify_level_must_be_on_the_ladder(self):
+        d = minimal(verification_ladder=[{"level": "VL1"}, {"level": "VL5"}])
+        d["items"][1]["verify"] = "VL5"
+        self.assertEqual([], ledger.validate(d))
+        d["items"][1]["verify"] = "VL9"
+        self.assertIn("W-02: verify 'VL9' is not a level on the verification ladder", "\n".join(ledger.validate(d)))
+
+    def test_done_without_declared_evidence_is_refused(self):
+        d = minimal(evidence_rule={"keys": ["tests", "review"]})
+        d["items"][0]["evidence"] = {"tests": True, "review": "n/a"}
+        self.assertEqual([], ledger.validate(d))
+        d["items"][0]["evidence"] = {"tests": True, "review": False}
+        self.assertIn("W-01: done without evidence: review", "\n".join(ledger.validate(d)))
+        del d["items"][0]["evidence"]
+        self.assertIn("W-01: done without evidence: tests, review", "\n".join(ledger.validate(d)))
+
+    def test_without_an_evidence_rule_nothing_is_required(self):
+        self.assertEqual([], ledger.validate(minimal()))
+
+
+class TestGatesFloorsReceiptsReadiness(unittest.TestCase):
+    """D8: gates, floors and receipts are data; readiness is computed."""
+
+    def test_shapes_are_checked(self):
+        d = minimal(gates=[{"id": "G0", "title": "Foundation", "passed": "yes"}],
+                    quality_floors=[{"title": "lint", "command": "x", "met": 1}],
+                    receipts=[{"item": "Z9", "commit": "abc"}])
+        text = "\n".join(ledger.validate(d))
+        self.assertIn("G0: `passed` must be true or false", text)
+        self.assertIn("quality_floors[0]: `met` must be true or false", text)
+        self.assertIn("receipts[0]: item Z9 is neither an item id nor a `was` id", text)
+
+    def test_a_receipt_may_name_an_old_id_through_was(self):
+        d = minimal(receipts=[{"item": "F5", "commit": "abc"}])
+        d["items"][0]["was"] = "F5"
+        self.assertEqual([], ledger.validate(d))
+
+    def test_merged_holds_a_commit_and_not_started_cannot_be_merged(self):
+        d = minimal()
+        d["items"][0]["merged"] = "4ad60f5"
+        d["items"][1]["status"] = "in progress"; d["items"][1]["merged"] = "bc948a8"
+        self.assertEqual([], ledger.validate(d))
+        self.assertEqual(["W-02"], ledger.merged_waiting(d))
+        d["items"][2]["merged"] = "e4595f9"
+        self.assertIn("W-03: merged but not started", "\n".join(ledger.validate(d)))
+
+    def test_readiness_is_none_without_declared_weights(self):
+        self.assertIsNone(ledger.readiness(minimal()))
+
+    def test_readiness_is_computed_from_the_declared_weights(self):
+        d = minimal(readiness_weights={"work": 70, "gates": 15, "floors": 10, "receipts": 5},
+                    gates=[{"id": "G0", "title": "a", "passed": True}, {"id": "G1", "title": "b", "passed": False}],
+                    quality_floors=[{"title": "lint", "command": "x", "met": True}],
+                    native_receipts={"library": True, "albums": False})
+        d["items"][1]["status"] = "in progress"; d["items"][1]["merged"] = "bc948a8"
+        r = ledger.readiness(d)
+        # work: done 1 + merged in progress 0.5 of 3 rows = 0.5 -> 35.0; gates 1/2 -> 7.5; floors 1/1 -> 10; receipts 1/2 -> 2.5
+        self.assertEqual({"work": 35.0, "gates": 7.5, "floors": 10.0, "receipts": 2.5, "readiness": 55}, r)
+
+
+class TestTheRealLedgersUnderV2(unittest.TestCase):
+
+    @unittest.skipUnless(APP_70.exists(), f"{APP_70} is not on this machine")
+    def test_the_apps_converted_ledger_validates(self):
+        self.assertEqual([], ledger.validate(ledger.load(APP_70)))
+
+
 if __name__ == "__main__":
     unittest.main()

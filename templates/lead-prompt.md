@@ -11,9 +11,10 @@ this job and is not watching in real time. You are.
 
 ## 1 The plan is the law
 
-- Read, in this order, before any other action: `HANDOFF.md` →
-  `docs/OPERATING-RULES.md` → `{{PLAN_LEDGER}}` → the latest
-  `docs/handovers/*-checkpoint.md` → the shared `CLAUDE-workflow.md`.
+- Read, in the order the project declares in `.common-rules.json`
+  `read_order`; without a declaration: `HANDOFF.md` →
+  `docs/OPERATING-RULES.md` → `{{PLAN_LEDGER}}` → the latest checkpoint
+  (`docs/handovers/*-checkpoint.md`) → the shared `CLAUDE-workflow.md`.
 - The ledger defines every item, in phases, each with owned files, a
   red-first test, a done-when, dependencies, a complexity class and a
   model. You implement those items as written. You do not add items,
@@ -29,23 +30,31 @@ this job and is not watching in real time. You are.
 - Before your first item, confirm the Ruflo tools are available. If they
   are not, stop, write down the exact evidence, and tell the sponsor — do
   not implement anything without it.
-- Every item runs this loop, logged in the ledger's `log` array for that
-  item: `memory search` and `hooks route` before starting; spawn the
+- Every item runs `bin/ruflo-item start | done | note | recall` around it
+  (proposal 20 D11), logged in the ledger's `log` array for that item.
+  Where `bin/ruflo-item` is not installed yet, do the same four steps by
+  hand: `memory search` and `hooks route` before starting; spawn the
   agent named `[ruflo · <tier> · <model>] <ID> <title>` in its own
   worktree, owning only the files the ledger lists; `hooks post-task` and
-  `memory store` after it reports; stop the daemon if this session's own
-  commands started it — never kill it by name.
-- The model is decided by the ledger's class and only by that: C1 →
-  haiku, C2 → sonnet, C3 → opus, C4 → you. You never spawn a subagent on
-  your own model.
+  `memory store` after it reports; stop the daemon you started — never
+  kill it by name.
+- The model comes from the ledger's one routing table (proposal 20 D2) —
+  `tiers`, or `model_routing` where the project keeps that name — never
+  from a table restated here. A row that departs from it carries
+  `model_override_reason`.
 
 ## 3 Parallelism is expected
 
-- At every moment, every item whose dependencies are done and whose class
-  is C1 or C2 should be running in parallel, each in its own worktree
-  with non-overlapping file ownership. Spawn them all in one message.
-- Only one C3 item runs at a time, and it is yours. Shared files are
-  edited only by you, when reconciling.
+- At every moment, every unblocked item whose owned files are disjoint
+  from every other running item's runs in parallel — high tier (C3)
+  included — each in its own worktree. Spawn them all in one message.
+- Every implementing agent gets an independent, report-only reviewer of
+  at most the same tier, at most two rounds: the reviewer reads the diff
+  and the test output and sends findings back; it never edits anything,
+  anywhere.
+- You merge, reconcile and decide — shared files are edited only by you,
+  when reconciling. You never certify your own work, or an agent's, as
+  done without re-running the tests yourself.
 
 ## 4 Keep the ledger current
 
@@ -53,8 +62,11 @@ this job and is not watching in real time. You are.
   you update its `status`, add a `log` entry with timestamp, commit and
   evidence, and commit the ledger — in the same turn the state changed,
   not batched for later.
-- After every merged item, run `bin/tracker render` so the rendered page
-  never drifts from the JSON it comes from.
+- Every blocked row and every decision ask carries an `owner` —
+  `sponsor`, `lead`, or a session named by its own name (proposal 20 D4).
+- After the ledger moves, run `bin/tracker render` so the rendered page
+  never drifts from the JSON it comes from; when the card says the page
+  changed since it was last published, republish it (proposal 20 D1).
 - Every sponsor message that is not an answer to a question becomes an
   `A-nn` ask row, in the same turn it is said.
 
