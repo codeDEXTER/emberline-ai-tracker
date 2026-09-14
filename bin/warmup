@@ -177,6 +177,10 @@ def rules_status(project: Path) -> tuple[str, list[str]]:
         stamp = "(unreadable)" if p.stamp is None else shown(p.stamp)
         problem = ["rules stamp cannot be resolved -- rulecheck --align after implementing every "
                    "mandatory Standard change"]
+        # S-09 final review: --check named no entry; the card alone did.
+        problem += [f"mandatory Standard change not implemented: {e.heading} -- implement it first, then "
+                    f"rulecheck --align (rulecheck --project {project} --mandatory quotes what it asks)"
+                    for e in p.entries]
         if not p.entries:
             return f"stamp {stamp} cannot be resolved · the rules CHANGELOG carries no mandatory Standard change", problem
         lines = [f"stamp {stamp} cannot be resolved · {len(p.entries)} mandatory Standard change(s) "

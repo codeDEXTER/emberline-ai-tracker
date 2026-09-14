@@ -1433,6 +1433,23 @@ class TestMandatoryStandardChanges(Case):
                                  f"to implement first:")
                 self.assertEqual([l.strip() for l in block[1:]], ["2026-09-14 · First"])
 
+    def test_an_unresolvable_stamp_names_each_entry_in_check(self):
+        """S-09 final review (C): --check said only that the stamp cannot be resolved."""
+        self.rules.add("2026-09-14 · First", "do one")
+        self.stamp("3-deadbee")
+        r = self.warm("--check")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("mandatory Standard change not implemented: 2026-09-14 · First", r.stdout)
+
+    def test_a_diverged_stamp_fails_check_naming_the_new_entry(self):
+        """S-09 final review (A), end to end."""
+        self.rules.add("2026-09-14 · Here", "already here")
+        self.stamp(self.rules.ahead("2026-09-15 · Side", "side only"))
+        self.rules.add("2026-09-16 · New on main", "do the new thing")
+        r = self.warm("--check")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("2026-09-16 · New on main", r.stdout)
+
     def test_an_unresolvable_stamp_fails_check_with_no_mandatory_entry(self):
         self.stamp("3-deadbee")
         r = self.warm("--check")
