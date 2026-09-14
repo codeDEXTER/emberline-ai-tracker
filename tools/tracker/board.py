@@ -49,6 +49,12 @@ def e(value) -> str:
     return html.escape("" if value is None else str(value), quote=True)
 
 
+def b(value) -> str:
+    """Escaped free text inside <bdi>, for text that sits inline beside other
+    text: a bidi override in a ledger value then reorders only itself (round 2)."""
+    return f"<bdi>{e(value)}</bdi>"
+
+
 def slug(status: str) -> str:
     return "s-" + str(status).replace(" ", "-")
 
@@ -121,8 +127,14 @@ def item_search(item: dict, number) -> str:
                        f'#{item["issue"]}' if item.get("issue") else None, *log)
 
 
+def log_entries(item: dict) -> list[dict]:
+    """The item's log entries that are objects. ledger.validate lets a string
+    through, and the page must not crash on one (round 2)."""
+    return [x for x in (item.get("log") or []) if isinstance(x, dict)]
+
+
 def last_entry(item: dict) -> dict:
-    log = item.get("log") or []
+    log = log_entries(item)
     return log[-1] if log else {}
 
 
@@ -140,11 +152,11 @@ def item_card(item: dict, number, repo) -> str:
         meta.append(f'<span class="issue">{R.issue_cell(item.get("issue"), repo)}</span>')
     reason = (f'<p class="why">{e(last.get("evidence"))}</p>'
               if status == "blocked" and last.get("evidence") else "")
-    lastline = (f'<p class="last"><span class="event">{e(last.get("event"))}</span> '
+    lastline = (f'<p class="last"><span class="event">{b(last.get("event"))}</span> '
                 f'<time>{e(when(last.get("at")))}</time></p>' if last else '<p class="last dim">no entries yet</p>')
-    log = item.get("log") or []
+    log = log_entries(item)
     entries = "".join(
-        f'<li><time>{e(when(x.get("at")))}</time> <b>{e(x.get("event"))}</b> <span class="by">{e(x.get("by"))}</span>'
+        f'<li><time>{e(when(x.get("at")))}</time> <b>{b(x.get("event"))}</b> <span class="by">{b(x.get("by"))}</span>'
         f'{"<p>" + e(x.get("evidence")) + "</p>" if x.get("evidence") else ""}</li>'
         for x in log)
     details = (f'<details><summary>Log · {len(log)} {"entry" if len(log) == 1 else "entries"}</summary>'
@@ -161,28 +173,29 @@ def item_row(item: dict, number, repo) -> str:
     status = item.get("status", "")
     last = last_entry(item)
     owner = item.get("owner") or ""
+    # No data-search here (round 2): the page's script gives each row its
+    # card's string, so the text is stored once and the views cannot drift.
     return (f'<tr class="row" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
-            f'data-status="{e(status)}" data-owner="{e(owner)}" data-tier="{e(item.get("tier") or "")}" '
-            f'data-search="{e(item_search(item, number))}">'
+            f'data-status="{e(status)}" data-owner="{e(owner)}" data-tier="{e(item.get("tier") or "")}">'
             f'<td class="id">{e(item.get("id"))}</td><td class="pnum">P{e(number)}</td>'
             f'<td>{e(item.get("title"))}</td>'
             f'<td><span class="pill {slug(status)}">{e(status)}</span></td>'
             f'<td class="mono">{e(owner) or "—"}</td>'
             f'<td class="mono">{e(item.get("tag") or item.get("cx"))}</td>'
             f'<td class="mono">{R.issue_cell(item.get("issue"), repo)}</td>'
-            f'<td class="mono">{e(last.get("event") or "—")} <span class="dim">{e(when(last.get("at")))}</span></td></tr>')
+            f'<td class="mono">{b(last.get("event") or "—")} <span class="dim">{e(when(last.get("at")))}</span></td></tr>')
 
 
 def ask_row(ask: dict, number) -> str:
     owner = ask.get("owner") or ""
-    became = f' <span class="dim">→ {e(ask.get("became"))}</span>' if ask.get("became") else ""
+    became = f' <span class="dim">→ {b(ask.get("became"))}</span>' if ask.get("became") else ""
     search = search_text(ask.get("id"), f"p{number}", ask.get("kind"), ask.get("quote"), owner, ask.get("became"))
     return (f'<li class="ask" data-ask="{e(ask.get("id"))}" data-proposal="{e(number)}" '
             f'data-owner="{e(owner)}" data-search="{e(search)}">'
             f'<span class="id">{e(ask.get("id"))}</span><span class="pnum">P{e(number)}</span>'
             f'<span class="kind">{e(ask.get("kind"))}</span>'
             f'<q>{e(ask.get("quote"))}</q>'
-            f'<span class="asked">{e(when(ask.get("at")))}{" · owner " + e(owner) if owner else ""}{became}</span></li>')
+            f'<span class="asked">{e(when(ask.get("at")))}{" · owner " + b(owner) if owner else ""}{became}</span></li>')
 
 
 def request_row(req: dict, number) -> str:
@@ -242,7 +255,7 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo) -> str:
         f'<button class="proposal" type="button" data-proposal="{e(n)}" aria-pressed="false">'
         f'<span class="pn">{e(n)}</span>'
         f'<span class="pt">{e(d.get("title"))}</span>'
-        f'<span class="ps">{e(d.get("status"))} · {c["done"]}/{sum(c.values())} done'
+        f'<span class="ps">{b(d.get("status"))} · {c["done"]}/{sum(c.values())} done'
         f'{" · " + str(c["blocked"]) + " blocked" if c["blocked"] else ""}</span>'
         f'{mini_bar(c)}</button>'
         for n, d, c in proposals)
@@ -259,8 +272,9 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo) -> str:
     attention = ""
     if open_asks or requests:
         rows = "".join(ask_row(a, n) for n, a in open_asks) + "".join(request_row(r, n) for n, r in requests)
-        attention = (f'<section class="attention"><h2>Waiting for an answer '
-                     f'<span class="n">{len(open_asks) + len(requests)}</span></h2><ul class="asks">{rows}</ul></section>')
+        attention = (f'<section class="attention" id="attention"><h2>Waiting for an answer '
+                     f'<span class="n" id="attention-n">{len(open_asks) + len(requests)}</span></h2>'
+                     f'<ul class="asks">{rows}</ul></section>')
 
     columns = []
     for status in COLUMNS:
@@ -278,7 +292,8 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo) -> str:
     if answered:
         rows = "".join(ask_row(a, n) for n, a in sorted(answered, key=lambda t: str(t[1].get("at") or ""),
                                                         reverse=True))
-        answered_block = (f'<details class="answered"><summary>Answered asks · {len(answered)}</summary>'
+        answered_block = (f'<details class="answered" id="answered"><summary>Answered asks · '
+                          f'<span id="answered-n">{len(answered)}</span></summary>'
                           f'<ul class="asks">{rows}</ul></details>')
 
     title = f"{name} tracker"
@@ -295,7 +310,7 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo) -> str:
         '&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap">\n'
         f"<style>{CSS}</style>\n"
         '<main class="wrap">'
-        f'<header class="top"><p class="eyebrow">{e(name)} · {len(ledgers)} '
+        f'<header class="top"><p class="eyebrow">{b(name)} · {len(ledgers)} '
         f'{"proposal" if len(ledgers) == 1 else "proposals"} · {total} items · updated {e(updated)}</p>'
         f'<h1>Tracker</h1>'
         f'<section class="totals" data-done="{totals["done"]}" data-in-progress="{totals["in progress"]}" '
@@ -442,6 +457,10 @@ SCRIPT = r"""
   var state = {proposal: "", statuses: [], owner: "", tier: "", q: "", view: "board"};
   try { var v = localStorage.getItem("tracker-view"); if (v === "list" || v === "board") state.view = v; } catch (e) {}
   var items = $$("[data-item]");
+  var searchById = {};
+  $$("article[data-item]").forEach(function(card){ searchById[card.dataset.id] = card.dataset.search || ""; });
+  var rows = $$("tr[data-item]");
+  rows.forEach(function(row){ row.dataset.search = searchById[row.dataset.id] || ""; });
   function match(el, ignoreStatus){
     var d = el.dataset;
     if (state.proposal && d.proposal !== state.proposal) return false;
@@ -480,6 +499,19 @@ SCRIPT = r"""
       el.hidden = (!!state.proposal && d.proposal !== state.proposal) || (!!state.owner && d.owner !== state.owner)
         || (!!state.q && (d.search || "").indexOf(state.q) < 0);
     });
+    var visible = function(list){ return list.filter(function(el){ return !el.hidden; }).length; };
+    var attention = $("#attention");
+    if (attention) {
+      var waiting = visible($$("[data-ask],[data-request]", attention));
+      $("#attention-n").textContent = waiting;
+      attention.hidden = waiting === 0;
+    }
+    var answered = $("#answered");
+    if (answered) {
+      var done = visible($$("[data-ask]", answered));
+      $("#answered-n").textContent = done;
+      answered.hidden = done === 0;
+    }
     $$("[data-view]").forEach(function(b){ b.setAttribute("aria-pressed", b.dataset.view === state.view ? "true" : "false"); });
     $("#board").hidden = state.view !== "board";
     $("#list").hidden = state.view !== "list";
