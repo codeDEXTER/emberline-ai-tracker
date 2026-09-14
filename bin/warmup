@@ -16,8 +16,11 @@ status" (five). The card answers it from disk, in the same order every time,
 and asks nothing.
 
 WHAT --check FAILS ON, and what it only shows. It fails on what can be
-verified: a missing standard file, an invalid ledger, a rendered page or a
-checkpoint whose digest no longer matches its ledger, a file in the declared
+verified: a missing standard file, an invalid ledger, the project's one
+tracker page (docs/proposals/tracker/index.html, `tracker board`, proposal 22
+T-02) missing or no longer matching the ledgers, a per-ledger page only for a
+ledger that records its own tracker (`tracker.own`), a checkpoint whose digest
+no longer matches its ledger, a file in the declared
 read order (HANDOFF.md and docs/OPERATING-RULES.md, by default) still
 carrying {{PLACEHOLDERS}} a seed left for the lead, and a declared
 safety_rules heading that is not in its file (proposal 20, V-02), and each
@@ -87,6 +90,7 @@ RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
 from tools import project as P  # noqa: E402
+from tools.tracker import board as B  # noqa: E402
 from tools.tracker import checkpoint as CP  # noqa: E402
 from tools.tracker import ledger as L  # noqa: E402
 from tools.tracker import render as R  # noqa: E402
@@ -546,13 +550,19 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             state["chain"].append(("✗", f"ledger {rel} · {len(bad)} problem(s)"))
         else:
             state["chain"].append(("✓", f"ledger {rel} · well-formed"))
-        ps, page = page_state(lp)
-        prel = str(page.relative_to(project))
-        if ps == "ok":
-            state["chain"].append(("✓", f"page {prel} · matches the ledger"))
-        else:
-            state["problems"].append(f"page {prel} is {ps} -- run: tracker render {rel}")
-            state["chain"].append(("✗", f"page {prel} · {ps}"))
+        # Proposal 22, T-02: a per-ledger page only for a ledger that records
+        # its own tracker; the project page is checked once, after the loop.
+        own = L.own_tracker(data)
+        page = R.default_out(lp)
+        if own:
+            ps, _ = page_state(lp)
+            prel = str(page.relative_to(project))
+            if ps == "ok":
+                state["chain"].append(("✓", f"page {prel} · matches the ledger (its own tracker)"))
+            else:
+                state["problems"].append(f"page {prel} is {ps} -- run: tracker render {rel}")
+                state["chain"].append(("✗", f"page {prel} · {ps} -- run: tracker render {rel}"))
+        # The publish line still reads the per-ledger page (T-03 moves it).
         published, problem, label = publish_state(project, lp, data, page)
         if problem:
             state["problems"].append(problem)
@@ -584,6 +594,8 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             # Proposal 20, V-09 (D1): the page's last recorded publish, or
             # None with no sidecar or with switches.publish off.
             "published": published,
+            # Proposal 22, T-02: the sponsor asked for this proposal's own tracker.
+            "own_tracker": own,
         }
         if "session" in data:
             clean, problem = _session_problem(data["session"], rel)
@@ -591,6 +603,17 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
                 state["problems"].append(problem)
             elif state.get("session") is None:
                 state["session"] = clean
+
+    # Proposal 22, T-02: the project's one tracker page, one line. No ledger,
+    # no page to check -- the chain has already said so.
+    board_state, board_page = B.project_page_state(project)
+    if board_state != "none":
+        brel = str(board_page.relative_to(project))
+        if board_state == "ok":
+            state["chain"].append(("✓", f"page {brel} · matches the ledgers"))
+        else:
+            state["problems"].append(f"page {brel} is {board_state} -- run: tracker board --project .")
+            state["chain"].append(("✗", f"page {brel} · {board_state} -- run: tracker board --project ."))
 
     if state.get("session") is None:
         clean, problem = session_from_declaration(project)

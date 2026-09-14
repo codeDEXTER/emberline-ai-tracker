@@ -101,6 +101,22 @@ def freshness(paths: list[Path], page: Path) -> str:
     return "ok" if m and html.unescape(m.group(1)) == digests(paths) else "stale"
 
 
+def ledger_paths(project: Path) -> list[Path]:
+    """The ledgers the project page is rendered from, in file-name order."""
+    return sorted(L.find(project), key=lambda p: p.name)
+
+
+def project_page_state(project: Path) -> tuple[str, Path]:
+    """("none" | "ok" | "missing" | "stale", the project page). "none": the
+    project has no ledger, so it has no page to check (proposal 22, T-02 --
+    one answer for bin/warmup, bin/conformance and bin/new-proposal)."""
+    page = default_out(Path(project))
+    paths = ledger_paths(Path(project))
+    if not paths:
+        return "none", page
+    return freshness(paths, page), page
+
+
 # ---------------------------------------------------------------------------
 # pieces
 

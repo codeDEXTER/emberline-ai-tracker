@@ -447,27 +447,51 @@ class TestWhatCountsAsANumber(Scratch):
         self.assertEqual(self.listing(), [])
 
 
-class TestTrackerPage(Scratch):
-    def test_the_tracker_page_is_rendered_fresh_and_named(self):
+class ProjectPage(Scratch):
+    @property
+    def index(self) -> Path:
+        return self.proposals / "tracker" / "index.html"
+
+    def board_check(self):
+        return subprocess.run([sys.executable, str(TRACKER), "board", "--project", str(self.root), "--check"],
+                              capture_output=True, text=True, check=False)
+
+    def tracker_listing(self) -> list[str]:
+        folder = self.proposals / "tracker"
+        return sorted(p.name for p in folder.iterdir()) if folder.exists() else []
+
+
+class TestTrackerPage(ProjectPage):
+    """Proposal 22, T-02: a new proposal renders the project's one tracker
+    page, docs/proposals/tracker/index.html, not a page of its own."""
+
+    def test_the_project_page_is_rendered_fresh_and_named(self):
         r = self.run_new("Rendered")
         self.assert_ok(r)
-        ledger = self.proposals / "01-rendered.json"
-        page = self.proposals / "tracker" / "01-rendered.html"
-        self.assertTrue(page.is_file())
-        self.assertIn(str(page), r.stdout)
-        chk = subprocess.run([sys.executable, str(TRACKER), "render", str(ledger), "--check"],
-                             capture_output=True, text=True, check=False)
+        self.assertTrue(self.index.is_file())
+        self.assertIn(str(self.index), r.stdout)
+        self.assertIn("tracker board", r.stdout)
+        self.assertEqual(self.tracker_listing(), ["index.html"])
+        chk = self.board_check()
         self.assertEqual(chk.returncode, 0, chk.stdout + chk.stderr)
 
-    def test_an_existing_tracker_page_is_never_overwritten(self):
+    def test_an_existing_project_page_is_regenerated_to_carry_every_ledger(self):
+        self.assert_ok(self.run_new("First"))
+        self.index.write_text("an out-of-date page\n")
+        self.assert_ok(self.run_new("Second"))
+        text = self.index.read_text()
+        self.assertIn("First", text)
+        self.assertIn("Second", text)
+        self.assertEqual(self.board_check().returncode, 0)
+
+    def test_an_old_per_ledger_page_is_left_alone(self):
         existing = self.proposals / "tracker" / "01-rendered.html"
         existing.parent.mkdir(parents=True)
         existing.write_text("keep")
         r = self.run_new("Rendered")
-        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-        self.assertIn("tracker/01-rendered.html", r.stderr)
+        self.assert_ok(r)
         self.assertEqual(existing.read_text(), "keep")
-        self.assertEqual(self.listing(), ["tracker"])
+        self.assertEqual(self.tracker_listing(), ["01-rendered.html", "index.html"])
 
     def test_a_rejected_result_removes_the_tracker_page_too(self):
         self.seed("draft.html", '<meta name="proposal-id" content="01">\n'
@@ -475,6 +499,46 @@ class TestTrackerPage(Scratch):
         r = self.run_new("Collides by id")
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertFalse((self.proposals / "tracker").exists())
+
+    def test_a_rejected_result_restores_the_project_page_byte_for_byte(self):
+        self.assert_ok(self.run_new("First"))
+        before = "the page as it was • not regenerated\n".encode("utf-8") + b"\r\n"
+        self.index.write_bytes(before)
+        self.seed("draft.html", '<meta name="proposal-id" content="02">\n'
+                                '<meta name="proposal-status" content="proposed">\n')
+        r = self.run_new("Collides by id")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertEqual(self.index.read_bytes(), before)
+        self.assertEqual(self.listing(), ["01-first.html", "01-first.json", "draft.html", "tracker"])
+        self.assertEqual(self.tracker_listing(), ["index.html"])
+
+    def test_an_invalid_ledger_elsewhere_refuses_and_restores(self):
+        """The project page reads every ledger, and refuses to show numbers from
+        a broken one; the new proposal is then refused as a unit."""
+        self.assert_ok(self.run_new("First"))
+        before = self.index.read_bytes()
+        first = self.proposals / "01-first.json"
+        data = json.loads(first.read_text())
+        data["items"] = [{"id": "not-an-id", "status": "wip"}]
+        first.write_text(json.dumps(data))
+        r = self.run_new("Second")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("tracker board", r.stderr)
+        self.assertIn("01-first.json", r.stderr)
+        self.assertEqual(self.index.read_bytes(), before)
+        self.assertEqual(self.listing(), ["01-first.html", "01-first.json", "tracker"])
+
+    def test_a_symlinked_project_page_is_refused_and_nothing_written(self):
+        outside = Path(self._tmp.name) / "elsewhere.html"
+        outside.write_text("outside the project")
+        self.index.parent.mkdir(parents=True)
+        self.index.symlink_to(outside)
+        r = self.run_new("Linked")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("index.html", r.stderr)
+        self.assertEqual(outside.read_text(), "outside the project")
+        self.assertEqual(self.listing(), ["tracker"])
+        self.assertTrue(self.index.is_symlink())
 
 
 class TestOnlyTheNewPageIsMatched(Scratch):
@@ -687,21 +751,165 @@ class TestPageFor(Scratch):
         self.assertIn("21-second.json", r.stderr)
         self.assertNotIn("21-standard-is-mandatory.html", self.listing())
 
-    def test_renders_the_tracker_page_when_it_is_missing(self):
+    def test_renders_the_project_page(self):
+        """Proposal 22, T-02: the project page, not a per-ledger page."""
         self.seed_ledger()
         r = self.run_new("--page-for", self.REL)
         self.assert_ok(r)
-        self.assertTrue((self.proposals / "tracker" / "21-standard-is-mandatory.html").is_file())
-        self.assertIn("tracker", r.stdout)
+        index = self.proposals / "tracker" / "index.html"
+        self.assertTrue(index.is_file())
+        self.assertFalse((self.proposals / "tracker" / "21-standard-is-mandatory.html").exists())
+        self.assertIn(f"tracker  {index}", r.stdout)
+        self.assertIn("tracker board", r.stdout)
+        chk = subprocess.run([sys.executable, str(TRACKER), "board", "--project", str(self.root), "--check"],
+                             capture_output=True, text=True, check=False)
+        self.assertEqual(chk.returncode, 0, chk.stdout + chk.stderr)
 
-    def test_an_existing_tracker_page_is_left_alone(self):
+    def test_an_existing_per_ledger_page_is_left_alone(self):
         self.seed_ledger()
         (self.proposals / "tracker").mkdir()
         (self.proposals / "tracker" / "21-standard-is-mandatory.html").write_text("the owner's page")
         r = self.run_new("--page-for", self.REL)
         self.assert_ok(r)
         self.assertEqual((self.proposals / "tracker" / "21-standard-is-mandatory.html").read_text(), "the owner's page")
-        self.assertIn("render --check", r.stdout)
+        self.assertTrue((self.proposals / "tracker" / "index.html").is_file())
+        self.assertNotIn("render --check", r.stdout)
+
+
+class TestProjectPageIsRestored(InProcess):
+    """Proposal 22, T-02: new-proposal regenerates index.html, which most
+    projects already have. On any failure after that, the created files go and
+    index.html is put back byte for byte -- or removed if this run made it."""
+
+    REL = "docs/proposals/21-standard-is-mandatory.json"
+
+    @property
+    def index(self) -> Path:
+        return self.proposals / "tracker" / "index.html"
+
+    def crashing_proposalcheck(self):
+        crash = Path(self._tmp.name) / "crash.py"
+        crash.write_text("import sys\nsys.exit(3)\n")
+        tool = load_tool()
+        tool.PROPOSALCHECK = crash
+        return tool
+
+    def test_a_crashing_proposalcheck_restores_an_existing_project_page(self):
+        self.assert_ok(self.run_new("First"))
+        before = b"hand bytes, not what board writes\n"
+        self.index.write_bytes(before)
+        rc, out, err = self.call(self.crashing_proposalcheck(), "Second")
+        self.assertEqual(rc, 2, out + err)
+        self.assertEqual(self.index.read_bytes(), before)
+        self.assertEqual(self.listing(), ["01-first.html", "01-first.json", "tracker"])
+
+    def test_page_for_restores_an_existing_project_page(self):
+        self.seed("21-standard-is-mandatory.json", json.dumps(LEDGER_21))
+        self.index.parent.mkdir(parents=True)
+        before = b"the project page as committed\n"
+        self.index.write_bytes(before)
+        rc, out, err = self.call(self.crashing_proposalcheck(), "--page-for", self.REL)
+        self.assertEqual(rc, 2, out + err)
+        self.assertEqual(self.index.read_bytes(), before)
+        self.assertEqual(self.listing(), ["21-standard-is-mandatory.json", "tracker"])
+
+    def test_page_for_removes_a_project_page_it_created(self):
+        self.seed("21-standard-is-mandatory.json", json.dumps(LEDGER_21))
+        rc, out, err = self.call(self.crashing_proposalcheck(), "--page-for", self.REL)
+        self.assertEqual(rc, 2, out + err)
+        self.assertFalse(self.index.exists())
+        self.assertEqual(self.listing(), ["21-standard-is-mandatory.json"])
+
+    def test_page_for_is_refused_with_a_symlinked_project_page(self):
+        self.seed("21-standard-is-mandatory.json", json.dumps(LEDGER_21))
+        outside = Path(self._tmp.name) / "elsewhere.html"
+        outside.write_text("outside")
+        self.index.parent.mkdir(parents=True)
+        self.index.symlink_to(outside)
+        rc, out, err = self.call(load_tool(), "--page-for", self.REL)
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("index.html", err)
+        self.assertEqual(outside.read_text(), "outside")
+        self.assertEqual(self.listing(), ["21-standard-is-mandatory.json", "tracker"])
+
+
+CHILD = r'''
+import importlib.machinery, importlib.util, pathlib, sys
+loader = importlib.machinery.SourceFileLoader("new_proposal_child", sys.argv[1])
+spec = importlib.util.spec_from_loader(loader.name, loader)
+tool = importlib.util.module_from_spec(spec)
+loader.exec_module(tool)
+tool.PROPOSALCHECK = pathlib.Path(sys.argv[2])
+sys.exit(tool.main(sys.argv[3:]))
+'''
+
+
+class TestSignalsRollBack(ProjectPage):
+    """T-02 review round 1: SIGTERM or SIGHUP left the created files and a
+    changed index.html. Each now raises inside the run, so the same rollback
+    runs. A real signal, sent to this test's own child by its PID, while the
+    child waits on a proposalcheck that sleeps -- after the board was written."""
+
+    def interrupt(self, signum, *argv):
+        import signal
+        import time
+        tmp = Path(self._tmp.name)
+        marker = tmp / "checking.pid"
+        # A marker left by an earlier run in this test would send the signal
+        # before the child is ready (it would then die of the default action).
+        marker.unlink(missing_ok=True)
+        Path(str(marker) + ".part").unlink(missing_ok=True)
+        sleeper = tmp / "sleeper.py"
+        sleeper.write_text("import os, pathlib, time\n"
+                           f"part = pathlib.Path({str(marker) + '.part'!r})\n"
+                           "part.write_text(str(os.getpid()))\n"
+                           f"os.replace(part, {str(marker)!r})\n"
+                           "time.sleep(60)\n")
+        child = subprocess.Popen([sys.executable, "-c", CHILD, str(NEW_PROPOSAL), str(sleeper),
+                                  "--project", str(self.root), *argv],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            deadline = time.monotonic() + 30
+            while not marker.exists() and child.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.05)
+            self.assertTrue(marker.exists(), "the child never reached proposalcheck")
+            os.kill(child.pid, signum)
+            out, err = child.communicate(timeout=30)
+        finally:
+            if child.poll() is None:
+                os.kill(child.pid, signal.SIGKILL)
+                child.wait()
+            if marker.exists():
+                # The sleeper is this test's grandchild: stopped by its PID, and only
+                # if that PID is still the sleeper (never a recycled one).
+                pid = int(marker.read_text())
+                cmd = subprocess.run(["ps", "-p", str(pid), "-o", "command="],
+                                     capture_output=True, text=True).stdout
+                if str(sleeper) in cmd:
+                    os.kill(pid, signal.SIGKILL)
+        return child.returncode, out, err
+
+    def test_sigterm_and_sighup_roll_back_a_new_proposal(self):
+        import signal
+        self.assert_ok(self.run_new("First"))
+        before = b"the project page as committed\n"
+        for signum in (signal.SIGTERM, signal.SIGHUP):
+            with self.subTest(signal=signum.name):
+                self.index.write_bytes(before)
+                rc, out, err = self.interrupt(signum, "Second")
+                self.assertEqual(rc, 128 + signum, out + err)
+                self.assertIn(f"stopped by {signum.name}", err)
+                self.assertNotIn("Traceback", err)
+                self.assertEqual(self.listing(), ["01-first.html", "01-first.json", "tracker"])
+                self.assertEqual(self.index.read_bytes(), before)
+
+    def test_sigterm_rolls_back_page_for(self):
+        import signal
+        self.seed("21-standard-is-mandatory.json", json.dumps(LEDGER_21))
+        rc, out, err = self.interrupt(signal.SIGTERM, "--page-for", "docs/proposals/21-standard-is-mandatory.json")
+        self.assertEqual(rc, 128 + signal.SIGTERM, out + err)
+        self.assertEqual(self.listing(), ["21-standard-is-mandatory.json"])
+        self.assertFalse(self.index.exists())
 
 
 class TestSeries(unittest.TestCase):

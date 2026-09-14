@@ -39,9 +39,12 @@ THE TWELVE RULES
      anything else                    does not hold, saying which
    Without mandatory_pending() in RULES the item waits on common-rules.
  2 Migrated. tools/tracker/ledger.find() finds at least one ledger. Every
-   ledger found parses and validate()s. Each ledger's tracker page is
-   fresh: tools/tracker/render.freshness(), which is exactly what
-   `tracker render --check` calls.
+   ledger found parses and validate()s. The project's one tracker page,
+   docs/proposals/tracker/index.html, is fresh: tools/tracker/board.
+   project_page_state(), the digests `tracker board --check` compares
+   (proposal 22, T-02). A ledger that records its own tracker (`tracker.own`)
+   has a fresh page of its own too: render.freshness(), what `tracker render
+   --check` calls. No other ledger's per-proposal page is read.
  3 Declared. `.common-rules.json` exists, tools/project.problems() is empty,
    and tools/project.declared() -- only what the file validly declares, no
    defaults and no `.common-rules-test` fallback -- has read_order,
@@ -175,6 +178,7 @@ sys.path.insert(0, str(RULES_DIR))
 
 from tools import migrate as M  # noqa: E402
 from tools import project as P  # noqa: E402
+from tools.tracker import board as B  # noqa: E402
 from tools.tracker import ledger as L  # noqa: E402
 from tools.tracker import render as R  # noqa: E402
 
@@ -420,7 +424,11 @@ def check_migrated(ctx: Context) -> Result:
     if not ledgers:
         return not_hold("no ledger under docs/proposals (docs/proposals/NN-*.json with an items list)",
                         f"run {migrate}; a plan that is not a ledger yet becomes one with tracker import")
-    bad = []
+    bad, own_pages = [], 0
+    # Proposal 22, T-02: the project's one page first, so it is always named.
+    board_state, board_page = B.project_page_state(ctx.root)
+    if board_state != "ok":
+        bad.append(f"page {ctx.rel(board_page)} is {board_state}")
     for path, data, err in ledgers:
         rel = ctx.rel(path)
         if err:
@@ -430,15 +438,21 @@ def check_migrated(ctx: Context) -> Result:
         if problems:
             bad.append(f"{rel}: {len(problems)} problem(s), first: {problems[0]}")
             continue
+        if not L.own_tracker(data):
+            continue
         page = R.default_out(path)
         fresh = R.freshness(path, page)
         if fresh != "ok":
             bad.append(f"page {ctx.rel(page)} is {fresh}")
+        else:
+            own_pages += 1
     if bad:
         return not_hold("; ".join(bad[:3]) + (f" (+{len(bad) - 3} more)" if len(bad) > 3 else ""),
                         f"fix what {RULES_DIR}/bin/tracker validate names, then run {RULES_DIR}/bin/tracker "
-                        f"render <ledger> (the pre-commit hook does it on commit)")
-    return holds(f"{len(ledgers)} ledger(s), each valid, each page matching")
+                        f"board --project {ctx.root}, and {RULES_DIR}/bin/tracker render <ledger> for a ledger "
+                        f"that records its own tracker (the pre-commit hook does both on commit)")
+    return holds(f"{len(ledgers)} ledger(s), each valid, the project page matching"
+                 + (f", {own_pages} own tracker page(s) matching" if own_pages else ""))
 
 
 # --- 3 -----------------------------------------------------------------------

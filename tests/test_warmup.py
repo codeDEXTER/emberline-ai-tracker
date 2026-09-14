@@ -116,7 +116,14 @@ class Project:
         self.write(LEDGER, json.dumps(data, indent=2))
 
     def render(self):
+        """The project page (proposal 22, T-02), and the per-ledger page the
+        publish tests below still record (T-03 moves publishing)."""
         subprocess.run([sys.executable, str(TRACKER), "render", str(self.root / LEDGER)],
+                       capture_output=True, check=True)
+        self.board()
+
+    def board(self):
+        subprocess.run([sys.executable, str(TRACKER), "board", "--project", str(self.root)],
                        capture_output=True, check=True)
 
     def checkpoint(self):
@@ -200,6 +207,99 @@ class TestCheckOnASeededProject(Case):
         self.p.commit("all done")
         r = self.p.warmup("--check")
         self.assertEqual(0, r.returncode, r.stdout)
+
+
+BOARD = "docs/proposals/tracker/index.html"
+OWN_PAGE = "docs/proposals/tracker/19-proposal-warmup.html"
+OWN_TRACKER = {"own": True, "by": "sponsor", "at": "2026-09-14T21:00:00+02:00",
+               "quote": "this one gets a tracker of its own"}
+
+
+class TestOneProjectPage(Case):
+    """Proposal 22, T-02. The sponsor (A-01): "per project, there should be one
+    tracker unless and until specified for a proposal if I need another
+    tracker." The chain shows the project page once; a per-ledger page only
+    for a ledger that records its own tracker, and --check fails on nothing
+    else."""
+
+    def test_the_chain_names_the_project_page_once(self):
+        out = self.p.warmup().stdout
+        self.assertEqual(1, out.count(f"page {BOARD} · matches the ledgers"), out)
+        self.assertNotIn(OWN_PAGE, out)
+
+    def test_a_missing_project_page_fails_check_and_says_how(self):
+        (self.p.root / BOARD).unlink()
+        self.p.commit("page lost")
+        r = self.p.warmup("--check")
+        self.assertEqual(1, r.returncode, r.stdout)
+        self.assertIn(f"✗ page {BOARD} · missing", r.stdout)
+        self.assertIn("run: tracker board --project .", r.stdout)
+
+    def test_a_stale_project_page_fails_check_and_the_per_ledger_page_is_not_named(self):
+        self.p.set_ledger(ledger_data(w02="blocked"))
+        self.p.checkpoint()
+        self.p.commit("W-02 blocked, project page not rendered")
+        r = self.p.warmup("--check")
+        self.assertEqual(1, r.returncode, r.stdout)
+        self.assertIn(f"✗ page {BOARD} · stale", r.stdout)
+        self.assertIn("run: tracker board --project .", r.stdout)
+        self.assertNotIn(OWN_PAGE, r.stdout)
+        self.assertIn("warmup --check: 1 problem(s)", r.stdout)
+
+    def test_a_per_ledger_page_without_an_own_tracker_is_never_failed(self):
+        for body in (None, "an old per-proposal page\n"):
+            with self.subTest(page="missing" if body is None else "stale"):
+                page = self.p.root / OWN_PAGE
+                if body is None:
+                    page.unlink(missing_ok=True)
+                else:
+                    page.write_text(body)
+                self.p.commit("old per-ledger page")
+                r = self.p.warmup("--check")
+                self.assertEqual(0, r.returncode, r.stdout)
+                self.assertIn("warmup --check: ready", r.stdout)
+                self.assertNotIn(OWN_PAGE, r.stdout)
+
+    def test_a_ledger_with_its_own_tracker_has_its_page_checked(self):
+        d = ledger_data()
+        d["tracker"] = OWN_TRACKER
+        self.p.set_ledger(d)
+        self.p.board()
+        self.p.checkpoint()
+        (self.p.root / OWN_PAGE).unlink()
+        self.p.commit("own tracker, page not rendered")
+        r = self.p.warmup("--check")
+        self.assertEqual(1, r.returncode, r.stdout)
+        self.assertIn(f"✗ page {OWN_PAGE} · missing", r.stdout)
+        self.assertIn(f"run: tracker render {LEDGER}", r.stdout)
+        self.assertIn(f"✓ page {BOARD} · matches the ledgers", r.stdout)
+        self.p.render()
+        self.p.commit("own page rendered")
+        r = self.p.warmup("--check")
+        self.assertEqual(0, r.returncode, r.stdout)
+        self.assertIn(f"✓ page {OWN_PAGE} · matches the ledger (its own tracker)", r.stdout)
+        self.assertIn(f"✓ page {BOARD} · matches the ledgers", r.stdout)
+
+    def test_json_says_which_ledgers_have_their_own_tracker(self):
+        self.assertIs(False, json.loads(self.p.warmup("--json").stdout)["ledgers"][LEDGER]["own_tracker"])
+        d = ledger_data()
+        d["tracker"] = OWN_TRACKER
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.checkpoint()
+        self.p.commit("own tracker")
+        self.assertIs(True, json.loads(self.p.warmup("--json").stdout)["ledgers"][LEDGER]["own_tracker"])
+
+
+class TestNoLedgersNoProjectPage(Case):
+    seeded = False
+
+    def test_no_ledger_no_page_line(self):
+        r = self.p.warmup("--check")
+        self.assertEqual(1, r.returncode)
+        self.assertIn("ledger · none under docs/proposals", r.stdout)
+        self.assertNotIn("index.html", r.stdout)
+        self.assertNotIn("tracker board", r.stdout)
 
 
 class TestNotARepo(unittest.TestCase):
