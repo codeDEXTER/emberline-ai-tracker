@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-14 18:22
+# Checkpoint — 2026-09-14 18:44
 
-Reason: manual · branch: p21 · HEAD: 94b939e
+Reason: manual · branch: p21 · HEAD: 8981397
 
-<!-- ledger-digest: 91b9c8a66cd23a62e7f2c0bc125a56a6e31cfb8195b98372c8431c53b85b7320 -->
+<!-- ledger-digest: e2d76d9bf1a9b1edbc2296f22e054893ee42bad579262130f02b8647540384b3 -->
 
 ## Proposal 19 · Warm-up
 
@@ -26,7 +26,7 @@ Reason: manual · branch: p21 · HEAD: 94b939e
 
 ## Proposal 21 · The standard is mandatory
 
-8 done / 0 in progress / 0 blocked / 2 not started
+9 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
