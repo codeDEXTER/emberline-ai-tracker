@@ -38,8 +38,10 @@ this job and is not watching in real time. You are.
   worktree, owning only the files the ledger lists; `hooks post-task` and
   `memory store` after it reports; stop the daemon you started — never
   kill it by name.
-- The model comes from the ledger's `model_routing` table (proposal 20
-  D2) — the project's one table — never from a table restated here.
+- The model comes from the ledger's one routing table (proposal 20 D2) —
+  `tiers`, or `model_routing` where the project keeps that name — never
+  from a table restated here. A row that departs from it carries
+  `model_override_reason`.
 
 ## 3 Parallelism is expected
 
