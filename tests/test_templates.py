@@ -253,6 +253,61 @@ class TestLeadPrompt(SectionOrder):
         self.assertIn("blocked", section)
         self.assertIn("not started", section)
 
+    def test_removed_lines_absent(self):
+        """Proposal 20 D10: the app runs parallel high-tier agents; the
+        lead is no longer a bottleneck of one C3 item, nor forbidden from
+        spawning a subagent on its own model."""
+        text = read("lead-prompt.md")
+        self.assertNotIn(
+            "You never spawn a subagent on your own model.", text,
+            "lead-prompt.md: removed rule (own-model) is still present",
+        )
+        self.assertNotIn(
+            "Only one C3 item runs at a time, and it is yours.", text,
+            "lead-prompt.md: removed rule (one C3 at a time) is still present",
+        )
+
+    def test_parallel_c3_and_report_only_reviewer(self):
+        text = read("lead-prompt.md")
+        section = text.split("## 3 Parallelism is expected", 1)[1].split(
+            "## 4 Keep the ledger current", 1
+        )[0]
+        self.assertIn("C3", section, "lead-prompt.md: §3 no longer names C3")
+        self.assertIn(
+            "report-only", section,
+            "lead-prompt.md: §3 has no report-only reviewer rule",
+        )
+        self.assertIn(
+            "two rounds", section,
+            "lead-prompt.md: §3 has no at-most-two-rounds limit",
+        )
+
+    def test_model_routing_and_ruflo_item_referenced(self):
+        text = read("lead-prompt.md")
+        self.assertIn(
+            "model_routing", text,
+            "lead-prompt.md: no reference to the ledger's model_routing (D2)",
+        )
+        self.assertIn(
+            "bin/ruflo-item", text,
+            "lead-prompt.md: no reference to bin/ruflo-item (D11)",
+        )
+
+    def test_read_order_owner_and_republish_referenced(self):
+        text = read("lead-prompt.md")
+        self.assertIn(
+            "read_order", text,
+            "lead-prompt.md: no reference to .common-rules.json read_order (D9)",
+        )
+        self.assertIn(
+            "owner", text,
+            "lead-prompt.md: no owner reference for blocked rows and decision asks (D4)",
+        )
+        self.assertIn(
+            "republish", text,
+            "lead-prompt.md: no republish-when-changed reference (D1)",
+        )
+
 
 class TestCheckpoint(SectionOrder):
     EXPECTED = [
@@ -303,6 +358,20 @@ class TestBrief(unittest.TestCase):
             "HANDOFF: status=<done|blocked> commit=<sha> needs=",
             section,
             "brief.md: OUTPUT does not carry the literal HANDOFF: status=... line",
+        )
+
+    def test_must_requires_verify_level(self):
+        """Proposal 20 D6: every brief names the row's verification level
+        from the project's ladder."""
+        text = read("brief.md")
+        section = text.split("\nMUST\n", 1)[1].split("\nMUST NOT\n", 1)[0]
+        self.assertIn(
+            "{{VERIFY_LEVEL}}", section,
+            "brief.md: MUST does not require a {{VERIFY_LEVEL}}",
+        )
+        self.assertIn(
+            "from the project's verification ladder", section,
+            "brief.md: MUST does not reference the project's verification ladder",
         )
 
 
