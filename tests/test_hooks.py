@@ -29,6 +29,7 @@ HOOKS = ROOT / "hooks"
 PRECOMPACT = HOOKS / "precompact"
 STOP = HOOKS / "stop"
 SESSIONSTART = HOOKS / "sessionstart"
+POSTTOOLUSE_AGENT = HOOKS / "posttooluse-agent"
 
 
 def minimal(**over) -> dict:
@@ -221,6 +222,101 @@ class TestSessionStartHook(ScratchProject):
 
     def test_malformed_stdin_and_missing_cwd_exit_zero(self):
         r = self.run_hook(SESSIONSTART, None, cwd=str(self.proj), raw_stdin="")
+        self.assertEqual(0, r.returncode, r.stderr)
+
+
+class TestPostToolUseAgentHook(ScratchProject):
+    """PostToolUse hook for the Agent/Task tool (proposal 20, V-05 / PC-01).
+    Leads kept spawning agents whose briefs dropped the tier and model scope;
+    this reminds the lead with the correct tag right after an untagged spawn,
+    reading only the first non-blank line of the prompt. It never blocks --
+    PostToolUse can only add context, never allow/deny/ask."""
+
+    def agent_call(self, prompt: str, tool_name="Agent", cwd=None):
+        payload = {"tool_name": tool_name, "tool_input": {"prompt": prompt}, "cwd": cwd or str(self.proj)}
+        return self.run_hook(POSTTOOLUSE_AGENT, payload)
+
+    def test_tagged_prompt_is_silent(self):
+        r = self.agent_call("[ruflo · high · opus] W-02 render pass\n\nDo the render work.")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertEqual("", r.stdout.strip())
+
+    def test_tagged_prompt_accepts_hyphen_and_pipe_separators(self):
+        for tag in ("[ruflo-high-opus]", "[ruflo | high | opus]", "[ ruflo · high · opus ]"):
+            with self.subTest(tag=tag):
+                r = self.agent_call(f"{tag} W-02 render pass")
+                self.assertEqual(0, r.returncode, r.stderr)
+                self.assertEqual("", r.stdout.strip())
+
+    def test_untagged_known_id_prints_reminder_with_that_rows_tag(self):
+        r = self.agent_call("W-02 render pass, no tag on this one")
+        self.assertEqual(0, r.returncode, r.stderr)
+        out = json.loads(r.stdout)
+        ctx = out["hookSpecificOutput"]["additionalContext"]
+        self.assertEqual("PostToolUse", out["hookSpecificOutput"]["hookEventName"])
+        self.assertIn("W-02", ctx)
+        self.assertIn("[ruflo · high · opus]", ctx)
+
+    def test_untagged_id_without_a_tag_field_builds_one_from_tier_and_model(self):
+        built = minimal()
+        built["items"][1].pop("tag", None)
+        built["items"][1]["tier"] = "high"
+        built["items"][1]["model"] = "opus"
+        self.write_ledger(built)
+        r = self.agent_call("W-02 render pass, no tag on this one")
+        self.assertEqual(0, r.returncode, r.stderr)
+        out = json.loads(r.stdout)
+        ctx = out["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("W-02", ctx)
+        self.assertIn("[ruflo · high · opus]", ctx)
+
+    def test_untagged_unknown_id_is_silent(self):
+        r = self.agent_call("Z-99 a task that is not in any ledger")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertEqual("", r.stdout.strip())
+
+    def test_untagged_with_no_id_at_all_is_silent(self):
+        r = self.agent_call("Please go fix the flaky test.")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertEqual("", r.stdout.strip())
+
+    def test_task_tool_name_is_treated_like_agent(self):
+        r = self.agent_call("W-02 render pass, no tag on this one", tool_name="Task")
+        self.assertEqual(0, r.returncode, r.stderr)
+        out = json.loads(r.stdout)
+        self.assertIn("W-02", out["hookSpecificOutput"]["additionalContext"])
+
+    def test_other_tool_names_are_silent(self):
+        for name in ("Bash", "Read", "Edit", None):
+            with self.subTest(tool_name=name):
+                r = self.agent_call("W-02 render pass, no tag", tool_name=name)
+                self.assertEqual(0, r.returncode, r.stderr)
+                self.assertEqual("", r.stdout.strip())
+
+    def test_no_ledger_under_cwd_is_silent(self):
+        no_ledger = Path(tempfile.mkdtemp())
+        r = self.run_hook(POSTTOOLUSE_AGENT,
+                           {"tool_name": "Agent", "tool_input": {"prompt": "W-02 render pass"}, "cwd": str(no_ledger)})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertEqual("", r.stdout.strip())
+
+    def test_garbage_stdin_is_silent_exit_zero(self):
+        r = self.run_hook(POSTTOOLUSE_AGENT, None, cwd=str(self.proj), raw_stdin="not json{{{")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertEqual("", r.stdout.strip())
+
+    def test_missing_tool_input_or_prompt_is_silent(self):
+        for payload in ({"tool_name": "Agent"}, {"tool_name": "Agent", "tool_input": {}},
+                         {"tool_name": "Agent", "tool_input": {"prompt": 12345}}):
+            with self.subTest(payload=payload):
+                r = self.run_hook(POSTTOOLUSE_AGENT, payload, cwd=str(self.proj))
+                self.assertEqual(0, r.returncode, r.stderr)
+                self.assertEqual("", r.stdout.strip())
+
+    def test_never_exits_non_zero(self):
+        # Belt and braces on top of the garbage-stdin case above: the hook must
+        # never fail the tool call it is observing.
+        r = self.run_hook(POSTTOOLUSE_AGENT, None, cwd=str(self.proj), raw_stdin="")
         self.assertEqual(0, r.returncode, r.stderr)
 
 
