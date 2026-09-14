@@ -54,7 +54,11 @@ ruling is in the ledger's log.
   publish" whenever the page differs; that line never fails `--check`.
   `/warmup` and the lead prompt republish the page in place and record it again.
   No sponsor prompt is needed, and nothing is published when
-  `switches.publish` is off. The page shows readiness as its headline number.
+  `switches.publish` is off. A page that was already published is recorded at
+  once. The order is: commit the ledger edits, publish the committed page, then
+  commit the sidecar on its own. A republish is not logged in the ledger, because
+  a log entry would move the page again. The page shows readiness as its
+  headline number.
 - **Templates (V-08, D10):** high-tier items run in parallel on disjoint files,
   each with a report-only reviewer. A brief carries its verify level.
 
