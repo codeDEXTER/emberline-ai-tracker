@@ -75,6 +75,14 @@ this job and is not watching in real time. You are.
   logged as a ledger event: the sidecar's `at` and `by` in git are the
   record. This is the one exception to the log-entry rule above, because
   a log entry would itself move the page.
+- When the project's `.common-rules.json` declares `plan_page`, the page
+  the sponsor reads is the file that generator writes, not the tracker
+  page. Keep the same order: commit ledger edits first; regenerate the page
+  with the project's own generator and commit it; publish that file in place
+  to the same URL; then run
+  `bin/tracker published <ledger> --url <url> --page <path>` and commit the
+  sidecar on its own. The card compares the ledger, not the page, so a
+  generated date alone never asks for a republish.
 - When a tracker page is published for the first time, or you find one
   already published (a URL in the handover, lead prompt or log) with no
   `<stem>.published.json`, record it at once with `tracker published`;

@@ -2,7 +2,8 @@
 
   tracker render LEDGER.json [--out PATH] [--repo OWNER/NAME]
   tracker render LEDGER.json --check
-  tracker published LEDGER.json --url URL [--by NAME]   (proposal 20, V-09; see published_main)
+  tracker published LEDGER.json --url URL [--by NAME] [--page PATH]
+                                         (proposal 20, V-09 and V-11; see published_main)
 
 Writes docs/proposals/tracker/<ledger stem>.html beside the ledger. Two
 reasons it is a subdirectory and not the proposal page itself:
@@ -395,11 +396,19 @@ def freshness(ledger_path: Path, page: Path) -> str:
 #
 #   docs/proposals/tracker/<ledger stem>.published.json
 #   {"at": "<real clock, with offset>", "by": "<name>" | null,
-#    "digest": "<sha256 of the page file as published>", "url": "https://..."}
+#    "digest": "<sha256 of the page file as published>",
+#    "ledger_digest": "<sha256 of the ledger file's bytes>",      (V-11)
+#    "page": "<path relative to the project root>",               (V-11, --page only)
+#    "url": "https://..."}
 #
-# and bin/warmup names the page when its bytes no longer match that digest.
-# The digest is of the page, not the ledger: a page that changed because the
-# renderer did is also a page the published copy no longer matches.
+# Two modes. Without a declared plan_page the page is the tracker page, and
+# bin/warmup names it when its bytes no longer match `digest`: a page that
+# changed because the renderer did is also one the published copy no longer
+# matches. With a declared plan_page (proposal 20, D9) the page is the file
+# that project's own generator writes, named with --page, and bin/warmup
+# compares `ledger_digest` instead -- the PhotoVault app's generator writes
+# today's date into its page, so the page digest would move every day (V-11).
+# A V-09 record without ledger_digest keeps working.
 
 def published_path(ledger_path: Path) -> Path:
     return default_out(ledger_path).with_name(f"{ledger_path.stem}.published.json")
@@ -465,8 +474,32 @@ def url_problem(url) -> str | None:
     return None
 
 
+def _hex64(value) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
+
+
+def page_path_problem(value) -> str | None:
+    """None for a one-line relative path with no `..` part, else what is wrong
+    -- never echoing the value. Whether it resolves inside the project, through
+    a symlink, is asked of the file system by the caller (V-11)."""
+    from pathlib import PurePosixPath
+    if not isinstance(value, str) or not value.strip():
+        return "page must be a non-empty path"
+    if not _one_line_utf8(value):
+        return "page must be one line of UTF-8 with no control characters"
+    p = PurePosixPath(value)
+    if p.is_absolute() or Path(value).is_absolute():
+        return "page must be relative to the project root, not absolute"
+    if ".." in p.parts:
+        return "page must not have a '..' part"
+    return None
+
+
 def published_problems(record) -> list[str]:
-    """What is wrong with a sidecar's contents, without echoing any value."""
+    """What is wrong with a sidecar's contents, without echoing any value.
+    `ledger_digest` (V-11) is optional -- a V-09 record has none -- but a
+    record that names its `page` must carry it, because that is what the card
+    compares for a declared page."""
     if not isinstance(record, dict):
         return ["not a JSON object"]
     out = []
@@ -475,9 +508,16 @@ def published_problems(record) -> list[str]:
             out.append(f"no {key!r}")
     if "url" in record and url_problem(record["url"]):
         out.append(url_problem(record["url"]))
-    if "digest" in record and not (isinstance(record["digest"], str)
-                                   and re.fullmatch(r"[0-9a-f]{64}", record["digest"])):
+    if "digest" in record and not _hex64(record["digest"]):
         out.append("digest must be 64 lowercase hex characters")
+    if "ledger_digest" in record and not _hex64(record["ledger_digest"]):
+        out.append("ledger_digest must be 64 lowercase hex characters")
+    if "page" in record:
+        problem = page_path_problem(record["page"])
+        if problem:
+            out.append(problem)
+        if "ledger_digest" not in record:
+            out.append("a record with 'page' must carry 'ledger_digest'")
     if "at" in record:
         import datetime
         at = record["at"]
@@ -494,12 +534,86 @@ def published_problems(record) -> list[str]:
     return out
 
 
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess | None:
+    """git with every pathspec taken literally: a --page of "*.html" names that
+    file, never a glob matching some other tracked one."""
+    try:
+        return subprocess.run(["git", "--literal-pathspecs", "-C", str(root), *args],
+                              capture_output=True, text=True, check=False, timeout=30)
+    except (subprocess.SubprocessError, OSError):
+        return None
+
+
+def project_root(ledger_path: Path) -> tuple[Path, bool]:
+    """(the project root, whether it is a git top). The git top of the ledger;
+    outside git -- a scratch ledger, as V-09's tests use -- the directory that
+    holds docs/proposals, which published_main has already required."""
+    r = _git(ledger_path.resolve().parent, "rev-parse", "--show-toplevel")
+    if r is not None and r.returncode == 0 and r.stdout.strip():
+        return Path(r.stdout.strip()).resolve(), True
+    return ledger_path.resolve().parent.parent.parent, False
+
+
+def declared_page_problems(root: Path) -> list[str]:
+    """(V-11) Why the declaration cannot say whether a plan_page exists: any of
+    tools/project.py's problems. A broken file drops a malformed plan_page back
+    to its default of None, and recording the tracker page then is the very
+    false record V-11 exists to stop."""
+    from tools import project as P
+    return P.problems(root) if (root / P.FILE).is_file() else []
+
+
+def page_problem(root: Path, in_git: bool, raw: str) -> tuple[str | None, str | None]:
+    """(the page's plain relative path, None) or (None, what is wrong with --page).
+    Each message names the value through _printable (V-11, rule 3)."""
+    import stat
+    from pathlib import PurePosixPath
+    shown_ = _printable(raw)
+    problem = page_path_problem(raw)
+    if problem == "page must be relative to the project root, not absolute":
+        return None, f"--page {shown_} is absolute -- a page is a path relative to the project root {_printable(root)}"
+    if problem == "page must not have a '..' part":
+        return None, f"--page {shown_} has a '..' part -- a page is a path inside the project, relative to its root"
+    if problem:
+        return None, f"--{problem} (got {shown_})"
+    rel = str(PurePosixPath(raw))
+    target = root / rel
+    try:
+        outside = not target.resolve().is_relative_to(root)
+    except (OSError, ValueError, RuntimeError):
+        outside = True
+    if outside:
+        return None, f"--page {shown_} resolves outside the project {_printable(root)} -- it is not read"
+    try:
+        mode = target.lstat().st_mode
+    except FileNotFoundError:
+        return None, f"--page {shown_} does not exist under {_printable(root)} -- regenerate the page first"
+    except OSError as exc:
+        return None, f"--page {shown_} could not be read ({type(exc).__name__})"
+    if not stat.S_ISREG(mode):
+        return None, f"--page {shown_} is not a regular file (a directory or a symlink is not a published page)"
+    if not in_git:
+        return None, f"--page {shown_}: {_printable(root)} is not inside a git repository -- a page is recorded " \
+                     "only when it is committed"
+    # -z: a non-ASCII name is printed as-is, not C-quoted, so it compares equal.
+    listed = _git(root, "ls-files", "-z", "--error-unmatch", "--", rel)
+    if listed is None or listed.returncode != 0 or listed.stdout != rel + "\0":
+        return None, f"--page {shown_} is not tracked by git -- commit the generated page, publish it, then record it"
+    clean = _git(root, "diff", "--quiet", "HEAD", "--", rel)
+    if clean is None or clean.returncode != 0:
+        return None, f"--page {shown_} has uncommitted changes -- commit the regenerated page, publish that " \
+                     "committed file, then record it"
+    return rel, None
+
+
 def published_main(argv) -> int:
     ap = argparse.ArgumentParser(prog="tracker published",
                                  description="record the page a session just published with its Artifact tool")
     ap.add_argument("ledger", type=Path)
     ap.add_argument("--url", required=True, help="the artifact's URL, https, one line")
     ap.add_argument("--by", help="who published it (default: recorded as null)")
+    ap.add_argument("--page", help="the declared plan_page's output, relative to the project root "
+                                   "(required when .common-rules.json declares plan_page; refused otherwise)")
     args = ap.parse_args(argv)
     say = "tracker published:"
 
@@ -537,17 +651,50 @@ def published_main(argv) -> int:
         print(f"{say} --by must be a one-line name (got {_printable(args.by)}) -- nothing recorded",
               file=sys.stderr)
         return 1
-    page = default_out(args.ledger)
-    fresh = freshness(args.ledger, page)
-    if fresh != "ok":
-        print(f"{say} {page} is {fresh} against {args.ledger.name} -- render first: tracker render {args.ledger}, "
-              "publish that page, then record it", file=sys.stderr)
+
+    # V-11 (D1 with D9): a project that declares plan_page publishes the page
+    # its own generator writes, not the tracker page. The PhotoVault app's
+    # record claimed the tracker page's digest for a publish that never
+    # happened; so a declaration without --page refuses, naming the command.
+    from tools import project as P
+    root, in_git = project_root(args.ledger)
+    broken = declared_page_problems(root)
+    if broken:
+        print(f"{say} {_printable(root / P.FILE)} is broken, so whether this project declares plan_page cannot be "
+              "known -- nothing recorded:", file=sys.stderr)
+        for problem in broken:
+            print(f"  {_printable(problem)}", file=sys.stderr)
+        return 1
+    command = P.declared(root).get("plan_page")
+    if command and args.page is None:
+        print(f"{say} this project declares plan_page ({_printable(command)}); pass --page <the file it writes>",
+              file=sys.stderr)
+        return 1
+    if not command and args.page is not None:
+        print(f"{say} no plan_page is declared; the tracker page is recorded by default", file=sys.stderr)
         return 1
 
     import datetime
-    record = {"url": args.url, "digest": digest(page),
-              "at": datetime.datetime.now().astimezone().isoformat(timespec="seconds"), "by": args.by}
+    if args.page is not None:
+        rel, problem = page_problem(root, in_git, args.page)
+        if problem:
+            print(f"{say} {problem} -- nothing recorded", file=sys.stderr)
+            return 1
+        record = {"url": args.url, "digest": digest(root / rel), "page": rel}
+    else:
+        page = default_out(args.ledger)
+        fresh = freshness(args.ledger, page)
+        if fresh != "ok":
+            print(f"{say} {_printable(page)} is {fresh} against {_printable(args.ledger.name)} -- render first: "
+                  f"tracker render {_printable(args.ledger)}, publish that page, then record it", file=sys.stderr)
+            return 1
+        record = {"url": args.url, "digest": digest(page)}
+    record.update({"ledger_digest": digest(args.ledger), "by": args.by,
+                   "at": datetime.datetime.now().astimezone().isoformat(timespec="seconds")})
     sidecar = published_path(args.ledger)
+    # V-11: a project that publishes only its declared page may never have
+    # rendered the tracker page, so docs/proposals/tracker/ may not exist yet.
+    sidecar.parent.mkdir(parents=True, exist_ok=True)
     sidecar.write_text(json.dumps(record, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
     print(f"recorded {sidecar} · {args.url} · commit it")
     return 0

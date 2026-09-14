@@ -46,6 +46,16 @@ broken standard, so --check never fails on it. No sidecar, or
 switches.publish off: no line. A sidecar that cannot be read is a problem.
 Each ledger in --json/--state carries `published` (None without a record).
 
+A DECLARED PLAN PAGE (proposal 20, V-11, D1 with D9). A record written with
+`tracker published --page <path>` names the file the project's own plan_page
+generator writes. The card compares that record's `ledger_digest` with the
+ledger on disk, not the page file -- the PhotoVault app's generator stamps
+today's date into its page -- and prints `page changed since last publish:
+<page> → <url>`. A recorded page that no longer exists, or resolves outside
+the project, is a problem; a malformed `page` or `ledger_digest` is too.
+`published` then also carries `page`, `ledger_digest` and
+`current_ledger_digest`. A record without `page` behaves as above.
+
 It never runs Ruflo. The CLI auto-starts a daemon that spends tokens until
 stopped (measured in the PhotoVault engine, 7 September). Warm-up says where
 the CLI is; the loop runs per item, by the lead, who stops what it started.
@@ -311,14 +321,37 @@ def publish_state(project: Path, ledger_path: Path, data: dict, page: Path) -> t
     bad = R.published_problems(record)
     if bad:
         return None, f"{srel} is malformed: {'; '.join(bad)} -- {fix}"
+    if "page" in record:
+        # V-11 (D1 with D9): a declared plan_page. Its generator may stamp
+        # today's date (the PhotoVault app's does), so the page file's digest
+        # would move daily; what the card compares is the ledger's digest.
+        prel = shown(record["page"])
+        fix = (f"regenerate the page with the project's plan_page, commit it, republish it and run: "
+               f"tracker published {lrel} --url <artifact url> --page {prel}")
+        if not P.inside(project, record["page"]):
+            return None, f"{srel} records page {prel}, which resolves outside the project -- not read; {fix}"
+        target = project / record["page"]
+        current_ledger = R.digest(ledger_path)
+        pub = {"stem": ledger_path.stem, "url": record["url"], "digest": record["digest"],
+               "at": record["at"], "by": record["by"], "page": record["page"],
+               "ledger_digest": record["ledger_digest"], "current_ledger_digest": current_ledger,
+               "page_digest": R.digest(target) if target.is_file() else None,
+               "changed": target.is_file() and current_ledger != record["ledger_digest"]}
+        if not target.is_file():
+            return pub, f"{srel} records page {prel}, which does not exist -- {fix}"
+        return pub, None
     current = R.digest(page) if page.is_file() else None
-    return {"stem": ledger_path.stem, "url": record["url"], "digest": record["digest"],
-            "at": record["at"], "by": record["by"], "page_digest": current,
-            "changed": current is not None and current != record["digest"]}, None
+    pub = {"stem": ledger_path.stem, "url": record["url"], "digest": record["digest"],
+           "at": record["at"], "by": record["by"], "page_digest": current,
+           "changed": current is not None and current != record["digest"]}
+    if "ledger_digest" in record:
+        pub["ledger_digest"] = record["ledger_digest"]
+    return pub, None
 
 
 def publish_line(pub: dict) -> str:
-    return f"  page changed since last publish: {shown(pub['stem'])} → {shown(pub['url'])}"
+    where = pub["page"] if pub.get("page") else pub["stem"]
+    return f"  page changed since last publish: {shown(where)} → {shown(pub['url'])}"
 
 
 def checkpoint_state(project: Path) -> tuple[str, Path | None]:
@@ -427,7 +460,8 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
         published, problem = publish_state(project, lp, data, page)
         if problem:
             state["problems"].append(problem)
-            state["chain"].append(("✗", f"{shown(R.published_path(lp).relative_to(project))} · malformed"))
+            what = "records a missing page" if published else "malformed"
+            state["chain"].append(("✗", f"{shown(R.published_path(lp).relative_to(project))} · {what}"))
         unblocked = {i["id"] for i in L.unblocked(data)}
         switches_off = []
         for name in L.SWITCHES:
@@ -658,9 +692,12 @@ def delta(old: dict, new: dict) -> str:
                 lines.append(f"  {aid} {was['state']} → {a['state']}")
         # V-09: named again only when it is news -- newly changed, or the page
         # (or the URL) moved again since the state being compared with.
+        # V-11: for a declared page what moved is the ledger, not the page file.
         pub, old_pub = led.get("published"), before.get("published") or {}
+        moved = "current_ledger_digest" if pub and pub.get("page") else "page_digest"
         if pub and pub.get("changed") and not (old_pub.get("changed") and old_pub.get("url") == pub["url"]
-                                                and old_pub.get("page_digest") == pub["page_digest"]):
+                                                and old_pub.get("page") == pub.get("page")
+                                                and old_pub.get(moved) == pub[moved]):
             lines.append(publish_line(pub))
         out += lines
     for rel in new.get("prose", PROSE):
