@@ -174,6 +174,11 @@ def pointer_block(read_order: list[str] | None = None) -> str:
     ])
 
 
+# What bin/derecord seeds when missing (its lead prompt is skipped when the
+# project already keeps one, so only these two are certain).
+DERECORD_SEEDS = ("HANDOFF.md", "docs/OPERATING-RULES.md")
+
+
 def claude_md(path: Path, dry_run: bool) -> tuple[str, bool]:
     """(what happened, whether the step succeeded). A refused pointer is a
     failed step: migrate exits 1, with --dry-run too."""
@@ -189,6 +194,12 @@ def claude_md(path: Path, dry_run: bool) -> tuple[str, bool]:
     # the project's own order (review round 2). Nothing is written while the
     # declaration has any problem -- the same ones warmup --check fails on.
     broken = P.problems(project)
+    if dry_run:
+        # derecord runs before this step for real, and seeds these where they
+        # are missing; a dry run skips derecord, so it must not refuse a
+        # declaration naming a file the real run would create (review round 3).
+        seeded = {f"{P.FILE}: read_order names {rel}, which does not exist" for rel in DERECORD_SEEDS}
+        broken = [b for b in broken if b not in seeded]
     if broken:
         return (f"CLAUDE.md: not written -- the pointer's read order comes from {P.FILE}, which has "
                 f"{len(broken)} problem(s); fix them and run again:" + "".join(f"\n    {b}" for b in broken)), False

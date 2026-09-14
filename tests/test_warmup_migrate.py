@@ -352,6 +352,26 @@ class TestDeclaredReadOrder(Case):
         self.declare_body('{"read_order": ["CLAUDE.md", "\\udc80.md"]}')
         self.assert_pointer_refused(named="read_order")
 
+    # Review round 3: a dry run skips derecord, so a declaration naming a file
+    # derecord would seed was refused there while the real run wrote it.
+
+    def remove_seeded(self):
+        for rel in ("HANDOFF.md", "docs/OPERATING-RULES.md"):
+            if (self.p.root / rel).exists():
+                self.p.git("rm", "-q", rel)
+        self.p.git("commit", "-qm", "no prose yet", "--allow-empty")
+
+    def test_a_dry_run_does_not_refuse_files_derecord_would_seed(self):
+        self.remove_seeded()
+        self.declare_body('{"read_order": ["HANDOFF.md", "docs/OPERATING-RULES.md"]}')
+        r = self.migrated("--dry-run")
+        self.assertIn("CLAUDE.md: would have the warm-up pointer", r.stdout)
+
+    def test_a_dry_run_still_refuses_a_missing_file_derecord_does_not_seed(self):
+        self.remove_seeded()
+        self.declare_body('{"read_order": ["HANDOFF.md", "NOTES.md"]}')
+        self.assert_pointer_refused("--dry-run", named="read_order names NOTES.md, which does not exist")
+
 
 class TestIdempotentAndDry(Case):
 

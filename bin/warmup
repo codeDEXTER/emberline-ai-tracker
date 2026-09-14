@@ -29,7 +29,7 @@ on its read_order instead of HANDOFF.md and OPERATING-RULES.md, prohibitions
 come from its safety_rules section, and the card shows its quick and merge
 gates. A broken declaration -- malformed, a wrong type, a command that is not
 one line, a path outside the project, a declared file that does not exist --
-is a problem, and nothing outside the project is read or hashed. With no
+is a problem, and no declared path outside the project is read or hashed. With no
 declaration the card and --check are unchanged. --json and --state carry four
 more keys either way -- prose, prohibitions_from, quick_gate and
 merge_gate_declared -- and tests/test_project_declaration.py pins the set.
