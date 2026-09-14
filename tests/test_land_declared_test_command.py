@@ -14,6 +14,7 @@ Run:  python3 -m unittest discover -s tests -q
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import tempfile
@@ -67,6 +68,60 @@ class TestTheDeclaredCommandRuns(LandHarness):
         out = self.land()
         self.assertIn("running: true", out.stdout)
         self.assertIn("READY", out.stdout)
+
+
+class TestTheJsonDeclaration(LandHarness):
+    """Proposal 20, D9: `.common-rules.json` gates.merge is the gate, ahead of
+    `.common-rules-test`, and a declaration land cannot read refuses loudly --
+    falling back to the guess would silently run a gate nobody declared."""
+
+    def branch_with(self, files: dict):
+        self.git("checkout", "-q", "-b", "work")
+        for rel, body in files.items():
+            (self.repo / rel).write_text(body)
+        (self.repo / "README.md").write_text("seed\nwork\n")
+        self.git("add", "-A"); self.git("commit", "-qm", "declare the gates")
+
+    def test_a_failing_declared_merge_gate_refuses(self):
+        self.branch_with({".common-rules.json": '{"gates": {"quick": "true", "merge": "false"}}'})
+        out = self.land()
+        self.assertIn("running: false", out.stdout)
+        self.assertIn("tests are not green", out.stdout + out.stderr)
+        self.assertNotIn("READY", out.stdout)
+
+    def test_a_passing_declared_merge_gate_lands(self):
+        self.branch_with({".common-rules.json": '{"gates": {"quick": "false", "merge": "true"}}'})
+        out = self.land()
+        self.assertIn("running: true", out.stdout)
+        self.assertIn("READY", out.stdout)
+
+    def test_the_json_merge_gate_wins_over_the_test_file(self):
+        self.branch_with({".common-rules.json": '{"gates": {"merge": "true"}}', ".common-rules-test": "false\n"})
+        out = self.land()
+        self.assertIn("running: true", out.stdout)
+        self.assertIn("READY", out.stdout)
+
+    def test_a_declaration_without_a_merge_gate_uses_the_test_file(self):
+        self.branch_with({".common-rules.json": '{"read_order": ["README.md"], "gates": {"quick": "true"}}',
+                          ".common-rules-test": "false\n"})
+        out = self.land()
+        self.assertIn("running: false", out.stdout)
+        self.assertNotIn("READY", out.stdout)
+
+    def test_malformed_json_refuses_even_with_a_passing_test_file(self):
+        self.branch_with({".common-rules.json": '{"gates": {"merge": "true"}', ".common-rules-test": "true\n"})
+        out = self.land()
+        self.assertIn(".common-rules.json is not valid JSON", out.stdout)
+        self.assertIn("tests are not green", out.stdout + out.stderr)
+        self.assertNotIn("READY", out.stdout)
+
+    def test_a_merge_gate_with_shell_metacharacters_runs_as_declared(self):
+        """The declared string is the project's own command, run as written --
+        read by json, never pieced together by a shell."""
+        self.branch_with({".common-rules.json": json.dumps({"gates": {"merge": "test \"$(printf 'a b')\" = 'a b' && echo ok"}}),
+                          ".common-rules-test": "false\n"})
+        out = self.land()
+        self.assertIn("READY", out.stdout, out.stdout + out.stderr)
 
 
 if __name__ == "__main__":

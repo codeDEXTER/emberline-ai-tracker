@@ -78,12 +78,49 @@ say() { printf '%s\n' "$*"; }
 refuse() { say "  not landing: $*"; return 1; }
 
 test_cmd() {
-    # A declared gate wins. `.common-rules-test` at the project root, beside
-    # `.common-rules-version`: the first line that is neither blank nor a
-    # comment is the command. Guessing from the tree ran the wrong gate for the
+    # A declared gate wins, in this order:
+    #   1. `.common-rules.json` gates.merge (proposal 20, D9; tools/project.py
+    #      documents the file);
+    #   2. `.common-rules-test` at the project root, beside
+    #      `.common-rules-version`: the first line that is neither blank nor a
+    #      comment is the command;
+    # then a guess from the tree. Guessing ran the wrong gate for the
     # PhotoVault engine, whose tests are pytest with markers -- found in
     # proposal 19's pilot, 13 Sep, and named as a gap in proposal 18 B.
-    # bin/warmup reads the same line; tests/test_warmup.py pins them equal.
+    # tools/project.py's test_command() is this function's twin, and bin/warmup
+    # reports it; tests/test_warmup.py pins them equal.
+    #
+    # A `.common-rules.json` that cannot be read refuses the landing: falling
+    # back to the guess would silently run a gate nobody declared. It is read
+    # by python's json, so the shell never parses a declared value; the
+    # command itself is the project's own, and runs as written.
+    #
+    # Tests extract this function with sed up to the first line that starts
+    # with a closing brace, so no line inside it may start with one.
+    if [ -f .common-rules.json ]; then
+        local fromjson
+        if ! fromjson="$(python3 -c '
+import json, sys
+try:
+    d = json.loads(open(".common-rules.json", "rb").read())
+except (OSError, ValueError):
+    print("false  # .common-rules.json is not valid JSON")
+    sys.exit(0)
+if not isinstance(d, dict):
+    print("false  # .common-rules.json is not a JSON object")
+    sys.exit(0)
+g = d.get("gates")
+m = g.get("merge") if isinstance(g, dict) else None
+if isinstance(m, str) and m.strip():
+    print(m.strip())
+' 2>/dev/null)"; then
+            fromjson="false  # python3 could not read .common-rules.json"
+        fi
+        if [ -n "$fromjson" ]; then
+            printf '%s\n' "$fromjson"
+            return
+        fi
+    fi
     if [ -f .common-rules-test ]; then
         local declared
         declared="$(grep -v '^[[:space:]]*#' .common-rules-test | grep -v '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)"

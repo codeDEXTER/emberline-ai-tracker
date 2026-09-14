@@ -23,6 +23,13 @@ It shows, and never fails on, how many commits the prose files are behind
 HEAD: prose cannot be digest-checked, and failing on a count of commits
 punishes the busiest projects rather than the neglected ones.
 
+A PROJECT'S OWN ENTRY POINTS (proposal 20, D9). A project that declares them
+in .common-rules.json (see tools/project.py) gets them: the prose checks run
+on its read_order instead of HANDOFF.md and OPERATING-RULES.md, prohibitions
+come from its safety_rules section, and the card shows its quick and merge
+gates. A malformed declaration, or a declared file that does not exist, is a
+problem. With no declaration, nothing here behaves differently.
+
 It never runs Ruflo. The CLI auto-starts a daemon that spends tokens until
 stopped (measured in the PhotoVault engine, 7 September). Warm-up says where
 the CLI is; the loop runs per item, by the lead, who stops what it started.
@@ -44,11 +51,12 @@ from pathlib import Path
 RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
+from tools import project as P  # noqa: E402
 from tools.tracker import checkpoint as CP  # noqa: E402
 from tools.tracker import ledger as L  # noqa: E402
 from tools.tracker import render as R  # noqa: E402
 
-PROSE = ("HANDOFF.md", "docs/OPERATING-RULES.md")
+PROSE = tuple(P.DEFAULTS["read_order"])
 PLACEHOLDER = re.compile(r"\{\{[A-Z0-9_]+\}\}")
 STOP = {"with", "from", "that", "this", "into", "when", "what", "their", "does", "and", "the", "for"}
 
@@ -71,21 +79,11 @@ def behind(project: Path, rel: str) -> int | None:
 
 
 def test_command(project: Path) -> str:
-    """land's test_cmd(), in the same order with the same tests. Pinned equal
-    to land's own answer by tests/test_warmup.py. A declared gate in
-    .common-rules-test wins over the guess."""
-    declared = project / ".common-rules-test"
-    if declared.is_file():
-        for line in declared.read_text(errors="replace").splitlines():
-            line = line.strip()
-            if line and not line.startswith("#"):
-                return line
-    if (project / "tests").is_dir() and glob.glob(str(project / "tests" / "*.py")):
-        return "python3 -m unittest discover -s tests -q"
-    pkg = project / "package.json"
-    if pkg.is_file() and '"test"' in pkg.read_text(errors="replace"):
-        return "npm test --silent"
-    return ""
+    """land's test_cmd(), in the same order with the same tests: gates.merge in
+    .common-rules.json, then .common-rules-test, then the guess -- and a
+    declaration that cannot be read is land's refusal. Pinned equal to land's
+    own answer by tests/test_warmup.py."""
+    return P.test_command(project)
 
 
 def ruflo_cli() -> str | None:
@@ -107,21 +105,27 @@ def rules_status(project: Path) -> str:
     return {0: "aligned", 1: "STALE -- run rulecheck and read what changed"}.get(rc, "could not check")
 
 
-def prohibitions(handoff: Path) -> list[str]:
-    if not handoff.is_file():
-        return []
-    out, inside = [], False
-    for line in handoff.read_text(errors="replace").splitlines():
-        if line.startswith("## "):
-            # "## Prohibitions, verbatim" in the template; "## Two prohibitions.
-            # Verbatim, non-negotiable." in the PhotoVault engine, whose card
-            # said "none found" until this matched the word, not the prefix.
-            inside = "prohibition" in line.lower()
+def prohibitions(project: Path, safety_rules=P.DEFAULTS["safety_rules"]) -> list[str]:
+    """List items and bold-numbered lines, verbatim, from each declared
+    FILE#heading: the `## ` section whose heading contains that text."""
+    out = []
+    for rel, heading in P.safety_sources(safety_rules):
+        path = project / rel
+        if not path.is_file():
             continue
-        s = line.strip()
-        # "1. **Never ...**" (template) and "**1. Never ...**" (engine), or a bullet.
-        if inside and (re.match(r"^(\*\*)?\d+\.\s*\S", s) or re.match(r"^[-*]\s+\S", s)):
-            out.append(s)
+        needle, inside = heading.lower(), False
+        for line in path.read_text(errors="replace").splitlines():
+            if line.startswith("## "):
+                # "## Prohibitions, verbatim" in the template; "## Two prohibitions.
+                # Verbatim, non-negotiable." in the PhotoVault engine, whose card
+                # said "none found" until this matched the word, not the prefix.
+                # "## Hard safety rules" in the PhotoVault app's CLAUDE.md (D9).
+                inside = needle in line[3:].lower()
+                continue
+            s = line.strip()
+            # "1. **Never ...**" (template) and "**1. Never ...**" (engine), or a bullet.
+            if inside and (re.match(r"^(\*\*)?\d+\.\s*\S", s) or re.match(r"^[-*]\s+\S", s)):
+                out.append(s)
     return out[:6]
 
 
@@ -156,23 +160,40 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
         raise SystemExit(2)
     project = Path(top)
     gitdir, common = git(project, "rev-parse", "--git-dir"), git(project, "rev-parse", "--git-common-dir")
+    decl, own = P.load(project), P.declared(project)
     state: dict = {
         "project": str(project), "name": project.name,
         "branch": git(project, "rev-parse", "--abbrev-ref", "HEAD") or "?",
         "head": git(project, "rev-parse", "--short", "HEAD") or "no commits",
         "checkout": "worktree" if gitdir and common and Path(project, gitdir).resolve() != Path(project, common).resolve()
                     else "main checkout",
-        "prohibitions": prohibitions(project / "HANDOFF.md"),
+        "prohibitions": prohibitions(project, decl["safety_rules"]),
+        "prohibitions_from": list(dict.fromkeys(rel for rel, _ in P.safety_sources(decl["safety_rules"]))),
+        "prose": list(decl["read_order"]),
         "problems": [], "chain": [], "ledgers": {}, "files": {},
-        "test_command": test_command(project), "rules": rules_status(project), "ruflo": ruflo_cli(),
+        "test_command": test_command(project), "quick_gate": decl["gates"].get("quick"),
+        "merge_gate_declared": bool(own.get("gates", {}).get("merge")),
+        "rules": rules_status(project), "ruflo": ruflo_cli(),
     }
     read: list[Path] = []
 
-    for rel in PROSE:
+    if (project / P.FILE).is_file():
+        declared_problems = P.problems(project)
+        state["problems"].extend(declared_problems)
+        if declared_problems:
+            state["chain"].append(("✗", f"{P.FILE} · {len(declared_problems)} problem(s)"))
+        else:
+            state["chain"].append(("✓", f"{P.FILE} · declares {', '.join(own) or 'nothing'}"))
+
+    for rel in state["prose"]:
         p = project / rel
         if not p.is_file():
-            state["problems"].append(f"{rel} is missing -- derecord seeds it; fill it in")
-            state["chain"].append(("✗", f"{rel} · missing"))
+            if "read_order" in own:
+                # P.problems() has already named it; the chain still shows it.
+                state["chain"].append(("✗", f"{rel} · missing (declared in {P.FILE} read_order)"))
+            else:
+                state["problems"].append(f"{rel} is missing -- derecord seeds it; fill it in")
+                state["chain"].append(("✗", f"{rel} · missing"))
             continue
         read.append(p)
         state["files"][rel] = sha256(p)
@@ -246,6 +267,9 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
     rules_file = project / "docs" / "OPERATING-RULES.md"
     state["superseded"] = re.findall(r"^### (\d{4}-\d{2}-\d{2} · superseded by .+)$",
                                      rules_file.read_text(errors="replace"), re.M) if rules_file.is_file() else []
+    # A declared read order may name a ledger or the checkpoint; each is read once, where it first appears.
+    seen: set[Path] = set()
+    read = [p for p in read if not (p.resolve() in seen or seen.add(p.resolve()))]
     state["read_order"] = [str(p.relative_to(project)) if p.is_relative_to(project) else str(p) for p in read]
     state["read_bytes"] = sum(p.stat().st_size for p in read if p.is_file())
 
@@ -268,11 +292,12 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
 
 def card(s: dict) -> str:
     out = [f"WARM · {s['name']} · {s['branch']} @ {s['head']} · {s['checkout']}"]
+    where = ", ".join(s.get("prohibitions_from") or ["HANDOFF.md"])
     if s["prohibitions"]:
-        out.append("Prohibitions (HANDOFF.md, verbatim):")
+        out.append(f"Prohibitions ({where}, verbatim):")
         out += [f"  {p}" for p in s["prohibitions"]]
     else:
-        out.append("Prohibitions: none found in HANDOFF.md -- write them before any work")
+        out.append(f"Prohibitions: none found in {where} -- write them before any work")
     for rel, led in s["ledgers"].items():
         out.append(f"Proposal {led['proposal']} · {led['title']}: {led['status_line']}")
         for iid, it in led["items"].items():
@@ -292,7 +317,12 @@ def card(s: dict) -> str:
         out.append("Superseded (docs/OPERATING-RULES.md) -- if you catch yourself following one of these, stop:")
         out += [f"  {line}" for line in s["superseded"]]
     out.append("Tools:")
-    out.append(f"  test command  {s['test_command'] or 'none found -- land will land on the gate alone'}")
+    if s.get("quick_gate"):
+        out.append(f"  quick gate    {s['quick_gate']}")
+    if s.get("merge_gate_declared"):
+        out.append(f"  merge gate    {s['test_command']} -- what land runs")
+    else:
+        out.append(f"  test command  {s['test_command'] or 'none found -- land will land on the gate alone'}")
     out.append(f"  rules         {s['rules']}")
     out.append(f"  ruflo         {'CLI at ' + s['ruflo'] + ' -- not run by warm-up; the loop runs per item, stop the daemon you start' if s['ruflo'] else 'CLI NOT FOUND -- Ruflo is mandatory: stop and report'}")
     for r in s["recall"]:
@@ -340,7 +370,7 @@ def delta(old: dict, new: dict) -> str:
             elif was["state"] != a["state"]:
                 lines.append(f"  {aid} {was['state']} → {a['state']}")
         out += lines
-    for rel in PROSE:
+    for rel in new.get("prose", PROSE):
         if old.get("files", {}).get(rel) and new["files"].get(rel) and old["files"][rel] != new["files"][rel]:
             out.append(f"{rel} changed since the last warm-up -- re-read it")
     if old.get("checkpoint") != new.get("checkpoint"):
