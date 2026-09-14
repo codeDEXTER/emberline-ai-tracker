@@ -1,5 +1,30 @@
 # Changelog — common-rules
 
+## 2026-09-14 · Sessions that start above their projects get the card (P21 S-05)
+
+The PhotoVault app and engine sessions start in `PhotoVault/`, the folder above
+`app/` and `engine/`. It is not a git repository, and Claude Code loads
+`.claude/settings.json` hooks from the folder a session starts in. So the hooks
+derecord installed inside each project never ran, and neither session got a
+card at start or after a compaction.
+
+When the start folder has no ledger of its own, `hooks/sessionstart` now:
+- lists the child projects one level below, up to 10 sorted by name, each with
+  its counts and `/warmup --project <path>`, then "+N more";
+- skips unreadable children;
+- uses the compaction wording after a compact;
+- stays read-only and fast (0.06 s with 200 children).
+
+A start folder that has its own ledger behaves exactly as before.
+
+`bin/derecord --parent DIR` installs only that SessionStart hook into
+`DIR/.claude/settings.json`. It refuses when `DIR` is a git repository, has no
+child projects, or has malformed settings. It is idempotent and prints how many
+child projects it found.
+
+**Behaviour change:** none until `derecord --parent` is run on a folder. The
+lead runs it on `/Users/the-sponsor/apps/PhotoVault` with the sponsor's approval.
+
 ## 2026-09-14 · A new proposal page must carry its status (P21 S-03)
 
 `proposalcheck` only inspected pages that already carried a status, so a
