@@ -321,9 +321,9 @@ class TestGatesFloorsReceiptsReadiness(unittest.TestCase):
                     gates=[{"id": "G0", "title": "a", "passed": True}, {"id": "G1", "title": "b", "passed": False}],
                     quality_floors=[{"title": "lint", "command": "x", "met": True}],
                     native_receipts={"library": True, "albums": False})
-        d["items"][1]["status"] = "in progress"; d["items"][1]["merged"] = "bc948a8"
+        d["items"][1]["status"] = "in progress"; d["items"][1]["evidence"] = {"tests": True}
         r = ledger.readiness(d)
-        # work: done 1 + merged in progress 0.5 of 3 rows = 0.5 -> 35.0; gates 1/2 -> 7.5; floors 1/1 -> 10; receipts 1/2 -> 2.5
+        # work: done 1 + in progress with passing tests 0.5 of 3 rows = 0.5 -> 35.0; gates 1/2 -> 7.5; floors 1/1 -> 10; receipts 1/2 -> 2.5
         self.assertEqual({"work": 35.0, "gates": 7.5, "floors": 10.0, "receipts": 2.5, "readiness": 55}, r)
 
 
@@ -336,3 +336,46 @@ class TestTheRealLedgersUnderV2(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestReadinessMatchesTheAppsOwnScore(unittest.TestCase):
+    """The app's tools/build_plan.py is the reference readiness; the ledger module must agree with it."""
+
+    BUILD_PLAN = APP_70.parent.parent.parent / "tools" / "build_plan.py"
+
+    def test_merged_code_earns_nothing_until_done(self):
+        d = minimal(readiness_weights={"work": 100, "gates": 0, "floors": 0, "receipts": 0})
+        d["items"][1]["status"] = "in progress"
+        before = ledger.readiness(d)
+        d["items"][1]["merged"] = "bc948a8"
+        self.assertEqual(before, ledger.readiness(d))
+        self.assertEqual(["W-02"], ledger.merged_waiting(d))
+
+    def test_size_weights_and_primary_surfaces(self):
+        d = minimal(readiness_weights={"work": 70, "gates": 15, "floors": 10, "receipts": 5},
+                    size_weights={"S": 1, "M": 2, "L": 4, "XL": 8},
+                    primary_surfaces=["library", "albums"],
+                    native_receipts={"library": True, "albums": False, "elsewhere": True})
+        for i, size in zip(d["items"], ("S", "XL", "M")):
+            i["size"] = size
+        d["items"][0]["status"] = "done"
+        r = ledger.readiness(d)
+        # work 70 * 1/11 = 6.4; receipts 5 * 1/2 over the declared surfaces only = 2.5
+        self.assertEqual(6.4, r["work"])
+        self.assertEqual(2.5, r["receipts"])
+
+    @unittest.skipUnless(APP_70.exists() and BUILD_PLAN.exists(), "PhotoVault app not on this machine")
+    def test_the_app_ledger_scores_the_same_as_build_plan(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("pv_build_plan", self.BUILD_PLAN)
+        bp = importlib.util.module_from_spec(spec); spec.loader.exec_module(bp)
+        plan = json.loads(APP_70.read_text())
+        for i in plan["items"]:
+            i.setdefault("model", bp.MODEL_FOR[i["complexity"]])
+        want = bp.score(plan)
+        d = dict(plan, readiness_weights={"work": 70, "gates": 15, "floors": 10, "receipts": len(bp.PRIMARY_SURFACES)},
+                 size_weights=bp.SIZE_WEIGHT, primary_surfaces=list(bp.PRIMARY_SURFACES))
+        got = ledger.readiness(d)
+        self.assertEqual((want["work"], want["gate_pts"], want["floor_pts"], float(want["native_pts"]), want["readiness"]),
+                         (got["work"], got["gates"], got["floors"], got["receipts"], got["readiness"]))
+
