@@ -62,6 +62,7 @@ import json
 import re
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path
 
 RULES_DIR = Path(__file__).resolve().parent.parent
@@ -193,6 +194,11 @@ def shown(value) -> str:
             out.append("\\t")
         elif cp < 0x20 or cp == 0x7F or 0x80 <= cp <= 0x9F:
             out.append(f"\\x{cp:02x}")
+        elif unicodedata.category(ch) == "Cf":
+            # Proposal 20, V-09 round 2: a format character (a U+202E bidi
+            # override, a zero-width space) reorders or hides what a terminal
+            # shows. Escaped as \uXXXX, it can never reach the card raw.
+            out.append(f"\\u{cp:04x}" if cp <= 0xFFFF else f"\\U{cp:08x}")
         else:
             out.append(ch)
     return "".join(out)
@@ -293,7 +299,8 @@ def publish_state(project: Path, ledger_path: Path, data: dict, page: Path) -> t
     fix = f"republish the page and run: tracker published {lrel} --url <artifact url>"
     try:
         record = json.loads(sidecar.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, ValueError) as exc:
+    except (OSError, UnicodeDecodeError, ValueError, RecursionError) as exc:
+        # RecursionError: json.loads on "[" * 100000 (round 2, finding 3).
         return None, f"{srel} is malformed ({type(exc).__name__}) -- {fix}"
     bad = R.published_problems(record)
     if bad:

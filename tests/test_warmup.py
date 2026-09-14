@@ -848,6 +848,10 @@ class TestPageChangedSincePublish(Case):
             "at without offset": json.dumps(dict(good, at="2026-09-14T10:00:00")),
             "by not a string": json.dumps(dict(good, by=7)),
             "not utf-8": b"\xff\xfe",
+            # Round 2, finding 3: json.loads raises RecursionError, not ValueError.
+            "deeply nested": "[" * 100000,
+            # Round 2, finding 4: a bidi override in the URL.
+            "format character in url": json.dumps(dict(good, url=URL + "‮")),
         }
         for name, body in variants.items():
             with self.subTest(sidecar=name):
@@ -868,14 +872,80 @@ class TestPageChangedSincePublish(Case):
                 self.assertIn("19-proposal-warmup.published.json", check.stdout)
                 self.assertNotIn("warmup --check: ready", [l.strip() for l in check.stdout.splitlines()])
 
+    def test_the_json_carries_a_deeply_nested_sidecar_as_a_problem(self):
+        (self.p.root / SIDECAR).write_text("[" * 100000)
+        self.p.commit("deep sidecar")
+        r = self.p.warmup("--json")
+        self.assertEqual(0, r.returncode, r.stderr[-400:])
+        self.assertTrue(any("published.json" in p for p in json.loads(r.stdout)["problems"]))
+
+    def test_a_second_since_with_nothing_new_prints_no_publish_line(self):
+        self.published()
+        self.p.commit("published")
+        state = self.p.root / ".claude" / "warmup" / "last.json"
+        self.p.warmup("--state", str(state))
+        self.move_the_ledger()
+        self.assertIn(LINE, self.p.warmup("--since", str(state)).stdout)
+        self.p.warmup("--json", "--state", str(state))
+        again = self.p.warmup("--since", str(state)).stdout
+        self.assertNotIn("since last publish", again)
+        self.assertIn("no change since the last warm-up", again)
+
+    def test_switched_off_with_a_malformed_sidecar_reads_nothing(self):
+        d = ledger_data(w02="blocked")
+        d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00",
+                                     "quote": "stop publishing"}}
+        self.p.write(SIDECAR, "{not json")
+        self.move_the_ledger(d)
+        card = self.p.warmup()
+        self.assertNotIn("since last publish", card.stdout)
+        self.assertNotIn("published.json", card.stdout)
+        self.assertNotIn("problem(s)", card.stdout)
+        check = self.p.warmup("--check")
+        self.assertEqual(0, check.returncode, check.stdout)
+        self.assertIsNone(json.loads(self.p.warmup("--json").stdout)["ledgers"][LEDGER]["published"])
+
     def test_the_skill_says_how_to_republish(self):
-        skill = (ROOT / "skills" / "warmup" / "SKILL.md").read_text()
+        # Wrapped prose: compare with every run of whitespace as one space.
+        skill = " ".join((ROOT / "skills" / "warmup" / "SKILL.md").read_text().split())
+        lead = " ".join((ROOT / "templates" / "lead-prompt.md").read_text().split())
         self.assertIn("page changed since last publish", skill)
-        self.assertIn("tracker published", skill)
         self.assertIn("same URL", skill)
         self.assertIn("switched off", skill)
-        lead = (ROOT / "templates" / "lead-prompt.md").read_text()
-        self.assertIn("tracker published", lead)
+        for name, text in (("SKILL.md", skill), ("lead-prompt.md", " ".join(lead.split()))):
+            text = " ".join(text.split())   # wrapped prose: compare across line breaks
+            with self.subTest(file=name):
+                self.assertIn("tracker published", text)
+                # Round 2, finding 1: nothing else creates the first sidecar.
+                self.assertIn("published for the first time", text)
+                self.assertIn("with no `<stem>.published.json`", text)
+                self.assertIn("record it at once with `tracker published`", text)
+                # Round 2, finding 2: ledger first, the sidecar on its own, no log entry.
+                self.assertIn("commit ledger edits first", text)
+                self.assertIn("commit the sidecar on its own", text)
+                self.assertIn("not logged as a ledger event", text)
+                self.assertIn("the one exception", text)
+
+
+class TestFormatCharactersOnTheCard(Case):
+    """Round 2, finding 4: a Unicode format character (category Cf, e.g. the
+    U+202E right-to-left override) reorders what a terminal shows. shown()
+    escapes it as \\uXXXX, so it never reaches the card raw from any field."""
+
+    def test_a_bidi_override_is_escaped_in_every_printed_field(self):
+        d = ledger_data()
+        d["items"][1]["title"] = "safe‮evil"
+        d["asks"][0]["quote"] = "zero​width"
+        self.p.set_ledger(d)
+        self.p.commit("format characters")
+        for args in ((), ("--check",)):
+            with self.subTest(mode=args or "card"):
+                out = self.p.warmup(*args).stdout
+                for ch in out:
+                    self.assertNotEqual("Cf", __import__("unicodedata").category(ch), repr(ch))
+        card = self.p.warmup().stdout
+        self.assertIn("safe\\u202eevil", card)
+        self.assertIn("zero\\u200bwidth", card)
 
 
 class TestSafetyHeadingNotFound(Case):
