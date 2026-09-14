@@ -1,5 +1,27 @@
 # Changelog — common-rules
 
+## 2026-09-14 · Both PhotoVault projects are on the warm-up standard
+
+The engine ran `warmup --migrate` at its checkpoint after E1-09 merged: both
+superseded rules replaced in place with the kept substance, the originals
+under `## Superseded`, its sandboxed merge gate declared in
+`.common-rules-test` and honestly red until E0-08, the tracker page and a
+digest-carrying checkpoint committed. The lead verified it read-only; its card
+reads ready. The pilot (W-10) moves to in progress, not done: its exit
+conditions include a measured pilot week, and pockets and mac-explorer are not
+migrated yet.
+
+## 2026-09-13 · The PhotoVault app is on the warm-up standard
+
+The app's own session converted its Proposal 70 ledger to the standard shape
+(48 items, now validating) and ran the migration; the lead verified it
+read-only, and the app's warm card reads ready. W-13 is done. What it taught,
+recorded for proposal 20: the warm-up pointer migrate writes assumes HANDOFF.md
+comes first, which contradicts a project whose CLAUDE.md is its entry point;
+generated checkpoints create a commit per ledger batch; and a project tracking
+Ruflo's runtime files has a dirty tree after every Ruflo call. The engine's
+migration (W-10) is still to run at its checkpoint.
+
 ## 2026-09-13 · The PhotoVault app's dry run: plain-bullet rules and lead prompts anywhere
 
 Asked to migrate the PhotoVault app too, dry run first. The dry run said
