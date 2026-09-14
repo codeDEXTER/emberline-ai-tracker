@@ -59,6 +59,26 @@ pip's two undated leads are both grandfathered by it today -- zero blocked
 across every adopting project at the time this landed, same standard as the
 rule above.
 
+PROPOSAL 21, "THE STANDARD IS MANDATORY" (row S-03): the lead-with-no-status
+check above only fires when the page carries a `proposal-decided` date on or
+after STATUS_EFFECTIVE_DATE -- and a page with no status meta at all
+typically has no decided meta either, so it reads as undated and is silently
+grandfathered regardless of how new it actually is. PhotoVault's app
+proposals 72, 75 and 76, and the engine's 77, all carry no status meta and no
+decided date, and all passed unchecked. This adds a second, independent
+check for exactly that gap: a lead that carries NO `proposal-status` meta at
+all is a violation if the page itself -- not its undecided content -- is new,
+measured by when it was first added to git rather than by a hand-maintained
+declaration, because a floor nobody has to remember to update is a floor
+nobody forgets to set. `NEW_PROPOSAL_FLOOR` is its own constant, a third
+rule written on a third day. Grandfathered by the same "date, not list" rule
+as everything else here: a page first added to git before the floor is
+exempt, silently, forever. A page not yet committed cannot use that
+exemption -- it has no "first added" date to be older than the floor, so it
+reads as new. OUTSIDE A GIT REPOSITORY THIS CHECK NEVER FIRES: with no git
+history to ask, "when was this page first added" has no answer, so today's
+behaviour (nothing new flagged) holds rather than guessing.
+
 Exit codes: 0 clean. 1 violations found. 2 nothing to check (no
 docs/proposals/ under the project).
 """
@@ -66,6 +86,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -77,6 +98,13 @@ EFFECTIVE_DATE = "2026-08-19"
 # The day the "lead must carry a known status" rule was written -- its own
 # floor, not reused from EFFECTIVE_DATE above, because it is a distinct rule.
 STATUS_EFFECTIVE_DATE = "2026-08-20"
+
+# The day proposal 21 ("the standard is mandatory") made bin/new-proposal the
+# only way to create a proposal page. A lead first added to git on or after
+# this date must carry a proposal-status -- see the module docstring's
+# "PROPOSAL 21" section for why this is gated by the page's own git history
+# rather than by its (often-absent) proposal-decided date.
+NEW_PROPOSAL_FLOOR = "2026-09-14"
 
 # proposed / accepted / completed / completed in part / built (grandfathered
 # synonym), or the two parameterized cross-reference forms. A lead's status
@@ -131,6 +159,37 @@ def grandfathered(decided: str | None, floor: str = EFFECTIVE_DATE) -> bool:
     return decided < floor
 
 
+def first_added_is_new(path: Path, floor: str = NEW_PROPOSAL_FLOOR) -> bool:
+    """True if `path` counts as "new" for the no-status-meta rule: inside a
+    git repository, and either not yet committed or first added to git on
+    or after `floor`. False when there is no git repository above `path` at
+    all -- read-only, no fallback guess, matches "outside a git repository,
+    keep today's behaviour" in the module docstring.
+
+    "First added" is `git log --diff-filter=A --follow`, oldest match, so a
+    rename or a move does not reset the clock. A path with no "A" record at
+    all -- never committed, or git's rename detection did not attribute one
+    -- is new by construction: a proposal cannot dodge this rule by staying
+    uncommitted.
+    """
+    inside = subprocess.run(
+        ["git", "-C", str(path.parent), "rev-parse", "--is-inside-work-tree"],
+        capture_output=True, text=True, check=False,
+    )
+    if inside.returncode != 0 or inside.stdout.strip() != "true":
+        return False
+
+    log = subprocess.run(
+        ["git", "-C", str(path.parent), "log", "--diff-filter=A", "--follow",
+         "--format=%aI", "--", path.name],
+        capture_output=True, text=True, check=False,
+    )
+    added_dates = sorted(line[:10] for line in log.stdout.splitlines() if line.strip())
+    if not added_dates:
+        return True
+    return added_dates[0] >= floor
+
+
 def is_lead(text: str) -> bool:
     """A lead is a document with no `proposal-part-of` -- the one thing in
     its topic that carries an independent status and a decision. Everything
@@ -167,6 +226,15 @@ def check_proposal(path: Path, text: str) -> list[str]:
                 violations.append(
                     'is a lead (no proposal-part-of) but carries no proposal-status at '
                     f'all -- decided {decided}, on or after the {STATUS_EFFECTIVE_DATE} floor'
+                )
+            # Proposal 21 (S-03): a page with no status meta usually has no
+            # decided meta either, so the check above reads it as undated and
+            # grandfathers it regardless of how new it actually is. This is
+            # gated by the page's own git history instead.
+            if first_added_is_new(path):
+                violations.append(
+                    'carries no proposal status -- create proposals with '
+                    'bin/new-proposal (common-rules proposal 21)'
                 )
         elif not KNOWN_STATUS_RE.match(status):
             if not grandfathered(decided, floor=STATUS_EFFECTIVE_DATE):
