@@ -286,20 +286,22 @@
       "kind": "decision",
       "at": "2026-09-14T23:53:47+02:00",
       "by": "sponsor",
-      "quote": "L3: picked \"A · Log to file, read the summary line\".",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L3: picked \"A · Log to file, read the summary line\".",
       "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
       "state": "became-item",
-      "became": "L-03"
+      "became": "L-03",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     },
     {
       "id": "A-04",
       "kind": "decision",
       "at": "2026-09-14T23:54:54+02:00",
       "by": "sponsor",
-      "quote": "L4: picked \"A · One-line tracker commands\".",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L4: picked \"A · One-line tracker commands\".",
       "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
       "state": "became-item",
-      "became": "L-04"
+      "became": "L-04",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     },
     {
       "id": "A-05",
@@ -316,19 +318,21 @@
       "kind": "decision",
       "at": "2026-09-14T23:56:14+02:00",
       "by": "sponsor",
-      "quote": "L6: picked \"B · Haiku scout writes the pack\".",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L6: picked \"B · Haiku scout writes the pack\".",
       "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
       "state": "became-item",
-      "became": "L-06"
+      "became": "L-06",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     },
     {
       "id": "A-07",
       "kind": "decision",
       "at": "2026-09-14T23:58:03+02:00",
       "by": "sponsor",
-      "quote": "L7: picked \"K · Keep as is (the lead reads receipt images itself)\".",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L7: picked \"K · Keep as is (the lead reads receipt images itself)\".",
       "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
-      "state": "answered"
+      "state": "answered",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     },
     {
       "id": "A-08",
@@ -365,21 +369,31 @@
       "kind": "research",
       "state": "became-item",
       "became": "L-07",
-      "at": "2026-09-15T00:05:00+02:00",
+      "at": "2026-09-15T00:08:20+02:00",
       "by": "sponsor",
       "quote": "Also, can you do an independent research on this analysis to analysis? If there are some repeating task can be create some python scripts, one time to automate them?",
-      "source": "Common Rules rework session transcript",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl, queued message at 2026-09-14T22:08:20.717Z",
       "note": "Mining results fed L-03, L-04 and new L-07. The re-check confirmed claims 1, 2 and proposal 79's double count (4,818 streamed records for 1,322 messages); claims 3 and 4 depend on the classifier and grouping used."
     },
     {
       "id": "A-12",
       "kind": "feature",
       "state": "answered",
-      "at": "2026-09-15T00:02:00+02:00",
+      "at": "2026-09-15T00:06:07+02:00",
       "by": "sponsor",
       "quote": "Make the artefacts, so I can use them on mobile",
-      "source": "Common Rules rework session transcript",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl, queued message at 2026-09-14T22:06:07.791Z",
       "note": "Answered with the Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow and published proposal pages."
+    },
+    {
+      "id": "A-13",
+      "kind": "question",
+      "state": "answered",
+      "at": "2026-09-15T00:13:25+02:00",
+      "by": "sponsor",
+      "quote": "Documented open decisions",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl, queued message at 2026-09-14T22:13:25.273Z",
+      "note": "He had answered all ten questions on the Autonomy & Sizing Decisions page; recorded in proposals 24 and 25."
     }
   ],
   "proposed_changes": [],

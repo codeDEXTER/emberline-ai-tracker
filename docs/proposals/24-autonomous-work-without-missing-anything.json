@@ -120,39 +120,43 @@
       "kind": "decision",
       "at": "2026-09-15T00:11:11+02:00",
       "by": "sponsor",
-      "quote": "D1: picked \"B · Thin dispatcher + short item leads\" (no note).",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D1: picked \"B · Thin dispatcher + short item leads\".",
       "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
       "state": "became-item",
-      "became": "H-02"
+      "became": "H-02",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     },
     {
       "id": "A-03",
       "kind": "decision",
       "at": "2026-09-15T00:11:25+02:00",
       "by": "sponsor",
-      "quote": "D2: picked \"A · The four checks\" (no note).",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D2: picked \"A · The four checks\".",
       "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
       "state": "became-item",
-      "became": "H-01"
+      "became": "H-01",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     },
     {
       "id": "A-04",
       "kind": "decision",
       "at": "2026-09-15T00:11:38+02:00",
       "by": "sponsor",
-      "quote": "D3: picked \"A · The dispatcher starts the next lead, without asking\" (no note).",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D3: picked \"A · The dispatcher starts the next lead, without asking\".",
       "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
       "state": "became-item",
-      "became": "H-03"
+      "became": "H-03",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     },
     {
       "id": "A-05",
       "kind": "decision",
       "at": "2026-09-15T00:11:51+02:00",
       "by": "sponsor",
-      "quote": "D4: picked \"A · Keep today's three stops\" (no note).",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D4: picked \"A · Keep today's three stops\".",
       "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
-      "state": "answered"
+      "state": "answered",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     }
   ],
   "proposed_changes": [],

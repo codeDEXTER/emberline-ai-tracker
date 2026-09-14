@@ -1,5 +1,36 @@
 # Changelog — common-rules
 
+## 2026-09-15 · Proposals 23, 24 and 25 accepted: token spend, autonomy, sizing
+
+The sponsor asked why building simple features costs so many tokens: "analyze
+where the tokens are getting spent and why it's getting so expensive to build
+simple features. I would like to optimize things." A measurement of the
+PhotoVault App, PhotoVault Engine and Common Rules chat v1 transcripts found
+most spend is leads re-reading a context of about 500k tokens on every call,
+and most subagent spend is on items that needed more than one agent.
+
+He decided on two pages, and the answers are recorded in three proposals:
+- **23 · Eight levers for token spend.** Fresh leads per milestone or day,
+  review only risky work, quiet builds, one-line tracker commands, bundling
+  small issues by surface, a Haiku scout for context. Screenshots and models
+  kept as they are. Items L-01 to L-07.
+- **24 · Autonomous work without missing anything.** A thin dispatcher that
+  never ends, short item leads, a four-point closing check before any lead
+  stops, the dispatcher starts the next lead, and today's stop list unchanged.
+  Items H-01 to H-03.
+- **25 · Sizing items by value, points and risk.** Value set per surface by the
+  sponsor, points kept from builders, a risk class from paths with every
+  common-rules change restricted, calibration every 20 items, and a catalogue
+  of issues clustered by files touched. Items Z-01 to Z-06.
+
+An independent re-check confirmed the context and cache-read figures and found
+PhotoVault proposal 79's token totals count each streamed response about 3.6
+times.
+
+**Behaviour change:** none yet. These are decisions and ledger items only; each
+item that changes what projects must do will carry its own Standard change
+line when it lands.
+
 ## 2026-09-14 · `tracker board`: one tracker page per project (P22 T-01)
 
 The sponsor asked: "Can we make the tracker a little bit visually readable
