@@ -1,5 +1,45 @@
 # Changelog — common-rules
 
+## 2026-09-14 · `bin/conformance`: the 12 items, measured (P21 S-04)
+
+Sessions report "standard: N of 12 hold". The number now comes from a tool
+rather than from the session saying so.
+
+`bin/conformance --project DIR [--json]` prints one line per item of
+`/standard`'s checklist: ✓ holds, ✗ does not hold (with why and the fix), or
+… waiting on common-rules. It exits 0 when no item fails, 1 when one does, and
+2 when it cannot run. It is read-only; a byte-and-mtime snapshot test holds it
+to that.
+
+The rules each item checks:
+- **Rules:** the stamp is committed and no mandatory Standard change is pending.
+  A stamp truly ahead of the rules holds; one that cannot be resolved fails.
+- **Migrated:** every ledger is valid and its page matches.
+- **Declared:** read order, safety rules and both gates.
+- **Installed:** derecord's exact pre-commit hook, the hooks resolving into
+  common-rules, the Ruflo ignore lines decided by `git check-ignore`, and no
+  tracked runtime files.
+- **Lead prompt:** it carries the template marker.
+- **Common language:** valid owners on blocked rows and open asks, tags
+  agreeing with each row's tier and model, one routing table, and valid
+  requests.
+- **Proposals:** `proposalcheck` is clean.
+- **No hand-kept ledger twins.**
+- **Ruflo:** a real memory database, or ruflo-item, post-task or memory-store
+  evidence.
+- **Publish records:** well-formed.
+- **CLAUDE.md pointer:** committed, not symlinked, and matching the declared
+  order.
+- **Card:** `warmup --check` is ready.
+
+Items 5, 6, 8 and 9 are proxies, and the docstring says so.
+
+Two review rounds closed seven ways a project could fake a pass. The lead fixed
+the final round's one finding: a committed CRLF stamp read "not committed".
+
+**Where the projects stand today:** PhotoVault app 5 of 12, engine 4 of 12,
+common-rules 7 of 12. Each fixes the rest when it refactors under `/standard`.
+
 ## 2026-09-14 · The templates and the workflow say the standard is mandatory (P21 S-06)
 
 Every session reads its project's lead prompt and this repository's

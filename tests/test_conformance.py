@@ -353,6 +353,20 @@ class TestItem1Rules(Copy):
         data = self.assert_breaks({1})
         self.assertIn("not committed", self.item(data, 1)["why"])
 
+    def test_a_committed_crlf_stamp_holds(self):
+        """S-04 final review: text-mode git output turned \\r\\n into \\n, so a stamp
+        committed exactly as it is on disk read "not committed"."""
+        import subprocess as sp
+        stamp = self.p / ".common-rules-version"
+        stamp.write_bytes(stamp.read_text().strip().encode() + b"\r\n")
+        commit(self.p, "crlf stamp")
+        size = sp.run(["git", "-C", str(self.p), "cat-file", "-s", "HEAD:.common-rules-version"],
+                      capture_output=True, text=True).stdout.strip()
+        if size != str(len(stamp.read_bytes())):
+            self.skipTest("this fixture normalises line endings on commit")
+        mod = load_module()
+        self.assertTrue(mod.stamp_committed(mod.Context(self.p)))
+
     def test_a_stamp_changed_since_head_does_not_hold(self):
         stamp = self.p / ".common-rules-version"
         stamp.write_text(stamp.read_text() + "\n")      # the same version, but not what HEAD holds
