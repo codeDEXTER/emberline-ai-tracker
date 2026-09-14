@@ -1,0 +1,259 @@
+{
+  "proposal": 25,
+  "title": "Sizing items by value, points and risk",
+  "status": "accepted",
+  "updated": "2026-09-15",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "opus",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "lead model",
+      "effort": "-",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "Z",
+      "name": "Sizing",
+      "goal": "Every item carries value, points, risk and cluster, and those fields decide review depth, effort and bundling.",
+      "exit": "Z-01 to Z-06 merged; one project's open items all carry the four fields and the first calibration after 20 items is recorded."
+    },
+    {
+      "id": "X",
+      "name": "Research",
+      "goal": "Questions that need reading, not writing, before they become items, a proposal, or a decline.",
+      "exit": "Every X row is done only when it becomes items, a numbered proposal, or a recorded decline with the reason -- never a report nobody acted on."
+    }
+  ],
+  "items": [
+    {
+      "id": "Z-01",
+      "phase": "Z",
+      "cx": "C2",
+      "title": "Ledger fields: value, points, risk, cluster",
+      "what": "tools/tracker/ledger.py accepts and validates value (high|medium|low), points (1,2,3,5,8,13), risk (standard|elevated|restricted) and cluster (a surface string) on items. Existing ledgers stay valid without them.",
+      "files": [],
+      "tests": [],
+      "done": "Validator tests, red first, for each field's bad value; tracker render shows the four fields.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "Z-02",
+      "phase": "Z",
+      "cx": "C2",
+      "title": "Routing table from the four fields",
+      "what": "restricted → separate reviewer, sponsor sees the result, never bundled; elevated, or value high with points ≥5 → separate reviewer, own branch; else → gate and tests only, points 1-3 bundled by cluster. Points are set by the lead or scout and left out of the builder's brief (D3). Models unchanged (proposal 23, D8).",
+      "files": [],
+      "tests": [],
+      "done": "A tracker command prints an item's route; brief template drops points for builders; tests cover each row of the table.",
+      "depends": [
+        "Z-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "Z-03",
+      "phase": "Z",
+      "cx": "C2",
+      "title": "Value defaults per surface",
+      "what": ".common-rules.json declares value defaults per surface; an item's own value overrides the default.",
+      "files": [],
+      "tests": [],
+      "done": "Declared in common-rules' own .common-rules.json and read by the route command; test for default and override.",
+      "depends": [
+        "Z-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "Z-04",
+      "phase": "Z",
+      "cx": "C2",
+      "title": "Risk class from paths; common-rules always restricted",
+      "what": "A path list per project sets risk: money, the PhotoVault library, auth and release paths are restricted; every common-rules change is restricted (D4); shared modules elevated; else standard.",
+      "files": [],
+      "tests": [],
+      "done": "Classifier with tests on real path examples; common-rules items always come back restricted.",
+      "depends": [
+        "Z-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "Z-05",
+      "phase": "Z",
+      "cx": "C2",
+      "title": "Calibrate points every 20 items",
+      "what": "After every 20 closed items, bin/spend measures tokens per item from transcripts and compares cost per point class; an item over twice its class median is flagged and logged.",
+      "files": [],
+      "tests": [],
+      "done": "Command with tests on a fixture ledger and transcripts; the first real calibration recorded in a ledger log.",
+      "depends": [
+        "Z-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "Z-06",
+      "phase": "Z",
+      "cx": "C2",
+      "title": "Issue catalogue clustered by files touched",
+      "what": "Issues not taken now carry a cluster from file-path overlap and appear grouped on the project's tracker page (proposal 22's board), so L-05 bundles are picked from it.",
+      "files": [],
+      "tests": [],
+      "done": "Tracker board shows the catalogue grouped by cluster; test for grouping and for the same-folder pitfall case.",
+      "depends": [
+        "Z-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    }
+  ],
+  "asks": [
+    {
+      "id": "A-01",
+      "kind": "feature",
+      "state": "became-item",
+      "at": "2026-09-15T00:00:19+02:00",
+      "by": "sponsor",
+      "quote": "this needs to be rethaught. its not only the complexity of the task, but the importance and value of the feature. each feature or task should have a userstory point to understand complexitxy and effort. research how this could be implemented",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks, document L8; proposal 23 ask A-08",
+      "became": "Z-01"
+    },
+    {
+      "id": "A-02",
+      "kind": "feature",
+      "state": "became-item",
+      "at": "2026-09-14T23:52:57+02:00",
+      "by": "sponsor",
+      "quote": "but the issues need to be catalauges and clustered together for later",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks, documents L2 and L5; proposal 23 ask A-09",
+      "became": "Z-06"
+    },
+    {
+      "id": "A-03",
+      "kind": "decision",
+      "state": "became-item",
+      "became": "Z-02",
+      "at": "2026-09-15T00:12:06+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D1: picked \"A · Value + points + risk, with a routing table\".",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
+    },
+    {
+      "id": "A-04",
+      "kind": "decision",
+      "state": "became-item",
+      "became": "Z-03",
+      "at": "2026-09-15T00:12:22+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D2: picked \"A · Default per surface, override when needed\".",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
+    },
+    {
+      "id": "A-05",
+      "kind": "decision",
+      "state": "became-item",
+      "became": "Z-02",
+      "at": "2026-09-15T00:12:33+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D3: picked \"A · No, kept from the builder\".",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
+    },
+    {
+      "id": "A-06",
+      "kind": "decision",
+      "state": "became-item",
+      "became": "Z-04",
+      "at": "2026-09-15T00:12:43+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D4: picked \"A · Always restricted\".",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
+    },
+    {
+      "id": "A-07",
+      "kind": "decision",
+      "state": "became-item",
+      "became": "Z-05",
+      "at": "2026-09-15T00:12:51+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D5: picked \"A · Every 20 items\".",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
+    },
+    {
+      "id": "A-08",
+      "kind": "decision",
+      "state": "became-item",
+      "became": "Z-06",
+      "at": "2026-09-15T00:13:08+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D6: picked \"A · Cluster by files touched, on the tracker page\".",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {
+    "started": "2026-09-15T00:30:00+02:00",
+    "integration_branch": "p23-eight-levers"
+  }
+}
