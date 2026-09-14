@@ -498,6 +498,103 @@ class TestPathsStayInTheProject(Scratch):
             self.assertIn("outside the project", f)
 
 
+class TestProposalSeries(unittest.TestCase):
+    """`proposal_series` (proposal 21, S-02): sibling projects that share one
+    proposal number series -- the PhotoVault app and engine interleave theirs.
+    bin/new-proposal numbers across them, so a bad entry is a named problem."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.parent = Path(self.tmp.name).resolve()
+        self.root = self.parent / "app"
+        self.root.mkdir()
+        (self.parent / "engine" / "docs" / "proposals").mkdir(parents=True)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def declare(self, value):
+        (self.root / ".common-rules.json").write_text(json.dumps({"proposal_series": value}))
+
+    def found(self) -> str:
+        return "\n".join(P().problems(self.root))
+
+    def test_an_invisible_or_bidi_character_in_an_entry_is_a_problem(self):
+        for bad in ("../eng\u2028ine", "../eng\u202eine", "../eng\u200bine"):
+            with self.subTest(entry=ascii(bad)):
+                self.declare([bad])
+                text = self.found()
+                self.assertIn("proposal_series", text)
+                self.assertNotIn(bad, text)
+
+    def test_a_folder_inside_the_project_is_not_a_sibling(self):
+        (self.root / "sub" / "docs" / "proposals").mkdir(parents=True)
+        self.declare(["sub"])
+        self.assertIn("not a sibling", self.found())
+
+    def test_the_default_is_no_series(self):
+        self.assertEqual([], P().load(self.root)["proposal_series"])
+        self.assertEqual(([], []), P().proposal_series(self.root))
+
+    def test_a_sibling_is_accepted(self):
+        self.declare(["../engine"])
+        self.assertEqual(["../engine"], P().load(self.root)["proposal_series"])
+        self.assertEqual([], P().problems(self.root))
+        self.assertEqual(([("../engine", self.parent / "engine")], []), P().proposal_series(self.root))
+
+    def test_not_a_list_is_named(self):
+        self.declare("../engine")
+        self.assertEqual([], P().load(self.root)["proposal_series"])
+        self.assertIn("proposal_series must be a list", self.found())
+
+    def test_a_non_string_or_empty_entry_is_named(self):
+        for value in ([3], [""], ["  "]):
+            with self.subTest(value=value):
+                self.declare(value)
+                self.assertEqual([], P().load(self.root)["proposal_series"])
+                self.assertIn("proposal_series", self.found())
+
+    def test_an_absolute_path_is_named(self):
+        self.declare([str(self.parent / "engine")])
+        self.assertIn("relative to the project root", self.found())
+
+    def test_a_path_leaving_the_parent_folder_is_named(self):
+        self.declare(["../../elsewhere"])
+        self.assertIn("outside the parent folder", self.found())
+
+    def test_the_project_itself_is_named(self):
+        for value in (["."], ["../app"]):
+            with self.subTest(value=value):
+                self.declare(value)
+                self.assertIn("the project itself", self.found())
+
+    def test_a_missing_sibling_is_named(self):
+        self.declare(["../nothere"])
+        self.assertIn("does not exist", self.found())
+        roots, problems = P().proposal_series(self.root)
+        self.assertEqual([], roots)
+        self.assertTrue(problems)
+
+    def test_a_sibling_without_docs_proposals_is_named(self):
+        (self.parent / "bare").mkdir()
+        self.declare(["../bare"])
+        self.assertIn("docs/proposals", self.found())
+
+    def test_a_control_character_is_named_without_quoting_it(self):
+        self.declare(["../eng\nine"])
+        found = self.found()
+        self.assertIn("one line", found)
+        self.assertNotIn("eng\\nine", found)
+        self.assertNotIn("eng\nine", found)
+
+    def test_a_symlink_out_of_the_parent_folder_is_named(self):
+        with tempfile.TemporaryDirectory() as away:
+            (Path(away) / "docs" / "proposals").mkdir(parents=True)
+            (self.parent / "link").symlink_to(away)
+            self.declare(["../link"])
+            self.assertIn("outside the parent folder", self.found())
+
+
 class TestLoneSurrogates(Scratch):
     """JSON can carry "\\udc80", which no UTF-8 stream can print. It is a named
     problem, never a traceback, and land and test_command() agree."""
