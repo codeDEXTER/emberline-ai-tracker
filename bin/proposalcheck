@@ -79,6 +79,65 @@ reads as new. OUTSIDE A GIT REPOSITORY THIS CHECK NEVER FIRES: with no git
 history to ask, "when was this page first added" has no answer, so today's
 behaviour (nothing new flagged) holds rather than guessing.
 
+S-03 ROUND 2 -- FOUR HARDENING FIXES TO THE RULE ABOVE, all from a report-only
+reviewer who reproduced the originals in scratch repos:
+
+1. SHALLOW CLONES LIE ABOUT AGE. `git log --diff-filter=A` on a shallow
+   clone only sees commits since the truncation point, so an old page can
+   look freshly "added" purely because its real history was never fetched.
+   `git rev-parse --is-shallow-repository` is checked once per repository
+   (see HOISTED below); if true, the new-page rule is skipped entirely for
+   every page, and one line goes to stderr saying so -- a silent skip would
+   read as "checked and clean" when nothing was actually checked.
+
+2. `%aI` (AUTHOR DATE) IS WHATEVER `git commit --date` WAS TOLD TO SAY.
+   `%cI`, the COMMITTER date, is what the repository itself recorded the
+   commit as happening -- still not un-forgeable by someone with commit
+   access and a clock, but not free-text either. Everything here reads `%cI`.
+
+3. NEWEST ADD RECORD, NOT OLDEST. A rename (`--follow` attributes it to the
+   original creation, one "A" record) reads as old, correctly. A page that
+   was deleted and later re-added at the same path produces TWO "A" records
+   for that path -- the original and the resurrection -- and the resurrection
+   is what should decide "new," because the page a reader sees today is the
+   new one. Taking the oldest of the two would silently launder a fresh page
+   through an old filename.
+
+6. A GIT FAILURE IS NOT "NEW." `git rev-parse --is-inside-work-tree` failing
+   means "not a repository" -- the existing, correct no-op case. `git log`
+   itself failing *after* that succeeded means something else is wrong
+   (permissions, a corrupt object, whatever) and silently treating it as "new"
+   would report a false violation with no way to tell it apart from a real
+   one. It is named instead: `<file>: could not read its git history
+   (<first line of stderr>)`.
+
+HOISTED (item 5): `--is-inside-work-tree` and `--is-shallow-repository` are
+repository-level facts -- true or false for every page in the same project --
+so they are read once per run (`repo_context()`) and threaded through, not
+re-run once per page. `git log --diff-filter=A` still runs per page: each
+page's own add history is genuinely per-page.
+
+PROPOSAL 21, QUEUED FROM S-02'S REVIEW (item 7):
+
+(a) A page carrying `<meta name="common-rules-template" ...>` (written by
+    bin/new-proposal) whose status is a decision status (`accepted`,
+    `completed`, `completed in part`, `built`) and which carries no
+    `proposal-decided` date is a violation:
+    `<file>: <status> without a proposal-decided date -- record when it was
+    decided`. Every other rule above treats an undated proposal as
+    "decided before this rule existed" -- correct for organic history nobody
+    can rewrite, but a page created by the template on or after today can
+    reach `accepted` with the date simply never filled in, and that is a
+    live omission, not unrecoverable history. Not date-gated -- there is no
+    backlog to grandfather, since `bin/new-proposal` and its template meta
+    did not exist before proposal 21. Pages without the template meta keep
+    every grandfather above exactly as today.
+
+(b) The `meta()` regex now accepts a self-closing `<meta ... />` as well as
+    `<meta ...>` -- both are valid HTML, and a self-closed tag was being
+    read as carrying no meta at all, which is indistinguishable from the
+    violation this whole tool exists to catch.
+
 Exit codes: 0 clean. 1 violations found. 2 nothing to check (no
 docs/proposals/ under the project).
 """
@@ -88,6 +147,7 @@ import argparse
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 # The day this rule was written. Nothing decided before it is checked -- see
@@ -122,8 +182,18 @@ DECISION_STATUSES = {"accepted", "completed", "completed in part", "built"}
 
 
 def meta(text: str, name: str) -> str | None:
-    m = re.search(rf'<meta name="proposal-{name}" content="([^"]*)">', text)
+    # `\s*/?>` -- a self-closing `<meta ... />` is valid HTML and must read
+    # the same as `<meta ...>` (item 7b).
+    m = re.search(rf'<meta name="proposal-{name}" content="([^"]*)"\s*/?>', text)
     return m.group(1) if m else None
+
+
+def has_template_meta(text: str) -> bool:
+    """True if this page carries `<meta name="common-rules-template" ...>` --
+    written by bin/new-proposal (proposal 21, S-02). Presence only; the
+    content value is not this check's concern. Accepts a self-closing tag
+    the same way `meta()` does (item 7b)."""
+    return bool(re.search(r'<meta\s+name="common-rules-template"[^>]*/?>', text))
 
 
 def asks_decisions(text: str) -> bool:
@@ -159,35 +229,78 @@ def grandfathered(decided: str | None, floor: str = EFFECTIVE_DATE) -> bool:
     return decided < floor
 
 
-def first_added_is_new(path: Path, floor: str = NEW_PROPOSAL_FLOOR) -> bool:
-    """True if `path` counts as "new" for the no-status-meta rule: inside a
-    git repository, and either not yet committed or first added to git on
-    or after `floor`. False when there is no git repository above `path` at
-    all -- read-only, no fallback guess, matches "outside a git repository,
-    keep today's behaviour" in the module docstring.
+@dataclass(frozen=True)
+class RepoContext:
+    """Repository-level facts, read once per run and threaded through --
+    not re-read once per page (item 5). `inside` and `shallow` cannot differ
+    between two pages of the same project in the same run."""
+    inside: bool
+    shallow: bool
 
-    "First added" is `git log --diff-filter=A --follow`, oldest match, so a
-    rename or a move does not reset the clock. A path with no "A" record at
-    all -- never committed, or git's rename detection did not attribute one
-    -- is new by construction: a proposal cannot dodge this rule by staying
-    uncommitted.
-    """
-    inside = subprocess.run(
-        ["git", "-C", str(path.parent), "rev-parse", "--is-inside-work-tree"],
+
+def repo_context(proposals_dir: Path) -> RepoContext:
+    """`--is-inside-work-tree` and, only if that is true, `--is-shallow-
+    repository` -- both read exactly once per `main()` call, regardless of
+    how many pages there are (item 5's timing test is what this exists for)."""
+    inside_proc = subprocess.run(
+        ["git", "-C", str(proposals_dir), "rev-parse", "--is-inside-work-tree"],
         capture_output=True, text=True, check=False,
     )
-    if inside.returncode != 0 or inside.stdout.strip() != "true":
-        return False
+    inside = inside_proc.returncode == 0 and inside_proc.stdout.strip() == "true"
+    if not inside:
+        return RepoContext(inside=False, shallow=False)
+
+    shallow_proc = subprocess.run(
+        ["git", "-C", str(proposals_dir), "rev-parse", "--is-shallow-repository"],
+        capture_output=True, text=True, check=False,
+    )
+    shallow = shallow_proc.returncode == 0 and shallow_proc.stdout.strip() == "true"
+    return RepoContext(inside=True, shallow=shallow)
+
+
+def new_page_violation(path: Path, ctx: RepoContext,
+                        floor: str = NEW_PROPOSAL_FLOOR) -> str | None:
+    """The proposal-21 no-status-meta violation text for `path`, or None if
+    this page does not violate the rule. Caller (check_proposal) only calls
+    this for a lead with no proposal-status meta, and only when `ctx.shallow`
+    is False -- the shallow-clone skip (item 1) is enforced by the caller so
+    it can be reported once per run rather than once per page.
+
+    None outside a git repository (`ctx.inside` False) -- nothing to check,
+    matches today's behaviour.
+
+    "First added" is `git log --diff-filter=A --follow --format=%cI`
+    (committer date, item 2 -- author date is free text `git commit --date`
+    can set to anything), NEWEST match, not oldest (item 3): a rename
+    keeps its one original "A" record and reads as old, but a page deleted
+    and re-added at the same path gets a second "A" record for the
+    resurrection, and the resurrection is what should decide "new". A path
+    with no "A" record at all -- never committed -- is new by construction:
+    a proposal cannot dodge this rule by staying uncommitted.
+
+    If `git log` itself fails for a reason other than "not a repository"
+    (already ruled out by `ctx.inside`), that is reported as its own
+    violation rather than silently treated as "new" (item 6).
+    """
+    if not ctx.inside:
+        return None
 
     log = subprocess.run(
         ["git", "-C", str(path.parent), "log", "--diff-filter=A", "--follow",
-         "--format=%aI", "--", path.name],
+         "--format=%cI", "--", path.name],
         capture_output=True, text=True, check=False,
     )
+    if log.returncode != 0:
+        stderr_lines = log.stderr.strip().splitlines()
+        first_line = stderr_lines[0] if stderr_lines else "git log failed"
+        return f'could not read its git history ({first_line})'
+
     added_dates = sorted(line[:10] for line in log.stdout.splitlines() if line.strip())
-    if not added_dates:
-        return True
-    return added_dates[0] >= floor
+    is_new = (not added_dates) or (added_dates[-1] >= floor)
+    if not is_new:
+        return None
+    return ('carries no proposal status -- create proposals with '
+            'bin/new-proposal (common-rules proposal 21)')
 
 
 def is_lead(text: str) -> bool:
@@ -199,11 +312,20 @@ def is_lead(text: str) -> bool:
     return meta(text, "part-of") is None
 
 
-def check_proposal(path: Path, text: str) -> list[str]:
+def check_proposal(path: Path, text: str, ctx: RepoContext) -> list[str]:
     """Violations for one proposal document, or an empty list."""
     violations = []
     status = meta(text, "status")
     decided = meta(text, "decided")
+
+    if (status in DECISION_STATUSES and decided is None
+            and has_template_meta(text)):
+        # Item 7a: a template-authored page reaching a decision status with
+        # the date simply never filled in -- not date-gated, see the module
+        # docstring's "QUEUED FROM S-02'S REVIEW" section.
+        violations.append(
+            f'{status} without a proposal-decided date -- record when it was decided'
+        )
 
     if status in DECISION_STATUSES and asks_decisions(text) and not records_answers(text):
         if not grandfathered(decided):
@@ -230,12 +352,13 @@ def check_proposal(path: Path, text: str) -> list[str]:
             # Proposal 21 (S-03): a page with no status meta usually has no
             # decided meta either, so the check above reads it as undated and
             # grandfathers it regardless of how new it actually is. This is
-            # gated by the page's own git history instead.
-            if first_added_is_new(path):
-                violations.append(
-                    'carries no proposal status -- create proposals with '
-                    'bin/new-proposal (common-rules proposal 21)'
-                )
+            # gated by the page's own git history instead. Skipped entirely
+            # on a shallow clone (item 1) -- the caller (main()) reports that
+            # once per run, not once per page.
+            if not ctx.shallow:
+                msg = new_page_violation(path, ctx)
+                if msg:
+                    violations.append(msg)
         elif not KNOWN_STATUS_RE.match(status):
             if not grandfathered(decided, floor=STATUS_EFFECTIVE_DATE):
                 violations.append(
@@ -320,9 +443,15 @@ def main() -> int:
     documents = [(path, path.read_text(encoding="utf-8", errors="replace"))
                  for path in sorted(proposals_dir.glob("*.html"))]
 
+    # Read once per run, not once per page (item 5).
+    ctx = repo_context(proposals_dir)
+    if ctx.shallow:
+        print("proposalcheck: shallow clone -- the new-proposal status rule "
+              "is skipped (fetch full history)", file=sys.stderr)
+
     total_violations = 0
     for path, text in documents:
-        for v in check_proposal(path, text):
+        for v in check_proposal(path, text, ctx):
             print(f"{path.name}: {v}")
             total_violations += 1
 
