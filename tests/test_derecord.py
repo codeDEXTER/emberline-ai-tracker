@@ -635,16 +635,18 @@ class TestDerecordCheckpointPathFromStdout(LedgerCommitHelpers, DerecordCase):
     itself reports having written, not recomputed a second time from today's
     date -- the two can disagree across midnight."""
 
-    def test_a_ledger_with_nothing_open_makes_checkpoint_report_no_path_and_the_commit_is_refused(self):
+    def test_the_commit_that_closes_the_last_open_item_is_not_refused(self):
+        """Lead, after round 2: tracker prints "checkpoint: no open ledger" and
+        exits 0 when the staged ledger has nothing left open. Refusing that
+        meant the commit finishing a proposal could never be made."""
         self.run_derecord()
         ledger_path = self.write_ledger(items=[{
             "id": "X-01", "phase": "X", "cx": "C2", "title": "t", "status": "done",
             "log": [{"at": "2026-09-14T00:00:00+00:00", "event": "done", "by": "lead", "evidence": "e"}],
         }])
         r = self.commit(ledger_path)
-        self.assertNotEqual(r.returncode, 0,
-                             "checkpoint reported no path to stage -- the commit must not silently proceed")
-        self.assertIn("no open ledger", r.stderr + r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual([], [f for f in self.committed_files() if f.endswith("-checkpoint.md")])
 
     def test_the_staged_checkpoint_path_matches_what_tracker_reported(self):
         self.run_derecord()
