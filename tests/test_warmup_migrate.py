@@ -308,6 +308,49 @@ class TestDeclaredReadOrder(Case):
         r = self.p.migrate()
         self.assertEqual(CLAUDE_MD, self.p.read("CLAUDE.md"))
         self.assertIn("marker", r.stdout)
+        self.assertEqual(1, r.returncode, "a refused pointer is a failed step")
+
+    # Review round 2: migrate read P.load(), which falls back to the defaults
+    # in silence, and wrote "HANDOFF.md first" over a declaration it could not
+    # read. The pointer is refused, why is printed, and the run exits 1.
+
+    def declare_body(self, body: str):
+        self.p.write(".common-rules.json", body)
+        self.p.git("add", "-A")
+        self.p.git("commit", "-qm", "declare")
+
+    def assert_pointer_refused(self, *extra, named):
+        before = self.p.read("CLAUDE.md")
+        r = self.p.migrate(*extra)
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+        self.assertEqual(before, self.p.read("CLAUDE.md"))
+        self.assertIn("CLAUDE.md: not written", r.stdout)
+        self.assertIn(named, r.stdout)
+
+    def test_a_malformed_declaration_refuses_the_pointer(self):
+        self.declare_body('{"read_order": ["CLAUDE.md"')
+        self.assert_pointer_refused(named=".common-rules.json is not valid JSON")
+
+    def test_a_malformed_declaration_refuses_under_dry_run_too(self):
+        self.declare_body("{")
+        self.assert_pointer_refused("--dry-run", named=".common-rules.json is not valid JSON")
+
+    def test_a_wrong_type_read_order_refuses_the_pointer(self):
+        self.declare_body('{"read_order": "CLAUDE.md"}')
+        self.assert_pointer_refused(named="read_order")
+
+    def test_a_wrong_type_safety_rules_refuses_the_pointer(self):
+        self.declare_body('{"read_order": ["CLAUDE.md"], "safety_rules": 5}')
+        self.assert_pointer_refused(named="safety_rules")
+
+    def test_an_empty_read_order_refuses_the_pointer(self):
+        self.declare_body('{"read_order": []}')
+        self.assert_pointer_refused("--dry-run", named="read_order is empty")
+
+    def test_a_lone_surrogate_refuses_the_pointer_without_a_traceback(self):
+        self.declare_body('{"read_order": ["CLAUDE.md", "\\udc80.md"]}')
+        self.assert_pointer_refused(named="read_order")
 
 
 class TestIdempotentAndDry(Case):

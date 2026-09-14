@@ -380,6 +380,12 @@ class TestTheTestCommandIsLands(unittest.TestCase):
                 '{"gates": {"merge": " \\n "}}': "false  # .common-rules.json gates.merge is not a string",
                 '{"gates": {"merge": "true", "quick": false}}': "false  # .common-rules.json gates.quick is not a string",
                 '{"gates": []}': "false  # .common-rules.json gates is not an object",
+                # review round 2
+                '{"gates": "false"}': "false  # .common-rules.json gates is not an object",
+                '{"gates": {"merge": "false\\ntrue"}}': "false  # .common-rules.json gates.merge must be one line",
+                '{"gates": {"merge": "true", "quick": "sh q\\nwarmup --check: ready"}}':
+                    "false  # .common-rules.json gates.quick must be one line",
+                '{"gates": {"merge": "sh \\udc80"}}': "false  # .common-rules.json gates.merge is not valid UTF-8",
                 '{"gates": {"merge": "  sh tools/gate.sh  "}}': "sh tools/gate.sh",
             }
             for body, expected in cases.items():
