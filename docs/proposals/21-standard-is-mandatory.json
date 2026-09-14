@@ -28,7 +28,9 @@
     {"id": "A-07", "kind": "decision", "state": "answered", "at": "2026-09-14T18:16:03+02:00", "by": "sponsor", "quote": "Asked: \"May I install the same start card on /Users/aashish/apps, where this session, MacExplorer and most of your other sessions start?\" Answered: \"Not now (Recommended)\""},
     {"id": "A-08", "kind": "decision", "state": "answered", "at": "2026-09-14T18:44:53+02:00", "by": "sponsor", "quote": "/standard: the common-rules standard is mandatory"},
     {"id": "A-09", "kind": "feature", "state": "answered", "at": "2026-09-14T19:14:13+02:00", "by": "sponsor", "quote": "Show me the tracker for common rules#."},
-    {"id": "A-10", "kind": "decision", "state": "answered", "at": "2026-09-14T19:41:05+02:00", "by": "sponsor", "quote": "automatically merge the, uh, pull requests."}
+    {"id": "A-10", "kind": "decision", "state": "answered", "at": "2026-09-14T19:41:05+02:00", "by": "sponsor", "quote": "automatically merge the, uh, pull requests."},
+    {"id": "A-11", "kind": "decision", "state": "answered", "at": "2026-09-14T21:33:00+02:00", "by": "sponsor", "quote": "Please don't use more than Sonnet."},
+    {"id": "A-12", "kind": "decision", "state": "answered", "at": "2026-09-14T21:41:00+02:00", "by": "sponsor", "quote": "Put some mandatory rule for uh, sub agents don't use Opus.", "note": "Scoped by the sponsor's answer to a clarifying question: 'This lead session only', not every project on the standard."}
   ],
   "requests": [],
   "proposed_changes": [],
