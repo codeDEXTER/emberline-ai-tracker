@@ -801,6 +801,15 @@ class TestDerecordParent(unittest.TestCase):
         self.assertEqual([f"{ROOT}/hooks/sessionstart"], matches)
         self.assertIn("installed", r.stdout)
 
+    def test_prints_how_many_child_projects_it_found(self):
+        """Round 2, item 3: derecord --parent says the count, not just that
+        it found at least one."""
+        self.make_child_project("app")
+        self.make_child_project("engine")
+        r = self.run_parent()
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("2 child project(s) found", r.stdout)
+
     def test_a_second_run_changes_nothing(self):
         self.make_child_project("app")
         self.run_parent()

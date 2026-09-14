@@ -14,6 +14,7 @@ Run:  python3 -m unittest discover -s tests -p 'test_hooks.py' -v
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -306,6 +307,65 @@ class TestSessionStartParentFolder(unittest.TestCase):
         self.assertEqual(0, r.returncode, r.stderr)
         self.assertIn("done-project: 0 open ledgers ·", r.stdout)
         self.assertIn(f"/warmup --project {child}", r.stdout)
+
+    def test_an_unreadable_sibling_does_not_hide_the_rest(self):
+        """Round 2, item 1: a chmod 000 sibling raises PermissionError inside
+        Path.is_file() -- that must not take the whole card down with it."""
+        self.make_child("app", minimal())
+        unreadable = self.parent / "locked"
+        unreadable.mkdir()
+        os.chmod(unreadable, 0)
+        try:
+            r = self.run_at({"cwd": str(self.parent), "source": "startup"})
+        finally:
+            os.chmod(unreadable, 0o755)
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("app: 1 open ledger ·", r.stdout)
+        self.assertIn(f"/warmup --project {self.parent / 'app'}", r.stdout)
+        self.assertIn("This folder holds 1 project ", r.stdout)
+
+    def test_resume_source_is_a_plain_list(self):
+        self.make_child("app", minimal())
+        r = self.run_at({"cwd": str(self.parent), "source": "resume"})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("This folder holds 1 project ", r.stdout)
+        self.assertIn("app: 1 open ledger ·", r.stdout)
+        self.assertNotIn("compacted", r.stdout.lower())
+        self.assertNotIn("Re-read that project's ledger", r.stdout)
+
+    def test_clear_source_is_a_plain_list(self):
+        self.make_child("app", minimal())
+        r = self.run_at({"cwd": str(self.parent), "source": "clear"})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("This folder holds 1 project ", r.stdout)
+        self.assertNotIn("compacted", r.stdout.lower())
+        self.assertNotIn("Re-read that project's ledger", r.stdout)
+
+    def test_missing_source_is_a_plain_list(self):
+        self.make_child("app", minimal())
+        r = self.run_at({"cwd": str(self.parent)})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("This folder holds 1 project ", r.stdout)
+        self.assertNotIn("compacted", r.stdout.lower())
+        self.assertNotIn("Re-read that project's ledger", r.stdout)
+
+    def test_more_than_ten_children_are_capped(self):
+        """Round 2, item 3: a folder with many projects below it (the worst
+        case -- every project on the machine) prints at most 10 line pairs,
+        sorted by name, then a `+N more` line."""
+        names = [f"proj{n:02d}" for n in range(12)]
+        for name in names:
+            self.make_child(name, minimal())
+        r = self.run_at({"cwd": str(self.parent), "source": "startup"})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("This folder holds 12 projects ", r.stdout)
+        shown, hidden = sorted(names)[:10], sorted(names)[10:]
+        self.assertEqual(2, len(hidden))
+        for name in shown:
+            self.assertIn(f"/warmup --project {self.parent / name}", r.stdout)
+        for name in hidden:
+            self.assertNotIn(f"/warmup --project {self.parent / name}", r.stdout)
+        self.assertIn("+2 more -- /warmup --project <dir> for yours", r.stdout)
 
     def test_malformed_stdin_and_missing_cwd_exit_zero(self):
         r = self.run_hook_raw(raw_stdin="not json{{{")

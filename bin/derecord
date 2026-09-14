@@ -83,7 +83,12 @@ if [ "${1:-}" = "--parent" ]; then
         exit 1
     fi
 
-    HAS_CHILD="$(python3 - "$PARENT" "$RULES_DIR" <<'PY'
+    # Counts every qualifying child, not just whether one exists (round 2,
+    # item 3 asks derecord --parent to say how many it found). Each child's
+    # own check is wrapped so one unreadable sibling (permissions, a race)
+    # does not stop the count of the rest -- the same fix as the hook's
+    # _is_child_project/_safe_open_ledgers.
+    CHILD_COUNT="$(python3 - "$PARENT" "$RULES_DIR" <<'PY'
 import sys
 from pathlib import Path
 
@@ -93,22 +98,29 @@ from tools.tracker import checkpoint
 
 
 def is_project(child: Path) -> bool:
-    if (child / ".common-rules.json").is_file():
-        return True
-    return bool(checkpoint.open_ledgers(child))
+    try:
+        if (child / ".common-rules.json").is_file():
+            return True
+    except OSError:
+        return False
+    try:
+        return bool(checkpoint.open_ledgers(child))
+    except OSError:
+        return False
 
 
 try:
     children = [p for p in Path(parent).iterdir() if p.is_dir() and not p.name.startswith(".")]
 except OSError:
     children = []
-print("1" if any(is_project(c) for c in children) else "0")
+print(sum(1 for c in children if is_project(c)))
 PY
     )"
-    if [ "$HAS_CHILD" != "1" ]; then
+    if [ "$CHILD_COUNT" = "0" ]; then
         echo "derecord --parent: no child project under $PARENT -- nothing to install (nothing changed)" >&2
         exit 1
     fi
+    echo "derecord --parent: $CHILD_COUNT child project(s) found under $PARENT"
 
     if [ -f "$PARENT/.claude/settings.json" ]; then
         python3 -c '
