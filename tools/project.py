@@ -159,6 +159,12 @@ def _path_problem(key: str, value: str) -> str | None:
     return None
 
 
+# Bidi controls, invisible characters and the Unicode line and paragraph
+# separators: none of them belongs in a path, and each can disguise one.
+_REORDER_OR_HIDE_SERIES = frozenset("\u061c\u200b\u200e\u200f\u2028\u2029\u202a\u202b\u202c\u202d\u202e"
+                                    "\u2060\u2061\u2062\u2063\u2064\u2066\u2067\u2068\u2069\ufeff")
+
+
 def _series_problem(value: str) -> str | None:
     """What is wrong with one proposal_series entry on its face, or None.
     Unlike every other path here, `..` is allowed: a series names siblings."""
@@ -168,6 +174,8 @@ def _series_problem(value: str) -> str | None:
         return f"{FILE}: a proposal_series entry is not valid UTF-8"
     if not _one_line(value):
         return f"{FILE}: a proposal_series entry must be one line"
+    if any(ch in _REORDER_OR_HIDE_SERIES for ch in value):
+        return f"{FILE}: a proposal_series entry carries an invisible, bidi or line-separator character"
     if PurePosixPath(value).is_absolute():
         return f"{FILE}: proposal_series entry {value!r} is absolute -- paths are relative to the project root"
     return None
@@ -190,6 +198,9 @@ def _series_place(project: Path, rel: str) -> tuple[Path | None, str | None]:
         return None, f"{FILE}: proposal_series entry {rel!r} names the project itself"
     if not target.is_relative_to(parent) or target == parent:
         return None, outside
+    if target.is_relative_to(root) or target.parent != parent:
+        return None, (f"{FILE}: proposal_series entry {rel!r} is a folder inside a project, not a sibling "
+                      "-- a series names ../<project>")
     if not target.is_dir():
         return None, f"{FILE}: proposal_series names {rel}, which does not exist"
     if not (target / "docs" / "proposals").is_dir():
@@ -417,12 +428,13 @@ def proposal_series(project: Path) -> tuple[list[tuple[str, Path]], list[str]]:
     ok, bad = _checked({"proposal_series": data["proposal_series"]})
     if bad:
         return [], bad
-    roots, problems = [], []
+    roots, problems, seen = [], [], set()
     for rel in ok["proposal_series"]:
         target, why = _series_place(project, rel)
         if why:
             problems.append(why)
-        else:
+        elif target not in seen:
+            seen.add(target)
             roots.append((rel, target))
     return ([] if problems else roots), problems
 

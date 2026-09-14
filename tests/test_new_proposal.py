@@ -139,6 +139,14 @@ class TestNumbering(Scratch):
 
 
 class TestTitles(Scratch):
+    def test_bidi_and_invisible_characters_are_refused(self):
+        """S-02 final review: a U+202E title was written."""
+        for bad in ("safe\u202eevil", "zero\u200bwidth", "sep\u2028arated"):
+            with self.subTest(title=ascii(bad)):
+                r = self.run_new(bad)
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertEqual(self.listing(), [])
+
     def test_slug_is_lowercase_ascii_hyphens(self):
         cases = {
             "The Standard: Is Mandatory!": "the-standard-is-mandatory",
@@ -535,6 +543,20 @@ class TestRace(InProcess):
 
 
 class TestCouldNotRun(InProcess):
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root ignores permissions")
+    def test_an_unwritable_tracker_directory_is_exit_2_without_a_traceback(self):
+        """S-02 final review: a read-only tracker/ surfaced as 'refused' with render's traceback."""
+        (self.proposals / "tracker").mkdir(parents=True)
+        (self.proposals / "tracker").chmod(0o555)
+        try:
+            r = self.run_new("Locked tracker")
+        finally:
+            (self.proposals / "tracker").chmod(0o755)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+        self.assertIn("could not write", r.stderr)
+        self.assertEqual(self.listing(), ["tracker"])
+
     def crash_script(self) -> Path:
         crash = Path(self._tmp.name) / "crash.py"
         crash.write_text("import sys\nsys.exit(3)\n")
@@ -585,7 +607,7 @@ class TestPageFor(Scratch):
         before = ledger.read_bytes()
         r = self.run_new("--page-for", self.REL)
         self.assert_ok(r)
-        self.assertEqual(self.listing(), ["21-standard-is-mandatory.html", "21-standard-is-mandatory.json"])
+        self.assertEqual(self.listing(), ["21-standard-is-mandatory.html", "21-standard-is-mandatory.json", "tracker"])
         page = (self.proposals / "21-standard-is-mandatory.html").read_text()
         self.assertIn('<meta name="proposal-id" content="21">', page)
         self.assertIn("<title>21 · proposed · The standard is mandatory</title>", page)
@@ -646,6 +668,42 @@ class TestPageFor(Scratch):
                 self.assertIn("from the ledger", r.stderr)
                 self.assertEqual(self.listing(), ["21-standard-is-mandatory.json"])
 
+    def test_a_md_twin_and_an_assets_folder_do_not_block_its_page(self):
+        """S-02 final review: the engine keeps 71-engine-1-3-programme.json beside
+        a .md twin; --page-for called the twin a race and refused every time."""
+        self.seed_ledger()
+        self.seed("21-standard-is-mandatory.md", "twin")
+        (self.proposals / "21-assets").mkdir()
+        r = self.run_new("--page-for", self.REL)
+        self.assert_ok(r)
+        self.assertNotIn("just claimed", r.stderr)
+        self.assertTrue((self.proposals / "21-standard-is-mandatory.html").is_file())
+
+    def test_another_ledger_with_the_same_number_is_refused_and_not_called_a_race(self):
+        self.seed_ledger()
+        self.seed("21-second.json", json.dumps(dict(LEDGER_21, title="Second")))
+        r = self.run_new("--page-for", self.REL)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertNotIn("just claimed", r.stderr)
+        self.assertIn("21-second.json", r.stderr)
+        self.assertNotIn("21-standard-is-mandatory.html", self.listing())
+
+    def test_renders_the_tracker_page_when_it_is_missing(self):
+        self.seed_ledger()
+        r = self.run_new("--page-for", self.REL)
+        self.assert_ok(r)
+        self.assertTrue((self.proposals / "tracker" / "21-standard-is-mandatory.html").is_file())
+        self.assertIn("tracker", r.stdout)
+
+    def test_an_existing_tracker_page_is_left_alone(self):
+        self.seed_ledger()
+        (self.proposals / "tracker").mkdir()
+        (self.proposals / "tracker" / "21-standard-is-mandatory.html").write_text("the owner's page")
+        r = self.run_new("--page-for", self.REL)
+        self.assert_ok(r)
+        self.assertEqual((self.proposals / "tracker" / "21-standard-is-mandatory.html").read_text(), "the owner's page")
+        self.assertIn("render --check", r.stdout)
+
 
 class TestSeries(unittest.TestCase):
     """The PhotoVault app and engine number from one series across two repos."""
@@ -666,8 +724,10 @@ class TestSeries(unittest.TestCase):
         return subprocess.run([sys.executable, str(NEW_PROPOSAL), "--project", str(self.app), *args],
                               capture_output=True, text=True, check=False)
 
-    def declare(self, value):
+    def declare(self, value, back=True):
         (self.app / ".common-rules.json").write_text(json.dumps({"proposal_series": value}))
+        if back:
+            (self.engine / ".common-rules.json").write_text(json.dumps({"proposal_series": ["../app"]}))
 
     def names(self, repo):
         return sorted(p.name for p in (repo / "docs" / "proposals").iterdir())
@@ -690,6 +750,21 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("../engine/docs/proposals/78-b.json", r.stderr)
         self.assertEqual(self.names(self.app), ["72-a.html"])
+
+    def test_a_one_sided_series_cannot_run(self):
+        """S-02 final review: declared only in the app, both repos took 79."""
+        self.declare(["../engine"], back=False)
+        r = self.run_new("One sided")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("does not declare", r.stderr)
+        self.assertEqual(self.names(self.app), ["72-a.html"])
+
+    def test_a_folder_inside_the_project_is_not_a_sibling(self):
+        (self.app / "sub" / "docs" / "proposals").mkdir(parents=True)
+        self.declare(["sub"], back=False)
+        r = self.run_new("Nested")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("not a sibling", r.stderr)
 
     def test_a_broken_series_cannot_run(self):
         self.declare(["../missing"])

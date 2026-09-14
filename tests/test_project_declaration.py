@@ -519,6 +519,19 @@ class TestProposalSeries(unittest.TestCase):
     def found(self) -> str:
         return "\n".join(P().problems(self.root))
 
+    def test_an_invisible_or_bidi_character_in_an_entry_is_a_problem(self):
+        for bad in ("../eng\u2028ine", "../eng\u202eine", "../eng\u200bine"):
+            with self.subTest(entry=ascii(bad)):
+                self.declare([bad])
+                text = self.found()
+                self.assertIn("proposal_series", text)
+                self.assertNotIn(bad, text)
+
+    def test_a_folder_inside_the_project_is_not_a_sibling(self):
+        (self.root / "sub" / "docs" / "proposals").mkdir(parents=True)
+        self.declare(["sub"])
+        self.assertIn("not a sibling", self.found())
+
     def test_the_default_is_no_series(self):
         self.assertEqual([], P().load(self.root)["proposal_series"])
         self.assertEqual(([], []), P().proposal_series(self.root))
