@@ -340,6 +340,84 @@ class TestTheTestCommandIsLands(unittest.TestCase):
         finally:
             p.close()
 
+    def test_a_json_merge_gate_wins_over_the_test_file_in_both(self):
+        """Proposal 20, D9: .common-rules.json gates.merge, then
+        .common-rules-test, then the guess -- the same order in land and card."""
+        p = Project(seeded=True)
+        try:
+            p.write("tests/test_x.py", "import unittest\n")
+            p.write(".common-rules-test", "python3 -m pytest -q\n")
+            p.write(".common-rules.json", json.dumps({"gates": {"quick": "sh tools/gate.sh --quick",
+                                                               "merge": "sh tools/gate.sh"}}))
+            p.commit("declare both gates")
+            self.assertEqual("sh tools/gate.sh", self.land_test_cmd(p.root))
+            self.assertEqual(self.land_test_cmd(p.root), self.reported(p.root))
+        finally:
+            p.close()
+
+    def test_a_json_declaration_without_a_merge_gate_falls_through_in_both(self):
+        p = Project(seeded=True)
+        try:
+            p.write("tests/test_x.py", "import unittest\n")
+            p.write(".common-rules.json", json.dumps({"gates": {"quick": "true"}, "plan_page": "make page"}))
+            p.commit("declare no merge gate")
+            self.assertEqual("python3 -m unittest discover -s tests -q", self.land_test_cmd(p.root))
+            self.assertEqual(self.land_test_cmd(p.root), self.reported(p.root))
+        finally:
+            p.close()
+
+    def test_a_declared_gate_land_cannot_use_is_the_same_refusal_in_both(self):
+        """Lead ruling on V-00: a declared gate of the wrong type, or empty,
+        refuses -- in land and on the card alike, never a fall-back."""
+        p = Project(seeded=False)
+        try:
+            p.write("tests/test_x.py", "import unittest\n")
+            p.write(".common-rules-test", "true\n")
+            cases = {
+                '{"gates": {"merge": 3}}': "false  # .common-rules.json gates.merge is not a string",
+                '{"gates": {"merge": null}}': "false  # .common-rules.json gates.merge is not a string",
+                '{"gates": {"merge": ""}}': "false  # .common-rules.json gates.merge is not a string",
+                '{"gates": {"merge": " \\n "}}': "false  # .common-rules.json gates.merge is not a string",
+                '{"gates": {"merge": "true", "quick": false}}': "false  # .common-rules.json gates.quick is not a string",
+                '{"gates": []}': "false  # .common-rules.json gates is not an object",
+                # review round 2
+                '{"gates": "false"}': "false  # .common-rules.json gates is not an object",
+                '{"gates": {"merge": "false\\ntrue"}}': "false  # .common-rules.json gates.merge must be one line",
+                '{"gates": {"merge": "true", "quick": "sh q\\nwarmup --check: ready"}}':
+                    "false  # .common-rules.json gates.quick must be one line",
+                '{"gates": {"merge": "sh \\udc80"}}': "false  # .common-rules.json gates.merge is not valid UTF-8",
+                '{"gates": {"merge": "  sh tools/gate.sh  "}}': "sh tools/gate.sh",
+            }
+            for body, expected in cases.items():
+                with self.subTest(body=body):
+                    p.write(".common-rules.json", body)
+                    self.assertEqual(expected, self.land_test_cmd(p.root))
+                    self.assertEqual(self.land_test_cmd(p.root), self.reported(p.root))
+        finally:
+            p.close()
+
+    def test_malformed_json_is_a_refusal_in_both(self):
+        p = Project(seeded=True)
+        try:
+            p.write("tests/test_x.py", "import unittest\n")
+            p.write(".common-rules.json", "{not json")
+            p.commit("broken declaration")
+            self.assertEqual("false  # .common-rules.json is not valid JSON", self.land_test_cmd(p.root))
+            self.assertEqual(self.land_test_cmd(p.root), self.reported(p.root))
+        finally:
+            p.close()
+
+    def test_no_declaration_has_no_quick_gate_on_the_card(self):
+        p = Project(seeded=True)
+        try:
+            r = subprocess.run([sys.executable, str(WARMUP), "--project", str(p.root), "--no-recall"],
+                               capture_output=True, text=True, check=False)
+            self.assertNotIn("quick gate", r.stdout)
+            self.assertNotIn("merge gate", r.stdout)
+            self.assertIn("Prohibitions (HANDOFF.md, verbatim):", r.stdout)
+        finally:
+            p.close()
+
 
 class TestSince(Case):
 
