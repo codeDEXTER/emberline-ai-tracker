@@ -1,5 +1,29 @@
 # Changelog — common-rules
 
+## 2026-09-14 · Later changes to the standard are mandatory too
+
+The sponsor added to his ruling: "if I improve something in the common rules in
+the future regarding warm up or reheat, then the project should prioritize that
+and implement it. It's not optional. It needs to be implemented always,
+mandatory."
+
+From now on, an entry here that changes the standard carries a line beginning
+`**Standard change (mandatory):**` that says what each project must do.
+`/standard`, section 3, makes every session:
+1. queue each such entry as its next ledger item, right after the item in
+   flight;
+2. implement it;
+3. only then run `rulecheck --align`.
+
+Aligning the stamp past an unimplemented Standard change is forbidden. Your
+user-level CLAUDE.md block says the same for sessions that were never given
+`/standard`. Making `warmup --check` fail while such an entry is unimplemented is
+proposal 21's S-09.
+
+**Standard change (mandatory):** a project that has adopted the standard reads
+the entries since its stamp at each `/warmup`, and implements every Standard
+change entry, first, before aligning.
+
 ## 2026-09-14 · `/standard`: the sponsor's command that makes the standard mandatory
 
 The sponsor asked why the PhotoVault app and engine were not creating

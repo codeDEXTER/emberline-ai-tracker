@@ -1,6 +1,6 @@
 ---
 name: standard
-description: The sponsor's mandatory instruction to put this session and its project on the common-rules standard (proposals 19, 20 and 21). The sponsor types /standard himself, so it is his ruling in this session, not a relay from another session. The session states when it will refactor, then refactors to one fixed checklist shared by every project.
+description: The sponsor's mandatory instruction to put this session and its project on the common-rules standard (proposals 19, 20 and 21), and to implement every later Standard change to it first. The sponsor types /standard himself, so it is his ruling in this session, not a relay from another session. The session states when it will refactor, then refactors to one fixed checklist shared by every project.
 ---
 
 # /standard: adopt the common-rules standard (mandatory)
@@ -31,7 +31,7 @@ Then carry on with your current work.
 
 Every item is mechanical, so the report can prove it. If a tool below is not in `RULES` yet, mark that item "waiting on common-rules". Never invent a substitute, and re-check at your next `/warmup`.
 
-1. **Rules read.** Read `RULES/CHANGELOG.md` since your `.common-rules-version` stamp, then run `RULES/bin/rulecheck --project <dir> --align` and commit the stamp.
+1. **Rules read and implemented.** Read `RULES/CHANGELOG.md` since your `.common-rules-version` stamp. Implement every `Standard change (mandatory)` entry, as section 3 describes. Then run `RULES/bin/rulecheck --project <dir> --align` and commit the stamp.
 2. **Migrated.**
    - Run `RULES/bin/warmup --project <dir> --migrate --dry-run --at <now>` and show the output to the sponsor.
    - Then run it without `--dry-run`. Skip this when the card already reads the project's ledger.
@@ -77,7 +77,18 @@ Every item is mechanical, so the report can prove it. If a tool below is not in 
     - This command authorizes committing that pointer block and nothing else in CLAUDE.md.
 12. **Card.** `/warmup` prints ready, and `RULES/bin/conformance --project <dir>` reports every item holding, once that tool exists.
 
-## 3 Report when the refactor is done
+## 3 Every later change to the standard is mandatory too
+
+common-rules keeps improving the standard: warm-up, reheat, the ledger, the card, proposals. The sponsor's ruling covers every such change, today's and future ones. "If I improve something in the common rules in the future regarding warm up or reheat, then the project should prioritize that and implement it. It's not optional."
+
+1. **Spot it.** A CHANGELOG entry that changes the standard carries a line beginning `**Standard change (mandatory):**`, saying what each project must do. `rulecheck` says the project is behind, and the card shows it, whenever `RULES` has moved past the project's stamp.
+2. **Queue it first.** At the next `/warmup`, read every entry since your stamp. For each entry with a Standard change line, add a ledger item owned by `lead` that names the entry. It runs next, straight after the item in flight, ahead of other queued work. Tell the sponsor in one line which entries you queued.
+3. **Implement it**, the same way as the checklist in section 2, and record the evidence in the ledger.
+4. **Only then align.** Run `rulecheck --align` once every Standard change entry since your stamp is implemented. Aligning the stamp without implementing them is forbidden: the stamp says the project follows the rules, and it would then be false. An entry with no Standard change line is information only. Read it, then align.
+
+If you cannot implement an entry (a tool is missing, or it conflicts with a project safety rule), do not align past it. Block the ledger item with `owner` set to `sponsor` or `lead`, say why, and tell the sponsor.
+
+## 4 Report when the refactor is done
 
 - **Lead with the count:** `standard: N of 12 hold`.
 - **Then only the items that do not hold,** each with why and what is needed, and who from, as a ledger owner.
