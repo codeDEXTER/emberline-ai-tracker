@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>22 · accepted · One tracker per project</title>
+<meta name="proposal-id" content="22">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-14">
+<meta name="common-rules-template" content="proposal/21">
+<!--
+  Written by common-rules bin/new-proposal from templates/proposal.html
+  (proposal 21, S-02), then filled in by the lead. The status appears in
+  four places that must agree: the proposal-status meta above, the <title>,
+  the <h1>, and the "Proposal 22 · accepted" line under it.
+-->
+<style>
+  :root {
+    --ground: #F1F2F4; --surface: #FFFFFF; --ink: #16191D; --dim: #5E6873;
+    --border: #D3D8DE; --accent: #C2521F; --accent-soft: #F7E3D8;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #111417; --surface: #1A1F24; --ink: #E5E8EB; --dim: #939DA7;
+      --border: #2F3841; --accent: #EE7A45; --accent-soft: #3A2419;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 90px; }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.01em; margin: 0; }
+  h1 .num, h1 .status { color: var(--accent); }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 40px 0 10px; }
+  .sub { color: var(--dim); margin: 10px 0 0; max-width: 72ch; }
+  .card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; margin-top: 12px; }
+  blockquote { margin: 0; padding: 14px 20px; background: var(--surface); border-left: 3px solid var(--accent); font-size: 17px; }
+  blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--dim); }
+  .opt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .opt .card h3 { margin: 0 0 6px; font-size: 16px; }
+  ol.decisions { background: var(--surface); border: 1px solid var(--border); margin: 12px 0 0; padding: 14px 20px 14px 44px; }
+  ol.decisions li + li { margin-top: 6px; }
+  #decided { background: var(--surface); border: 1px solid var(--border); padding: 14px 20px; margin-top: 12px; }
+  #decided li + li { margin-top: 8px; }
+  .m { font-family: var(--mono); font-size: .9em; }
+  .src { font-size: 13px; color: var(--dim); margin-top: 36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="num">22</span> · <span class="status">accepted</span> · One tracker per project</h1>
+<p class="sub">Proposal 22 · accepted 2026-09-14. The sponsor asked for a tracker he can read at a glance — filters across the top, work shown as blocks — and for one tracker per project, with a proposal getting its own only when he asks. Today every proposal renders and publishes its own page, so a project with four proposals has four trackers.</p>
+
+<h2>The ask</h2>
+<blockquote>
+  Can we make the tracker a little bit visually readable with some filters or something like that? Like, a top level, uh, you know, where it filters everything, and I can see things in block, maybe visually appealing a little bit? Also, per project, there should be one tracker unless and until specified for a proposal if I need another tracker.
+  <cite>The sponsor, 2026-09-14 19:44 (+02:00), in the common-rules lead session; recorded as ask A-01 in docs/proposals/22-one-tracker-per-project.json.</cite>
+</blockquote>
+
+<h2>What was found</h2>
+<div class="card">
+  <ul>
+    <li><span class="m">tracker render</span> writes one page per ledger, <span class="m">docs/proposals/tracker/&lt;stem&gt;.html</span>: a status line, one table per phase, asks and classes. There are no filters, and every item is a table row.</li>
+    <li>Pages per project on 2026-09-14: common-rules 3 ledgers (19, 20, 21) and now 22; PhotoVault engine 3; PhotoVault app 2, and the app publishes its own generated page through the declared <span class="m">plan_page</span>. Each of the three projects has one publish record.</li>
+    <li>common-rules alone has three published tracker artifacts, one each for proposals 19, 20 and 21. The engine also keeps a hand-mirrored tracker artifact (32e06e90) beside its rendered one.</li>
+    <li>Five places assume one page per ledger: derecord's pre-commit hook, warmup's chain and its publish line, conformance items 2 and 10, <span class="m">new-proposal</span>, and the <span class="m">/warmup</span> skill's republish steps. Changing the rule is a Standard change every project has to implement.</li>
+    <li>Not verified: how the page reads on a phone. The artifact is checked at desktop width in both themes.</li>
+  </ul>
+</div>
+
+<h2>Options</h2>
+<div class="opt">
+  <div class="card">
+    <h3>A · restyle each proposal's page</h3>
+    <p>Add filters and blocks to the existing per-ledger page. Cheap, and nothing else changes, but a project keeps one tracker per proposal, which is the second half of the ask.</p>
+  </div>
+  <div class="card">
+    <h3>B · one project page, rendered from every ledger</h3>
+    <p>A new <span class="m">tracker board</span> renders all of a project's ledgers into one page with the filters and blocks. The chain, the card, conformance and publishing move to that page; a per-proposal page is rendered only for a ledger the sponsor marked as needing its own.</p>
+  </div>
+</div>
+<p><b>Recommended:</b> B — it is the only option that gives one tracker per project, and the filter bar is what makes one page for many proposals readable.</p>
+
+<h2>Decisions</h2>
+<p class="sub">Each numbered line is one thing the sponsor answers. The numbers are stable: ledger items cite them.</p>
+<ol class="decisions">
+  <li><b>D1.</b> Does each project have one tracker page, covering every proposal in it?</li>
+  <li><b>D2.</b> Does a proposal get a tracker of its own only when the sponsor asks for one, recorded in that proposal's ledger in his words?</li>
+  <li><b>D3.</b> Does the page open with filters across the top and show the work as blocks, with a list view for detail?</li>
+  <li><b>D4.</b> What happens to the per-proposal tracker artifacts already published (common-rules 19, 20 and 21)?</li>
+  <li><b>D5.</b> Does a project that declares its own generated plan page (the PhotoVault app) keep publishing that page as its tracker?</li>
+</ol>
+
+<h2>Decided</h2>
+<section id="decided">
+  <p>D1 to D3 were decided by the sponsor on 2026-09-14, in his words above (ask A-01). D4 and D5 are the lead's defaults, and the sponsor can overrule either.</p>
+  <ol>
+    <li><b>D1 accepted.</b> One page per project: T-01 builds it, and T-02 moves the chain onto it.</li>
+    <li><b>D2 accepted.</b> A ledger carries a <span class="m">tracker</span> key (own, by, at, quote) only when the sponsor asks. Only that ledger also gets its own page (T-02, T-03).</li>
+    <li><b>D3 accepted.</b> A filter bar (search, proposal, status, owner, tier), one summary block per proposal, a board of item blocks by status and a list view (T-01). The look is shown to the sponsor before T-02 starts.</li>
+    <li><b>D4, lead default.</b> The old artifacts are no longer republished. Deleting them is the sponsor's call, because a deleted link stops working for everyone who has it.</li>
+    <li><b>D5, lead default.</b> Yes. A declared <span class="m">plan_page</span> stays that project's published page, and the project page is still rendered and checked beside it (T-03).</li>
+  </ol>
+</section>
+
+<p class="src">Sources: the sponsor's words in this session's transcript at 2026-09-14T17:44:51Z, recorded as ask A-01; tools/tracker/render.py (default_out, published_path); grep for default_out, published_path and tracker/ across bin/warmup, bin/conformance, bin/derecord, bin/new-proposal and skills/warmup/SKILL.md at origin/main aaa8e84; ledger and sidecar counts from ls of each project's docs/proposals (read-only); the artifact listing in this session.</p>
+
+</div>
+</body>
+</html>
