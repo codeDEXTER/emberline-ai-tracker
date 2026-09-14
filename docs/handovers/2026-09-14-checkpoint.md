@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-14 20:01
+# Checkpoint — 2026-09-14 20:03
 
-Reason: manual · branch: p22 · HEAD: aaa8e84
+Reason: manual · branch: p22 · HEAD: 11d7bbe
 
-<!-- ledger-digest: 35f3bd4b3978a5ef21d7ce8a761f388f843e8ed825d5a60f8e105da148593733 -->
+<!-- ledger-digest: 13abea6556b3cfe4bddf60c8bff7e16c3b81f4a16a5693e016496aa03c8df6b7 -->
 
 ## Proposal 19 · Warm-up
 
@@ -51,7 +51,7 @@ Reason: manual · branch: p22 · HEAD: aaa8e84
 
 ### In progress
 
-- T-01 · [ruflo · high · opus] · tracker board: the project's one tracker page · first look published
+- T-01 · [ruflo · high · opus] · tracker board: the project's one tracker page · committed, review started
 
 ### Blocked, and why
 
