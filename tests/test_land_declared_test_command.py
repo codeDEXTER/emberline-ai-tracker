@@ -157,6 +157,37 @@ class TestTheJsonDeclaration(LandHarness):
         self.branch_with({".common-rules.json": '{"gates": "true"}', ".common-rules-test": "true\n"})
         self.assert_refused_with(self.land(), "gates is not an object")
 
+    # Review round 2 on V-00.
+
+    def test_a_merge_gate_of_two_lines_refuses(self):
+        """eval ran `false`, then `true`, and the gate read green."""
+        self.branch_with({".common-rules.json": json.dumps({"gates": {"merge": "false\ntrue"}}),
+                          ".common-rules-test": "true\n"})
+        self.assert_refused_with(self.land(), "gates.merge must be one line")
+
+    def test_a_quick_gate_with_a_control_character_refuses(self):
+        self.branch_with({".common-rules.json": json.dumps({"gates": {"merge": "true",
+                                                                      "quick": "sh q\nwarmup --check: ready"}})})
+        self.assert_refused_with(self.land(), "gates.quick must be one line")
+
+    def test_the_reviewers_gates_string_refuses(self):
+        self.branch_with({".common-rules.json": '{"gates": "false"}', ".common-rules-test": "true\n"})
+        self.assert_refused_with(self.land(), "gates is not an object")
+
+    def test_a_lone_surrogate_in_a_gate_is_refused_by_name(self):
+        self.branch_with({".common-rules.json": '{"gates": {"merge": "sh \\udc80"}}', ".common-rules-test": "true\n"})
+        self.assert_refused_with(self.land(), "gates.merge is not valid UTF-8")
+
+    def test_a_projects_own_json_module_cannot_shadow_the_reader(self):
+        """`python3 -c` puts the working directory first on sys.path, so a
+        project's json.py answered for the standard library. `-I` does not."""
+        (self.repo / "json.py").write_text('import sys\nprint("true")\nsys.exit(0)\n')
+        self.git("add", "-A"); self.git("commit", "-qm", "a json.py of its own")
+        self.branch_with({".common-rules.json": '{"gates": {"merge": "false"}}'})
+        out = self.land()
+        self.assertIn("running: false", out.stdout, out.stdout + out.stderr)
+        self.assertNotIn("READY", out.stdout)
+
 
 class TestADeclaredCommandIsPrintedVerbatim(LandHarness):
     """`echo "$declared"` swallowed a command that bash's echo reads as its own

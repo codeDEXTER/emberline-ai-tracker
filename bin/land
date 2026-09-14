@@ -96,35 +96,45 @@ test_cmd() {
     # A `.common-rules.json` that cannot be read refuses the landing, and so
     # does a declared gate land cannot use -- "gates" that is not an object,
     # or a "merge" or "quick" that is not a non-empty string (lead ruling on
-    # V-00, 14 Sep). Falling back to .common-rules-test or the guess would
-    # silently run a gate nobody declared. It is read by python's json, so the
-    # shell never parses a declared value; the command itself is the
-    # project's own, and runs as written. Every declared command is printed
-    # with printf, never echo, which would swallow a command such as `-n`.
+    # V-00, 14 Sep), is not valid UTF-8, or is not one line (review round 2:
+    # "false\ntrue" was eval'd as two commands and read green). Falling back
+    # to .common-rules-test or the guess would silently run a gate nobody
+    # declared. It is read by python's json, run as `python3 -I` so a
+    # project's own json.py cannot shadow the standard library, and the shell
+    # never parses a declared value; the command itself is the project's own,
+    # and runs as written. Every declared command is printed with printf,
+    # never echo, which would swallow a command such as `-n`.
     #
     # Tests extract this function with sed up to the first line that starts
     # with a closing brace, so no line inside it may start with one.
     if [ -f .common-rules.json ]; then
         local fromjson
-        if ! fromjson="$(python3 -c '
+        if ! fromjson="$(python3 -I -c '
 import json, sys
+def refuse(why):
+    print("false  # .common-rules.json " + why)
+    sys.exit(0)
 try:
     d = json.loads(open(".common-rules.json", "rb").read())
 except (OSError, ValueError):
-    print("false  # .common-rules.json is not valid JSON")
-    sys.exit(0)
+    refuse("is not valid JSON")
 if not isinstance(d, dict):
-    print("false  # .common-rules.json is not a JSON object")
-    sys.exit(0)
+    refuse("is not a JSON object")
 g = d.get("gates", {})
 if not isinstance(g, dict):
-    print("false  # .common-rules.json gates is not an object")
-    sys.exit(0)
+    refuse("gates is not an object")
 for name in ("merge", "quick"):
-    v = g.get(name)
-    if name in g and not (isinstance(v, str) and v.strip()):
-        print("false  # .common-rules.json gates." + name + " is not a string")
-        sys.exit(0)
+    if name not in g:
+        continue
+    v = g[name]
+    if not (isinstance(v, str) and v.strip()):
+        refuse("gates." + name + " is not a string")
+    try:
+        v.encode("utf-8")
+    except UnicodeEncodeError:
+        refuse("gates." + name + " is not valid UTF-8")
+    if any(ord(c) < 32 or 127 <= ord(c) < 160 for c in v.strip()):
+        refuse("gates." + name + " must be one line")
 if "merge" in g:
     print(g["merge"].strip())
 ' 2>/dev/null)"; then
