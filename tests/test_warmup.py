@@ -359,10 +359,34 @@ class TestTheTestCommandIsLands(unittest.TestCase):
         p = Project(seeded=True)
         try:
             p.write("tests/test_x.py", "import unittest\n")
-            p.write(".common-rules.json", json.dumps({"gates": {"merge": ""}, "plan_page": "make page"}))
+            p.write(".common-rules.json", json.dumps({"gates": {"quick": "true"}, "plan_page": "make page"}))
             p.commit("declare no merge gate")
             self.assertEqual("python3 -m unittest discover -s tests -q", self.land_test_cmd(p.root))
             self.assertEqual(self.land_test_cmd(p.root), self.reported(p.root))
+        finally:
+            p.close()
+
+    def test_a_declared_gate_land_cannot_use_is_the_same_refusal_in_both(self):
+        """Lead ruling on V-00: a declared gate of the wrong type, or empty,
+        refuses -- in land and on the card alike, never a fall-back."""
+        p = Project(seeded=False)
+        try:
+            p.write("tests/test_x.py", "import unittest\n")
+            p.write(".common-rules-test", "true\n")
+            cases = {
+                '{"gates": {"merge": 3}}': "false  # .common-rules.json gates.merge is not a string",
+                '{"gates": {"merge": null}}': "false  # .common-rules.json gates.merge is not a string",
+                '{"gates": {"merge": ""}}': "false  # .common-rules.json gates.merge is not a string",
+                '{"gates": {"merge": " \\n "}}': "false  # .common-rules.json gates.merge is not a string",
+                '{"gates": {"merge": "true", "quick": false}}': "false  # .common-rules.json gates.quick is not a string",
+                '{"gates": []}': "false  # .common-rules.json gates is not an object",
+                '{"gates": {"merge": "  sh tools/gate.sh  "}}': "sh tools/gate.sh",
+            }
+            for body, expected in cases.items():
+                with self.subTest(body=body):
+                    p.write(".common-rules.json", body)
+                    self.assertEqual(expected, self.land_test_cmd(p.root))
+                    self.assertEqual(self.land_test_cmd(p.root), self.reported(p.root))
         finally:
             p.close()
 

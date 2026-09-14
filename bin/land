@@ -19,9 +19,12 @@
 #   - the project is not aligned with the current common-rules (see below)
 #   - the branch changes code and touches no test (see below)
 #
-# The test suite it runs is the one the project declares in .common-rules-test
-# (first non-blank, non-comment line), else a guess: tests/*.py -> unittest,
-# package.json -> npm test.
+# The test suite it runs is the one the project declares, in this order:
+# gates.merge in .common-rules.json (tools/project.py documents the file),
+# then .common-rules-test (first non-blank, non-comment line), then a guess:
+# tests/*.py -> unittest, package.json -> npm test. A .common-rules.json that
+# is not valid JSON, or declares a gate that is not a non-empty string,
+# refuses -- it never falls back to the next source.
 #   - a proposal asked numbered decisions or claims partial completion and
 #     recorded neither (see below)
 #   - a commit names a ledger item whose row did not move (see below)
@@ -90,10 +93,14 @@ test_cmd() {
     # tools/project.py's test_command() is this function's twin, and bin/warmup
     # reports it; tests/test_warmup.py pins them equal.
     #
-    # A `.common-rules.json` that cannot be read refuses the landing: falling
-    # back to the guess would silently run a gate nobody declared. It is read
-    # by python's json, so the shell never parses a declared value; the
-    # command itself is the project's own, and runs as written.
+    # A `.common-rules.json` that cannot be read refuses the landing, and so
+    # does a declared gate land cannot use -- "gates" that is not an object,
+    # or a "merge" or "quick" that is not a non-empty string (lead ruling on
+    # V-00, 14 Sep). Falling back to .common-rules-test or the guess would
+    # silently run a gate nobody declared. It is read by python's json, so the
+    # shell never parses a declared value; the command itself is the
+    # project's own, and runs as written. Every declared command is printed
+    # with printf, never echo, which would swallow a command such as `-n`.
     #
     # Tests extract this function with sed up to the first line that starts
     # with a closing brace, so no line inside it may start with one.
@@ -109,10 +116,17 @@ except (OSError, ValueError):
 if not isinstance(d, dict):
     print("false  # .common-rules.json is not a JSON object")
     sys.exit(0)
-g = d.get("gates")
-m = g.get("merge") if isinstance(g, dict) else None
-if isinstance(m, str) and m.strip():
-    print(m.strip())
+g = d.get("gates", {})
+if not isinstance(g, dict):
+    print("false  # .common-rules.json gates is not an object")
+    sys.exit(0)
+for name in ("merge", "quick"):
+    v = g.get(name)
+    if name in g and not (isinstance(v, str) and v.strip()):
+        print("false  # .common-rules.json gates." + name + " is not a string")
+        sys.exit(0)
+if "merge" in g:
+    print(g["merge"].strip())
 ' 2>/dev/null)"; then
             fromjson="false  # python3 could not read .common-rules.json"
         fi
@@ -125,7 +139,7 @@ if isinstance(m, str) and m.strip():
         local declared
         declared="$(grep -v '^[[:space:]]*#' .common-rules-test | grep -v '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)"
         if [ -n "$declared" ]; then
-            echo "$declared"
+            printf '%s\n' "$declared"
             return
         fi
     fi
