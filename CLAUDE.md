@@ -21,3 +21,11 @@ you noticed and ask, then only edit once the user has explicitly
 directed the change in that conversation. When you do make a change,
 add a `CHANGELOG.md` entry explaining why, and flag it if it actually
 changes behavior for an already-adopted project (not just wording).
+
+<!-- common-rules:warmup -->
+## Warm-up (common-rules proposal 19)
+
+Start every session with `/warmup`, and run it again after a compaction. Read, in order: CLAUDE.md → HANDOFF.md → docs/OPERATING-RULES.md → the ledger(s) in docs/proposals/NN-*.json → the latest docs/handovers/*-checkpoint.md → common-rules' CLAUDE-workflow.md.
+
+The ledger is the record. A compaction summary is a paraphrase: quote rulings from disk.
+<!-- /common-rules:warmup -->
