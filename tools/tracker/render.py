@@ -2,6 +2,8 @@
 
   tracker render LEDGER.json [--out PATH] [--repo OWNER/NAME]
   tracker render LEDGER.json --check
+  tracker published --project [DIR] --url URL [--by NAME]
+                                         (proposal 22, T-03: the project's one page)
   tracker published LEDGER.json --url URL [--by NAME] [--page PATH]
                                          (proposal 20, V-09 and V-11; see published_main)
 
@@ -496,13 +498,9 @@ def page_path_problem(value) -> str | None:
     return None
 
 
-def published_problems(record) -> list[str]:
-    """What is wrong with a sidecar's contents, without echoing any value.
-    `ledger_digest` (V-11) is optional -- a V-09 record has none -- but a
-    record that names its `page` must carry it, because that is what the card
-    compares for a declared page."""
-    if not isinstance(record, dict):
-        return ["not a JSON object"]
+def _record_field_problems(record: dict) -> list[str]:
+    """url, digest, at and by -- the four fields every publish record carries,
+    checked once for the per-ledger record and the project page's."""
     out = []
     for key in ("url", "digest", "at", "by"):
         if key not in record:
@@ -511,19 +509,6 @@ def published_problems(record) -> list[str]:
         out.append(url_problem(record["url"]))
     if "digest" in record and not _hex64(record["digest"]):
         out.append("digest must be 64 lowercase hex characters")
-    if "ledger_digest" in record and not _hex64(record["ledger_digest"]):
-        out.append("ledger_digest must be 64 lowercase hex characters")
-    if "page" in record:
-        problem = page_path_problem(record["page"])
-        if problem:
-            out.append(problem)
-        if "ledger_digest" not in record:
-            out.append("a record with 'page' must carry 'ledger_digest'")
-    if "page_unchanged" in record:
-        if record["page_unchanged"] is not True:
-            out.append("page_unchanged must be true when present")
-        if "page" not in record:
-            out.append("page_unchanged belongs only to a record with 'page'")
     if "at" in record:
         import datetime
         at = record["at"]
@@ -537,6 +522,54 @@ def published_problems(record) -> list[str]:
     if "by" in record and record["by"] is not None and not (
             isinstance(record["by"], str) and record["by"].strip() and _one_line_utf8(record["by"])):
         out.append("by must be null or a one-line name")
+    return out
+
+
+def project_published_problems(record) -> list[str]:
+    """What is wrong with docs/proposals/tracker/index.published.json, without
+    echoing any value (proposal 22, T-03).
+
+    The project page's record carries the four fields every record carries and
+    `ledgers`: the page's own ledger-digests line, so the record says which
+    ledgers the published page showed. A per-ledger key -- `page`,
+    `page_unchanged`, `ledger_digest` -- belongs to a ledger's record, never to
+    this one: a record shaped like the other kind is the false record proposal
+    20 V-11 exists to stop."""
+    if not isinstance(record, dict):
+        return ["not a JSON object"]
+    out = _record_field_problems(record)
+    if "ledgers" not in record:
+        out.append("no 'ledgers'")
+    elif not (isinstance(record["ledgers"], str) and record["ledgers"].strip()
+              and _one_line_utf8(record["ledgers"])):
+        out.append("ledgers must be one line of UTF-8 -- the page's own ledger-digests content")
+    for key in ("page", "page_unchanged", "ledger_digest"):
+        if key in record:
+            out.append(f"{key!r} belongs to a ledger's record, not the project page's")
+    return out
+
+
+def published_problems(record) -> list[str]:
+    """What is wrong with a sidecar's contents, without echoing any value.
+    `ledger_digest` (V-11) is optional -- a V-09 record has none -- but a
+    record that names its `page` must carry it, because that is what the card
+    compares for a declared page."""
+    if not isinstance(record, dict):
+        return ["not a JSON object"]
+    out = _record_field_problems(record)
+    if "ledger_digest" in record and not _hex64(record["ledger_digest"]):
+        out.append("ledger_digest must be 64 lowercase hex characters")
+    if "page" in record:
+        problem = page_path_problem(record["page"])
+        if problem:
+            out.append(problem)
+        if "ledger_digest" not in record:
+            out.append("a record with 'page' must carry 'ledger_digest'")
+    if "page_unchanged" in record:
+        if record["page_unchanged"] is not True:
+            out.append("page_unchanged must be true when present")
+        if "page" not in record:
+            out.append("page_unchanged belongs only to a record with 'page'")
     return out
 
 
@@ -643,10 +676,130 @@ def page_problem(root: Path, raw: str) -> tuple[str | None, str | None]:
     return rel, None
 
 
+def published_project_main(args) -> int:
+    """`tracker published --project` -- record the project's one tracker page
+    (proposal 22, T-03).
+
+    The sponsor asked for "per project, there should be one tracker" (A-01),
+    so what is published is docs/proposals/tracker/index.html, a page of every
+    ledger, and the record beside it carries the page's digest and the page's
+    own ledger-digests line. Nothing here publishes: only a session's Artifact
+    tool can, which is why this exists at all.
+
+    It refuses, writing nothing and naming the reason, exactly as the
+    per-ledger flow does: publishing switched off in any ledger, a bad url or
+    --by, a page missing or stale against the ledgers, any ledger or the page
+    uncommitted or untracked, a symlinked tracker directory, page or sidecar,
+    and a project that is not inside a git repository. A project that declares
+    plan_page publishes that page instead (D5): the project page is rendered
+    and checked beside it, never published in its place."""
+    from tools.tracker import board as B   # board imports render, so never at module load
+    say = "tracker published:"
+    root = Path(args.project).resolve()
+    paths = B.ledger_paths(root)
+    if not paths:
+        print(f"{say} no ledger under {_printable(root / 'docs' / 'proposals')} -- the project page is a page of "
+              "its ledgers; nothing recorded", file=sys.stderr)
+        return 2
+    for path in paths:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, RecursionError) as exc:
+            print(f"{say} {_printable(path)} could not be read as a JSON ledger ({type(exc).__name__}) "
+                  "-- nothing recorded", file=sys.stderr)
+            return 2
+        if not isinstance(data, dict):
+            print(f"{say} {_printable(path)} is not a ledger: not a JSON object -- nothing recorded",
+                  file=sys.stderr)
+            return 2
+        if not L.switch_on(data, "publish"):
+            sw = data["switches"]["publish"]
+            print(f"{say} publish is switched off in {_printable(path.name)} by {_printable(sw.get('by'))} "
+                  f"at {_printable(sw.get('at'))}, and the project page shows that ledger too -- nothing "
+                  "recorded, and nothing should have been published", file=sys.stderr)
+            return 1
+    problem = url_problem(args.url)
+    if problem:
+        print(f"{say} {problem} (got {_printable(args.url)}) -- nothing recorded", file=sys.stderr)
+        return 1
+    if args.by is not None and not (args.by.strip() and _one_line_utf8(args.by)):
+        print(f"{say} --by must be a one-line name (got {_printable(args.by)}) -- nothing recorded", file=sys.stderr)
+        return 1
+
+    from tools import project as P
+    command, broken = declared_plan_page(root)
+    if broken:
+        print(f"{say} {_printable(root / P.FILE)} cannot say whether this project declares plan_page "
+              "-- nothing recorded:", file=sys.stderr)
+        for problem in broken:
+            print(f"  {_printable(problem)}", file=sys.stderr)
+        return 1
+    if command:
+        # D5: the declared page is this project's tracker (proposal 20, V-11).
+        print(f"{say} this project declares plan_page ({_printable(command)}); that page is its tracker -- "
+              "publish it and record it with: tracker published <ledger> --url <url> --page <the file it "
+              "writes> -- nothing recorded", file=sys.stderr)
+        return 1
+
+    page, sidecar = B.default_out(root), B.published_path(root)
+    for what, target in (("the project page", page), ("the record", sidecar)):
+        if not _inside(root, target):
+            print(f"{say} {what} {_printable(target)} resolves outside the project {_printable(root)} "
+                  "(a symlinked tracker directory) -- nothing recorded", file=sys.stderr)
+            return 1
+    if sidecar.is_symlink() or sidecar.parent.is_symlink():
+        print(f"{say} {_printable(sidecar)} is a symlink, or its tracker directory is -- a record is written "
+              "only to a real file in the project -- nothing recorded", file=sys.stderr)
+        return 1
+    if page.is_symlink():
+        print(f"{say} {_printable(page)} is a symlink -- a published page is a regular file -- nothing recorded",
+              file=sys.stderr)
+        return 1
+    if page.exists() and not page.is_file():
+        print(f"{say} {_printable(page)} is not a regular file -- nothing recorded", file=sys.stderr)
+        return 1
+
+    r = _git(root, "rev-parse", "--is-inside-work-tree")
+    if not (r is not None and r.returncode == 0 and r.stdout.strip() == "true"):
+        print(f"{say} {_printable(root)} is not inside a git repository -- a record is made only of a committed "
+              "page -- nothing recorded", file=sys.stderr)
+        return 1
+    fresh = B.freshness(paths, page)
+    if fresh != "ok":
+        print(f"{say} {_printable(page)} is {fresh} against the project's {len(paths)} ledger(s) -- render "
+              f"first: tracker board --project {_printable(root)}, publish that page, then record it",
+              file=sys.stderr)
+        return 1
+    for path in paths:
+        rel = path.resolve().relative_to(root).as_posix()
+        if not (_tracked(root, rel) and _clean(root, rel)):
+            print(f"{say} {_printable(rel)}: the ledger has uncommitted changes -- commit it first "
+                  "-- nothing recorded", file=sys.stderr)
+            return 1
+    page_rel = page.resolve().relative_to(root).as_posix()
+    if not (_tracked(root, page_rel) and _clean(root, page_rel)):
+        print(f"{say} {_printable(page_rel)}: the project page has uncommitted changes -- commit the rendered "
+              "page, publish that committed file, then record it -- nothing recorded", file=sys.stderr)
+        return 1
+
+    import datetime
+    record = {"url": args.url, "digest": digest(page), "ledgers": B.page_digests(page), "by": args.by,
+              "at": datetime.datetime.now().astimezone().isoformat(timespec="seconds")}
+    sidecar.parent.mkdir(parents=True, exist_ok=True)
+    sidecar.write_text(json.dumps(record, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
+    print(f"recorded {sidecar} · {args.url} · commit it")
+    return 0
+
+
 def published_main(argv) -> int:
     ap = argparse.ArgumentParser(prog="tracker published",
                                  description="record the page a session just published with its Artifact tool")
-    ap.add_argument("ledger", type=Path)
+    ap.add_argument("ledger", type=Path, nargs="?",
+                    help="the ledger whose own tracker page was published (proposal 22, T-03: only a ledger "
+                         "that records `tracker.own`, or a declared plan_page with --page)")
+    ap.add_argument("--project", type=Path, nargs="?", const=Path("."),
+                    help="record the project's one tracker page, docs/proposals/tracker/index.html "
+                         "(default: the current directory)")
     ap.add_argument("--url", required=True, help="the artifact's URL, https, one line")
     ap.add_argument("--by", help="who published it (default: recorded as null)")
     ap.add_argument("--page", help="the declared plan_page's output, relative to the project root "
@@ -656,6 +809,17 @@ def published_main(argv) -> int:
                          "ledger change that leaves the page's bytes identical; the sidecar records it")
     args = ap.parse_args(argv)
     say = "tracker published:"
+
+    if args.project is not None:
+        # One page or the other, never both in one record (proposal 22, T-03).
+        if args.ledger is not None:
+            ap.error("--project records the project's one tracker page; it takes no ledger argument")
+        if args.page is not None or args.page_unchanged:
+            ap.error("--page and --page-unchanged belong to a ledger's record (a declared plan_page), "
+                     "not to --project")
+        return published_project_main(args)
+    if args.ledger is None:
+        ap.error("name a ledger, or --project for the project's one tracker page")
 
     where = _printable(args.ledger)
     folder = args.ledger.resolve().parent
@@ -721,6 +885,14 @@ def published_main(argv) -> int:
     if not command and args.page is not None:
         print(f"{say} no plan_page is declared; the tracker page is recorded by default -- nothing recorded",
               file=sys.stderr)
+        return 1
+    if not command and args.page is None and not L.own_tracker(data):
+        # Proposal 22, T-03: the sponsor asked for one tracker per project, so
+        # a per-ledger page -- and a per-ledger record -- exists only where he
+        # asked for one (`tracker.own`). Anything else is the project's page.
+        print(f"{say} {_printable(args.ledger.name)} records no tracker of its own, so it has no page of its "
+              f"own to publish -- the project's one page is recorded with: tracker published --project "
+              f"{_printable(root)} --url <artifact url> -- nothing recorded", file=sys.stderr)
         return 1
     if not _inside(root, published_path(args.ledger)):
         # Round 2 (from V-09): a symlinked docs/proposals/tracker, or sidecar,

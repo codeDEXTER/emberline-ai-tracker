@@ -66,17 +66,27 @@ this job and is not watching in real time. You are.
   not batched for later.
 - Every blocked row and every decision ask carries an `owner` —
   `sponsor`, `lead`, or `session:<name>` (proposal 20 D4).
-- After the ledger moves, run `bin/tracker render` so the rendered page
-  never drifts from the JSON it comes from. When the card says the page
-  changed since it was last published, republish it (proposal 20 D1):
-  commit ledger edits first (committing re-renders the page), then publish
-  the committed page with your Artifact tool to the same URL, then record
-  it with `bin/tracker published <ledger> --url <url>` and commit the
-  sidecar on its own. No sponsor prompt is needed; when the ledger's
-  `switches.publish` is off, nothing is published. A republish is not
-  logged as a ledger event: the sidecar's `at` and `by` in git are the
-  record. This is the one exception to the log-entry rule above, because
-  a log entry would itself move the page.
+- The project has one tracker page, `docs/proposals/tracker/index.html`,
+  rendered from every ledger by `bin/tracker board --project .` (committing
+  a ledger re-renders it). When the card says
+  `page changed since last publish: docs/proposals/tracker/index.html → <url>`,
+  republish it (proposal 20 D1, proposal 22 T-03): commit ledger edits
+  first (committing re-renders the page), then publish the committed page
+  with your Artifact tool to the same URL, then record it with
+  `bin/tracker published --project . --url <url> --by <your session's name>`
+  and commit the sidecar, `docs/proposals/tracker/index.published.json`, on
+  its own. No sponsor prompt is needed; when a ledger's `switches.publish`
+  is off, nothing is published. A republish is not logged as a ledger
+  event: the sidecar's `at` and `by` in git are the record. This is the one
+  exception to the log-entry rule above, because a log entry would itself
+  move the page.
+- A proposal the sponsor asked to track separately records
+  `"tracker": {"own": true, "by": ..., "at": ..., "quote": ...}` in its
+  ledger, and only such a proposal keeps a tracker of its own — its own page
+  and its own record:
+  `bin/tracker render <ledger>`, then
+  `bin/tracker published <ledger> --url <url>`. For any other ledger that
+  command refuses and names `bin/tracker published --project`.
 - When the project's `.common-rules.json` declares `plan_page`, the page
   the sponsor reads is the file that generator writes, not the tracker
   page. Keep the same order: commit ledger edits first; regenerate the page
@@ -87,11 +97,14 @@ this job and is not watching in real time. You are.
   generated date alone never asks for a republish. `tracker published`
   refuses an uncommitted ledger, and a page last committed before the
   ledger changed; `--page-unchanged` is the recorded override for a ledger
-  change that leaves the page's bytes identical.
-- When a tracker page is published for the first time, or you find one
-  already published (a URL in the handover, lead prompt or log) with no
-  `<stem>.published.json`, record it at once with `tracker published`;
-  from then on the card tells you when it moves. When the project declares
+  change that leaves the page's bytes identical. The project page is still
+  rendered and checked beside it, and `bin/tracker published --project`
+  refuses: the declared page is that project's tracker.
+- When the project's tracker page is published for the first time, or you
+  find one already published (a URL in the handover, lead prompt or log)
+  with no `docs/proposals/tracker/index.published.json`, record it at once
+  with `tracker published --project . --url <url>`; from then on the card
+  tells you when it moves. When the project declares
   `plan_page`, the page is the committed file its generator writes: record
   it with `bin/tracker published <ledger> --url <url> --page <path>`.
 - Every sponsor message that is not an answer to a question becomes an
