@@ -411,3 +411,22 @@ class TestDeclaredNumbersAndShapes(unittest.TestCase):
         for problem in ("gates: must be a list", "quality_floors: must be a list",
                         "requests: must be a list", "native_receipts: must be an object"):
             self.assertIn(problem, text)
+
+
+class TestNonFiniteAndNegativeWeights(unittest.TestCase):
+    """Review round 2: json.loads accepts NaN and Infinity, and they crashed readiness()."""
+
+    def test_nan_infinity_and_negative_weights_are_problems_and_readiness_is_none(self):
+        for body, problem in (
+            ('{"work": NaN, "gates": 15, "floors": 10, "receipts": 5}', "readiness_weights.work: nan is not a number"),
+            ('{"work": 70, "gates": 15, "floors": 10, "receipts": Infinity}', "readiness_weights.receipts: inf is not a number"),
+            ('{"work": -70, "gates": 15, "floors": 10, "receipts": 5}', "readiness_weights.work: -70 is negative"),
+        ):
+            with self.subTest(problem=problem):
+                d = minimal(readiness_weights=json.loads(body))
+                self.assertIn(problem, "\n".join(ledger.validate(d)))
+                self.assertIsNone(ledger.readiness(d))
+        d = minimal(readiness_weights={"work": 70, "gates": 15, "floors": 10, "receipts": 5})
+        d["items"][0]["weight"] = json.loads("-Infinity")
+        self.assertIn("W-01: weight -inf is not a number", "\n".join(ledger.validate(d)))
+        self.assertIsNone(ledger.readiness(d))

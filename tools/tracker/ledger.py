@@ -27,6 +27,7 @@ ledger 58 times a day.
 from __future__ import annotations
 
 import json
+import math
 import re
 from pathlib import Path
 
@@ -172,8 +173,15 @@ def validate(ledger: dict) -> list[str]:
 
 
 def _number(value) -> bool:
-    """An int or float, not a bool (JSON true is not a weight)."""
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
+    """A finite, non-negative int or float -- not a bool (JSON true is not a
+    weight), and not NaN or Infinity, which json.loads accepts."""
+    return (isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(value) and value >= 0)
+
+
+def _not_a_number(value) -> str:
+    finite = isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    return "is negative" if finite and value < 0 else "is not a number"
 
 
 def _evident(value) -> bool:
@@ -198,10 +206,10 @@ def _validate_v2(ledger: dict, ids: set, ask_ids: set) -> list[str]:
             continue
         for name, value in table.items():
             if not _number(value):
-                problems.append(f"{key}.{name}: {value!r} is not a number")
+                problems.append(f"{key}.{name}: {value!r} {_not_a_number(value)}")
     for n, i in enumerate(items(ledger)):
         if "weight" in i and not _number(i["weight"]):
-            problems.append(f"{i.get('id') or f'items[{n}]'}: weight {i['weight']!r} is not a number")
+            problems.append(f"{i.get('id') or f'items[{n}]'}: weight {i['weight']!r} {_not_a_number(i['weight'])}")
     tiers = ledger.get("tiers") if isinstance(ledger.get("tiers"), dict) else {}
     was_ids = {i.get("was") for i in items(ledger) if i.get("was")}
     ladder = {l.get("level") for l in (ledger.get("verification_ladder") or []) if isinstance(l, dict)}
