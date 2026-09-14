@@ -269,19 +269,22 @@ if [ -n "$ledgers" ]; then
 
     # Stage exactly the path tracker itself reports, never a path recomputed
     # a second time from today's date -- the two can disagree across
-    # midnight. If nothing parses (including "no open ledger", which should
-    # not happen right after staging one), fail with tracker's own output
-    # rather than silently proceeding without a checkpoint.
+    # midnight. "No open ledger" -- the staged ledger closed its last item --
+    # stages nothing; any other answer without a path fails with tracker's
+    # own output rather than silently proceeding without a checkpoint.
     cp_out=$(python3 "$RULES/bin/tracker" checkpoint --project "$TOP" 2>&1) || {
         echo "$cp_out" >&2
         exit 1
     }
     cp_path=$(printf '%s\n' "$cp_out" | sed -n 's/^checkpoint: wrote //p')
-    if [ -z "$cp_path" ]; then
+    if [ -n "$cp_path" ]; then
+        $GIT add -- "$cp_path"
+    elif ! printf '%s\n' "$cp_out" | grep -q '^checkpoint: no open ledger'; then
+        # Nothing left open (the commit that finishes a proposal) writes no
+        # checkpoint and is fine; any other unparsed answer refuses.
         echo "$cp_out" >&2
         exit 1
     fi
-    $GIT add -- "$cp_path"
 fi
 
 # 3. chain to a project's own pre-commit hook, preserved as pre-commit.local
