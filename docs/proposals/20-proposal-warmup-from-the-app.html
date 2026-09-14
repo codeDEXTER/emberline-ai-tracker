@@ -1,0 +1,390 @@
+<title>common-rules · 20 · accepted · Warm-up, from the app</title>
+<meta name="proposal-id" content="20">
+<meta name="proposal-topic" content="warmup-from-the-app">
+<meta name="proposal-type" content="proposal">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-14">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{--ground:#ECEEF0;--surface:#F8F9FA;--ink:#171B1F;--dim:#66707A;--border:#CBD2D9;
+    --ember:#D4531F;--ember-soft:#F6DED2;--cold:#5C7A94;--cold-soft:#D9E3EC;--gain:#2F855A;--loss:#B23A48;--warn:#B7791F;
+    --sans:"Archivo",-apple-system,Helvetica,Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,monospace}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ground:#12161A;--surface:#1A2026;--ink:#E6E9EC;--dim:#8F9AA5;--border:#2E3840;
+    --ember:#F0733E;--ember-soft:#3A241B;--cold:#8FB0C9;--cold-soft:#1E2C38;--gain:#5FB58A;--loss:#D06A77;--warn:#D8A34A}}
+  :root[data-theme="dark"]{--ground:#12161A;--surface:#1A2026;--ink:#E6E9EC;--dim:#8F9AA5;--border:#2E3840;
+    --ember:#F0733E;--ember-soft:#3A241B;--cold:#8FB0C9;--cold-soft:#1E2C38;--gain:#5FB58A;--loss:#D06A77;--warn:#D8A34A}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:16px}
+  .wrap{max-width:1000px;margin:0 auto;padding:40px 24px 90px}
+  h1{font-size:40px;font-weight:800;letter-spacing:-.02em;margin:0;text-wrap:balance}
+  h2{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:40px 0 0;font-weight:700}
+  .sub{color:var(--dim);margin:8px 0 22px;font-size:15px;max-width:74ch;line-height:1.5}
+  .tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:0 0 8px}
+  @media (max-width:760px){.tiles{grid-template-columns:repeat(2,1fr)}}
+  .tile{background:var(--surface);border-top:2px solid var(--ink);padding:10px 12px}
+  .tile b{display:block;font-size:28px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.05}
+  .tile span{font-size:12.5px;color:var(--dim)}
+  .card{background:var(--surface);border:1px solid var(--border);margin-top:22px;padding:18px 20px 16px}
+  .q{display:flex;gap:12px;align-items:baseline;font-size:19px;font-weight:700;text-wrap:balance}
+  .id{font-family:var(--mono);font-size:13px;color:var(--ember);font-weight:500;white-space:nowrap}
+  .rec{margin-top:6px;font-size:15px;color:var(--dim);line-height:1.45}
+  .rec b{color:var(--ember)}
+  svg{width:100%;height:auto;display:block;margin-top:14px;font-family:var(--sans)}
+  .lbl{font-size:12px;letter-spacing:.08em;font-weight:700}
+  details{margin-top:10px}summary{cursor:pointer;font-size:13px;color:var(--dim)}
+  details p{font-size:14.5px;line-height:1.5;max-width:74ch;margin:8px 0 0}
+  .m{font-family:var(--mono);font-size:.9em}
+  .misread{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+  .misread th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);padding:6px 8px;border-bottom:1px solid var(--ink)}
+  .misread td{padding:8px;border-bottom:1px solid var(--border);vertical-align:top}
+  .misread td:first-child{font-family:var(--mono);font-size:12.5px;color:var(--loss);white-space:nowrap}
+  .scroll{overflow-x:auto}
+  .ans{font-family:var(--mono);font-size:13.5px;background:var(--surface);border:1px solid var(--border);padding:14px 16px;margin-top:28px;line-height:1.7}
+  .src{font-size:13px;color:var(--dim);margin-top:16px;line-height:1.5;max-width:82ch}
+</style>
+<div class="wrap">
+<h1>Warm-up, from the app</h1>
+<div class="sub">Proposal 20 · <b>accepted 14 September 2026</b>. Proposal 19 was lifted from the PhotoVault engine. This pass reads the <b>PhotoVault app</b> — its session of 13 September and its repository — and asks what the warm-up standard still gets wrong. The app tracks more than the standard can hold: evidence before done, readiness computed, receipts checked, a verification ladder. Today on the left, proposed on the right. Nothing here is built.</div>
+
+<div class="tiles">
+  <div class="tile"><b>5 / 22</b><span>of your turns were "publish the tracker" or "update the plan"</span></div>
+  <div class="tile"><b>0 / 83</b><span>agents carried the tier tag on the prompt's first line</span></div>
+  <div class="tile"><b>0 / 83</b><span>agents ran on Haiku; you asked twice whether it is usable</span></div>
+  <div class="tile"><b>5</b><span>places the app already writes its model routing</span></div>
+  <div class="tile"><b>201</b><span>agent-to-agent messages in one session</span></div>
+</div>
+
+<h2>If the app migrated today, the card would say</h2>
+<div class="card">
+<div class="scroll"><table class="misread">
+<tr><th>Card line</th><th>What is actually true in the app</th></tr>
+<tr><td>Prohibitions: none found</td><td>Five NEVER rules under "Hard safety rules" in CLAUDE.md; the card only reads a HANDOFF section with "prohibition" in its heading.</td></tr>
+<tr><td>Read: HANDOFF.md first</td><td>HANDOFF.md is marked <em>Historical</em> and says "Read CLAUDE.md first"; the app's order is CLAUDE.md → SPONSOR-CONSTRAINTS.md → Proposal 64 → the plan.</td></tr>
+<tr><td>ledger · 138 problems</td><td>A stricter checker already passes: <span class="m">build_plan.py --check</span> refuses done without evidence, a model that disagrees with complexity, a bad verify level.</td></tr>
+<tr><td>page · missing</td><td>The plan page exists, generated by <span class="m">build_plan.py</span>; it carries no <span class="m">ledger-digest</span> the card looks for.</td></tr>
+<tr><td>checkpoint · missing</td><td>Hand-over lives in <span class="m">docs/reports/pv70/progress.md</span>, one append-only entry per batch.</td></tr>
+<tr><td>test command · none found</td><td>Two gates: <span class="m">gate.sh --quick</span> for agents and every Stop hook, <span class="m">gate.sh</span> for the lead before a merge.</td></tr>
+</table></div>
+<details><summary>evidence</summary><p>Read-only audit of /Users/aashish/apps/PhotoVault/app, spot-checked by the lead: HANDOFF.md lines 3–6 and heading at line 123; CLAUDE.md read order and "Hard safety rules"; tools/build_plan.py lines 60–84 (checks) and 91–120 (score); .claude/settings.json Stop hook running <span class="m">gate.sh --quick</span> (tracked in git). The card logic is common-rules' bin/warmup.</p></details>
+</div>
+
+<h2>Decisions</h2>
+
+<!-- D1 -->
+<div class="card">
+<div class="q"><span class="id">D1</span>The tracker publishes itself where you read it?</div>
+<div class="rec"><b>Accept.</b> <span class="m">tracker render</span> writes a file; you read an artifact. When the digest changes, the page is republished to the same URL — so "publish the tracker" is never typed again.</div>
+<svg viewBox="0 0 960 210">
+  <rect x="0" y="0" width="450" height="210" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="210" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · YOU PULL IT</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · IT ARRIVES</text>
+  <g font-size="12" fill="var(--ink)" font-family="IBM Plex Mono">
+    <rect x="16" y="42" width="150" height="26" rx="13" fill="var(--surface)" stroke="var(--cold)"/><text x="30" y="59">14:32 update the plan</text>
+    <rect x="16" y="74" width="230" height="26" rx="13" fill="var(--surface)" stroke="var(--cold)"/><text x="30" y="91">15:25 update the plan and publish</text>
+    <rect x="16" y="106" width="170" height="26" rx="13" fill="var(--surface)" stroke="var(--cold)"/><text x="30" y="123">16:19 publish the tracker</text>
+    <rect x="16" y="138" width="170" height="26" rx="13" fill="var(--surface)" stroke="var(--cold)"/><text x="30" y="155">19:09 publish the tracker</text>
+    <rect x="16" y="170" width="170" height="26" rx="13" fill="var(--surface)" stroke="var(--cold)"/><text x="30" y="187">20:58 publish the tracker</text>
+  </g>
+  <g font-size="12.5" fill="var(--ink)" text-anchor="middle">
+    <rect x="530" y="66" width="120" height="50" rx="4" fill="var(--surface)" stroke="var(--ember)"/><text x="590" y="88" font-weight="700">ledger moves</text><text x="590" y="106" font-size="11" fill="var(--dim)">same turn</text>
+    <rect x="680" y="66" width="120" height="50" rx="4" fill="var(--surface)" stroke="var(--ember)"/><text x="740" y="88" font-weight="700">render</text><text x="740" y="106" font-size="11" fill="var(--dim)">digest changes</text>
+    <rect x="830" y="66" width="112" height="50" rx="4" fill="var(--ember)"/><text x="886" y="88" font-weight="700" fill="#fff">publish</text><text x="886" y="106" font-size="11" fill="#fff">same URL</text>
+    <g stroke="var(--ember)" stroke-width="2.5" fill="var(--ember)"><path d="M650 91 H672" fill="none"/><path d="M668 85 L678 91 L668 97 Z"/><path d="M800 91 H822" fill="none"/><path d="M818 85 L828 91 L818 97 Z"/></g>
+    <text x="735" y="160" font-size="12" fill="var(--dim)">publishes only when the page would differ;</text>
+    <text x="735" y="178" font-size="12" fill="var(--dim)">the project's own page generator is used if it declares one (D9)</text>
+  </g>
+</svg>
+<details><summary>evidence</summary><p>App session c45825a1, 13 Sep: 22 unique sponsor turns after removing the compaction replay; five asked for the plan updated or the tracker published — the most repeated thing typed, in a project that already had a tracker. The engine session asked for status eleven times across 6–13 Sep.</p></details>
+</div>
+
+<!-- D2 -->
+<div class="card">
+<div class="q"><span class="id">D2</span>One model-routing table, per project, measured?</div>
+<div class="rec"><b>Accept.</b> The ledger's routing table is the only one; prompts, pages and checkers read it, never restate it. A project records what it found usable — the app routes Trivial to Haiku only for bookkeeping, never UI code — and the checker refuses a mismatch without a reason.</div>
+<svg viewBox="0 0 960 210">
+  <rect x="0" y="0" width="450" height="210" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="210" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · FIVE COPIES, PLUS THE STANDARD'S SIXTH</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · ONE TABLE, READ EVERYWHERE</text>
+  <g font-size="12" fill="var(--ink)" font-family="IBM Plex Mono">
+    <text x="24" y="58">70-r9-delivery-plan.json  model_routing</text>
+    <text x="24" y="78">tools/build_plan.py       MODEL_FOR</text>
+    <text x="24" y="98">70-r9-delivery-plan.md    table</text>
+    <text x="24" y="118">CLAUDE.md                 prose</text>
+    <text x="24" y="138">70-lead-prompt.md         prose</text>
+    <text x="24" y="162" fill="var(--loss)">+ templates/ledger.json   tiers  ← sixth</text>
+    <text x="24" y="192" fill="var(--dim)" font-family="Archivo" font-size="12">0 of 83 agents on Haiku · "is Haiku usable at all?" ×2</text>
+    <rect x="530" y="46" width="410" height="68" rx="4" fill="var(--ember)"/>
+    <text x="544" y="72" fill="#fff">ledger.model_routing</text>
+    <text x="544" y="94" fill="#fff" font-size="11.5">Trivial→haiku (bookkeeping only) · Low/Medium→sonnet · High→opus</text>
+    <g stroke="var(--ember)" stroke-width="2" fill="none"><path d="M600 114 V140"/><path d="M735 114 V140"/><path d="M870 114 V140"/></g>
+    <rect x="540" y="140" width="120" height="30" rx="4" fill="var(--surface)" stroke="var(--ember)"/><text x="600" y="160" text-anchor="middle" font-size="11.5">brief · tag</text>
+    <rect x="675" y="140" width="120" height="30" rx="4" fill="var(--surface)" stroke="var(--ember)"/><text x="735" y="160" text-anchor="middle" font-size="11.5">page</text>
+    <rect x="810" y="140" width="120" height="30" rx="4" fill="var(--surface)" stroke="var(--ember)"/><text x="870" y="160" text-anchor="middle" font-size="11.5">checker</text>
+    <text x="530" y="194" fill="var(--dim)" font-family="Archivo" font-size="12">the card prints the project's routing, so nobody asks twice</text>
+  </g>
+</svg>
+<details><summary>evidence</summary><p>Routing in the app: 70-r9-delivery-plan.json model_routing (with the note "Trivial = bookkeeping only … Never UI code"), tools/build_plan.py MODEL_FOR and its refusal "model … disagrees with complexity … and has no model_override_reason", plus the plan .md, CLAUDE.md and 70-lead-prompt.md. Session: 83 Agent calls, sonnet 54, opus 27, haiku 0.</p></details>
+</div>
+
+<!-- D3 -->
+<div class="card">
+<div class="q"><span class="id">D3</span>The agent tag is checked when the agent is spawned?</div>
+<div class="rec"><b>Accept.</b> A PreToolUse hook on the Agent tool reads the prompt's first line and warns, with the item's tag from the ledger, when <span class="m">[ruflo · tier · model] ID title</span> is missing. Warn first; a week's measurement decides whether it refuses.</div>
+<svg viewBox="0 0 960 180">
+  <rect x="0" y="0" width="450" height="180" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="180" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · A RULE IN PROSE</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · A HOOK AT SPAWN</text>
+  <g font-size="12.5" fill="var(--ink)">
+    <text x="24" y="58">OPERATING-RULES §2: the canonical tag goes in the</text><text x="24" y="78">prompt's first line and the report's first column</text>
+    <g transform="translate(24 98)"><rect width="400" height="16" fill="var(--surface)" stroke="var(--border)"/></g>
+    <text x="24" y="140" font-family="IBM Plex Mono" fill="var(--loss)" font-weight="700">0 of 83 prompts carry it</text>
+    <rect x="530" y="46" width="410" height="56" rx="4" fill="var(--surface)" stroke="var(--ember)"/>
+    <text x="544" y="68" font-family="IBM Plex Mono" font-size="12">PreToolUse · Agent</text>
+    <text x="544" y="90" font-family="IBM Plex Mono" font-size="12" fill="var(--dim)">no tag → "F-07 is [ruflo · high · opus]"</text>
+    <text x="544" y="130" font-size="12.5">the fix is a paste, not a lookup</text>
+    <text x="544" y="152" font-size="11.5" fill="var(--dim)">prose measured 1-in-7 in common-rules; executable rules get followed</text>
+  </g>
+</svg>
+</div>
+
+<!-- D4 -->
+<div class="card">
+<div class="q"><span class="id">D4</span>Every blocked item and decision names whose call it is?</div>
+<div class="rec"><b>Accept.</b> An <span class="m">owner</span> on blocked rows and decision asks: <span class="m">sponsor</span>, <span class="m">lead</span>, or a session by name. The card's "yours" line lists only yours; the rest becomes a message to its owner.</div>
+<svg viewBox="0 0 960 190">
+  <rect x="0" y="0" width="450" height="190" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="190" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · IT LANDS ON YOU</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · ROUTED BY OWNER</text>
+  <g font-size="12.5" fill="var(--ink)">
+    <rect x="16" y="44" width="418" height="62" rx="4" fill="var(--surface)" stroke="var(--cold)"/>
+    <text x="30" y="68" font-family="IBM Plex Mono" font-size="12">→ you: approve the catalogue upgrade 40 → 44;</text>
+    <text x="30" y="88" font-family="IBM Plex Mono" font-size="12">reinstall the Runner with Full Disk Access</text>
+    <text x="30" y="140" font-style="italic">"these are not my decision, but the decision</text><text x="30" y="160" font-style="italic">of the engine session" — 14:42</text>
+    <g font-family="IBM Plex Mono" font-size="12">
+      <rect x="530" y="44" width="410" height="30" rx="4" fill="var(--surface)" stroke="var(--ember)"/><text x="544" y="64">yours:        CLAUDE.md commit · signing</text>
+      <rect x="530" y="82" width="410" height="30" rx="4" fill="var(--surface)" stroke="var(--border)"/><text x="544" y="102">engine owns:  schema 40→44 · Runner reinstall</text>
+      <rect x="530" y="120" width="410" height="30" rx="4" fill="var(--surface)" stroke="var(--border)"/><text x="544" y="140">lead owns:    merge order · wave start</text>
+    </g>
+  </g>
+</svg>
+</div>
+
+<!-- D5 -->
+<div class="card">
+<div class="q"><span class="id">D5</span>A project can switch parts of the standard off, on the record?</div>
+<div class="rec"><b>Accept.</b> A <span class="m">switches</span> block — <span class="m">issues</span>, <span class="m">publish</span>, <span class="m">ruflo</span> — each with who, when and the quote. Tools honour it; the card prints what is off.</div>
+<svg viewBox="0 0 960 160">
+  <rect x="0" y="0" width="450" height="160" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="160" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · A "SKIP" THE TOOLS NEVER HEAR</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · DECLARED AND HONOURED</text>
+  <g font-size="12.5" fill="var(--ink)">
+    <text x="24" y="60" font-style="italic">"skip GitHub issues for now" — 16:03</text>
+    <text x="24" y="90">tracker sync would still open an issue for every</text><text x="24" y="110">in-progress row the next time anyone runs it</text>
+    <g font-family="IBM Plex Mono" font-size="12">
+      <rect x="530" y="42" width="410" height="74" rx="4" fill="var(--surface)" stroke="var(--ember)"/>
+      <text x="544" y="64">"switches": {"issues": {"on": false,</text>
+      <text x="544" y="84">   "by": "sponsor", "at": "2026-09-13T16:03",</text>
+      <text x="544" y="104">   "quote": "skip GitHub issues for now"}}</text>
+    </g>
+  </g>
+</svg>
+</div>
+
+<!-- D6 -->
+<div class="card">
+<div class="q"><span class="id">D6</span>Done needs evidence, and each row declares its verification level?</div>
+<div class="rec"><b>Accept.</b> The app's rule, generalised: a row is <span class="m">done</span> only when its evidence flags are true, and every row names the level it must reach from the project's ladder. <span class="m">tracker validate</span> refuses done without it — today it only asks that the log be non-empty.</div>
+<svg viewBox="0 0 960 220">
+  <rect x="0" y="0" width="450" height="220" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="220" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · STANDARD: A NON-EMPTY LOG</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · THE APP'S RULE, EVERYWHERE</text>
+  <g font-size="12.5" fill="var(--ink)" font-family="IBM Plex Mono">
+    <rect x="16" y="44" width="418" height="52" rx="4" fill="var(--surface)" stroke="var(--cold)"/>
+    <text x="30" y="66" font-size="12">"status": "done", "log": [{"evidence": "ok"}]</text>
+    <text x="30" y="86" font-size="12" fill="var(--gain)">✓ passes ledger.validate</text>
+    <text x="24" y="130" font-family="Archivo">HANDOFF "How to verify": one command, as prose</text>
+    <text x="24" y="152" font-family="Archivo" fill="var(--dim)">nothing records which level a done row reached</text>
+  </g>
+  <g font-family="IBM Plex Mono" font-size="11.5" fill="var(--ink)">
+    <rect x="530" y="44" width="410" height="52" rx="4" fill="var(--surface)" stroke="var(--ember)"/>
+    <text x="544" y="66">"verify": "VL5", "evidence": {"tests": true,</text>
+    <text x="544" y="86">  "review": true, "native": "receipt F-05"}</text>
+    <g transform="translate(530 112)">
+      <rect x="0" width="62" height="44" fill="var(--surface)" stroke="var(--border)"/><text x="31" y="20" text-anchor="middle">VL1</text><text x="31" y="36" text-anchor="middle" font-size="9.5" fill="var(--dim)">unit</text>
+      <rect x="68" width="62" height="44" fill="var(--surface)" stroke="var(--border)"/><text x="99" y="20" text-anchor="middle">VL2</text>
+      <rect x="136" width="62" height="44" fill="var(--surface)" stroke="var(--border)"/><text x="167" y="20" text-anchor="middle">VL3</text>
+      <rect x="204" width="62" height="44" fill="var(--surface)" stroke="var(--border)"/><text x="235" y="20" text-anchor="middle">VL4</text>
+      <rect x="272" width="66" height="44" fill="var(--ember)"/><text x="305" y="20" text-anchor="middle" fill="#fff">VL5</text><text x="305" y="36" text-anchor="middle" font-size="9.5" fill="#fff">installed app</text>
+      <rect x="344" width="66" height="44" fill="var(--surface)" stroke="var(--border)"/><text x="377" y="20" text-anchor="middle">VL6</text>
+    </g>
+    <text x="530" y="186" font-family="Archivo" font-size="12" fill="var(--dim)">the ladder's levels, tools and "proves" are the project's; the rule is the standard's</text>
+  </g>
+</svg>
+<details><summary>evidence</summary><p>tools/build_plan.py refuses "is done but evidence incomplete" and a verify level outside VL1–VL6, and requires native evidence for VL5/VL6. 70-r9-delivery-plan.json carries verification_ladder (6 levels, each with what, proves and tool — VL1 "static and unit", tool flutter test), verification_rules (9, e.g. "A browser is never a verification surface for this product") and receipts (commit, build, method, captured_by). common-rules' ledger.validate only checks that a done row's log is non-empty.</p></details>
+</div>
+
+<!-- D7 -->
+<div class="card">
+<div class="q"><span class="id">D7</span>Requests between sessions get their own lane?</div>
+<div class="rec"><b>Accept.</b> A <span class="m">requests</span> lane — from, to, what it unblocks, state, answered-by — replacing ad-hoc notes. The app already keeps ten <span class="m">external_dependencies</span> and a requests document; the standard's <span class="m">depends</span> can only name an item in the same ledger.</div>
+<svg viewBox="0 0 960 180">
+  <rect x="0" y="0" width="450" height="180" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="180" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · MESSAGES, A DOC, A JSON LIST</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · ROWS BOTH SESSIONS READ</text>
+  <g fill="var(--cold)" opacity=".5"><rect x="24" y="44" width="300" height="7" rx="3"/><rect x="24" y="58" width="360" height="7" rx="3"/><rect x="24" y="72" width="240" height="7" rx="3"/><rect x="24" y="86" width="380" height="7" rx="3"/></g>
+  <g font-size="12" fill="var(--ink)">
+    <text x="24" y="122" font-family="IBM Plex Mono">external_dependencies ×10 · engine-integration-requests.md</text>
+    <text x="24" y="146" font-family="IBM Plex Mono" fill="var(--dim)">"unblocks": ["F7", "all VL5 receipts after F7"]</text>
+    <g font-family="IBM Plex Mono">
+      <rect x="530" y="44" width="410" height="84" rx="4" fill="var(--surface)" stroke="var(--ember)"/>
+      <text x="544" y="66">RQ-03  app → engine   Runner data mode</text>
+      <text x="544" y="86">       unblocks F-07 · state: in progress</text>
+      <text x="544" y="106">       answered by engine R-08 / E1-09</text>
+    </g>
+    <text x="530" y="156" fill="var(--dim)">the card shows requests you owe, and requests owed to you</text>
+  </g>
+</svg>
+</div>
+
+<!-- D8 -->
+<div class="card">
+<div class="q"><span class="id">D8</span>Readiness is computed, and "merged, awaiting evidence" is visible?</div>
+<div class="rec"><b>Accept, keeping four statuses.</b> Gates, quality floors and receipts become ledger data, and the card prints a computed readiness beside the counts. "Merged, awaiting evidence" is a <span class="m">merged</span> flag on an in-progress row, not a fifth status — the vocabulary stays one.</div>
+<svg viewBox="0 0 960 190">
+  <rect x="0" y="0" width="450" height="190" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="190" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · STANDARD COUNTS STATUSES</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · COUNTS, AND WHAT THEY'RE WORTH</text>
+  <g font-size="12.5" fill="var(--ink)" font-family="IBM Plex Mono">
+    <text x="24" y="62">8 done / 6 in progress / 3 blocked / 30</text>
+    <text x="24" y="92" font-family="Archivo" fill="var(--dim)">a merged row still waiting on its receipt</text>
+    <text x="24" y="110" font-family="Archivo" fill="var(--dim)">reads the same as one nobody has started</text>
+    <text x="24" y="150" font-family="Archivo">and "never type a readiness number" (app CLAUDE.md)</text>
+    <text x="24" y="168" font-family="Archivo">has nowhere to live in the standard</text>
+  </g>
+  <g font-size="12" fill="var(--ink)">
+    <rect x="530" y="44" width="410" height="30" fill="var(--surface)" stroke="var(--border)"/>
+    <rect x="530" y="44" width="235" height="30" fill="var(--ember)" opacity=".85"/><text x="540" y="64" fill="#fff" font-family="IBM Plex Mono">work 70</text>
+    <rect x="765" y="44" width="62" height="30" fill="var(--cold)"/><text x="772" y="64" fill="#fff" font-family="IBM Plex Mono" font-size="11">gates 15</text>
+    <rect x="827" y="44" width="72" height="30" fill="var(--gain)"/><text x="833" y="64" fill="#fff" font-family="IBM Plex Mono" font-size="11">floors 10</text>
+    <rect x="899" y="44" width="41" height="30" fill="var(--warn)"/><text x="903" y="64" fill="#fff" font-family="IBM Plex Mono" font-size="10">rcpt</text>
+    <text x="530" y="100" font-family="IBM Plex Mono">merged, awaiting evidence: F-05 · Q-03</text>
+    <text x="530" y="124" fill="var(--dim)">weights are the project's declaration; the standard carries the shape</text>
+    <text x="530" y="146" fill="var(--dim)">a typed percentage is refused, like a typed page</text>
+  </g>
+</svg>
+<details><summary>evidence</summary><p>tools/build_plan.py score(): readiness = 70 × weighted work (done full, active-with-tests half) + 15 × gates passed + 10 × floors met + native receipts on primary surfaces; merged_waiting lists rows merged but not done. The plan JSON holds gates (7, each passed/evidence), quality_floors (6, each command/met) and native_receipts. Adding a fifth status would break every tool built on the four (render, check, sync, checkpoint, warmup).</p></details>
+</div>
+
+<!-- D9 -->
+<div class="card">
+<div class="q"><span class="id">D9</span>A project declares its own entry points, and the standard reads them?</div>
+<div class="rec"><b>Accept.</b> One file, <span class="m">.common-rules.json</span>, growing from today's <span class="m">.common-rules-test</span>: read order, where the safety rules live, the quick and merge gates, the plan checker and page generator. The card and tools use the project's own instead of assuming HANDOFF.md, one gate and the standard's renderer. <span class="m">.common-rules-test</span> keeps working.</div>
+<svg viewBox="0 0 960 210">
+  <rect x="0" y="0" width="450" height="210" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="210" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · THE STANDARD ASSUMES</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · THE PROJECT DECLARES</text>
+  <g font-size="12.5" fill="var(--ink)" font-family="IBM Plex Mono">
+    <text x="24" y="58">read first:    HANDOFF.md</text>
+    <text x="24" y="82">prohibitions:  "## …prohibition…"</text>
+    <text x="24" y="106">gate:          one command</text>
+    <text x="24" y="130">validate:      ledger.py only</text>
+    <text x="24" y="154">page:          tracker render</text>
+    <text x="24" y="188" font-family="Archivo" fill="var(--loss)">each is wrong for the app</text>
+  </g>
+  <g font-family="IBM Plex Mono" font-size="11.5" fill="var(--ink)">
+    <rect x="530" y="40" width="410" height="156" rx="4" fill="var(--surface)" stroke="var(--ember)"/>
+    <text x="544" y="62">{"read_order": ["CLAUDE.md", "SPONSOR-CONSTRAINTS.md",</text>
+    <text x="544" y="80">                "docs/proposals/70-r9-delivery-plan.json"],</text>
+    <text x="544" y="100"> "safety_rules": "CLAUDE.md#Hard safety rules",</text>
+    <text x="544" y="120"> "gates": {"quick": "sh tools/gate.sh --quick",</text>
+    <text x="544" y="138">           "merge": "sh tools/gate.sh"},</text>
+    <text x="544" y="158"> "plan_check": "python3 tools/build_plan.py --check",</text>
+    <text x="544" y="176"> "plan_page": "python3 tools/build_plan.py"}</text>
+  </g>
+</svg>
+<details open><summary>evidence — now live in the app</summary><p><b>After the app migrated (36aa2dd), the pointer block migrate appended to its CLAUDE.md reads "Read, in order: HANDOFF.md → docs/OPERATING-RULES.md → the ledger(s)…" — three lines below the app's own "Read this first, then SPONSOR-CONSTRAINTS.md", with HANDOFF.md marked Historical.</b> The contradiction sits uncommitted, waiting for the sponsor. App CLAUDE.md: "Read this first, then SPONSOR-CONSTRAINTS.md"; HANDOFF.md is marked Historical. Safety rules are under "Hard safety rules" in CLAUDE.md (and HANDOFF line 123). Two gates: agents run gate.sh --quick (also the tracked Stop hook), the lead runs gate.sh before merging. build_plan.py already validates more strictly than ledger.py and generates the page. The engine, too, keeps a commit gate and a merge gate — .common-rules-test holds only one.</p></details>
+</div>
+
+<!-- D10 -->
+<div class="card">
+<div class="q"><span class="id">D10</span>The lead prompt allows parallel high-tier agents?</div>
+<div class="rec"><b>Recommend accept.</b> The template says one C3 at a time, run by the lead, and never a subagent on the lead's model. The app runs up to six agents with Opus phases in parallel, each reviewed by a report-only agent. Replace both lines with the app's: parallel C3 when file ownership is disjoint; the lead merges, reconciles and decides.</div>
+<svg viewBox="0 0 960 170">
+  <rect x="0" y="0" width="450" height="170" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="170" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · templates/lead-prompt.md</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · WHAT THE APP DOES</text>
+  <g font-size="12.5" fill="var(--ink)">
+    <rect x="24" y="48" width="40" height="40" fill="var(--ember)"/><text x="44" y="73" text-anchor="middle" fill="#fff" font-family="IBM Plex Mono" font-size="11">C3</text>
+    <text x="78" y="64">"Only one C3 item runs at a time,</text><text x="78" y="82">and it is yours."</text>
+    <text x="24" y="120">"You never spawn a subagent on your own model."</text>
+    <text x="24" y="148" fill="var(--dim)">the lead becomes the bottleneck on the hardest work</text>
+    <g transform="translate(530 48)">
+      <rect x="0" width="40" height="40" fill="var(--ember)"/><rect x="48" width="40" height="40" fill="var(--ember)"/><rect x="96" width="40" height="40" fill="var(--ember)"/>
+      <rect x="160" width="40" height="40" fill="var(--cold)"/><rect x="208" width="40" height="40" fill="var(--cold)"/><rect x="256" width="40" height="40" fill="var(--cold)"/>
+    </g>
+    <text x="530" y="112">C3 in parallel · disjoint files · one reviewer each,</text>
+    <text x="530" y="130">report-only, at most the same tier, two rounds</text>
+    <text x="530" y="152" fill="var(--dim)">the lead: merge, reconcile, decide — not implement</text>
+  </g>
+</svg>
+<details><summary>evidence</summary><p>common-rules templates/lead-prompt.md §2 and §3 (the two quoted lines). App 70-lead-prompt.md: up to six agents, Opus-level phases in parallel, independent review by a report-only agent of at most the same tier with at most two rounds. It also matches the standing split "Sonnet codes, Opus decides".</p></details>
+</div>
+
+<!-- D11 -->
+<div class="card">
+<div class="q"><span class="id">D11</span>The mandatory Ruflo loop is a command, not a paragraph?</div>
+<div class="rec"><b>Accept.</b> Ship the app's wrapper as <span class="m">bin/ruflo-item start | done | note | recall</span>: it stops the daemon on every exit, <span class="m">done</span> runs the declared merge gate first, and recall lists keys before semantic search — which misses exact keys like <span class="m">item:Q1:done</span>.</div>
+<svg viewBox="0 0 960 190">
+  <rect x="0" y="0" width="450" height="190" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="190" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · FOUR STEPS TO REMEMBER</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · ONE COMMAND EACH SIDE</text>
+  <g font-size="12" fill="var(--ink)" font-family="IBM Plex Mono">
+    <text x="24" y="58">memory search → hooks route →</text><text x="24" y="78">post-task → memory store → daemon stop</text>
+    <text x="24" y="112" font-family="Archivo" fill="var(--loss)">engine pilot: one agent's loop errored, unnoticed</text>
+    <text x="24" y="132" font-family="Archivo" fill="var(--loss)">memory search: 0 usable hits in 43 agents</text>
+    <text x="24" y="160" font-family="Archivo" fill="var(--dim)">a daemon left running spawns headless sessions</text>
+    <rect x="530" y="44" width="410" height="112" rx="4" fill="var(--surface)" stroke="var(--ember)"/>
+    <text x="544" y="68">ruflo-item start F-07 "…"   pre-task + store</text>
+    <text x="544" y="90">ruflo-item done  F-07 "…"   gate, post-task, store</text>
+    <text x="544" y="112">ruflo-item note  F-07 "…"   decision log</text>
+    <text x="544" y="134">ruflo-item recall "…"       list, then search</text>
+    <text x="530" y="178" font-family="Archivo" fill="var(--dim)">trap on exit: daemon stop · an item without start and done is not done</text>
+  </g>
+</svg>
+<details><summary>evidence</summary><p>App tools/ruflo_task.sh: trap on EXIT runs daemon stop; done runs tools/gate.sh before post-task and memory store; recall runs memory list before memory search, with the comment that semantic search misses exact keys. App CLAUDE.md makes an item without both entries not done. Common-rules today: the loop is prose in templates/lead-prompt.md; in proposal 19's build one agent's loop errored with nothing noticing, and the engine's Ruflo ledger recorded 0 usable memory hits across 43 agents.</p></details>
+</div>
+
+<!-- D12 -->
+<div class="card">
+<div class="q"><span class="id">D12</span>Generated files ride the ledger's own commit?</div>
+<div class="rec"><b>Accept.</b> A pre-commit step: when a ledger is staged, regenerate its tracker page and the checkpoint and stage them with it. One commit per ledger change, never a separate "refresh checkpoint" commit — and the card never shows them stale between the two.</div>
+<svg viewBox="0 0 960 170">
+  <rect x="0" y="0" width="450" height="170" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="170" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · IN THE APP, 13 SEP</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · ONE COMMIT</text>
+  <g font-family="IBM Plex Mono" font-size="12" fill="var(--ink)">
+    <text x="24" y="60">41e4c7a docs: tracker page and checkpoint; start Q-09</text>
+    <text x="24" y="84">2038a3e docs: refresh checkpoint after starting Q-09</text>
+    <text x="24" y="120" font-family="Archivo" font-size="12.5" fill="var(--dim)">"every ledger commit makes the checkpoint stale</text>
+    <text x="24" y="138" font-family="Archivo" font-size="12.5" fill="var(--dim)">on the card until tracker checkpoint re-runs" — app session</text>
+    <rect x="530" y="44" width="410" height="60" rx="4" fill="var(--surface)" stroke="var(--ember)"/>
+    <text x="544" y="68">git add ledger.json → pre-commit:</text>
+    <text x="544" y="90" fill="var(--dim)">  render + checkpoint, staged with it</text>
+    <text x="530" y="136" font-family="Archivo" font-size="12.5">the digest on the page and the checkpoint always</text>
+    <text x="530" y="154" font-family="Archivo" font-size="12.5">match the ledger in the same commit</text>
+  </g>
+</svg>
+</div>
+
+<!-- D13 -->
+<div class="card">
+<div class="q"><span class="id">D13</span>derecord keeps Ruflo's runtime state out of git?</div>
+<div class="rec"><b>Accept.</b> Ruflo is mandatory, so every project that runs it writes daemon state, metrics and memory databases. derecord adds the ignore lines common-rules adopted in PR #149 — runtime state only; a project's shared Ruflo config stays committable.</div>
+<svg viewBox="0 0 960 160">
+  <rect x="0" y="0" width="450" height="160" rx="4" fill="var(--cold-soft)"/><rect x="510" y="0" width="450" height="160" rx="4" fill="var(--ember-soft)"/>
+  <text x="16" y="24" class="lbl" fill="var(--cold)">TODAY · A DIRTY TREE AFTER EVERY CALL</text><text x="526" y="24" class="lbl" fill="var(--ember)">PROPOSED · IGNORED BY DERECORD</text>
+  <g font-size="12.5" fill="var(--ink)">
+    <text x="24" y="60" font-family="IBM Plex Mono" font-weight="700" fill="var(--loss)">31 runtime files tracked in the app</text>
+    <text x="24" y="86">9 of its 30 uncommitted lines are Ruflo state</text>
+    <text x="24" y="110">common-rules had 20 untracked, fixed today (PR #149)</text>
+    <g font-family="IBM Plex Mono" font-size="12">
+      <rect x="530" y="42" width="410" height="84" rx="4" fill="var(--surface)" stroke="var(--ember)"/>
+      <text x="544" y="64">.claude-flow/  (state, metrics, logs, neural)</text>
+      <text x="544" y="84">.swarm/        ruvector.db</text>
+      <text x="544" y="104" fill="var(--dim)">kept: config.yaml · agents.json</text>
+    </g>
+  </g>
+</svg>
+</div>
+
+<h2>The decisions, as asked</h2><ol class="decisions"><li><b>D1.</b> The tracker republishes where the sponsor reads it whenever its digest changes.</li><li><b>D2.</b> One model-routing table per project, in the ledger, recording what the project found usable; checkers compare model with class.</li><li><b>D3.</b> A PreToolUse hook on the Agent tool warns when a prompt&#x27;s first line lacks the [ruflo · tier · model] ID tag.</li><li><b>D4.</b> Blocked rows and decision asks name their owner: sponsor, lead, or a session by name.</li><li><b>D5.</b> A ledger switches block lets a project turn parts of the standard off, with who, when and the quote; tools honour it.</li><li><b>D6.</b> Done needs evidence, and each row declares its verification level from the project&#x27;s ladder.</li><li><b>D7.</b> Requests between sessions get their own lane in the ledger.</li><li><b>D8.</b> Gates, quality floors and receipts are ledger data; readiness is computed; merged-awaiting-evidence is a flag, keeping four statuses.</li><li><b>D9.</b> A project declares its read order, safety rules, quick and merge gates, plan checker and page generator in .common-rules.json.</li><li><b>D10.</b> The lead-prompt template allows parallel high-tier agents on disjoint files, each with a report-only reviewer.</li><li><b>D11.</b> The mandatory Ruflo loop is a command: bin/ruflo-item start | done | note | recall.</li><li><b>D12.</b> Generated files ride the ledger&#x27;s own commit: a staged ledger regenerates and stages its page and checkpoint.</li><li><b>D13.</b> derecord keeps Ruflo&#x27;s runtime state out of git; shared Ruflo config stays committable.</li></ol><div id="decided"><h2>Decided — 14 September 2026, 07:12</h2><p>The sponsor, directly in the common-rules session: <em>"reheat the photovault app and engine. proposal 20 accepted"</em>. All thirteen decisions are accepted as recommended on this page: D8 keeps the four statuses with a <span class="m">merged</span> flag; D10 replaces the lead-prompt template's one-C3-at-a-time and no-subagent-on-the-lead's-model lines. The build is tracked in <span class="m">docs/proposals/20-proposal-warmup-from-the-app.json</span>.</p></div><div class="ans">common-rules · proposal 20 · answered 2026-09-14<br>D1 · D2 · D3 · D4 · D5 · D6 · D7 · D8 · D9 · D10 · D11 · D12 · D13</div>
+<div class="src">Sources: PhotoVault app session transcript c45825a1 (13 Sep, 12:54–21:01 UTC; 22 unique sponsor turns after removing the compaction replay; 1,030 tool calls; 83 Agent calls; 201 SendMessage), counted by script. Read-only audit of /Users/aashish/apps/PhotoVault/app by an Explore agent; every claim a decision rests on was then read by the lead in the file itself (build_plan.py, HANDOFF.md, CLAUDE.md, .claude/settings.json, tools/ruflo_task.sh, the plan JSON's ladder, requests, receipts, gates, floors and routing) and in common-rules' templates/lead-prompt.md. The live evidence under D9, and D12 and D13, come from verifying the app read-only after its migration (36aa2dd). Not included: a claim that the card cannot find Ruflo when a project calls it through npx — not verified.</div>
+</div>

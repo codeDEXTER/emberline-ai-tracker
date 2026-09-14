@@ -1,5 +1,18 @@
 # Changelog — common-rules
 
+## 2026-09-14 · Proposal 20: Warm-up, from the app — accepted
+
+`docs/proposals/20-proposal-warmup-from-the-app.html`. A second pass on the
+warm-up standard, read from the PhotoVault app's session and repository after
+proposal 19 was lifted from the engine: 22 sponsor turns, 5 of them "publish the
+tracker" or "update the plan"; 0 of 83 agent prompts carrying the tier tag;
+model routing written in five places; a ledger that already refuses done
+without evidence and computes readiness. Thirteen decisions, all accepted by
+the sponsor ("proposal 20 accepted", 14 Sep 07:12). The build is
+`20-proposal-warmup-from-the-app.json`, items V-00 to V-10. Nothing built yet.
+Unlike 19, this document carries its decisions in the `<ol class="decisions">`
+and `id="decided"` shape `proposalcheck` actually checks.
+
 ## 2026-09-14 · Both PhotoVault projects are on the warm-up standard
 
 The engine ran `warmup --migrate` at its checkpoint after E1-09 merged: both
