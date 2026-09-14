@@ -22,9 +22,9 @@ module does not know is ignored, because later proposals add keys.
       Default: "HANDOFF.md#prohibition".
   "gates":        {"quick": "<cmd>", "merge": "<cmd>"}
       merge is what bin/land runs before it lands; quick is the gate an agent
-      runs. Default: {}. With no gates.merge here, the first non-blank,
-      non-comment line of `.common-rules-test` is gates.merge -- that file
-      keeps working. A blank or null command counts as not declared.
+      runs. Each is a non-empty command string, trimmed. Default: {}. With no
+      "merge" key here, the first non-blank, non-comment line of
+      `.common-rules-test` is gates.merge -- that file keeps working.
   "plan_check":   "<cmd>"   the project's own plan checker. Default: None.
   "plan_page":    "<cmd>"   the project's own page generator. Default: None.
 
@@ -39,9 +39,16 @@ WHO READS IT
 A BROKEN DECLARATION. load() never raises: a file that is not valid JSON, or
 not an object, gives the defaults, and a value of the wrong type leaves that
 key's default standing. problems() names each one, and warm-up's --check
-fails on them. land does not fall back: a declaration it cannot read runs
-`false  # .common-rules.json is not valid JSON` and refuses, because falling
-back would silently run a gate nobody declared.
+fails on them.
+
+A gate is different, because running the wrong one is worse than running
+none. land -- and test_command() -- refuse with `false  # <why>` when the file
+is not valid JSON, is not an object, has "gates" that is not an object, or
+declares a "merge" or "quick" gate that is not a non-empty string (lead ruling
+on V-00, 14 Sep). Nothing falls back to .common-rules-test or the guess: that
+would silently run a gate nobody declared. load() does not fill in a declared
+but broken gates.merge either. To run the merge gate, ask test_command(),
+never load()["gates"]["merge"] -- only the first carries the refusal.
 
   load(project)      -> dict       the declaration merged over the defaults
   declared(project)  -> dict       only the keys the file validly declares
@@ -57,7 +64,7 @@ from pathlib import Path
 
 FILE = ".common-rules.json"
 TEST_FILE = ".common-rules-test"
-GATES = ("quick", "merge")
+GATES = ("merge", "quick")  # land checks them in this order
 COMMANDS = ("plan_check", "plan_page")
 
 DEFAULTS: dict = {
@@ -91,6 +98,25 @@ def _is_path(value) -> bool:
     return isinstance(value, str) and bool(value.strip()) and not any(ord(c) < 32 for c in value)
 
 
+def _gate(value) -> str | None:
+    """A usable gate: a non-empty command string, trimmed; else None."""
+    return (value.strip() or None) if isinstance(value, str) else None
+
+
+def _gate_refusal(data: dict | None) -> str | None:
+    """Why land cannot use the gates this object declares, or None. Word for
+    word what bin/land's test_cmd() prints after `false  # .common-rules.json `."""
+    if data is None or "gates" not in data:
+        return None
+    gates = data["gates"]
+    if not isinstance(gates, dict):
+        return "gates is not an object"
+    for name in GATES:
+        if name in gates and _gate(gates[name]) is None:
+            return f"gates.{name} is not a string"
+    return None
+
+
 def _command(value) -> tuple[str | None, bool]:
     """(the command or None when not declared, whether the value was well-typed)."""
     if value is None:
@@ -118,14 +144,18 @@ def _checked(data: dict) -> tuple[dict, list[str]]:
     if "gates" in data:
         v = data["gates"]
         if not isinstance(v, dict):
-            bad.append(f'{FILE}: gates must be an object, like {{"quick": "<cmd>", "merge": "<cmd>"}}')
+            bad.append(f'{FILE}: gates must be an object, like {{"quick": "<cmd>", "merge": "<cmd>"}} '
+                       f"-- land refuses until it is")
         else:
             gates = {}
             for name in GATES:
-                cmd, typed = _command(v.get(name))
-                if not typed:
-                    bad.append(f"{FILE}: gates.{name} must be a command string")
-                elif cmd:
+                if name not in v:
+                    continue
+                cmd = _gate(v[name])
+                if cmd is None:
+                    bad.append(f"{FILE}: gates.{name} is not a string -- a gate is a non-empty command; "
+                               f"land refuses until it is")
+                else:
                     gates[name] = cmd
             ok["gates"] = gates
     for key in COMMANDS:
@@ -156,10 +186,18 @@ def test_file_command(project: Path) -> str | None:
     return None
 
 
+def _declares_merge(data: dict | None) -> bool:
+    """The file speaks for gates.merge -- usable or not -- so nothing fills it in."""
+    if data is None or "gates" not in data:
+        return False
+    return not isinstance(data["gates"], dict) or "merge" in data["gates"]
+
+
 def load(project: Path) -> dict:
     d = copy.deepcopy(DEFAULTS)
     d.update(declared(project))
-    if not d["gates"].get("merge"):
+    data, _why = _raw(project)
+    if "merge" not in d["gates"] and not _declares_merge(data):
         merge = test_file_command(project)
         if merge:
             d["gates"]["merge"] = merge
@@ -204,14 +242,20 @@ def problems(project: Path) -> list[str]:
 def test_command(project: Path) -> str:
     """bin/land's test_cmd(), in the same order: gates.merge from
     .common-rules.json, then .common-rules-test, then the guess from the tree.
-    A declaration that cannot be read is a refusal, never a fall-back."""
+    A declaration or a declared gate land cannot use is a refusal, never a
+    fall-back."""
     root = Path(project)
-    _data, why = _raw(root)
+    data, why = _raw(root)
     if why == INVALID:
         return f"false  # {FILE} is not valid JSON"
     if why == NOT_OBJECT:
         return f"false  # {FILE} is not a JSON object"
-    merge = declared(root).get("gates", {}).get("merge") or test_file_command(root)
+    refusal = _gate_refusal(data)
+    if refusal:
+        return f"false  # {FILE} {refusal}"
+    if _declares_merge(data):
+        return _gate(data["gates"]["merge"])
+    merge = test_file_command(root)
     if merge:
         return merge
     if (root / "tests").is_dir() and glob.glob(str(root / "tests" / "*.py")):

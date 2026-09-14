@@ -123,6 +123,65 @@ class TestTheJsonDeclaration(LandHarness):
         out = self.land()
         self.assertIn("READY", out.stdout, out.stdout + out.stderr)
 
+    # Lead ruling on V-00, 14 Sep: a gate the project declared but land cannot
+    # use refuses. Every case below carries a passing .common-rules-test, so
+    # falling back -- what ab2fb7a did -- lands, and the test goes red.
+
+    def assert_refused_with(self, out, reason):
+        self.assertIn(f"running: false  # .common-rules.json {reason}", out.stdout, out.stdout + out.stderr)
+        self.assertIn("tests are not green", out.stdout + out.stderr)
+        self.assertNotIn("READY", out.stdout)
+
+    def test_a_merge_gate_that_is_a_number_refuses(self):
+        self.branch_with({".common-rules.json": '{"gates": {"merge": 3}}', ".common-rules-test": "true\n"})
+        self.assert_refused_with(self.land(), "gates.merge is not a string")
+
+    def test_a_merge_gate_that_is_null_refuses(self):
+        self.branch_with({".common-rules.json": '{"gates": {"merge": null}}', ".common-rules-test": "true\n"})
+        self.assert_refused_with(self.land(), "gates.merge is not a string")
+
+    def test_an_empty_merge_gate_refuses(self):
+        self.branch_with({".common-rules.json": '{"gates": {"merge": ""}}', ".common-rules-test": "true\n"})
+        self.assert_refused_with(self.land(), "gates.merge is not a string")
+
+    def test_a_whitespace_merge_gate_refuses(self):
+        self.branch_with({".common-rules.json": '{"gates": {"merge": "  \\t "}}', ".common-rules-test": "true\n"})
+        self.assert_refused_with(self.land(), "gates.merge is not a string")
+
+    def test_a_quick_gate_of_the_wrong_type_refuses(self):
+        self.branch_with({".common-rules.json": '{"gates": {"quick": ["sh", "tools/gate.sh"]}}',
+                          ".common-rules-test": "true\n"})
+        self.assert_refused_with(self.land(), "gates.quick is not a string")
+
+    def test_gates_that_are_not_an_object_refuse(self):
+        self.branch_with({".common-rules.json": '{"gates": "true"}', ".common-rules-test": "true\n"})
+        self.assert_refused_with(self.land(), "gates is not an object")
+
+
+class TestADeclaredCommandIsPrintedVerbatim(LandHarness):
+    """`echo "$declared"` swallowed a command that bash's echo reads as its own
+    flag: `-e` or `-n` came out empty, land found "no test suite", and landed
+    on the gate alone. printf '%s\\n' prints it as written."""
+
+    def test_a_test_file_command_that_looks_like_an_echo_flag_runs(self):
+        for flag in ("-e", "-n"):
+            with self.subTest(flag=flag):
+                self.git("checkout", "-q", "main")
+                self.git("branch", "-q", "-D", "work")
+                self.branch_declaring(f"# merge gate\n{flag}\n")
+                out = self.land()
+                self.assertIn(f"running: {flag}", out.stdout, out.stdout + out.stderr)
+                self.assertNotIn("READY", out.stdout)
+
+    def test_a_json_command_that_looks_like_an_echo_flag_runs(self):
+        self.git("checkout", "-q", "-b", "work")
+        (self.repo / ".common-rules.json").write_text('{"gates": {"merge": "-n"}}')
+        (self.repo / "README.md").write_text("seed\nwork\n")
+        self.git("add", "-A"); self.git("commit", "-qm", "declare")
+        out = self.land()
+        self.assertIn("running: -n", out.stdout, out.stdout + out.stderr)
+        self.assertNotIn("READY", out.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

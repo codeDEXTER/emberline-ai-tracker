@@ -194,6 +194,42 @@ class TestProblems(Scratch):
         self.assertEqual([], P().problems(self.root))
 
 
+class TestTestCommand(Scratch):
+    """test_command() is bin/land's test_cmd() in python. Lead ruling on V-00,
+    14 Sep: a gate declared in .common-rules.json that land cannot use refuses;
+    it never falls back to .common-rules-test or the guess."""
+
+    def test_a_declared_gate_land_cannot_use_is_a_refusal(self):
+        self.write(".common-rules-test", "true\n")
+        cases = {
+            '{"gates": {"merge": 3}}': "gates.merge is not a string",
+            '{"gates": {"merge": null}}': "gates.merge is not a string",
+            '{"gates": {"merge": ""}}': "gates.merge is not a string",
+            '{"gates": {"merge": "   "}}': "gates.merge is not a string",
+            '{"gates": {"merge": "true", "quick": {}}}': "gates.quick is not a string",
+            '{"gates": "true"}': "gates is not an object",
+        }
+        for body, reason in cases.items():
+            with self.subTest(body=body):
+                self.write(".common-rules.json", body)
+                self.assertEqual(f"false  # .common-rules.json {reason}", P().test_command(self.root))
+
+    def test_a_broken_merge_gate_is_not_filled_from_the_test_file(self):
+        self.write(".common-rules-test", "true\n")
+        self.write(".common-rules.json", {"gates": {"merge": ""}})
+        self.assertNotIn("merge", P().load(self.root)["gates"])
+        self.assertIn("gates.merge", " ".join(P().problems(self.root)))
+
+    def test_a_declared_gate_is_trimmed(self):
+        self.write(".common-rules.json", {"gates": {"merge": "  sh tools/gate.sh \n"}})
+        self.assertEqual("sh tools/gate.sh", P().test_command(self.root))
+
+    def test_no_merge_key_falls_through_to_the_test_file(self):
+        self.write(".common-rules-test", "sh tools/gate.sh\n")
+        self.write(".common-rules.json", {"gates": {"quick": "sh tools/gate.sh --quick"}})
+        self.assertEqual("sh tools/gate.sh", P().test_command(self.root))
+
+
 APP_CLAUDE = """# app — working rules for every session
 
 Read this first, then SPONSOR-CONSTRAINTS.md.
