@@ -4,17 +4,22 @@
 #
 #   derecord [project-dir]     default: current directory
 #
-# Installs six things:
+# Installs seven things:
 #   1. .gitattributes merge rules for the record files
-#   2. a pre-commit hook that refuses to commit conflict markers
+#   2. a pre-commit hook that refuses to commit conflict markers and, when a
+#      ledger is staged, regenerates and stages its tracker page and the
+#      checkpoint (proposal 20, D12); a project's own pre-commit hook, if it
+#      had one, is preserved and chained rather than dropped
 #   3. a SessionStart hook that runs rulecheck --quiet
 #   4. the project-owned prose (HANDOFF.md, docs/OPERATING-RULES.md,
 #      docs/handovers/lead-prompt.md), seeded from templates/ only where a
 #      project does not already have its own copy
-#   5. the PreCompact, Stop and SessionStart checkpoint hooks (proposal 19,
-#      D8) that close the checkpoint loop
+#   5. the PreCompact, Stop, SessionStart and PostToolUse hooks (proposal 19
+#      D8's checkpoint loop, plus proposal 20 V-05/D13's Agent|Task reminder)
 #   6. the /warmup skill (proposal 19, D1), kept identical to common-rules'
 #      copy rather than seeded once and left to drift
+#   7. .gitignore lines for Ruflo's runtime state only (proposal 20, D13);
+#      shared Ruflo config stays tracked
 #
 # Idempotent, and in the strong sense: running it makes the project MATCH the
 # shared rules, rather than merely not adding the same line twice. A rule whose
@@ -126,16 +131,44 @@ $GIT config --unset merge.union.driver 2>/dev/null || true
 # /usr/bin/true: it succeeds and leaves our version in place.
 $GIT config merge.ours.driver true
 
-# --- 2. pre-commit: never commit a conflict marker ---------------------------
+# --- 2. pre-commit: conflict guard, D12 ledger regeneration, hook chaining ---
+#
+# Never commit a conflict marker (2026-08-05: a hand-rolled conflict resolver
+# put `<<<<<<< HEAD` into three Python files and main stopped importing at
+# all -- the cheapest possible guard against it). Then, when a ledger is
+# staged (proposal 20, D12): regenerate its tracker page and the checkpoint
+# and stage them in the same commit, so the two never go stale between a
+# ledger commit and a later, separate "refresh checkpoint" one -- the finding
+# that opened this row: the PhotoVault engine's checkpoint went stale because
+# nothing regenerated it when the ledger moved, and the lead had to run
+# `tracker checkpoint` by hand.
+#
+# A project that already has its own pre-commit hook must not lose it: on the
+# first install, a hook that is not ours is preserved as hooks/pre-commit.local
+# and chained at the end of the one below, run only once the guard and the
+# ledger regeneration both succeed. "Is this ours" is a marker comment, not a
+# content diff, so a later run of derecord -- which always rewrites
+# hooks/pre-commit to match this script, same "match, not merely add"
+# idempotence as everywhere else here -- never mistakes its own, now-current
+# copy for a foreign hook and re-chains it a second time.
 HOOKS="$($GIT rev-parse --git-path hooks)"
 mkdir -p "$HOOKS"
-cat > "$HOOKS/pre-commit" <<'HOOK'
+PRECOMMIT="$HOOKS/pre-commit"
+LOCAL_HOOK="$HOOKS/pre-commit.local"
+MARKER="# derecord: managed pre-commit hook -- edit bin/derecord in common-rules, not this file"
+if [ -f "$PRECOMMIT" ] && [ ! -f "$LOCAL_HOOK" ] && ! grep -qF "$MARKER" "$PRECOMMIT"; then
+    mv "$PRECOMMIT" "$LOCAL_HOOK"
+    chmod +x "$LOCAL_HOOK"
+    echo "  hooks/pre-commit: project's own hook preserved as hooks/pre-commit.local and chained"
+fi
+
+cat > "$PRECOMMIT" <<'HOOK'
 #!/usr/bin/env bash
-# Refuse to commit unresolved conflict markers. On 2026-08-05 a hand-rolled
-# conflict resolver put `<<<<<<< HEAD` into three Python files and main
-# stopped importing at all. This is the cheapest possible guard against it.
+# derecord: managed pre-commit hook -- edit bin/derecord in common-rules, not this file
 set -euo pipefail
 GIT=git; command -v git >/dev/null 2>&1 || GIT=/Library/Developer/CommandLineTools/usr/bin/git
+
+# 1. never commit a conflict marker.
 bad=$($GIT diff --cached --name-only --diff-filter=ACM | while read -r f; do
     [ -f "$f" ] || continue
     if $GIT show ":$f" 2>/dev/null | grep -qE '^(<{7}|={7}|>{7})( |$)'; then echo "$f"; fi
@@ -146,9 +179,73 @@ if [ -n "$bad" ]; then
     echo "resolve them, or commit with --no-verify if you truly mean it." >&2
     exit 1
 fi
+
+# 2. a staged ledger (proposal 20, D12) regenerates and stages its tracker
+#    page and the checkpoint. common-rules is resolved from the absolute path
+#    baked in at install time -- never from cwd, the same way the other
+#    installed hooks (hooks/precompact, hooks/stop, ...) are.
+RULES="__RULES_DIR__"
+TOP="$($GIT rev-parse --show-toplevel)"
+ledgers=""
+for f in $($GIT diff --cached --name-only --diff-filter=ACM); do
+    case "$f" in
+        docs/proposals/[0-9][0-9]*-*.json) ;;
+        *) continue ;;
+    esac
+    [ -f "$TOP/$f" ] || continue
+    # "is a ledger": a JSON object with an `items` list (tools/tracker/
+    # ledger.find's rule). docs/proposals also holds plain data files shaped
+    # like NN-*.json -- a sidecar with no `items` -- and those get no
+    # tracker work at all.
+    if python3 -c '
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+sys.exit(0 if isinstance(d, dict) and isinstance(d.get("items"), list) else 1)
+' "$TOP/$f"; then
+        ledgers="$ledgers $f"
+    fi
+done
+
+if [ -n "$ledgers" ]; then
+    for f in $ledgers; do
+        out=$(python3 "$RULES/bin/tracker" render "$TOP/$f" 2>&1) || {
+            echo "$out" >&2
+            exit 1
+        }
+        base=$(basename "$f" .json)
+        page="$TOP/docs/proposals/tracker/$base.html"
+        if [ -f "$page" ]; then
+            $GIT add -- "$page"
+        fi
+    done
+    cp_out=$(python3 "$RULES/bin/tracker" checkpoint --project "$TOP" 2>&1) || {
+        echo "$cp_out" >&2
+        exit 1
+    }
+    cp_path="$TOP/docs/handovers/$(date +%Y-%m-%d)-checkpoint.md"
+    if [ -f "$cp_path" ]; then
+        $GIT add -- "$cp_path"
+    fi
+fi
+
+# 3. chain to a project's own pre-commit hook, preserved as pre-commit.local
+#    rather than dropped -- run last, and only once the checks above pass.
+here="$(cd "$(dirname "$0")" && pwd)"
+if [ -x "$here/pre-commit.local" ]; then
+    "$here/pre-commit.local"
+fi
 HOOK
-chmod +x "$HOOKS/pre-commit"
-echo "  hooks/pre-commit: conflict-marker guard installed"
+python3 - "$PRECOMMIT" "$RULES_DIR" <<'PY'
+import sys
+path, rules = sys.argv[1], sys.argv[2]
+text = open(path).read().replace("__RULES_DIR__", rules)
+open(path, "w").write(text)
+PY
+chmod +x "$PRECOMMIT"
+echo "  hooks/pre-commit: conflict-marker guard and ledger regeneration installed"
 
 # --- 3. SessionStart: rulecheck without being asked --------------------------
 SETTINGS=".claude/settings.json"
@@ -214,7 +311,7 @@ else
     seed_prose "$RULES_DIR/templates/lead-prompt.md" "docs/handovers/lead-prompt.md"
 fi
 
-# --- 5. checkpoint hooks: PreCompact, Stop, SessionStart ----------------------
+# --- 5. checkpoint hooks: PreCompact, Stop, SessionStart, PostToolUse --------
 #
 # Closes the checkpoint loop (proposal 19, D8): PreCompact writes the
 # checkpoint before Claude Code's own summary replaces context; Stop
@@ -224,6 +321,12 @@ fi
 # the path suffix /hooks/<name>, so a hook entry left over from a relocated
 # or renamed clone of common-rules gets its command corrected in place
 # rather than duplicated.
+#
+# posttooluse-agent (proposal 20, D13 part 2 / V-05) rides the same
+# install-and-correct logic, plus a `matcher`: the Agent/Task tool's own hook
+# name is undocumented anywhere Claude Code publishes, so the matcher is
+# `Agent|Task` and the hook itself filters further. A stale matcher, like a
+# stale command, is corrected in place rather than left alone.
 python3 - "$SETTINGS" "$RULES_DIR" <<'PY'
 import json, sys
 path, rules = sys.argv[1], sys.argv[2]
@@ -234,7 +337,14 @@ except Exception:
 hooks = d.setdefault("hooks", {})
 changed = False
 
-for name, event in (("precompact", "PreCompact"), ("stop", "Stop"), ("sessionstart", "SessionStart")):
+HOOKS_TO_INSTALL = (
+    ("precompact", "PreCompact", None),
+    ("stop", "Stop", None),
+    ("sessionstart", "SessionStart", None),
+    ("posttooluse-agent", "PostToolUse", "Agent|Task"),
+)
+
+for name, event, matcher in HOOKS_TO_INSTALL:
     entries = hooks.setdefault(event, [])
     cmd = f"{rules}/hooks/{name}"
     suffix = f"/hooks/{name}"
@@ -242,19 +352,26 @@ for name, event in (("precompact", "PreCompact"), ("stop", "Stop"), ("sessionsta
     for entry in entries:
         for h in entry.get("hooks", []):
             command = h.get("command", "")
-            if command.endswith(suffix):
-                if command == cmd:
-                    status = "already present"
-                else:
-                    h["command"] = cmd
-                    status = "corrected"
-                    changed = True
-                break
+            if not command.endswith(suffix):
+                continue
+            cmd_changed = command != cmd
+            matcher_changed = matcher is not None and entry.get("matcher") != matcher
+            if cmd_changed:
+                h["command"] = cmd
+            if matcher_changed:
+                entry["matcher"] = matcher
+            status = "corrected" if (cmd_changed or matcher_changed) else "already present"
+            break
         if status:
             break
     if status is None:
-        entries.append({"hooks": [{"type": "command", "command": cmd}]})
+        new_entry = {"hooks": [{"type": "command", "command": cmd}]}
+        if matcher is not None:
+            new_entry["matcher"] = matcher
+        entries.append(new_entry)
         status = "installed"
+        changed = True
+    if status == "corrected":
         changed = True
     print(f"  .claude/settings.json: {event} {name} hook {status}")
 
@@ -283,6 +400,41 @@ elif cmp -s "$SKILL_SRC" "$SKILL_DEST"; then
 else
     cp "$SKILL_SRC" "$SKILL_DEST"
     echo "  $SKILL_DEST: corrected"
+fi
+
+# --- 7. .gitignore: Ruflo runtime state only, not its config (D13, part 1) --
+#
+# Ruflo (claude-flow) is mandatory (proposal 19), so every project that runs
+# it writes daemon state, logs, sessions and its vector/memory databases.
+# Reuses exactly the lines PR #149 (ignore-ruflo-state) already named for
+# this checkout, minus the blanket `.claude-flow/` -- shared Ruflo config
+# (`.claude-flow/config*`, `claude-flow.config.json`) must stay tracked, so
+# only its data/logs/sessions subdirectories are ignored, never the
+# directory itself. Idempotent per line: each is added only if missing, and
+# nothing already in a project's .gitignore is ever touched.
+IGNORE_LINES=(
+    ".claude-flow/data"
+    ".claude-flow/logs"
+    ".claude-flow/sessions"
+    ".swarm/"
+    "ruvector.db"
+    ".claude/memory.db"
+    ".claude/proven-config.json"
+    ".claude/.proven-config-version"
+)
+touch .gitignore
+gi_added=0
+for line in "${IGNORE_LINES[@]}"; do
+    if grep -qxF -- "$line" .gitignore; then
+        continue
+    fi
+    printf '%s\n' "$line" >> .gitignore
+    gi_added=$((gi_added + 1))
+done
+if [ "$gi_added" -gt 0 ]; then
+    echo "  .gitignore: $gi_added Ruflo runtime line(s) added"
+else
+    echo "  .gitignore: Ruflo runtime lines already present"
 fi
 
 echo "derecord: $TOP is done."
