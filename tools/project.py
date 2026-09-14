@@ -27,6 +27,13 @@ module does not know is ignored, because later proposals add keys.
       `.common-rules-test` is gates.merge -- that file keeps working.
   "plan_check":   "<cmd>"   the project's own plan checker. Default: None.
   "plan_page":    "<cmd>"   the project's own page generator. Default: None.
+  "proposal_series": ["../engine"]
+      Sibling projects that share this project's proposal number series --
+      the PhotoVault app and engine interleave theirs across two repos. Each
+      entry is a one-line path relative to the project root that stays
+      inside the project's parent folder (so `..` is allowed here, and only
+      here), is not the project itself, exists, and holds docs/proposals.
+      bin/new-proposal numbers across all of them. Default: [].
 
 EVERY VALUE IS UNTRUSTED. A path is relative to the project root: an absolute
 path, a `..` part, or a path that resolves (through a symlink) outside the
@@ -49,6 +56,8 @@ WHO READS IT
   bin/warmup           read_order, safety_rules, gates, problems(), inside().
   tools/migrate.py     read_order, for the pointer it writes into CLAUDE.md --
                        and it writes nothing while problems() has anything to say.
+  bin/new-proposal     proposal_series(), to number across sibling projects; it
+                       refuses to run while the series has a problem.
 
 A BROKEN DECLARATION. load() never raises: a file that is not valid JSON, or
 not an object, gives the defaults, and a value that fails a check leaves that
@@ -70,12 +79,14 @@ the first carries the refusal.
   problems(project)     -> list[str]  what is wrong with the declaration
   test_command(project) -> str        what bin/land's test_cmd() answers
   inside(project, rel)  -> bool       rel resolves inside the project
+  proposal_series(project) -> ([(rel, path)], [problem])   usable siblings, or the problems
 """
 from __future__ import annotations
 
 import copy
 import glob
 import json
+import os
 from pathlib import Path, PurePosixPath
 
 FILE = ".common-rules.json"
@@ -89,6 +100,7 @@ DEFAULTS: dict = {
     "gates": {},
     "plan_check": None,
     "plan_page": None,
+    "proposal_series": [],
 }
 
 INVALID, NOT_OBJECT = "invalid", "not an object"
@@ -145,6 +157,44 @@ def _path_problem(key: str, value: str) -> str | None:
     if not _relative(value):
         return f"{FILE}: {key} entry {value!r} is outside the project -- paths are relative to the root"
     return None
+
+
+def _series_problem(value: str) -> str | None:
+    """What is wrong with one proposal_series entry on its face, or None.
+    Unlike every other path here, `..` is allowed: a series names siblings."""
+    if not value.strip():
+        return f"{FILE}: proposal_series entries must be sibling project paths, relative to the project root"
+    if not _utf8(value):
+        return f"{FILE}: a proposal_series entry is not valid UTF-8"
+    if not _one_line(value):
+        return f"{FILE}: a proposal_series entry must be one line"
+    if PurePosixPath(value).is_absolute():
+        return f"{FILE}: proposal_series entry {value!r} is absolute -- paths are relative to the project root"
+    return None
+
+
+def _series_place(project: Path, rel: str) -> tuple[Path | None, str | None]:
+    """(the sibling's resolved root, None), or (None, why it cannot be used)."""
+    root = Path(project).resolve()
+    parent = root.parent
+    outside = (f"{FILE}: proposal_series entry {rel!r} is outside the parent folder of the project "
+               f"-- a series names sibling projects")
+    lexical = Path(os.path.normpath(root / rel))
+    if not lexical.is_relative_to(parent) or lexical == parent:
+        return None, outside
+    try:
+        target = (root / rel).resolve()
+    except (OSError, RuntimeError):
+        return None, f"{FILE}: proposal_series entry {rel!r} cannot be resolved"
+    if target == root:
+        return None, f"{FILE}: proposal_series entry {rel!r} names the project itself"
+    if not target.is_relative_to(parent) or target == parent:
+        return None, outside
+    if not target.is_dir():
+        return None, f"{FILE}: proposal_series names {rel}, which does not exist"
+    if not (target / "docs" / "proposals").is_dir():
+        return None, f"{FILE}: proposal_series names {rel}, which holds no docs/proposals"
+    return target, None
 
 
 def _safety_problem(spec: str) -> str | None:
@@ -252,6 +302,17 @@ def _checked(data: dict) -> tuple[dict, list[str]]:
                 else:
                     gates[name] = v[name].strip()
             ok["gates"] = gates
+    if "proposal_series" in data:
+        v = data["proposal_series"]
+        if not isinstance(v, list) or not all(isinstance(x, str) for x in v):
+            bad.append(f"{FILE}: proposal_series must be a list of sibling project paths, "
+                       f"relative to the project root")
+        else:
+            why = _unique(_series_problem(x) for x in v)
+            if why:
+                bad.extend(why)
+            else:
+                ok["proposal_series"] = list(v)
     for key in COMMANDS:
         if key in data:
             cmd, why = _command(key, data[key])
@@ -335,7 +396,35 @@ def problems(project: Path) -> list[str]:
                 bad.append(f"{FILE}: safety_rules entry {spec!r} {outside}")
             elif not (root / found[0][0]).is_file():
                 bad.append(f"{FILE}: safety_rules names {found[0][0]}, which does not exist")
+    for rel in ok.get("proposal_series", []):
+        _target, why = _series_place(root, rel)
+        if why:
+            bad.append(why)
     return _unique(bad)
+
+
+def proposal_series(project: Path) -> tuple[list[tuple[str, Path]], list[str]]:
+    """The declared siblings as (entry, resolved root), and every problem with
+    them. While there is any problem the list is empty: numbering across part
+    of a series is how a collision gets made, so a caller refuses instead."""
+    data, why = _raw(project)
+    if why == INVALID:
+        return [], [f"{FILE} is not valid JSON -- its proposal_series cannot be read"]
+    if why == NOT_OBJECT:
+        return [], [f"{FILE} is not a JSON object -- its proposal_series cannot be read"]
+    if data is None or "proposal_series" not in data:
+        return [], []
+    ok, bad = _checked({"proposal_series": data["proposal_series"]})
+    if bad:
+        return [], bad
+    roots, problems = [], []
+    for rel in ok["proposal_series"]:
+        target, why = _series_place(project, rel)
+        if why:
+            problems.append(why)
+        else:
+            roots.append((rel, target))
+    return ([] if problems else roots), problems
 
 
 def test_command(project: Path) -> str:

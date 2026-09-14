@@ -27,7 +27,12 @@ Run:  python3 -m unittest discover -s tests -p 'test_new_proposal.py' -v
 """
 from __future__ import annotations
 
+import contextlib
 import datetime
+import html
+import importlib.machinery
+import importlib.util
+import io
 import json
 import os
 import re
@@ -85,7 +90,7 @@ class TestNumbering(Scratch):
     def test_first_proposal_in_an_empty_project_is_01(self):
         r = self.run_new("Warm-up for everyone")
         self.assert_ok(r)
-        self.assertEqual(self.listing(), ["01-warm-up-for-everyone.html", "01-warm-up-for-everyone.json"])
+        self.assertEqual(self.listing(), ["01-warm-up-for-everyone.html", "01-warm-up-for-everyone.json", "tracker"])
 
     def test_next_number_is_one_above_every_numbered_entry(self):
         self.seed("03-proposal-a.html")
@@ -251,7 +256,7 @@ class TestNoOverwrite(Scratch):
         self.assert_ok(self.run_new("Same"))
         first = (self.proposals / "01-same.html").read_text()
         self.assert_ok(self.run_new("Same"))
-        self.assertEqual(self.listing(), ["01-same.html", "01-same.json", "02-same.html", "02-same.json"])
+        self.assertEqual(self.listing(), ["01-same.html", "01-same.json", "02-same.html", "02-same.json", "tracker"])
         self.assertEqual((self.proposals / "01-same.html").read_text(), first)
 
     def test_existing_page_is_never_overwritten(self):
@@ -317,16 +322,15 @@ class TestTemplateDoesNotDefeatTheChecks(Scratch):
     block or an exceptions block baked into the template would let every
     future proposal reach accepted with nothing recorded."""
 
-    def flip(self, status: str) -> subprocess.CompletedProcess:
+    def flip(self, status: str, decided: str | None = "2026-09-14") -> subprocess.CompletedProcess:
         self.assert_ok(self.run_new("Flip me"))
         page = self.proposals / "01-flip-me.html"
-        text = page.read_text().replace(
-            '<meta name="proposal-status" content="proposed">',
-            f'<meta name="proposal-status" content="{status}">\n'
-            '<meta name="proposal-decided" content="2026-09-14">')
-        page.write_text(text)
-        return subprocess.run([sys.executable, str(PROPOSALCHECK), "--project", str(self.root)],
-                              capture_output=True, text=True, check=False)
+        lines = f'<meta name="proposal-status" content="{status}">'
+        if decided:
+            lines += f'\n<meta name="proposal-decided" content="{decided}">'
+        page.write_text(page.read_text().replace(
+            '<meta name="proposal-status" content="proposed">', lines))
+        return proposalcheck(self.root)
 
     def test_accepted_without_answers_is_a_violation(self):
         r = self.flip("accepted")
@@ -337,6 +341,371 @@ class TestTemplateDoesNotDefeatTheChecks(Scratch):
         r = self.flip("completed in part")
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("exceptions", r.stdout)
+
+    # S-03 owns this fix, in bin/proposalcheck: a decision status with no
+    # proposal-decided date, on a page carrying the common-rules-template
+    # meta, is a violation. Today an undated page is grandfathered, so this
+    # fails. When S-03 merges it passes, unittest reports an unexpected
+    # success (FAILED), and this marker must come off.
+    @unittest.expectedFailure
+    def test_accepted_without_a_decided_date_is_a_violation(self):
+        r = self.flip("accepted", decided=None)
+        self.assertEqual(r.returncode, 1, r.stdout)
+
+
+def proposalcheck(root: Path) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, str(PROPOSALCHECK), "--project", str(root)],
+                          capture_output=True, text=True, check=False)
+
+
+def decided_slot(page: str) -> str:
+    """The Decided section, as a reader sees it (entities decoded)."""
+    start = page.index("<h2>Decided</h2>")
+    return html.unescape(page[start:page.index("</section>", start)])
+
+
+class TestDecidedInstructions(Scratch):
+    DATE_LINE = '<meta name="proposal-decided" content="YYYY-MM-DD">'
+    STATUS_LINE = '<meta name="proposal-status" content="accepted">'
+
+    def page(self) -> str:
+        self.assert_ok(self.run_new("Instructions"))
+        return (self.proposals / "01-instructions.html").read_text()
+
+    def test_both_meta_lines_are_shown_literally_date_first(self):
+        slot = decided_slot(self.page())
+        self.assertIn(self.DATE_LINE, slot)
+        self.assertIn(self.STATUS_LINE, slot)
+        self.assertLess(slot.index(self.DATE_LINE), slot.index(self.STATUS_LINE))
+        self.assertIn("self-clos", slot.lower())
+
+    def test_the_shown_lines_copied_in_are_read_by_proposalcheck(self):
+        text = self.page()
+        slot = decided_slot(text)
+        date = slot[slot.index(self.DATE_LINE):slot.index(self.DATE_LINE) + len(self.DATE_LINE)]
+        status = slot[slot.index(self.STATUS_LINE):slot.index(self.STATUS_LINE) + len(self.STATUS_LINE)]
+        copied = date.replace("YYYY-MM-DD", "2026-09-14") + "\n" + status
+        (self.proposals / "01-instructions.html").write_text(
+            text.replace('<meta name="proposal-status" content="proposed">', copied))
+        r = proposalcheck(self.root)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn('"accepted", but records no answers', r.stdout)
+
+    def test_the_raw_page_carries_neither_line_and_one_decisions_list(self):
+        text = self.page()
+        self.assertNotIn(self.DATE_LINE, text)
+        self.assertNotIn(self.STATUS_LINE, text)
+        self.assertEqual(text.count('<ol class="decisions">'), 1)
+
+    def test_status_comment_names_every_place_the_status_appears(self):
+        tpl = TEMPLATE.read_text()
+        comment = tpl[tpl.index("<!--"):tpl.index("-->")]
+        for place in ("proposal-status meta", "<title>", "<h1>", "Proposal NN · proposed DATE"):
+            self.assertIn(place, comment)
+
+    def test_exceptions_note_names_the_decisions_list(self):
+        self.assertRegex(decided_slot(self.page()), r'exceptions[^.]*<ol class="decisions">')
+
+
+class TestWhatCountsAsANumber(Scratch):
+    def test_a_date_prefixed_file_is_not_a_proposal_number(self):
+        self.seed("2026-09-14-notes.md")
+        self.seed("05-x.html")
+        self.assert_ok(self.run_new("After notes"))
+        self.assertIn("06-after-notes.html", self.listing())
+
+    def test_a_date_prefixed_file_alone_leaves_01(self):
+        self.seed("2026-09-14-notes.md")
+        self.assert_ok(self.run_new("First"))
+        self.assertIn("01-first.html", self.listing())
+
+    def test_lettered_numbers_count(self):
+        self.seed("02a-first.html")
+        self.seed("02b-second.html")
+        self.assert_ok(self.run_new("Third"))
+        self.assertIn("03-third.html", self.listing())
+
+    def test_a_lettered_number_collides(self):
+        self.seed("02a-first.html")
+        self.seed("02b-second.html")
+        r = self.run_new("--number", "2", "Clash")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("02a-first.html", r.stderr)
+        self.assertIn("02b-second.html", r.stderr)
+
+    def test_a_number_above_three_digits_is_refused(self):
+        r = self.run_new("--number", "1000", "Too big")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("--number", r.stderr)
+        self.assertEqual(self.listing(), [])
+
+
+class TestTrackerPage(Scratch):
+    def test_the_tracker_page_is_rendered_fresh_and_named(self):
+        r = self.run_new("Rendered")
+        self.assert_ok(r)
+        ledger = self.proposals / "01-rendered.json"
+        page = self.proposals / "tracker" / "01-rendered.html"
+        self.assertTrue(page.is_file())
+        self.assertIn(str(page), r.stdout)
+        chk = subprocess.run([sys.executable, str(TRACKER), "render", str(ledger), "--check"],
+                             capture_output=True, text=True, check=False)
+        self.assertEqual(chk.returncode, 0, chk.stdout + chk.stderr)
+
+    def test_an_existing_tracker_page_is_never_overwritten(self):
+        existing = self.proposals / "tracker" / "01-rendered.html"
+        existing.parent.mkdir(parents=True)
+        existing.write_text("keep")
+        r = self.run_new("Rendered")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("tracker/01-rendered.html", r.stderr)
+        self.assertEqual(existing.read_text(), "keep")
+        self.assertEqual(self.listing(), ["tracker"])
+
+    def test_a_rejected_result_removes_the_tracker_page_too(self):
+        self.seed("draft.html", '<meta name="proposal-id" content="01">\n'
+                                '<meta name="proposal-status" content="proposed">\n')
+        r = self.run_new("Collides by id")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertFalse((self.proposals / "tracker").exists())
+
+
+class TestOnlyTheNewPageIsMatched(Scratch):
+    def test_violations_in_longer_names_are_not_ours(self):
+        # 01-foo.html is a substring of every name below.
+        self.seed("101-foo.html", '<meta name="proposal-id" content="101">\n'
+                                  '<meta name="proposal-status" content="superseded-by 1">\n'
+                                  '<meta name="proposal-decided" content="2026-09-01">\n')
+        for name in ("201-foo.html", "301-foo.html"):
+            self.seed(name, '<meta name="proposal-id" content="77">\n'
+                            '<meta name="proposal-status" content="proposed">\n')
+        r = self.run_new("--number", "1", "Foo")
+        self.assert_ok(r)
+        self.assertIn("01-foo.html", self.listing())
+
+
+def load_tool():
+    """bin/new-proposal as a module, so a test can simulate a race or a crash."""
+    loader = importlib.machinery.SourceFileLoader("new_proposal_under_test", str(NEW_PROPOSAL))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+class InProcess(Scratch):
+    def call(self, tool, *argv):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = tool.main(["--project", str(self.root), *argv])
+        return rc, out.getvalue(), err.getvalue()
+
+
+class TestRace(InProcess):
+    """Another session claims the number between the scan and the write."""
+
+    def blind_first_scan(self, tool):
+        real, calls = tool.numbers_in_use, []
+
+        def blind(*a, **k):
+            calls.append(1)
+            return {} if len(calls) == 1 else real(*a, **k)
+        tool.numbers_in_use = blind
+
+    def test_the_same_file_claimed_meanwhile(self):
+        self.seed("01-same.html", "theirs")
+        tool = load_tool()
+        self.blind_first_scan(tool)
+        rc, out, err = self.call(tool, "Same")
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("just claimed", err)
+        self.assertIn("run it again", err)
+        self.assertEqual((self.proposals / "01-same.html").read_text(), "theirs")
+        self.assertEqual(self.listing(), ["01-same.html"])
+
+    def test_the_same_number_claimed_meanwhile_under_another_name(self):
+        self.seed("01-other.html", "theirs")
+        tool = load_tool()
+        self.blind_first_scan(tool)
+        rc, out, err = self.call(tool, "Same")
+        self.assertEqual(rc, 1, out + err)
+        self.assertIn("just claimed", err)
+        self.assertIn("run it again", err)
+        self.assertEqual(self.listing(), ["01-other.html"])
+
+
+class TestCouldNotRun(InProcess):
+    def crash_script(self) -> Path:
+        crash = Path(self._tmp.name) / "crash.py"
+        crash.write_text("import sys\nsys.exit(3)\n")
+        return crash
+
+    def test_a_crashing_proposalcheck_is_exit_2_and_leaves_nothing(self):
+        tool = load_tool()
+        tool.PROPOSALCHECK = self.crash_script()
+        rc, out, err = self.call(tool, "Crash")
+        self.assertEqual(rc, 2, out + err)
+        self.assertIn("proposalcheck", err)
+        self.assertFalse((self.root / "docs").exists())
+
+    def test_a_crashing_tracker_is_exit_2_and_leaves_nothing(self):
+        tool = load_tool()
+        tool.TRACKER = self.crash_script()
+        rc, out, err = self.call(tool, "Crash")
+        self.assertEqual(rc, 2, out + err)
+        self.assertIn("tracker", err)
+        self.assertFalse((self.root / "docs").exists())
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root ignores permissions")
+    def test_an_unwritable_proposals_directory_is_exit_2_without_a_traceback(self):
+        self.proposals.mkdir(parents=True)
+        self.proposals.chmod(0o555)
+        try:
+            r = self.run_new("Locked")
+        finally:
+            self.proposals.chmod(0o755)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+        self.assertIn("could not write", r.stderr)
+        self.assertEqual(self.listing(), [])
+
+
+LEDGER_21 = {"proposal": 21, "title": "The standard is mandatory", "status": "accepted",
+             "updated": "2026-09-14", "items": []}
+
+
+class TestPageFor(Scratch):
+    REL = "docs/proposals/21-standard-is-mandatory.json"
+
+    def seed_ledger(self, data=None, name="21-standard-is-mandatory.json") -> Path:
+        return self.seed(name, json.dumps(LEDGER_21 if data is None else data))
+
+    def test_writes_only_the_page_for_an_existing_ledger(self):
+        ledger = self.seed_ledger()
+        before = ledger.read_bytes()
+        r = self.run_new("--page-for", self.REL)
+        self.assert_ok(r)
+        self.assertEqual(self.listing(), ["21-standard-is-mandatory.html", "21-standard-is-mandatory.json"])
+        page = (self.proposals / "21-standard-is-mandatory.html").read_text()
+        self.assertIn('<meta name="proposal-id" content="21">', page)
+        self.assertIn("<title>21 · proposed · The standard is mandatory</title>", page)
+        self.assertIn('<meta name="common-rules-template" content="proposal/21">', page)
+        self.assertEqual(ledger.read_bytes(), before)
+        self.assertIn(str(self.proposals / "21-standard-is-mandatory.html"), r.stdout)
+        self.assertEqual(proposalcheck(self.root).returncode, 0)
+
+    def test_refused_when_its_page_already_exists(self):
+        self.seed_ledger()
+        self.seed("21-standard-is-mandatory.html", "mine")
+        r = self.run_new("--page-for", self.REL)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("21-standard-is-mandatory.html", r.stderr)
+        self.assertEqual((self.proposals / "21-standard-is-mandatory.html").read_text(), "mine")
+
+    def test_refused_when_another_page_holds_the_number(self):
+        self.seed_ledger()
+        self.seed("21-other.html", "theirs")
+        r = self.run_new("--page-for", self.REL)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("21-other.html", r.stderr)
+        self.assertNotIn("21-standard-is-mandatory.html", self.listing())
+
+    def test_refused_for_a_missing_ledger(self):
+        r = self.run_new("--page-for", self.REL)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("21-standard-is-mandatory.json", r.stderr)
+        self.assertFalse((self.root / "docs").exists())
+
+    def test_refused_when_the_ledger_number_disagrees_with_its_name(self):
+        self.seed_ledger(dict(LEDGER_21, proposal=22))
+        r = self.run_new("--page-for", self.REL)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("22", r.stderr)
+        self.assertEqual(self.listing(), ["21-standard-is-mandatory.json"])
+
+    def test_refused_for_a_ledger_outside_docs_proposals(self):
+        (self.root / "21-loose.json").write_text(json.dumps(LEDGER_21))
+        r = self.run_new("--page-for", "21-loose.json")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("docs/proposals", r.stderr)
+        self.assertFalse((self.root / "docs").exists())
+
+    def test_refused_for_a_bad_title_in_the_ledger(self):
+        self.seed_ledger(dict(LEDGER_21, title="two\nlines"))
+        r = self.run_new("--page-for", self.REL)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("title", r.stderr)
+        self.assertEqual(self.listing(), ["21-standard-is-mandatory.json"])
+
+    def test_cannot_be_combined_with_a_title_or_a_number(self):
+        self.seed_ledger()
+        for extra in (["A title"], ["--number", "21"]):
+            with self.subTest(extra=extra):
+                r = self.run_new("--page-for", self.REL, *extra)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("from the ledger", r.stderr)
+                self.assertEqual(self.listing(), ["21-standard-is-mandatory.json"])
+
+
+class TestSeries(unittest.TestCase):
+    """The PhotoVault app and engine number from one series across two repos."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        parent = Path(self._tmp.name).resolve()
+        self.app, self.engine = parent / "app", parent / "engine"
+        for repo, seed in ((self.app, "72-a.html"), (self.engine, "78-b.json")):
+            (repo / "docs" / "proposals").mkdir(parents=True)
+            subprocess.run(["git", "init", "-q", str(repo)], check=True)
+            (repo / "docs" / "proposals" / seed).write_text("")
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def run_new(self, *args):
+        return subprocess.run([sys.executable, str(NEW_PROPOSAL), "--project", str(self.app), *args],
+                              capture_output=True, text=True, check=False)
+
+    def declare(self, value):
+        (self.app / ".common-rules.json").write_text(json.dumps({"proposal_series": value}))
+
+    def names(self, repo):
+        return sorted(p.name for p in (repo / "docs" / "proposals").iterdir())
+
+    def test_without_a_series_only_the_project_counts(self):
+        r = self.run_new("Alone")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("73-alone.html", self.names(self.app))
+
+    def test_the_next_number_is_free_across_the_series(self):
+        self.declare(["../engine"])
+        r = self.run_new("Shared")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("79-shared.html", self.names(self.app))
+        self.assertEqual(self.names(self.engine), ["78-b.json"])
+
+    def test_a_collision_with_a_sibling_is_refused_naming_it(self):
+        self.declare(["../engine"])
+        r = self.run_new("--number", "78", "Clash")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("../engine/docs/proposals/78-b.json", r.stderr)
+        self.assertEqual(self.names(self.app), ["72-a.html"])
+
+    def test_a_broken_series_cannot_run(self):
+        self.declare(["../missing"])
+        r = self.run_new("Broken")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("proposal_series", r.stderr)
+        self.assertEqual(self.names(self.app), ["72-a.html"])
+
+
+class TestUsage(Scratch):
+    def test_a_title_starting_with_a_dash_is_documented_and_works(self):
+        h = subprocess.run([sys.executable, str(NEW_PROPOSAL), "--help"],
+                           capture_output=True, text=True, check=False)
+        self.assertIn('new-proposal -- "-5% budget"', h.stdout)
+        self.assert_ok(self.run_new("--", "-5% budget"))
+        self.assertIn("01-5-budget.html", self.listing())
 
 
 if __name__ == "__main__":
