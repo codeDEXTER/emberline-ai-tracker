@@ -1,0 +1,391 @@
+{
+  "proposal": 23,
+  "title": "Eight levers for token spend",
+  "status": "accepted",
+  "updated": "2026-09-15",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "opus",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "lead model",
+      "effort": "-",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "L",
+      "name": "Levers",
+      "goal": "The levers the sponsor picked on the Eight Levers page become rules and tools every project on the standard follows.",
+      "exit": "L-01 to L-06 merged; the same transcript measurement rerun on one project shows lead context and review spend down."
+    },
+    {
+      "id": "X",
+      "name": "Research",
+      "goal": "Questions that need reading, not writing, before they become items, a proposal, or a decline.",
+      "exit": "Every X row is done only when it becomes items, a numbered proposal, or a recorded decline with the reason -- never a report nobody acted on."
+    }
+  ],
+  "items": [
+    {
+      "id": "L-01",
+      "phase": "L",
+      "cx": "C4",
+      "title": "Fresh lead per milestone or day",
+      "what": "A lead session ends at a milestone or at the end of a day and the next one starts from /warmup and the checkpoint. The lead's context stays under about 150k tokens. The safeguards that keep this from dropping anything, and keep work continuing without the sponsor, are proposal 24 (X-03).",
+      "files": [],
+      "tests": [],
+      "done": "The rule is in CLAUDE-workflow.md with a Standard change line; a rerun of the transcript measurement on one project shows lead spend above 500k context below 10%.",
+      "depends": [
+        "X-03"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "L-02",
+      "phase": "L",
+      "cx": "C4",
+      "title": "Review only risky work",
+      "what": "A separate reviewer runs only for money, data safety, cross-cutting changes and release merges. Everything else goes build, gate, land. Replaces the report-only-reviewer-on-every-item step in HANDOFF 'What good looks like'. Which items count as risky is set by the risk class from proposal 25 (X-01).",
+      "files": [],
+      "tests": [],
+      "done": "Rule and brief template changed with a Standard change line; review and fix agents fall below 10% of subagent spend on a rerun, with no rise in defects found after merge.",
+      "depends": [
+        "X-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "L-03",
+      "phase": "L",
+      "cx": "C2",
+      "title": "Quiet builds: log to file, read the summary line",
+      "what": "Test, analyzer and build output goes to a file. Agents read only the summary line (^OK and no ^FAILED, analyzer counts). The brief template says so and a helper prints the verdict in one line. Mining found 138 raw flutter test runs bypassing tools/gate.sh (~124k tokens) and 23 raw unittest runs; the helper and rule cover both.",
+      "files": [],
+      "tests": [],
+      "done": "Helper in bin/ with tests, including a red run that proves a FAILED line is caught; brief template updated.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "L-04",
+      "phase": "L",
+      "cx": "C2",
+      "title": "One-line tracker commands for ledger updates",
+      "what": "bin/tracker gains a command that sets an item's status and appends a log entry, then validates, renders and prints one line. Leads stop writing inline python against ledger JSON. Independent transcript mining (2026-09-15) found 341 inline load-ledger/set/dump scripts (~386k tokens) plus 369 more generic JSON load/dump scripts across the three sessions: this command is the largest repeat to remove.",
+      "files": [],
+      "tests": [],
+      "done": "Command with tests (red first); OPERATING-RULES names it; one lead session uses it for a full item.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "L-05",
+      "phase": "L",
+      "cx": "C2",
+      "title": "Bundle small issues by surface",
+      "what": "Small issues on the same screen or module go to one agent in one worktree: one commit per issue, one gate run, one PR closing all of them. Parallel agents only for areas that do not touch. The bundle is picked from the catalogue (X-02).",
+      "files": [],
+      "tests": [],
+      "done": "Brief template has a bundle form; CLAUDE-workflow.md Issues section updated with a Standard change line.",
+      "depends": [
+        "X-02"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "L-06",
+      "phase": "L",
+      "cx": "C2",
+      "title": "Haiku scout writes the context pack",
+      "what": "Before a builder starts, a Haiku scout maps the files, line ranges and recall hits the item needs and writes them into the brief's CONTEXT section. The builder starts with its reading done.",
+      "files": [],
+      "tests": [],
+      "done": "A scout brief template and the CONTEXT pack format exist; one item run with a scout shows builder read and inspect spend lower than a comparable item without.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "X-01",
+      "phase": "X",
+      "cx": "C4",
+      "title": "Size items by value, points and risk (sponsor's L8 note)",
+      "what": "Research done 2026-09-15 by a report-only agent: value set by the sponsor, Fibonacci points by the lead calibrated against measured cost per item, a risk class from paths, routing review depth and effort rather than model. Becomes proposal 25 with the four open questions as decisions.",
+      "files": [],
+      "tests": [],
+      "done": "Proposal 25 exists with its decisions, or the sponsor declines it.",
+      "depends": [],
+      "status": "done",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T00:20:00+02:00",
+          "event": "research returned",
+          "by": "lead",
+          "evidence": "Report-only research-agent (sonnet) returned: WSJF-style value/points/risk scheme, 2 alternatives, 4 sponsor questions. LLM story-point accuracy evidence is thin (arXiv 2603.06276, 2604.03443)."
+        },
+        {
+          "at": "2026-09-15T00:30:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "Became proposal 25, accepted 2026-09-15 (D1-D6 all option A); items Z-01 to Z-06."
+        }
+      ]
+    },
+    {
+      "id": "X-02",
+      "phase": "X",
+      "cx": "C4",
+      "title": "Catalogue and cluster issues for later (sponsor's L2 and L5 notes)",
+      "what": "Every issue that is not taken now is catalogued with a surface cluster (file-path overlap first), so bundles for L-05 can be picked from it. Designed inside proposal 25, because the cluster field sits beside value, points and risk.",
+      "files": [],
+      "tests": [],
+      "done": "Proposal 25 covers the catalogue and cluster fields, or the sponsor declines it.",
+      "depends": [
+        "X-01"
+      ],
+      "status": "done",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T00:30:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "Covered by proposal 25 D6 (catalogue clustered by files touched) → Z-06."
+        }
+      ]
+    },
+    {
+      "id": "X-03",
+      "phase": "X",
+      "cx": "C4",
+      "title": "Autonomous work without missing anything (sponsor's L1 note)",
+      "what": "A separate proposal, as the sponsor asked: how short-lived leads hand over without losing asks, findings or in-flight work, and how work keeps moving without him.",
+      "files": [],
+      "tests": [],
+      "done": "Proposal 24 is filled in with its options and decisions.",
+      "depends": [],
+      "status": "done",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T00:30:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "Became proposal 24, accepted 2026-09-15 (D1 B, D2-D4 A); items H-01 to H-03."
+        }
+      ]
+    },
+    {
+      "id": "L-07",
+      "phase": "L",
+      "cx": "C2",
+      "title": "Use the existing tool, not an inline copy",
+      "what": "Transcript mining found agents re-doing what tools already do: sed -n and cat instead of the Read tool (295 uses, ~150k tokens), hand-appended HANDOFF and AGENT-LOG entries instead of spend and remember (158, ~85k), raw flutter test instead of gate.sh (138, ~124k). The brief template and OPERATING-RULES name the tool for each.",
+      "files": [],
+      "tests": [],
+      "done": "Brief template MUST lines added with a Standard change line; a rerun of the mining script shows each cluster down by half.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    }
+  ],
+  "asks": [
+    {
+      "id": "A-01",
+      "kind": "decision",
+      "at": "2026-09-14T23:53:32+02:00",
+      "by": "sponsor",
+      "quote": "L1: picked \"A · Fresh lead per milestone or day\". Note: \"how we will ensure nothing important is missed. make a separate proposal. also the work needs to continue autonomsly.\"",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
+      "state": "became-item",
+      "became": "L-01"
+    },
+    {
+      "id": "A-02",
+      "kind": "decision",
+      "at": "2026-09-14T23:52:57+02:00",
+      "by": "sponsor",
+      "quote": "L2: picked \"A · Review only risky work\". Note: \"but the issues need to be catalauges and clustered together for later\"",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
+      "state": "became-item",
+      "became": "L-02"
+    },
+    {
+      "id": "A-03",
+      "kind": "decision",
+      "at": "2026-09-14T23:53:47+02:00",
+      "by": "sponsor",
+      "quote": "L3: picked \"A · Log to file, read the summary line\".",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
+      "state": "became-item",
+      "became": "L-03"
+    },
+    {
+      "id": "A-04",
+      "kind": "decision",
+      "at": "2026-09-14T23:54:54+02:00",
+      "by": "sponsor",
+      "quote": "L4: picked \"A · One-line tracker commands\".",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
+      "state": "became-item",
+      "became": "L-04"
+    },
+    {
+      "id": "A-05",
+      "kind": "decision",
+      "at": "2026-09-14T23:56:38+02:00",
+      "by": "sponsor",
+      "quote": "L5: picked \"A · Bundle by surface\". Note: \"issues need to be catalauges and clustered together for later\"",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
+      "state": "became-item",
+      "became": "L-05"
+    },
+    {
+      "id": "A-06",
+      "kind": "decision",
+      "at": "2026-09-14T23:56:14+02:00",
+      "by": "sponsor",
+      "quote": "L6: picked \"B · Haiku scout writes the pack\".",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
+      "state": "became-item",
+      "became": "L-06"
+    },
+    {
+      "id": "A-07",
+      "kind": "decision",
+      "at": "2026-09-14T23:58:03+02:00",
+      "by": "sponsor",
+      "quote": "L7: picked \"K · Keep as is (the lead reads receipt images itself)\".",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
+      "state": "answered"
+    },
+    {
+      "id": "A-08",
+      "kind": "decision",
+      "at": "2026-09-15T00:00:19+02:00",
+      "by": "sponsor",
+      "quote": "L8: picked \"K · Keep as is (models unchanged)\". Note: \"this needs to be rethaught. its not only the complexity of the task, but the importance and value of the feature. each feature or task should have a userstory point to understand complexitxy and effort. research how this could be implemented\"",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
+      "state": "became-item",
+      "became": "X-01"
+    },
+    {
+      "id": "A-09",
+      "kind": "research",
+      "state": "became-item",
+      "became": "X-02",
+      "at": "2026-09-14T23:53:32+02:00",
+      "by": "sponsor",
+      "quote": "L2 and L5 notes: \"issues need to be catalauges and clustered together for later\"",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks"
+    },
+    {
+      "id": "A-10",
+      "kind": "feature",
+      "state": "became-item",
+      "became": "X-03",
+      "at": "2026-09-14T23:53:32+02:00",
+      "by": "sponsor",
+      "quote": "L1 note: \"how we will ensure nothing important is missed. make a separate proposal. also the work needs to continue autonomsly.\"",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks"
+    },
+    {
+      "id": "A-11",
+      "kind": "research",
+      "state": "became-item",
+      "became": "L-07",
+      "at": "2026-09-15T00:05:00+02:00",
+      "by": "sponsor",
+      "quote": "Also, can you do an independent research on this analysis to analysis? If there are some repeating task can be create some python scripts, one time to automate them?",
+      "source": "Common Rules rework session transcript",
+      "note": "Mining results fed L-03, L-04 and new L-07. The re-check confirmed claims 1, 2 and proposal 79's double count (4,818 streamed records for 1,322 messages); claims 3 and 4 depend on the classifier and grouping used."
+    },
+    {
+      "id": "A-12",
+      "kind": "feature",
+      "state": "answered",
+      "at": "2026-09-15T00:02:00+02:00",
+      "by": "sponsor",
+      "quote": "Make the artefacts, so I can use them on mobile",
+      "source": "Common Rules rework session transcript",
+      "note": "Answered with the Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow and published proposal pages."
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {
+    "started": "2026-09-15T00:20:00+02:00",
+    "integration_branch": "p23-eight-levers",
+    "ruflo_route": "CLI, cached ruflo at ~/.npm/_npx/85fb20e3e7e3a233"
+  }
+}

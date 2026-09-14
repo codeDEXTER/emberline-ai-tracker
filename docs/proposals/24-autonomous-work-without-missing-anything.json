@@ -1,0 +1,163 @@
+{
+  "proposal": 24,
+  "title": "Autonomous work without missing anything",
+  "status": "accepted",
+  "updated": "2026-09-15",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "opus",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "lead model",
+      "effort": "-",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "H",
+      "name": "Handover",
+      "goal": "Short item leads end safely and a thin dispatcher keeps work moving without the sponsor.",
+      "exit": "H-01 to H-03 merged; one full bundle runs dispatcher → item lead → closing check → next lead with no sponsor action."
+    },
+    {
+      "id": "X",
+      "name": "Research",
+      "goal": "Questions that need reading, not writing, before they become items, a proposal, or a decline.",
+      "exit": "Every X row is done only when it becomes items, a numbered proposal, or a recorded decline with the reason -- never a report nobody acted on."
+    }
+  ],
+  "items": [
+    {
+      "id": "H-01",
+      "phase": "H",
+      "cx": "C2",
+      "title": "Closing check: bin/handover --check",
+      "what": "Before a lead stops it must prove four things: every sponsor message since it started has an ask row; every running agent is in the ledger with its worktree; the checkpoint matches the ledger; warmup --check reads ready. Exit 0 or a list of what is missing.",
+      "files": [],
+      "tests": [],
+      "done": "Tool in common-rules bin/ with tests, each of the four checks shown failing on a broken fixture first; OPERATING-RULES names it.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "H-02",
+      "phase": "H",
+      "cx": "C4",
+      "title": "Thin dispatcher and short item leads",
+      "what": "A dispatcher session holds only the queue: ledgers, asks, which bundle runs where. It never reads diffs, logs or images. Each bundle gets a short item lead that builds, merges, passes H-01 and ends. The lead prompt template gains a dispatcher form and an item-lead form.",
+      "files": [],
+      "tests": [],
+      "done": "Both forms in templates/lead-prompt.md with a Standard change line; dispatcher context measured under 150k across a full bundle.",
+      "depends": [
+        "H-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "H-03",
+      "phase": "H",
+      "cx": "C4",
+      "title": "The dispatcher starts the next lead without asking",
+      "what": "Find and prove the mechanism by which a session starts a new item-lead session with no sponsor click (desktop session tools, scheduled task, or CLI). Stop list unchanged (D4): destructive or irreversible work, work outside the plan, a decision the plan records as the sponsor's.",
+      "files": [],
+      "tests": [],
+      "done": "One item lead started by the dispatcher and finished with no sponsor action, recorded with the session ids; if no mechanism works, blocked with owner sponsor and the reason.",
+      "depends": [
+        "H-02"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": []
+    }
+  ],
+  "asks": [
+    {
+      "id": "A-01",
+      "kind": "feature",
+      "state": "became-item",
+      "at": "2026-09-14T23:53:32+02:00",
+      "by": "sponsor",
+      "quote": "how we will ensure nothing important is missed. make a separate proposal. also the work needs to continue autonomsly.",
+      "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks, document L1; proposal 23 ask A-10",
+      "note": "Answered D1-D4 on the decision page, 2026-09-15 00:11-00:11 CEST.",
+      "became": "H-02"
+    },
+    {
+      "id": "A-02",
+      "kind": "decision",
+      "at": "2026-09-15T00:11:11+02:00",
+      "by": "sponsor",
+      "quote": "D1: picked \"B · Thin dispatcher + short item leads\" (no note).",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "state": "became-item",
+      "became": "H-02"
+    },
+    {
+      "id": "A-03",
+      "kind": "decision",
+      "at": "2026-09-15T00:11:25+02:00",
+      "by": "sponsor",
+      "quote": "D2: picked \"A · The four checks\" (no note).",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "state": "became-item",
+      "became": "H-01"
+    },
+    {
+      "id": "A-04",
+      "kind": "decision",
+      "at": "2026-09-15T00:11:38+02:00",
+      "by": "sponsor",
+      "quote": "D3: picked \"A · The dispatcher starts the next lead, without asking\" (no note).",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "state": "became-item",
+      "became": "H-03"
+    },
+    {
+      "id": "A-05",
+      "kind": "decision",
+      "at": "2026-09-15T00:11:51+02:00",
+      "by": "sponsor",
+      "quote": "D4: picked \"A · Keep today's three stops\" (no note).",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "state": "answered"
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {
+    "started": "2026-09-15T00:30:00+02:00",
+    "integration_branch": "p23-eight-levers"
+  }
+}
