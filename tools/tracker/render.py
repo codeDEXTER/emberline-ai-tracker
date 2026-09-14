@@ -413,13 +413,39 @@ def _one_line_utf8(s: str) -> bool:
     return not any(ord(c) < 32 or 127 <= ord(c) < 160 for c in s)
 
 
+def _printable(value) -> str:
+    """A value safe to print on one line in an error: bin/warmup's shown(),
+    for the messages this module prints itself. C0, DEL, C1 and Unicode
+    format characters (Cf, e.g. a U+202E bidi override) become visible
+    escapes; a lone surrogate becomes U+FFFD."""
+    import unicodedata
+    out = []
+    for ch in str(value):
+        cp = ord(ch)
+        if 0xD800 <= cp <= 0xDFFF:
+            out.append("�")
+        elif cp < 0x20 or cp == 0x7F or 0x80 <= cp <= 0x9F:
+            out.append({"\n": "\\n", "\r": "\\r", "\t": "\\t"}.get(ch, f"\\x{cp:02x}"))
+        elif unicodedata.category(ch) == "Cf":
+            out.append(f"\\u{cp:04x}" if cp <= 0xFFFF else f"\\U{cp:08x}")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
 def url_problem(url) -> str | None:
-    """None for one line of https://host..., else what is wrong -- never
-    echoing the value, which is untrusted and may carry a forged line."""
+    """None for one line of https://host[:port]/..., else what is wrong --
+    never echoing the value, which is untrusted and may carry a forged line.
+    Refused as well (round 2): a Unicode format character, which can make one
+    URL read as another; userinfo, which puts a lookalike in front of the real
+    host; and a port that is empty, not a number, or outside 1-65535."""
+    import unicodedata
     if not isinstance(url, str) or not url:
         return "url must be a non-empty string"
     if not _one_line_utf8(url) or any(c.isspace() for c in url):
         return "url must be one line of UTF-8 with no spaces or control characters"
+    if any(unicodedata.category(c) == "Cf" for c in url):
+        return "url must not contain a Unicode format character (such as a bidi override or zero-width space)"
     from urllib.parse import urlsplit
     try:
         parts = urlsplit(url)
@@ -428,6 +454,14 @@ def url_problem(url) -> str | None:
         return "url is not a URL"
     if parts.scheme != "https" or not host:
         return "url must be https://<host>/..."
+    if "@" in parts.netloc:
+        return "url must not carry userinfo (user:password@) before its host"
+    try:
+        port = parts.port
+    except ValueError:
+        port = 0
+    if parts.netloc.endswith(":") or port == 0:
+        return "url port must be a number from 1 to 65535"
     return None
 
 
@@ -469,22 +503,39 @@ def published_main(argv) -> int:
     args = ap.parse_args(argv)
     say = "tracker published:"
 
+    where = _printable(args.ledger)
+    folder = args.ledger.resolve().parent
+    if not (folder.name == "proposals" and folder.parent.name == "docs"):
+        # Round 2, finding 5: the sidecar is the page's, and the page of
+        # record lives under docs/proposals/tracker/.
+        print(f"{say} {where} is not in a docs/proposals directory -- only a ledger of record is "
+              "published; nothing recorded", file=sys.stderr)
+        return 1
+    if not args.ledger.is_file():
+        print(f"{say} no ledger at {where} -- nothing recorded", file=sys.stderr)
+        return 2
     try:
-        data = L.load(args.ledger)
-    except (OSError, ValueError) as exc:
-        print(f"{say} {exc!r}", file=sys.stderr)
+        data = json.loads(args.ledger.read_text(encoding="utf-8"))
+    except (OSError, ValueError, RecursionError) as exc:   # UnicodeDecodeError is a ValueError
+        print(f"{say} {where} could not be read as a JSON ledger ({type(exc).__name__}) -- nothing recorded",
+              file=sys.stderr)
+        return 2
+    if not isinstance(data, dict):
+        print(f"{say} {where} is not a ledger: not a JSON object -- nothing recorded", file=sys.stderr)
         return 2
     if not L.switch_on(data, "publish"):
         sw = data["switches"]["publish"]
-        print(f"{say} publish is switched off in {args.ledger.name} by {sw.get('by')!r} at {sw.get('at')!r} "
-              "-- nothing recorded, and nothing should have been published", file=sys.stderr)
+        print(f"{say} publish is switched off in {_printable(args.ledger.name)} by {_printable(sw.get('by'))} "
+              f"at {_printable(sw.get('at'))} -- nothing recorded, and nothing should have been published",
+              file=sys.stderr)
         return 1
     problem = url_problem(args.url)
     if problem:
-        print(f"{say} {problem} (got {args.url!r}) -- nothing recorded", file=sys.stderr)
+        print(f"{say} {problem} (got {_printable(args.url)}) -- nothing recorded", file=sys.stderr)
         return 1
     if args.by is not None and not (args.by.strip() and _one_line_utf8(args.by)):
-        print(f"{say} --by must be a one-line name (got {args.by!r}) -- nothing recorded", file=sys.stderr)
+        print(f"{say} --by must be a one-line name (got {_printable(args.by)}) -- nothing recorded",
+              file=sys.stderr)
         return 1
     page = default_out(args.ledger)
     fresh = freshness(args.ledger, page)

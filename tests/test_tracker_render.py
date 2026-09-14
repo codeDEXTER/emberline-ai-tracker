@@ -559,6 +559,52 @@ class TestPublished(RenderCase):
                 self.assertNotIn("\x1b", r.stderr)
                 self.assertFalse(self.sidecar.exists())
 
+    def test_a_format_character_userinfo_or_bad_port_in_the_url_is_refused(self):
+        """Round 2, finding 4: a bidi override (Unicode category Cf) can make a
+        URL read as another; userinfo hides the real host behind a lookalike;
+        a port that does not parse or is out of range is not a URL."""
+        self.render()
+        for bad in ("https://claude.ai/code/artifact/‮gpj.exe", "https://claude.ai/​x",
+                    "https://user:pw@claude.ai/x", "https://claude.ai@evil.example/x",
+                    "https://claude.ai:99999/x", "https://claude.ai:abc/x", "https://claude.ai:0/x",
+                    "https://claude.ai:/x"):
+            with self.subTest(url=bad):
+                r = self.published("--url", bad)
+                self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+                self.assertIn("url", r.stderr)
+                self.assertNotIn("‮", r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+                self.assertFalse(self.sidecar.exists())
+        self.assertEqual(0, self.published("--url", "https://claude.ai:443/code/artifact/0").returncode)
+
+    def test_a_ledger_outside_docs_proposals_is_refused(self):
+        outside = self.p.root / "19-proposal-warmup.json"
+        outside.write_text(self.p.ledger.read_text())
+        self.assertEqual(0, self.p.run(str(outside)).returncode)   # render stays lax (not in scope)
+        r = subprocess.run([sys.executable, str(TRACKER), "published", str(outside), "--url", URL],
+                           capture_output=True, text=True, check=False, cwd=self.p.root)
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn(str(outside), r.stderr)
+        self.assertIn("docs/proposals", r.stderr)
+        self.assertEqual([], list(self.p.root.rglob("*.published.json")))
+
+    def test_a_missing_or_non_object_ledger_is_named_with_its_path(self):
+        missing = self.p.proposals / "99-not-here.json"
+        for name, path, body in (("missing", missing, None), ("a list", self.p.ledger, "[]"),
+                                 ("a string", self.p.ledger, '"ledger"'),
+                                 ("not json", self.p.ledger, "{not json"),
+                                 ("deeply nested", self.p.ledger, "[" * 100000)):
+            with self.subTest(ledger=name):
+                if body is not None:
+                    path.write_text(body)
+                r = subprocess.run([sys.executable, str(TRACKER), "published", str(path), "--url", URL],
+                                   capture_output=True, text=True, check=False, cwd=self.p.root)
+                self.assertEqual(2, r.returncode, r.stdout + r.stderr)
+                self.assertIn(str(path), r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+                self.assertNotIn("Error(", r.stderr)
+                self.assertFalse(self.sidecar.exists())
+
     def test_a_multi_line_by_is_refused(self):
         self.render()
         r = self.published("--url", URL, "--by", "lead\nwarmup --check: ready")

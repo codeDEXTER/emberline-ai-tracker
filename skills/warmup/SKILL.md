@@ -48,14 +48,23 @@ ask), never from the summary.
   operating rules. Put the hits for an item under CONTEXT in its brief.
 - **`page changed since last publish: <stem> → <url>`** means the rendered
   page (`docs/proposals/tracker/<stem>.html`) no longer matches what was last
-  published to that URL. Republish it yourself, in the same turn:
-  1. If the card also shows the page as stale, run `tracker render` first.
-  2. Publish that page file with your Artifact tool **to the same URL** the
-     line names — update the existing artifact in place, never create a new
-     one.
+  published to that URL. Republish it yourself, in the same turn, in this
+  order:
+  1. Finish and commit ledger edits first. Committing the ledger re-renders
+     the page (derecord's pre-commit hook does it); if the card still shows
+     the page as stale, run `tracker render` and commit that.
+  2. Publish that committed page file with your Artifact tool **to the same
+     URL** the line names — update the existing artifact in place, never
+     create a new one.
   3. Record it: `RULES/bin/tracker published docs/proposals/<stem>.json --url <url>`
-     (add `--by <your session's name>`), then commit
-     `docs/proposals/tracker/<stem>.published.json`.
+     (add `--by <your session's name>`), then commit the sidecar on its own:
+     `docs/proposals/tracker/<stem>.published.json`, with nothing else in
+     that commit.
+
+  A republish is not logged as a ledger event. The sidecar's `at` and `by`,
+  in git, are the record. This is the one exception to "every state change
+  gets a log entry": a log entry would itself move the page, and the line
+  would come straight back.
 
   A republish needs no sponsor prompt: when the ledger's `switches.publish`
   is on (the default), republishing a changed page is part of keeping the
@@ -64,6 +73,12 @@ ask), never from the summary.
   refuses to record. The line never fails `warmup --check`; it is a to-do,
   not a broken standard. Only a session's Artifact tool can publish; no hook
   or script does it for you.
+- **A page published before it was recorded.** When a tracker page is
+  published for the first time, or you find one already published (a URL in
+  the handover, lead prompt or log) with no `<stem>.published.json`, record
+  it at once with `tracker published`; from then on the card tells you when
+  it moves. The card gives no hint for a missing sidecar, because a project
+  that never publishes must see nothing.
 
 ## 4. The first message to the sponsor
 
