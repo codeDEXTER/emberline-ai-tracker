@@ -12,6 +12,11 @@ Every `gh` call goes through `run_gh` so tests can replace it with a fake
 that never touches the network. `main(argv) -> int` follows bin/tracker's
 exit codes: 0 in sync, 1 drift (or a write-back that could not be made
 safely), 2 could not check at all (bad ledger, unreadable file, gh failed).
+
+Proposal 20, D5: a ledger can record `switches.issues.on: false` -- a sponsor
+decision to run without a GitHub mirror for that app. When it is off, sync
+makes no gh call at all (not even a read), writes nothing back, prints one
+sentence naming who switched it off and when, and exits 0.
 """
 from __future__ import annotations
 
@@ -103,6 +108,16 @@ def main(argv: list[str]) -> int:
         for line in problems:
             print(f"  {line}", file=sys.stderr)
         return 2
+
+    if not ledger.switch_on(data, "issues"):
+        sw = data["switches"]["issues"]
+        line = (f"sync {ledger_path}: issues switched off by {sw.get('by')} "
+                f"at {sw.get('at')} — nothing synced")
+        quote = sw.get("quote")
+        if quote:
+            line += f' "{quote}"'
+        print(line)
+        return 0
 
     proposal_n = data["proposal"]
     proposal_label = f"proposal:{proposal_n}"
