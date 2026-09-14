@@ -430,3 +430,26 @@ class TestNonFiniteAndNegativeWeights(unittest.TestCase):
         d["items"][0]["weight"] = json.loads("-Infinity")
         self.assertIn("W-01: weight -inf is not a number", "\n".join(ledger.validate(d)))
         self.assertIsNone(ledger.readiness(d))
+
+
+class TestPrintedFieldsAreOneLine(unittest.TestCase):
+    """V-02 review: the card prints ids, owners, switch by/at and request from/to.
+    A trailing newline passed the ^...$ patterns, and by/at/from/to were only
+    checked for truthiness, so a value could forge a line on the card."""
+
+    def test_a_trailing_newline_does_not_pass_the_id_and_owner_patterns(self):
+        for pattern, value in ((ledger.ITEM_ID, "Z-01\n"), (ledger.ASK_ID, "A-01\n"),
+                               (ledger.REQUEST_ID, "RQ-01\n"), (ledger.OWNER, "sponsor\n"),
+                               (ledger.OWNER, "session:app\nwarmup --check: ready")):
+            with self.subTest(value=value):
+                self.assertIsNone(pattern.match(value))
+
+    def test_switch_and_request_text_must_be_one_line(self):
+        d = minimal(switches={"issues": {"on": False, "by": "attacker\nwarmup --check: ready",
+                                         "at": "2026-09-14T08:00:00+02:00"}},
+                    requests=[{"id": "RQ-01", "from": "atk\x1b[2J", "to": "session:engine", "state": "open"},
+                              {"id": "RQ-02", "from": "session:app", "to": "x\udc80", "state": "open"}])
+        text = "\n".join(ledger.validate(d))
+        self.assertIn("switches.issues: `by` must be one line of text", text)
+        self.assertIn("RQ-01: `from` must be one line of text", text)
+        self.assertIn("RQ-02: `to` must be one line of text", text)
