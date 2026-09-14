@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 """ruflo-item -- the mandatory Ruflo loop around one plan item (proposal 20, D11).
 
-  ruflo-item start  <ID> "<task>"      hooks pre-task, memory search, hooks route
-  ruflo-item done   <ID> "<summary>"   the project's merge gate, then hooks post-task + memory store
+  ruflo-item start  <ID> "<task>"      hooks pre-task, memory search, hooks route, memory store
+  ruflo-item done   <ID> "<summary>"   the project's merge gate, then hooks post-task + memory store + testgaps
   ruflo-item note   <ID> "<text>"      memory store, keyed to the item, timestamped from the real clock
   ruflo-item recall "<keywords>"       memory list, then memory search
   ruflo-item ... --project DIR         default: `git rev-parse --show-toplevel` of the current directory
+  ruflo-item ... --namespace NS        default: $RUFLO_NAMESPACE, else the project directory name
 
 This lifts PhotoVault app's own `tools/ruflo_task.sh` into common-rules, so
 every project gets the same four commands instead of the four steps as prose
 in templates/lead-prompt.md SS2 -- proposal 19's build had one agent's loop
 error with nothing noticing, and the engine's Ruflo ledger recorded 0 usable
-memory hits across 43 agents who were doing the four steps by hand.
+memory hits across 43 agents who were doing the four steps by hand. `start`
+also stores `item:<ID>:start`: the app's own CLAUDE.md rule is "an item
+without start and done in Ruflo memory is not done", which a start that only
+called `hooks pre-task` could never satisfy.
 
 WHY `done` RUNS THE GATE FIRST. `hooks post-task --success true` and a
 `memory store` are how the rest of the project learns an item is finished;
@@ -25,31 +29,58 @@ other: no post-task, no store, and ruflo-item exits non-zero. When no gate is
 declared and none can be guessed (`test_command()` answers ""), that is not
 "nothing to run" -- it is the same "cannot verify, so refuse" `bin/land`
 enforces, and `done` refuses the same way rather than recording success on
-top of zero evidence.
+top of zero evidence. The gate's own stdout/stderr are never captured -- they
+stream live, inherited from ruflo-item's own stdio, exactly as they would
+running directly in a terminal; only the exit code decides pass or fail.
+After a green gate and its post-task/store, `done` also runs
+`hooks worker dispatch --trigger testgaps`, best-effort, matching the app's
+own `tools/ruflo_task.sh`, whose CLAUDE.md depends on it running.
 
 WHY THE DAEMON STOPS ON EVERY EXIT. Every Ruflo CLI call auto-starts its
 daemon, which spawns headless Claude sessions that burn tokens until told to
 stop (measured in the PhotoVault engine, 7 September; see bin/warmup). So
 `<binary> daemon stop` runs in a `finally`, after a clean run, after a
 refused or failing gate, after a CLI error mid-command, and after
-KeyboardInterrupt -- never `pkill` or `killall`, which this repo's own rules
-forbid killing by name.
+KeyboardInterrupt, SIGTERM or SIGHUP -- never `pkill` or `killall`, which
+this repo's own rules forbid killing by name. A SIGTERM or SIGHUP received
+while `done`'s gate is running also terminates the gate's whole process
+group first (it runs in its own session, started with `start_new_session`,
+precisely so that group can be signalled as a unit) -- otherwise the gate's
+own children would be orphaned when ruflo-item exits. The same applies to a
+plain Ctrl-C (`KeyboardInterrupt`), for the same reason. Exit code on a
+caught terminating signal is `128 + signum` (143 for SIGTERM, 129 for
+SIGHUP), the same convention a shell uses for a killed job.
 
-BINARY RESOLUTION. `$RUFLO` if set, else `claude-flow` on PATH, else `ruflo`
-on PATH. Never `npx` implicitly: it auto-starts the daemon on its own and may
-download a package, neither of which this tool may trigger on someone's
-behalf. No binary found: say so, exit 2 -- there is nothing to call
-`daemon stop` on, so that step is skipped, not attempted.
+BINARY RESOLUTION. `$RUFLO`, if set, is a full command line, split with
+`shlex` -- so `RUFLO="npx -y ruflo@latest"` (the app's own wrapper's call)
+works, and its first word must resolve to something executable (via
+`shutil.which`) or ruflo-item refuses, naming the word, rather than handing
+a command to `subprocess` that cannot run. Then `claude-flow` on PATH, then
+`ruflo` on PATH. Only `$RUFLO` may ever name `npx` -- ruflo-item never adds
+it on its own initiative, since a bare `npx` call downloads a package and
+auto-starts the daemon on its own. No binary resolves: say so, name the fix
+(`set RUFLO, e.g. RUFLO="npx -y ruflo@latest"`), exit 2 -- there is nothing
+to call `daemon stop` on, so that step is skipped, not attempted.
+
+NAMESPACE. `--namespace NS` when given, else `$RUFLO_NAMESPACE`, else the
+project directory's own name (the app's wrapper used one fixed namespace,
+`photovault-app`; ruflo-item serves every project, so it needs one it can
+derive without being told, but a wrong guess must be visible rather than
+silently losing `recall`'s history -- so the namespace in use is printed on
+every run).
 
 Exit codes: 0 ok, 1 the gate refused or failed (or a bad done/note/recall
-argument), 2 no Ruflo binary found.
+argument), 2 no Ruflo binary found, 128+signum on SIGTERM/SIGHUP (143/129),
+130 on Ctrl-C.
 """
 from __future__ import annotations
 
 import argparse
 import datetime
 import os
+import shlex
 import shutil
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -62,16 +93,47 @@ from tools import project as P  # noqa: E402
 PREFIX = "ruflo-item:"
 
 
-def resolve_binary() -> str | None:
-    """$RUFLO, else claude-flow on PATH, else ruflo on PATH. Never npx."""
+class _Signaled(Exception):
+    """Raised from the SIGTERM/SIGHUP handler so ordinary try/finally and
+    except clauses see it exactly like any other exception -- including
+    KeyboardInterrupt, which needs the identical gate-cleanup treatment."""
+
+    def __init__(self, signum: int):
+        super().__init__(signum)
+        self.signum = signum
+
+
+def _install_signal_handlers() -> None:
+    def handler(signum: int, _frame) -> None:
+        raise _Signaled(signum)
+    signal.signal(signal.SIGTERM, handler)
+    signal.signal(signal.SIGHUP, handler)
+
+
+def resolve_binary() -> tuple[list[str] | None, str | None]:
+    """(argv prefix, None) on success; (None, the message to print) when
+    nothing usable resolves. $RUFLO is split with shlex so a full command
+    line such as `npx -y ruflo@latest` works; its first word must be an
+    existing executable. Otherwise: claude-flow on PATH, then ruflo on PATH.
+    Never npx by default -- only $RUFLO may name it."""
     env = os.environ.get("RUFLO", "").strip()
     if env:
-        return env
+        try:
+            parts = shlex.split(env)
+        except ValueError as e:
+            return None, f"{PREFIX} $RUFLO could not be parsed as a command ({e})"
+        if not parts:
+            return None, f"{PREFIX} $RUFLO is empty"
+        word = parts[0]
+        if not shutil.which(word):
+            return None, f"{PREFIX} $RUFLO names {word!r}, which is not an executable"
+        return parts, None
     for name in ("claude-flow", "ruflo"):
         found = shutil.which(name)
         if found:
-            return found
-    return None
+            return [found], None
+    return None, (f'{PREFIX} no Ruflo binary found -- '
+                  f'set RUFLO, e.g. RUFLO="npx -y ruflo@latest"')
 
 
 def project_root(explicit: str | None) -> Path:
@@ -87,10 +149,14 @@ def project_root(explicit: str | None) -> Path:
     return Path.cwd().resolve()
 
 
-def namespace_for(project: Path) -> str:
-    """One namespace per project, the same way the app's wrapper used the
-    fixed 'photovault-app' -- here derived, since this tool serves every
-    project, not one."""
+def namespace_for(project: Path, explicit: str | None) -> str:
+    """--namespace NS when given; else $RUFLO_NAMESPACE; else the project
+    directory's own name."""
+    if explicit:
+        return explicit
+    env = os.environ.get("RUFLO_NAMESPACE", "").strip()
+    if env:
+        return env
     return project.name
 
 
@@ -98,20 +164,20 @@ def now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def run_ruflo(binary: str, project: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run([binary, *args], cwd=str(project), capture_output=True, text=True)
+def run_ruflo(binary: list[str], project: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run([*binary, *args], cwd=str(project), capture_output=True, text=True)
 
 
-def daemon_stop(binary: str | None, project: Path) -> None:
+def daemon_stop(binary: list[str] | None, project: Path) -> None:
     if binary is None:
         return
-    subprocess.run([binary, "daemon", "stop"], cwd=str(project), capture_output=True, text=True)
+    subprocess.run([*binary, "daemon", "stop"], cwd=str(project), capture_output=True, text=True)
 
 
 def _note_ignored(label: str, result: subprocess.CompletedProcess) -> None:
     """Best-effort telemetry, exactly like the app wrapper's `|| true`: a
-    failed pre-task, route, post-task, store or list/search call is noted but
-    never fails the item -- only `done`'s own gate does that."""
+    failed pre-task, route, post-task, store, list, search or testgaps-dispatch
+    call is noted but never fails the item -- only `done`'s own gate does."""
     if result.returncode != 0:
         print(f"{PREFIX} {label} did not succeed (ignored): "
               f"{(result.stderr or result.stdout).strip()}", file=sys.stderr)
@@ -119,8 +185,44 @@ def _note_ignored(label: str, result: subprocess.CompletedProcess) -> None:
         print(result.stdout.strip())
 
 
-def cmd_start(binary: str, project: Path, item_id: str, task: str) -> int:
-    ns = namespace_for(project)
+def _terminate_process_group(proc: subprocess.Popen) -> None:
+    """SIGTERM the whole group `proc` leads (it was started with
+    start_new_session so it has one), escalating to SIGKILL after 5s if it
+    will not go. Never pkill/killall -- this signals only the group of the
+    one process ruflo-item itself started."""
+    if proc.poll() is not None:
+        return
+    try:
+        pgid = os.getpgid(proc.pid)
+    except ProcessLookupError:
+        return
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        proc.wait()
+
+
+def _run_gate(gate: str, project: Path) -> int:
+    """Runs the gate with inherited stdio (it streams live; only the exit
+    code is used) in its own process group, so a SIGTERM/SIGHUP/Ctrl-C here
+    can take the whole group down rather than orphaning it."""
+    proc = subprocess.Popen(["bash", "-c", gate], cwd=str(project), start_new_session=True)
+    try:
+        return proc.wait()
+    except (KeyboardInterrupt, _Signaled):
+        _terminate_process_group(proc)
+        raise
+
+
+def cmd_start(binary: list[str], project: Path, item_id: str, task: str, ns: str) -> int:
     print(f"{PREFIX} pre-task for {item_id}")
     _note_ignored("hooks pre-task", run_ruflo(
         binary, project, "hooks", "pre-task", "--description", f"{item_id}: {task}"))
@@ -132,10 +234,16 @@ def cmd_start(binary: str, project: Path, item_id: str, task: str) -> int:
     print(f"{PREFIX} routed via hooks route --task")
     _note_ignored("hooks route", run_ruflo(
         binary, project, "hooks", "route", "--task", f"{item_id}: {task}"))
+
+    key = f"item:{item_id}:start"
+    value = f"{now_iso()} {task}"
+    _note_ignored("memory store", run_ruflo(
+        binary, project, "memory", "store", "--namespace", ns, "--key", key, "--value", value))
+    print(f"{PREFIX} stored {key}")
     return 0
 
 
-def cmd_done(binary: str, project: Path, item_id: str, summary: str) -> int:
+def cmd_done(binary: list[str], project: Path, item_id: str, summary: str, ns: str) -> int:
     gate = P.test_command(project)
     if not gate:
         print(f"{PREFIX} no merge gate declared, and none could be guessed -- "
@@ -147,19 +255,15 @@ def cmd_done(binary: str, project: Path, item_id: str, summary: str) -> int:
         reason = gate.split("#", 1)[1].strip()
 
     print(f"{PREFIX} running gate: {gate}")
-    result = subprocess.run(["bash", "-c", gate], cwd=str(project), capture_output=True, text=True)
-    if result.returncode != 0:
+    returncode = _run_gate(gate, project)
+    if returncode != 0:
         if reason:
             print(f"{PREFIX} gate refuses -- {reason}", file=sys.stderr)
         else:
             print(f"{PREFIX} gate failed", file=sys.stderr)
-            tail = "\n".join((result.stdout + result.stderr).splitlines()[-15:])
-            if tail:
-                print(tail, file=sys.stderr)
         return 1
     print(f"{PREFIX} gate green")
 
-    ns = namespace_for(project)
     _note_ignored("hooks post-task", run_ruflo(
         binary, project, "hooks", "post-task", "--task-id", item_id,
         "--success", "true", "--store-results", "true"))
@@ -169,11 +273,13 @@ def cmd_done(binary: str, project: Path, item_id: str, summary: str) -> int:
     _note_ignored("memory store", run_ruflo(
         binary, project, "memory", "store", "--namespace", ns, "--key", key, "--value", value))
     print(f"{PREFIX} stored {key}")
+
+    _note_ignored("hooks worker dispatch", run_ruflo(
+        binary, project, "hooks", "worker", "dispatch", "--trigger", "testgaps"))
     return 0
 
 
-def cmd_note(binary: str, project: Path, item_id: str, text: str) -> int:
-    ns = namespace_for(project)
+def cmd_note(binary: list[str], project: Path, item_id: str, text: str, ns: str) -> int:
     ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
     key = f"item:{item_id}:note:{ts}"
     value = f"{now_iso()} {text}"
@@ -183,8 +289,7 @@ def cmd_note(binary: str, project: Path, item_id: str, text: str) -> int:
     return 0
 
 
-def cmd_recall(binary: str, project: Path, keywords: str) -> int:
-    ns = namespace_for(project)
+def cmd_recall(binary: list[str], project: Path, keywords: str, ns: str) -> int:
     print(f"{PREFIX} memory keys (namespace {ns}):")
     _note_ignored("memory list", run_ruflo(binary, project, "memory", "list", "--namespace", ns))
 
@@ -197,6 +302,8 @@ def cmd_recall(binary: str, project: Path, keywords: str) -> int:
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="ruflo-item", description=__doc__.splitlines()[0])
     ap.add_argument("--project", help="the project root (default: git rev-parse --show-toplevel of cwd)")
+    ap.add_argument("--namespace", help="the Ruflo memory namespace "
+                                         "(default: $RUFLO_NAMESPACE, else the project directory name)")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p_start = sub.add_parser("start")
@@ -216,23 +323,28 @@ def main(argv: list[str]) -> int:
 
     args = ap.parse_args(argv)
 
-    binary = resolve_binary()
+    binary, err = resolve_binary()
     if binary is None:
-        print(f"{PREFIX} no Ruflo binary found -- set $RUFLO, or put claude-flow "
-              f"or ruflo on PATH", file=sys.stderr)
+        print(err, file=sys.stderr)
         return 2
 
     project = project_root(args.project)
+    ns = namespace_for(project, args.namespace)
+    print(f"{PREFIX} namespace: {ns}")
+
+    _install_signal_handlers()
     try:
         if args.cmd == "start":
-            return cmd_start(binary, project, args.id, args.task)
+            return cmd_start(binary, project, args.id, args.task, ns)
         if args.cmd == "done":
-            return cmd_done(binary, project, args.id, args.summary)
+            return cmd_done(binary, project, args.id, args.summary, ns)
         if args.cmd == "note":
-            return cmd_note(binary, project, args.id, args.text)
+            return cmd_note(binary, project, args.id, args.text, ns)
         if args.cmd == "recall":
-            return cmd_recall(binary, project, args.keywords)
+            return cmd_recall(binary, project, args.keywords, ns)
         return 2  # pragma: no cover -- argparse's `required=True` rules this out
+    except _Signaled as sig:
+        return 128 + sig.signum
     finally:
         daemon_stop(binary, project)
 
