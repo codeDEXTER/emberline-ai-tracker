@@ -1,0 +1,276 @@
+#!/usr/bin/env python3
+"""new-proposal -- create a numbered proposal in the checked shape (proposal 21, S-02).
+
+  new-proposal [--project DIR] [--number NN] "Title"
+
+The sponsor made the common-rules standard mandatory (proposal 21, A-01 and
+A-02): every project creates proposals the same way. The PhotoVault app's and
+engine's newest proposals carried none of the shape bin/proposalcheck reads,
+and there was nothing to create one from.
+
+This writes two files into the git top of DIR (default: the current
+directory):
+
+  docs/proposals/NN-slug.html   from templates/proposal.html
+  docs/proposals/NN-slug.json   from templates/ledger.json, with no items
+
+NN is the next free number across every docs/proposals/NN-* entry, or
+--number, which is refused when any entry already uses it. The slug is the
+title in lowercase ASCII with hyphens. A title that is empty, spans lines or
+carries control characters is refused.
+
+It then runs bin/proposalcheck on the project and bin/tracker validate on the
+ledger. If either rejects what was just written, both files are removed and
+the failure is named: both files, or neither. A violation proposalcheck finds
+in some other document is reported but does not block. Nothing is ever
+overwritten.
+
+Exit codes: 0 written and checked. 1 refused: a bad title or number, a number
+already in use, or a checker rejecting the result. 2 could not run: DIR is not
+inside a git repository, or a template is missing or malformed.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime
+import html
+import json
+import re
+import subprocess
+import sys
+import unicodedata
+from pathlib import Path
+
+RULES_DIR = Path(__file__).resolve().parent.parent
+PAGE_TEMPLATE = RULES_DIR / "templates" / "proposal.html"
+LEDGER_TEMPLATE = RULES_DIR / "templates" / "ledger.json"
+PROPOSALCHECK = RULES_DIR / "bin" / "proposalcheck"
+TRACKER = RULES_DIR / "bin" / "tracker"
+
+# What bin/conformance (S-04) reads to know a page came from this template.
+TEMPLATE_META = '<meta name="common-rules-template" content="proposal/21">'
+
+PLACEHOLDER = re.compile(r"\{\{([A-Z][A-Z0-9_]*)\}\}")
+NUMBERED = re.compile(r"^(\d+)-")
+# C0 and C1 controls (newline, tab, escape, NEL ...) and the two Unicode line
+# and paragraph separators: anything that would make the title more than one
+# line in a <title>, a card or a terminal.
+BAD_TITLE_CHARS = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]")
+SLUG_MAX = 60
+
+
+class Refused(Exception):
+    """A refusal the person can fix: exit 1."""
+
+
+class CannotRun(Exception):
+    """Nothing to fix in the arguments: exit 2."""
+
+
+def slugify(title: str) -> str:
+    ascii_ = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_.lower()).strip("-")
+    if len(slug) > SLUG_MAX:
+        cut = slug[:SLUG_MAX + 1]
+        slug = cut.rsplit("-", 1)[0] if "-" in cut else slug[:SLUG_MAX]
+    return slug.strip("-")
+
+
+def check_title(title: str) -> str:
+    """The title, stripped, or Refused naming what is wrong with it."""
+    if BAD_TITLE_CHARS.search(title):
+        raise Refused(f"the title {ascii(title)} spans lines or carries a control character")
+    try:
+        title.encode("utf-8")
+    except UnicodeEncodeError:
+        raise Refused(f"the title {ascii(title)} is not valid UTF-8") from None
+    title = title.strip()
+    if not title:
+        raise Refused("the title is empty")
+    if not slugify(title):
+        raise Refused(f"the title {ascii(title)} has no ASCII letter or digit to make a file name from")
+    return title
+
+
+def check_number(raw: str) -> int:
+    if not re.fullmatch(r"[0-9]+", raw or "") or int(raw) < 1:
+        raise Refused(f"--number {ascii(raw)} is not a positive whole number")
+    return int(raw)
+
+
+def git_top(start: Path) -> Path:
+    if not start.is_dir():
+        raise CannotRun(f"{start} is not a directory")
+    r = subprocess.run(["git", "-C", str(start), "rev-parse", "--show-toplevel"],
+                       capture_output=True, text=True, check=False)
+    if r.returncode != 0 or not r.stdout.strip():
+        raise CannotRun(f"{start} is not inside a git repository")
+    return Path(r.stdout.strip())
+
+
+def numbers_in_use(proposals: Path) -> dict[int, list[str]]:
+    """Every NN- entry under docs/proposals, file or directory, by number."""
+    used: dict[int, list[str]] = {}
+    if proposals.is_dir():
+        for entry in proposals.iterdir():
+            m = NUMBERED.match(entry.name)
+            if m:
+                used.setdefault(int(m.group(1)), []).append(entry.name)
+    return used
+
+
+def render_page(template: str, number: str, title: str, date: str) -> str:
+    if TEMPLATE_META not in template:
+        raise CannotRun(f"{PAGE_TEMPLATE} does not carry {TEMPLATE_META}")
+    values = {"NUMBER": number, "TITLE": html.escape(title, quote=True), "DATE": date}
+    unknown = sorted(set(PLACEHOLDER.findall(template)) - values.keys())
+    if unknown:
+        raise CannotRun(f"{PAGE_TEMPLATE} has placeholders new-proposal cannot fill: {', '.join(unknown)}")
+    # One pass: a title that itself contains "{{DATE}}" stays literal.
+    return PLACEHOLDER.sub(lambda m: values[m.group(1)], template)
+
+
+def _has_placeholder(value) -> bool:
+    return "{{" in json.dumps(value)
+
+
+def render_ledger(template: str, number: int, title: str, date: str) -> str:
+    """The ledger contract's minimum: the proposal's number, title, status and
+    date, the routing table, no items yet. Template rows and phases that are
+    only placeholders are left out rather than written half-filled."""
+    try:
+        data = json.loads(template)
+    except ValueError as exc:
+        raise CannotRun(f"{LEDGER_TEMPLATE}: not valid JSON ({exc})") from None
+    data["proposal"] = number
+    data["title"] = title
+    data["status"] = "proposed"
+    data["updated"] = date
+    data["items"] = []
+    data["asks"] = []
+    data["proposed_changes"] = []
+    data["phases"] = [p for p in data.get("phases") or [] if not _has_placeholder(p)]
+    execution = data.get("execution") if isinstance(data.get("execution"), dict) else {}
+    data["execution"] = {k: v for k, v in execution.items() if not _has_placeholder(v)}
+    if _has_placeholder({k: v for k, v in data.items() if k != "title"}):
+        raise CannotRun(f"{LEDGER_TEMPLATE} has a placeholder new-proposal does not know how to fill")
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+
+def run_checks(top: Path, page: Path, ledger: Path) -> list[str]:
+    """Notes to print on success; Refused naming the checker on failure."""
+    notes = []
+    r = subprocess.run([sys.executable, str(PROPOSALCHECK), "--project", str(top)],
+                       capture_output=True, text=True, check=False)
+    output = (r.stdout + r.stderr).splitlines()
+    if r.returncode not in (0, 1):
+        raise Refused("proposalcheck could not check what was written (exit "
+                      f"{r.returncode}):\n  " + "\n  ".join(output))
+    # Every proposalcheck violation names the documents it is about, so a line
+    # naming the new page is one this run caused. Violations in other
+    # documents predate it and are not new-proposal's to block on.
+    ours = [line for line in output if page.name in line]
+    if ours:
+        raise Refused("proposalcheck rejects what was written:\n  " + "\n  ".join(ours))
+    if r.returncode == 1:
+        notes.append("proposalcheck: clean for the new page; the project has violations "
+                     "in other documents (run bin/proposalcheck to see them)")
+    else:
+        notes.append("proposalcheck: clean")
+
+    r = subprocess.run([sys.executable, str(TRACKER), "validate", str(ledger)],
+                       capture_output=True, text=True, check=False)
+    if r.returncode != 0:
+        raise Refused("tracker validate rejects the ledger:\n  "
+                      + "\n  ".join((r.stdout + r.stderr).splitlines()))
+    notes.append("tracker validate: well-formed")
+    return notes
+
+
+def create(project: str | None, number_arg: str | None, title_arg: str) -> int:
+    title = check_title(title_arg)
+    wanted = check_number(number_arg) if number_arg is not None else None
+
+    top = git_top(Path(project) if project else Path.cwd())
+    proposals = top / "docs" / "proposals"
+    if proposals.exists() and not proposals.is_dir():
+        raise CannotRun(f"{proposals} exists and is not a directory")
+    for tpl in (PAGE_TEMPLATE, LEDGER_TEMPLATE):
+        if not tpl.is_file():
+            raise CannotRun(f"template missing: {tpl}")
+
+    used = numbers_in_use(proposals)
+    if wanted is None:
+        n = max(used, default=0) + 1
+    else:
+        n = wanted
+        if n in used:
+            raise Refused(f"proposal number {n:02d} is already used by "
+                          + ", ".join(f"docs/proposals/{name}" for name in sorted(used[n])))
+
+    number = f"{n:02d}"
+    stem = f"{number}-{slugify(title)}"
+    page, ledger = proposals / f"{stem}.html", proposals / f"{stem}.json"
+    date = datetime.date.today().isoformat()
+    page_text = render_page(PAGE_TEMPLATE.read_text(encoding="utf-8"), number, title, date)
+    ledger_text = render_ledger(LEDGER_TEMPLATE.read_text(encoding="utf-8"), n, title, date)
+
+    created_dirs = []
+    d = proposals
+    while not d.exists():
+        created_dirs.append(d)            # deepest first, the order to remove them in
+        d = d.parent
+    written: list[Path] = []
+    done = False
+    try:
+        proposals.mkdir(parents=True, exist_ok=True)
+        for path, text in ((page, page_text), (ledger, ledger_text)):
+            try:
+                fh = open(path, "x", encoding="utf-8")   # never overwrite, even in a race
+            except FileExistsError:
+                raise Refused(f"{path} already exists; nothing overwritten") from None
+            written.append(path)
+            with fh:
+                fh.write(text)
+        notes = run_checks(top, page, ledger)
+        done = True
+    finally:
+        if not done:
+            for path in written:
+                path.unlink(missing_ok=True)
+            for d in created_dirs:
+                try:
+                    d.rmdir()
+                except OSError:
+                    pass
+
+    print(f"new-proposal: proposal {number} · proposed · {title}")
+    print(f"  page    {page}")
+    print(f"  ledger  {ledger}")
+    for note in notes:
+        print(f"  {note}")
+    print("Next: fill the page -- the ask in the sponsor's words, what was found, the options,")
+    print("and the decisions D1, D2 ... in place of the highlighted text. When the sponsor accepts,")
+    print("record the answers in the Decided section and add the items to the ledger.")
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser(prog="new-proposal", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--project", default=None, help="a directory inside the project (default: cwd)")
+    ap.add_argument("--number", default=None, help="the proposal number (default: the next free one)")
+    ap.add_argument("title", help="the proposal's title, one line")
+    a = ap.parse_args(argv)
+    try:
+        return create(a.project, a.number, a.title)
+    except Refused as exc:
+        print(f"new-proposal: refused: {exc}", file=sys.stderr)
+        return 1
+    except CannotRun as exc:
+        print(f"new-proposal: {exc}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
