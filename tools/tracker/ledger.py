@@ -41,6 +41,14 @@ ASK_ID = re.compile(r"^A-\d{2,}$")
 
 REQUIRED_ITEM_KEYS = ("id", "phase", "cx", "title", "status")
 
+# Proposal 20 additions. Every one is optional: a ledger that declares none of
+# them validates exactly as before, which is how the PhotoVault engine's and
+# app's ledgers stay valid while they adopt the pieces they want.
+OWNER = re.compile(r"^(sponsor|lead|session:.+)$")          # D4
+SWITCHES = ("issues", "publish", "ruflo")                     # D5
+REQUEST_ID = re.compile(r"^RQ-\d{2,}$")                       # D7
+REQUEST_STATES = ("open", "in progress", "answered", "declined")
+
 
 def load(path) -> dict:
     """Read a ledger. Raises ValueError naming the file when it is not JSON."""
@@ -159,7 +167,150 @@ def validate(ledger: dict) -> list[str]:
             problems.append(f"{name}: no `quote` -- an ask is recorded in the sponsor's words")
         if a.get("state") == "became-item" and not a.get("became"):
             problems.append(f"{name}: became-item but `became` names nothing")
+    problems.extend(_validate_v2(ledger, ids, ask_ids))
     return problems
+
+
+def _evident(value) -> bool:
+    """The PhotoVault app's rule (tools/build_plan.py): true, or a declared "n/a"."""
+    return value is True or value == "n/a"
+
+
+def _validate_v2(ledger: dict, ids: set, ask_ids: set) -> list[str]:
+    """Proposal 20's contract additions, each checked only when declared."""
+    problems: list[str] = []
+    tiers = ledger.get("tiers") if isinstance(ledger.get("tiers"), dict) else {}
+    was_ids = {i.get("was") for i in items(ledger) if i.get("was")}
+    ladder = {l.get("level") for l in (ledger.get("verification_ladder") or []) if isinstance(l, dict)}
+    rule = ledger.get("evidence_rule") if isinstance(ledger.get("evidence_rule"), dict) else {}
+    keys = list(rule.get("keys") or [])
+
+    for n, i in enumerate(items(ledger)):
+        name = i.get("id") or f"items[{n}]"
+        cx, model = i.get("cx"), i.get("model")
+        want = (tiers.get(cx) or {}).get("model") if isinstance(tiers.get(cx), dict) else None
+        if want and model and model != want and not i.get("model_override_reason"):         # D2
+            problems.append(f"{name}: model {model!r} disagrees with tiers {cx} ({want}) and has no model_override_reason")
+        if "owner" in i and not (isinstance(i["owner"], str) and OWNER.match(i["owner"])):  # D4
+            problems.append(f"{name}: owner {i.get('owner')!r} is not sponsor, lead or session:<name>")
+        if ladder and i.get("verify") is not None and i["verify"] not in ladder:              # D6
+            problems.append(f"{name}: verify {i['verify']!r} is not a level on the verification ladder")
+        if keys and i.get("status") == "done":                                                # D6
+            ev = i.get("evidence") if isinstance(i.get("evidence"), dict) else {}
+            missing = [k for k in keys if not _evident(ev.get(k))]
+            if missing:
+                problems.append(f"{name}: done without evidence: {', '.join(missing)}")
+        if i.get("merged") not in (None, False, "") and i.get("status") == "not started":     # D8
+            problems.append(f"{name}: merged but not started")
+
+    for n, a in enumerate(ledger.get("asks") or []):                                           # D4
+        if "owner" in a and not (isinstance(a["owner"], str) and OWNER.match(a["owner"])):
+            problems.append(f"{a.get('id') or f'asks[{n}]'}: owner {a.get('owner')!r} is not sponsor, lead or session:<name>")
+
+    switches = ledger.get("switches")                                                          # D5
+    if switches is not None:
+        if not isinstance(switches, dict):
+            problems.append("switches: must be an object of name -> {on, by, at, quote}")
+        else:
+            for sname, sw in switches.items():
+                if sname not in SWITCHES:
+                    problems.append(f"switches: {sname!r} is not one of {', '.join(SWITCHES)}")
+                    continue
+                if not isinstance(sw, dict) or not isinstance(sw.get("on"), bool):
+                    problems.append(f"switches.{sname}: `on` must be true or false")
+                elif sw["on"] is False and not (sw.get("by") and sw.get("at")):
+                    problems.append(f"switches.{sname}: off without `by` and `at`")
+
+    seen: set[str] = set()                                                                     # D7
+    for n, r in enumerate(ledger.get("requests") or []):
+        rid = r.get("id") if isinstance(r, dict) else None
+        name = rid or f"requests[{n}]"
+        if not isinstance(r, dict):
+            problems.append(f"{name}: a request must be an object")
+            continue
+        if not rid or not REQUEST_ID.match(rid):
+            problems.append(f"{name}: request id is not RQ-NN")
+        elif rid in seen:
+            problems.append(f"{name}: request id appears more than once")
+        else:
+            seen.add(rid)
+        if r.get("state") not in REQUEST_STATES:
+            problems.append(f"{name}: state {r.get('state')!r} is not one of {', '.join(REQUEST_STATES)}")
+        for side in ("from", "to"):
+            if not r.get(side):
+                problems.append(f"{name}: no `{side}`")
+        for u in r.get("unblocks") or []:
+            if isinstance(u, str) and ITEM_ID.match(u) and u not in ids:
+                problems.append(f"{name}: unblocks {u}, which is not an item")
+        if r.get("state") == "answered" and not r.get("answered_by"):
+            problems.append(f"{name}: answered without `answered_by`")
+
+    for n, g in enumerate(ledger.get("gates") or []):                                          # D8
+        if isinstance(g, dict) and not isinstance(g.get("passed"), bool):
+            problems.append(f"{g.get('id') or f'gates[{n}]'}: `passed` must be true or false")
+    for n, f in enumerate(ledger.get("quality_floors") or []):
+        if isinstance(f, dict) and not isinstance(f.get("met"), bool):
+            problems.append(f"quality_floors[{n}]: `met` must be true or false")
+    for n, rc in enumerate(ledger.get("receipts") or []):
+        item = rc.get("item") if isinstance(rc, dict) else None
+        if item and item not in ids and item not in was_ids:
+            problems.append(f"receipts[{n}]: item {item} is neither an item id nor a `was` id")
+    return problems
+
+
+def waiting_on(ledger: dict, owner: str) -> list[str]:
+    """Blocked rows, then open asks, whose owner is `owner` (D4)."""
+    rows = [i["id"] for i in items(ledger) if i.get("status") == "blocked" and i.get("owner") == owner]
+    asks = [a["id"] for a in (ledger.get("asks") or []) if a.get("state") == "open" and a.get("owner") == owner]
+    return rows + asks
+
+
+def switch_on(ledger: dict, name: str) -> bool:
+    """False only when the ledger records the switch off (D5); on by default."""
+    sw = (ledger.get("switches") or {}).get(name) if isinstance(ledger.get("switches"), dict) else None
+    return not (isinstance(sw, dict) and sw.get("on") is False)
+
+
+def open_requests(ledger: dict) -> list[dict]:
+    return [r for r in (ledger.get("requests") or []) if isinstance(r, dict) and r.get("state") in ("open", "in progress")]
+
+
+def merged_waiting(ledger: dict) -> list[str]:
+    """Rows merged but not yet done: awaiting their evidence (D8)."""
+    return [i["id"] for i in items(ledger) if i.get("merged") not in (None, False, "") and i.get("status") != "done"]
+
+
+def readiness(ledger: dict) -> dict | None:
+    """Readiness from the ledger's declared weights (D8), or None when it declares none.
+
+    Work: a done row earns its weight, a row in progress that is merged (or has
+    passing tests) earns half; weight defaults to 1. Gates, floors and receipts
+    score the share passed, met or captured. Never typed -- computed each time.
+    """
+    w = ledger.get("readiness_weights")
+    if not isinstance(w, dict):
+        return None
+    rows = items(ledger)
+    total = sum(float(i.get("weight", 1)) for i in rows) or 1.0
+    earned = 0.0
+    for i in rows:
+        weight = float(i.get("weight", 1))
+        ev = i.get("evidence") if isinstance(i.get("evidence"), dict) else {}
+        if i.get("status") == "done":
+            earned += weight
+        elif i.get("status") == "in progress" and (i.get("merged") not in (None, False, "") or ev.get("tests") is True):
+            earned += weight / 2
+    gates = [g for g in (ledger.get("gates") or []) if isinstance(g, dict)]
+    floors = [f for f in (ledger.get("quality_floors") or []) if isinstance(f, dict)]
+    native = ledger.get("native_receipts") if isinstance(ledger.get("native_receipts"), dict) else {}
+    part = {
+        "work": round(float(w.get("work", 0)) * earned / total, 1),
+        "gates": round(float(w.get("gates", 0)) * sum(1 for g in gates if g.get("passed") is True) / len(gates), 1) if gates else 0.0,
+        "floors": round(float(w.get("floors", 0)) * sum(1 for f in floors if f.get("met") is True) / len(floors), 1) if floors else 0.0,
+        "receipts": round(float(w.get("receipts", 0)) * sum(1 for v in native.values() if v) / len(native), 1) if native else 0.0,
+    }
+    part["readiness"] = round(sum(part.values()))
+    return part
 
 
 def find(project) -> list[Path]:
