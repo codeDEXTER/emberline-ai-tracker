@@ -33,7 +33,8 @@ SEEDED_FILES = [
     ("docs/handovers/lead-prompt.md", "{{SPONSOR_OWNED_BLOCKERS}}", False),
 ]
 
-HOOK_EVENTS = [("precompact", "PreCompact"), ("stop", "Stop"), ("sessionstart", "SessionStart")]
+HOOK_EVENTS = [("precompact", "PreCompact"), ("stop", "Stop"), ("sessionstart", "SessionStart"),
+               ("posttooluse-agent", "PostToolUse")]
 
 
 def settings_in(path: Path) -> dict:
@@ -287,6 +288,238 @@ class TestDerecordHooks(DerecordCase):
         self.assertEqual(before, settings_in(self.proj))
         for _name, event in HOOK_EVENTS:
             self.assertIn("already present", second.stdout)
+
+
+class TestDerecordPostToolUseAgentMatcher(DerecordCase):
+    """D13, part 2: the V-05 hook gets matcher Agent|Task, since the Agent
+    tool's own hook name is undocumented and the hook itself filters."""
+
+    def _entries(self, d):
+        return [e for e in d["hooks"].get("PostToolUse", [])
+                 for h in e.get("hooks", [])
+                 if h.get("command", "").endswith("/hooks/posttooluse-agent")]
+
+    def test_the_installed_entry_carries_the_matcher(self):
+        r = self.run_derecord()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        d = settings_in(self.proj)
+        entries = [e for e in d["hooks"]["PostToolUse"]
+                   if any(h.get("command", "").endswith("/hooks/posttooluse-agent")
+                          for h in e.get("hooks", []))]
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0].get("matcher"), "Agent|Task")
+
+    def test_a_stale_matcher_is_corrected_in_place(self):
+        settings_path = self.proj / ".claude" / "settings.json"
+        settings_path.parent.mkdir(parents=True, exist_ok=True)
+        settings_path.write_text(json.dumps({
+            "hooks": {"PostToolUse": [{"matcher": "Task",
+                                        "hooks": [{"type": "command",
+                                                    "command": f"{ROOT}/hooks/posttooluse-agent"}]}]}
+        }))
+        r = self.run_derecord()
+        d = settings_in(self.proj)
+        entries = [e for e in d["hooks"]["PostToolUse"]
+                   if any(h.get("command", "").endswith("/hooks/posttooluse-agent")
+                          for h in e.get("hooks", []))]
+        self.assertEqual(entries[0].get("matcher"), "Agent|Task")
+        self.assertIn("corrected", r.stdout)
+
+    def test_an_unrelated_posttooluse_entry_survives(self):
+        settings_path = self.proj / ".claude" / "settings.json"
+        settings_path.parent.mkdir(parents=True, exist_ok=True)
+        settings_path.write_text(json.dumps({
+            "hooks": {"PostToolUse": [{"matcher": "Bash",
+                                        "hooks": [{"type": "command", "command": "/some/other/hook"}]}]}
+        }))
+        self.run_derecord()
+        d = settings_in(self.proj)
+        entries = d["hooks"]["PostToolUse"]
+        self.assertTrue(any(e.get("matcher") == "Bash"
+                             and e["hooks"][0]["command"] == "/some/other/hook" for e in entries))
+        self.assertTrue(any(e.get("matcher") == "Agent|Task" for e in entries))
+
+    def test_running_twice_changes_nothing_the_second_time(self):
+        self.run_derecord()
+        before = settings_in(self.proj)
+        second = self.run_derecord()
+        self.assertEqual(before, settings_in(self.proj))
+        self.assertIn("already present", second.stdout)
+
+
+class TestDerecordIgnoreRuflo(DerecordCase):
+    """D13, part 1: derecord ignores Ruflo's runtime state only. Reuses the
+    lines PR #149 (ignore-ruflo-state) already named for this checkout, minus
+    the blanket `.claude-flow/` -- shared Ruflo config must stay tracked."""
+
+    RUNTIME_PATHS = [
+        ".claude-flow/data/foo.json",
+        ".claude-flow/logs/bar.log",
+        ".claude-flow/sessions/baz.json",
+        ".swarm/db.sqlite",
+        "ruvector.db",
+        ".claude/memory.db",
+        ".claude/proven-config.json",
+        ".claude/.proven-config-version",
+    ]
+    CONFIG_PATHS = [".claude-flow/config.json", ".claude-flow/config.yaml", "claude-flow.config.json"]
+
+    def is_ignored(self, rel: str) -> bool:
+        r = subprocess.run(["git", "check-ignore", "-q", rel], cwd=self.proj)
+        return r.returncode == 0
+
+    def test_runtime_state_is_ignored(self):
+        r = self.run_derecord()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        for rel in self.RUNTIME_PATHS:
+            self.assertTrue(self.is_ignored(rel), f"{rel} should be ignored")
+
+    def test_ruflo_config_stays_tracked(self):
+        self.run_derecord()
+        for rel in self.CONFIG_PATHS:
+            self.assertFalse(self.is_ignored(rel), f"{rel} should stay tracked")
+
+    def test_existing_gitignore_lines_survive(self):
+        (self.proj / ".gitignore").write_text("*.log\n")
+        self.run_derecord()
+        text = (self.proj / ".gitignore").read_text()
+        self.assertIn("*.log", text)
+
+    def test_running_twice_does_not_duplicate_lines(self):
+        self.run_derecord()
+        first = (self.proj / ".gitignore").read_text()
+        second_result = self.run_derecord()
+        self.assertEqual(first, (self.proj / ".gitignore").read_text())
+        self.assertIn("already present", second_result.stdout)
+
+
+class TestDerecordPreCommitLedger(DerecordCase):
+    """D12: a staged ledger regenerates and stages its tracker page and the
+    checkpoint, alongside the existing conflict-marker guard."""
+
+    def setUp(self):
+        super().setUp()
+        subprocess.run(["git", "-C", str(self.proj), "config", "user.email", "t@example.com"], check=True)
+        subprocess.run(["git", "-C", str(self.proj), "config", "user.name", "Test"], check=True)
+
+    def write_ledger(self, rel="docs/proposals/42-thing.json", **overrides):
+        path = self.proj / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "proposal": 42, "title": "Thing", "status": "accepted",
+            "items": [{"id": "X-01", "phase": "X", "cx": "C2", "title": "t",
+                       "status": "not started"}],
+        }
+        data.update(overrides)
+        path.write_text(json.dumps(data, indent=2))
+        return path
+
+    def commit(self, *paths):
+        subprocess.run(["git", "-C", str(self.proj), "add", *[str(p) for p in paths]], check=True)
+        return subprocess.run(["git", "-C", str(self.proj), "commit", "-m", "test"],
+                              capture_output=True, text=True, cwd=self.proj)
+
+    def committed_files(self):
+        r = subprocess.run(["git", "-C", str(self.proj), "show", "--stat", "--pretty=", "HEAD"],
+                           capture_output=True, text=True, check=True)
+        return r.stdout
+
+    def test_a_staged_ledger_gets_its_page_and_checkpoint_committed_alongside(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger()
+        r = self.commit(ledger_path)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.proj / "docs" / "proposals" / "tracker" / "42-thing.html"
+        self.assertTrue(page.exists(), "tracker page was not regenerated")
+        checkpoint_dir = self.proj / "docs" / "handovers"
+        checkpoints = list(checkpoint_dir.glob("*-checkpoint.md")) if checkpoint_dir.is_dir() else []
+        self.assertTrue(checkpoints, "checkpoint was not written")
+        files = self.committed_files()
+        self.assertIn("42-thing.html", files)
+        self.assertIn("checkpoint.md", files)
+
+    def test_an_invalid_ledger_fails_the_commit_with_trackers_message(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger(rel="docs/proposals/43-bad.json",
+                                         items=[{"id": "not-an-id", "phase": "X", "cx": "C2",
+                                                 "title": "t", "status": "nonsense-status"}])
+        r = self.commit(ledger_path)
+        self.assertNotEqual(r.returncode, 0, "commit of an invalid ledger should have been refused")
+        self.assertIn("not well-formed", r.stderr + r.stdout)
+
+    def test_a_commit_with_no_ledger_does_no_tracker_work(self):
+        self.run_derecord()
+        # step 4 seeds docs/handovers/lead-prompt.md on every project, so the
+        # directory existing proves nothing here -- a checkpoint file would.
+        before_checkpoints = set((self.proj / "docs" / "handovers").glob("*-checkpoint.md"))
+        plain = self.proj / "README.md"
+        plain.write_text("hello\n")
+        r = self.commit(plain)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.proj / "docs" / "proposals" / "tracker").exists())
+        after_checkpoints = set((self.proj / "docs" / "handovers").glob("*-checkpoint.md"))
+        self.assertEqual(before_checkpoints, after_checkpoints, "checkpoint was written with no ledger staged")
+
+    def test_a_non_ledger_json_file_matching_the_glob_is_left_alone(self):
+        """docs/proposals also holds data files shaped like NN-*.json that are
+        not ledgers -- the PhotoVault engine's own sidecar file. No `items`
+        list means no tracker work, per tools/tracker/ledger.find's rule."""
+        self.run_derecord()
+        sidecar = self.proj / "docs" / "proposals" / "56-sample-sheet.sidecar.json"
+        sidecar.parent.mkdir(parents=True, exist_ok=True)
+        sidecar.write_text(json.dumps({"rows": [1, 2, 3]}))
+        r = self.commit(sidecar)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.proj / "docs" / "proposals" / "tracker").exists())
+
+    def test_conflict_marker_guard_still_runs_first(self):
+        self.run_derecord()
+        bad = self.proj / "conflicted.py"
+        bad.write_text("<<<<<<< HEAD\nx = 1\n=======\nx = 2\n>>>>>>> branch\n")
+        r = self.commit(bad)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("unresolved conflict markers", r.stderr)
+
+    def test_a_pre_existing_project_hook_is_preserved_and_chained(self):
+        hooks_dir = self.proj / ".git" / "hooks"
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        marker = self.proj / "local-hook-ran"
+        custom = hooks_dir / "pre-commit"
+        custom.write_text(f"#!/usr/bin/env bash\ntouch '{marker}'\nexit 1\n")
+        custom.chmod(0o755)
+
+        r = self.run_derecord()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        local = hooks_dir / "pre-commit.local"
+        self.assertTrue(local.exists(), "the project's own pre-commit hook was lost")
+        self.assertIn("touch", local.read_text())
+
+        plain = self.proj / "README.md"
+        plain.write_text("hello\n")
+        result = self.commit(plain)
+        self.assertNotEqual(result.returncode, 0, "the chained local hook should have failed the commit")
+        self.assertTrue(marker.exists(), "the project's own pre-commit hook was never run")
+
+    def test_running_derecord_twice_does_not_move_the_local_hook_again(self):
+        hooks_dir = self.proj / ".git" / "hooks"
+        hooks_dir.mkdir(parents=True, exist_ok=True)
+        custom = hooks_dir / "pre-commit"
+        custom.write_text("#!/usr/bin/env bash\nexit 0\n")
+        custom.chmod(0o755)
+
+        self.run_derecord()
+        local = hooks_dir / "pre-commit.local"
+        before = local.read_text()
+        self.run_derecord()
+        self.assertEqual(before, local.read_text())
+
+    def test_hook_resolves_common_rules_from_the_install_time_path_not_cwd(self):
+        """The regenerating pre-commit hook must find common-rules the same
+        way the other installed hooks do: baked in at install time, not by
+        looking at the commit's cwd."""
+        self.run_derecord()
+        content = (self.proj / ".git" / "hooks" / "pre-commit").read_text()
+        self.assertIn(str(ROOT), content)
 
 
 if __name__ == "__main__":
