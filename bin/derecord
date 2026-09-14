@@ -52,6 +52,28 @@ $GIT rev-parse --git-dir >/dev/null 2>&1 || { echo "not a git repo: $PROJ" >&2; 
 TOP="$($GIT rev-parse --show-toplevel)"
 cd "$TOP"
 
+# --- 0. .claude/settings.json must be a valid JSON object, or nothing runs --
+#
+# Every step below that touches settings.json used to fall back to `d = {}`
+# on ANY read failure, including a file that exists but is malformed -- so a
+# broken settings.json was silently replaced rather than reported (V-07 round
+# 2, finding 2). Checked once, here, before any step writes anything: a
+# missing file is fine (steps below start it from {}); a file that exists and
+# is not a JSON object refuses the whole run.
+if [ -f "$TOP/.claude/settings.json" ]; then
+    python3 -c '
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+sys.exit(0 if isinstance(d, dict) else 1)
+' "$TOP/.claude/settings.json" || {
+        echo "derecord: .claude/settings.json is not valid JSON; fix it and run again (nothing changed)" >&2
+        exit 1
+    }
+fi
+
 # --- 1. merge rules for the record files -------------------------------------
 #
 # This used to ask "is there a line for this path?" and nothing more, so once a
@@ -143,28 +165,30 @@ $GIT config merge.ours.driver true
 # nothing regenerated it when the ledger moved, and the lead had to run
 # `tracker checkpoint` by hand.
 #
-# A project that already has its own pre-commit hook must not lose it: on the
-# first install, a hook that is not ours is preserved as hooks/pre-commit.local
-# and chained at the end of the one below, run only once the guard and the
-# ledger regeneration both succeed. "Is this ours" is a marker comment, not a
-# content diff, so a later run of derecord -- which always rewrites
-# hooks/pre-commit to match this script, same "match, not merely add"
-# idempotence as everywhere else here -- never mistakes its own, now-current
-# copy for a foreign hook and re-chains it a second time.
+# V-07 round 2 findings, all inside the generated hook below:
+#   * finding 1 -- a ledger, its page, or the checkpoint with UNSTAGED edits
+#     refuses the commit outright, rather than rendering the working tree's
+#     copy and stamping the commit with text nobody staged.
+#   * finding 4 -- the checkpoint path staged is whatever `tracker checkpoint`
+#     itself printed, parsed from its stdout, never recomputed from today's
+#     date a second time (the two can disagree across midnight).
+#
+# A project that already has its own pre-commit hook must not lose it (V-07
+# round 2, finding 3): "ours" is a `# derecord-body-sha256: <hex>` line whose
+# value is the sha256 of the hook body that follows it -- generated that way,
+# so coincidental text (even the exact wording of an older, unmarked derecord
+# hook) can never be mistaken for ours. A foreign hook is preserved as
+# hooks/pre-commit.local and chained, once; if pre-commit.local already
+# exists and the current hook is still foreign, derecord refuses rather than
+# picking a side, and writes nothing.
 HOOKS="$($GIT rev-parse --git-path hooks)"
 mkdir -p "$HOOKS"
 PRECOMMIT="$HOOKS/pre-commit"
 LOCAL_HOOK="$HOOKS/pre-commit.local"
-MARKER="# derecord: managed pre-commit hook -- edit bin/derecord in common-rules, not this file"
-if [ -f "$PRECOMMIT" ] && [ ! -f "$LOCAL_HOOK" ] && ! grep -qF "$MARKER" "$PRECOMMIT"; then
-    mv "$PRECOMMIT" "$LOCAL_HOOK"
-    chmod +x "$LOCAL_HOOK"
-    echo "  hooks/pre-commit: project's own hook preserved as hooks/pre-commit.local and chained"
-fi
 
-cat > "$PRECOMMIT" <<'HOOK'
-#!/usr/bin/env bash
-# derecord: managed pre-commit hook -- edit bin/derecord in common-rules, not this file
+BODY_TMPL="$(mktemp)"
+trap 'rm -f "$BODY_TMPL"' EXIT
+cat > "$BODY_TMPL" <<'HOOKBODY'
 set -euo pipefail
 GIT=git; command -v git >/dev/null 2>&1 || GIT=/Library/Developer/CommandLineTools/usr/bin/git
 
@@ -186,30 +210,51 @@ fi
 #    installed hooks (hooks/precompact, hooks/stop, ...) are.
 RULES="__RULES_DIR__"
 TOP="$($GIT rev-parse --show-toplevel)"
+refuse_unstaged() {
+    echo "pre-commit: $1 has unstaged changes; stage all of it (git add $1) or none, so its page matches what is committed" >&2
+    exit 1
+}
+
+# "is a ledger" is read from the INDEX (`git show :path`), what will actually
+# be committed -- not the working tree, which may already have moved on.
 ledgers=""
 for f in $($GIT diff --cached --name-only --diff-filter=ACM); do
     case "$f" in
         docs/proposals/[0-9][0-9]*-*.json) ;;
         *) continue ;;
     esac
-    [ -f "$TOP/$f" ] || continue
-    # "is a ledger": a JSON object with an `items` list (tools/tracker/
-    # ledger.find's rule). docs/proposals also holds plain data files shaped
-    # like NN-*.json -- a sidecar with no `items` -- and those get no
-    # tracker work at all.
-    if python3 -c '
+    # docs/proposals also holds plain data files shaped like NN-*.json -- a
+    # sidecar with no `items` -- and those get no tracker work at all
+    # (tools/tracker/ledger.find's own rule for "is this a ledger").
+    if $GIT show ":$f" 2>/dev/null | python3 -c '
 import json, sys
 try:
-    d = json.load(open(sys.argv[1]))
+    d = json.load(sys.stdin)
 except Exception:
     sys.exit(1)
 sys.exit(0 if isinstance(d, dict) and isinstance(d.get("items"), list) else 1)
-' "$TOP/$f"; then
+'; then
         ledgers="$ledgers $f"
     fi
 done
 
 if [ -n "$ledgers" ]; then
+    # Refuse first, render nothing, if a ledger, its page, or today's
+    # checkpoint has changes that are not staged -- the page about to be
+    # regenerated must carry only what is actually being committed.
+    for f in $ledgers; do
+        $GIT diff --quiet -- "$f" || refuse_unstaged "$f"
+        base=$(basename "$f" .json)
+        page="$TOP/docs/proposals/tracker/$base.html"
+        if $GIT ls-files --error-unmatch -- "$page" >/dev/null 2>&1; then
+            $GIT diff --quiet -- "$page" || refuse_unstaged "$page"
+        fi
+    done
+    cp_guess="$TOP/docs/handovers/$(date +%Y-%m-%d)-checkpoint.md"
+    if $GIT ls-files --error-unmatch -- "$cp_guess" >/dev/null 2>&1; then
+        $GIT diff --quiet -- "$cp_guess" || refuse_unstaged "$cp_guess"
+    fi
+
     for f in $ledgers; do
         out=$(python3 "$RULES/bin/tracker" render "$TOP/$f" 2>&1) || {
             echo "$out" >&2
@@ -221,14 +266,22 @@ if [ -n "$ledgers" ]; then
             $GIT add -- "$page"
         fi
     done
+
+    # Stage exactly the path tracker itself reports, never a path recomputed
+    # a second time from today's date -- the two can disagree across
+    # midnight. If nothing parses (including "no open ledger", which should
+    # not happen right after staging one), fail with tracker's own output
+    # rather than silently proceeding without a checkpoint.
     cp_out=$(python3 "$RULES/bin/tracker" checkpoint --project "$TOP" 2>&1) || {
         echo "$cp_out" >&2
         exit 1
     }
-    cp_path="$TOP/docs/handovers/$(date +%Y-%m-%d)-checkpoint.md"
-    if [ -f "$cp_path" ]; then
-        $GIT add -- "$cp_path"
+    cp_path=$(printf '%s\n' "$cp_out" | sed -n 's/^checkpoint: wrote //p')
+    if [ -z "$cp_path" ]; then
+        echo "$cp_out" >&2
+        exit 1
     fi
+    $GIT add -- "$cp_path"
 fi
 
 # 3. chain to a project's own pre-commit hook, preserved as pre-commit.local
@@ -237,15 +290,49 @@ here="$(cd "$(dirname "$0")" && pwd)"
 if [ -x "$here/pre-commit.local" ]; then
     "$here/pre-commit.local"
 fi
-HOOK
-python3 - "$PRECOMMIT" "$RULES_DIR" <<'PY'
-import sys
-path, rules = sys.argv[1], sys.argv[2]
-text = open(path).read().replace("__RULES_DIR__", rules)
-open(path, "w").write(text)
+HOOKBODY
+
+python3 - "$PRECOMMIT" "$LOCAL_HOOK" "$RULES_DIR" "$BODY_TMPL" <<'PY'
+import hashlib, os, re, shutil, sys
+
+precommit, local_hook, rules_dir, body_tmpl_path = sys.argv[1:5]
+MARKER_RE = re.compile(r'^# derecord-body-sha256: ([0-9a-f]{64})$')
+
+def is_ours(path):
+    """True only when `path` carries a `# derecord-body-sha256: <hex>` line
+    whose value equals the sha256 of everything after that line. Never a
+    text match -- an older, unmarked derecord hook, or a hook that happens
+    to paste in the same words, is foreign (V-07 round 2, finding 3)."""
+    if not os.path.exists(path):
+        return False
+    lines = open(path, "r", errors="replace").read().split("\n")
+    for i, line in enumerate(lines):
+        m = MARKER_RE.match(line)
+        if m:
+            body = "\n".join(lines[i + 1:])
+            return hashlib.sha256(body.encode()).hexdigest() == m.group(1)
+    return False
+
+body = open(body_tmpl_path).read().replace("__RULES_DIR__", rules_dir)
+digest = hashlib.sha256(body.encode()).hexdigest()
+new_content = f"#!/usr/bin/env bash\n# derecord-body-sha256: {digest}\n{body}"
+
+exists = os.path.exists(precommit)
+if exists and not is_ours(precommit):
+    if os.path.exists(local_hook):
+        print(f"derecord: {precommit} is a foreign hook and {local_hook} already exists; "
+              "resolve them by hand -- decide which one is the real local hook, then "
+              "re-run derecord (nothing changed)", file=sys.stderr)
+        sys.exit(1)
+    shutil.move(precommit, local_hook)
+    os.chmod(local_hook, 0o755)
+    print("  hooks/pre-commit: project's own hook preserved as hooks/pre-commit.local and chained")
+
+with open(precommit, "w") as fh:
+    fh.write(new_content)
+os.chmod(precommit, 0o755)
+print("  hooks/pre-commit: conflict-marker guard and ledger regeneration installed")
 PY
-chmod +x "$PRECOMMIT"
-echo "  hooks/pre-commit: conflict-marker guard and ledger regeneration installed"
 
 # --- 3. SessionStart: rulecheck without being asked --------------------------
 SETTINGS=".claude/settings.json"
@@ -435,6 +522,27 @@ if [ "$gi_added" -gt 0 ]; then
     echo "  .gitignore: $gi_added Ruflo runtime line(s) added"
 else
     echo "  .gitignore: Ruflo runtime lines already present"
+fi
+
+# An ignore line does nothing for a path git already tracks (V-07 round 2,
+# finding 5) -- so say so, and name exactly what to run, rather than either
+# silently leaving a false impression that Ruflo state is now out of git, or
+# untracking it ourselves. Scoped to our own lines, not the whole
+# .gitignore, so an unrelated ignore rule with tracked matches stays quiet.
+already_tracked=""
+for line in "${IGNORE_LINES[@]}"; do
+    pathspec="${line%/}"
+    matches=$($GIT ls-files -- "$pathspec")
+    if [ -n "$matches" ]; then
+        already_tracked="$already_tracked
+$matches"
+    fi
+done
+already_tracked=$(printf '%s\n' "$already_tracked" | sed '/^$/d' | sort -u)
+if [ -n "$already_tracked" ]; then
+    n=$(printf '%s\n' "$already_tracked" | grep -c .)
+    echo "derecord: $n Ruflo runtime file(s) are already tracked; the ignore lines do not untrack them. To untrack (the files stay on disk): git rm -r --cached <paths>"
+    printf '%s\n' "$already_tracked" | sed 's/^/    /'
 fi
 
 echo "derecord: $TOP is done."
