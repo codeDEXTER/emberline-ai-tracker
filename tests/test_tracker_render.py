@@ -1344,6 +1344,43 @@ class TestPublishedProject(ProjectCase):
         self.p.git("commit", "-qm", "page untracked")
         self.assert_refused(self.p.published(), INDEX)
 
+    def test_a_ledger_symlinked_outside_the_project_is_refused_not_a_traceback(self):
+        # Round-1 review finding F1: path.resolve().relative_to(root) in the
+        # ledger loop raised ValueError uncaught, printing a Python traceback
+        # instead of a named refusal -- the one path in this function that was
+        # not symlink-guarded like the page and sidecar checks already are.
+        outside = Path(self.p.tmp.name) / "ledger-elsewhere.json"
+        outside.write_text(self.p.ledger().read_text())
+        self.p.ledger().unlink()
+        self.p.ledger().symlink_to(outside)
+        self.p.commit("ledger symlinked out")
+        self.assert_refused(self.p.published(), "19-proposal-warmup.json", "outside the project")
+
+    def test_the_switch_off_refusal_wins_over_a_bad_url(self):
+        # Round-1 review finding F2: the documented refusal order (switch-off,
+        # then url, then declared plan_page, then staleness) had no test that
+        # presented two faults at once, so a silent reorder would go unnoticed.
+        d = second_sample()
+        d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00",
+                                     "quote": "do not publish this one"}}
+        self.p.set_ledger(d, "22-one-tracker.json")
+        self.p.board()
+        self.p.commit("publish off in one ledger")
+        r = subprocess.run([sys.executable, str(TRACKER), "published", "--project", str(self.p.root),
+                            "--url", "not-a-url"], capture_output=True, text=True, check=False)
+        self.assert_refused(r, "switched off")
+        self.assertNotIn("url", r.stderr)
+
+    def test_no_ledgers_wins_over_a_bad_url(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "plain"
+            (root / "docs" / "proposals").mkdir(parents=True)
+            r = subprocess.run([sys.executable, str(TRACKER), "published", "--project", str(root),
+                                "--url", "not-a-url"], capture_output=True, text=True, check=False)
+            self.assertEqual(2, r.returncode, r.stdout + r.stderr)
+            self.assertIn("no ledger", r.stderr)
+            self.assertNotIn("url", r.stderr)
+
     def test_a_symlinked_sidecar_page_or_tracker_directory_is_refused(self):
         outside = Path(self.p.tmp.name) / "outside.json"
         outside.write_text("untouched\n")
@@ -1442,6 +1479,18 @@ class TestPublishedProjectWithADeclaredPlanPage(unittest.TestCase):
         self.assertIn("--page", r.stderr)
         self.assertIn("nothing recorded", r.stderr)
         self.assertFalse(self.p.sidecar.exists())
+
+    def test_plan_page_refusal_wins_over_a_stale_project_page(self):
+        # Round-1 review finding F2: the plan_page carve-out runs before the
+        # project page's own freshness check, so a stale index.html should
+        # never surface -- pinned so a reorder would fail loudly.
+        d = second_sample(); d["items"][0]["status"] = "in progress"
+        self.p.set_ledger(d, "22-one-tracker.json")
+        self.p.commit("ledger moved, project page not rendered")
+        r = self.p.published()
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn("plan_page", r.stderr)
+        self.assertNotIn("stale", r.stderr)
 
     def test_a_broken_declaration_is_refused_with_its_problems_named(self):
         (self.p.root / ".common-rules.json").write_text("{not json")

@@ -771,6 +771,11 @@ def published_project_main(args) -> int:
               file=sys.stderr)
         return 1
     for path in paths:
+        if not _inside(root, path):
+            print(f"{say} {_printable(path)} resolves outside the project {_printable(root)} "
+                  "(a symlinked ledger) -- a ledger is read only from within the project -- nothing recorded",
+                  file=sys.stderr)
+            return 1
         rel = path.resolve().relative_to(root).as_posix()
         if not (_tracked(root, rel) and _clean(root, rel)):
             print(f"{say} {_printable(rel)}: the ledger has uncommitted changes -- commit it first "

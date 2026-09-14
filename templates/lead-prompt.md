@@ -75,7 +75,7 @@ this job and is not watching in real time. You are.
   with your Artifact tool to the same URL, then record it with
   `bin/tracker published --project . --url <url> --by <your session's name>`
   and commit the sidecar, `docs/proposals/tracker/index.published.json`, on
-  its own. No sponsor prompt is needed; when a ledger's `switches.publish`
+  its own. No sponsor prompt is needed; when any ledger's `switches.publish`
   is off, nothing is published. A republish is not logged as a ledger
   event: the sidecar's `at` and `by` in git are the record. This is the one
   exception to the log-entry rule above, because a log entry would itself
