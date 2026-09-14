@@ -65,6 +65,14 @@ stopped by its explicit PID, and only if this session started it.
   2026-09-14: *"keep going, merge when reviews pass"*.
 - **Ruflo is mandatory.** VERIFIED, his words on 2026-09-13 (proposal 19):
   *"i want ruflo to be mandatory"*.
+- **No subagent this lead session dispatches uses Opus.** VERIFIED, his words
+  in this session on 2026-09-14: *"Please don't use more than Sonnet."*, then
+  *"Put some mandatory rule for uh, sub agents don't use Opus."* Scoped to this
+  lead session, not every project on the standard (proposal 21, A-12): every
+  `Agent` call this session makes passes `model: "sonnet"`, including
+  report-only review roles a tier table would otherwise route to Opus. Work
+  already dispatched at Opus before this ruling is finished, never killed and
+  restarted, per Rule 0 (never break work in flight).
 
 ---
 
