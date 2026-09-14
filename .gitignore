@@ -42,3 +42,6 @@ ruvector.db
 .claude/memory.db
 .claude/proven-config.json
 .claude/.proven-config-version
+.claude-flow/data
+.claude-flow/logs
+.claude-flow/sessions
