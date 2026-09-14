@@ -1,0 +1,964 @@
+#!/usr/bin/env python3
+"""conformance -- /standard's twelve items, measured (proposal 21, S-04).
+
+  conformance [--project DIR] [--json]
+
+The sponsor made the standard mandatory for every project (proposal 21,
+A-01 to A-04), and a session reports "standard: N of 12 hold". That number
+comes from here, not from a session's say-so. The contract is
+skills/standard/SKILL.md, sections 2 and 3; each item below is the
+mechanical rule this tool applies for it.
+
+OUTPUT. The first line is `standard: N of 12 hold`, then one line per item:
+`✓` holds, `✗` does not hold (why, then the fix), `…` waiting on
+common-rules (what RULES is missing). Every value printed -- in the text and
+in --json -- goes through bin/warmup's shown(), so a ledger id or a path
+cannot forge a line or hide text. --json gives
+{"project", "hold", "total": 12, "items": [{"n", "name", "state", "why", "fix"}]},
+where state is "holds", "does not hold" or "waiting".
+
+DIR is resolved to its git top level, as bin/warmup does.
+
+THE TWELVE RULES
+
+ 1 Rules read and implemented. Holds when DIR is the rules repository
+   itself: the same checkout as this tool, or a checkout sharing its git
+   common directory (a worktree of it). rulecheck reports that case as
+   "nothing to align against". Otherwise `.common-rules-version` must exist,
+   be tracked (`git ls-files --error-unmatch`), and on disk be exactly the
+   blob at HEAD: an uncommitted stamp is no record. Then bin/rulecheck's own
+   mandatory_pending(), called in-process, decides by its state:
+     aligned                          holds
+     ahead                            holds, "ahead of this rules checkout --
+                                      update common-rules"; never the project's fault
+     behind, no entry pending         holds (information only)
+     behind, entries (diverged too)   does not hold, naming the headings
+     unresolvable                     does not hold: "the stamp names no commit in
+                                      common-rules", listing every entry it counts
+     could not check, not adopting,
+     anything else                    does not hold, saying which
+   Without mandatory_pending() in RULES the item waits on common-rules.
+ 2 Migrated. tools/tracker/ledger.find() finds at least one ledger. Every
+   ledger found parses and validate()s. Each ledger's tracker page is
+   fresh: tools/tracker/render.freshness(), which is exactly what
+   `tracker render --check` calls.
+ 3 Declared. `.common-rules.json` exists, tools/project.problems() is empty,
+   and tools/project.declared() -- only what the file validly declares, no
+   defaults and no `.common-rules-test` fallback -- has read_order,
+   safety_rules, gates.quick and gates.merge. plan_check and plan_page are
+   asked for only "when the project has its own generator", which no tool
+   can see, so they are not checked.
+ 4 Installed. All of these:
+   - the git pre-commit hook (`git rev-parse --git-path hooks`, which
+     honours core.hooksPath) is byte for byte what this derecord installs:
+     the `<<'HOOKBODY'` template read from bin/derecord, with the hook's own
+     RULES="..." substituted, under the `# derecord-body-sha256:` line
+     derecord computes -- and that RULES must be a rules checkout (below). A
+     self-consistent sha line alone is only derecord's "may I overwrite"
+     test: a forged hook, a hand edit, a hook from an older derecord or one
+     naming a copy of the rules does not hold. The fix is to re-run derecord;
+   - `.claude/settings.json` has a SessionStart, a PreCompact and a Stop
+     command for hooks/sessionstart, hooks/precompact and hooks/stop, and a
+     PostToolUse command for hooks/posttooluse-agent. Each command, resolved
+     through symlinks, must be RULES_DIR/hooks/<name>, or hooks/<name> at the
+     top of a checkout sharing RULES_DIR's git common directory (the main
+     checkout, or a worktree of it). A copied hooks/ directory does not hold.
+     The matcher is not checked; derecord corrects it;
+   - every line in bin/derecord's IGNORE_LINES (read from derecord, so the
+     two cannot drift) is decided by git, never by a verbatim line, which a
+     later `!line` undoes: `git check-ignore -v -z --stdin --no-index` shows a `.gitignore` file inside
+     the project ignoring its path, as written or as a directory, with a
+     pattern that is not a negation. The PhotoVault app writes `.swarm/*`
+     at the top and ignores `.claude-flow/data` from its own
+     `.claude-flow/.gitignore`: the same paths, other spellings.
+     `.git/info/exclude` and a personal core.excludesFile do not count,
+     even one named .gitignore, because a clone would track the file;
+   - `git ls-files -- <line>` lists nothing for any of those lines, the
+     same pathspec derecord uses to warn.
+ 5 Lead prompt. The prompts are every regular *lead-prompt*.md file at most
+   three levels under docs/ (derecord's `find docs -maxdepth 3`, which
+   covers docs/handovers/), not under a `superseded` folder. There must be
+   at least one. When RULES' templates/lead-prompt.md does not carry
+   `<!-- common-rules:lead-prompt proposal/21 -->` the item is waiting on
+   common-rules (S-06). Otherwise every prompt must carry that marker.
+   A PROXY: the marker shows a prompt was regenerated from the template, not
+   that it carries the project's own rules or says anything in particular.
+ 6 The ledger speaks the common language. For every ledger:
+   - every blocked row, and every open ask of kind decision, has an `owner`
+     matching tools/tracker/ledger.py's OWNER: sponsor, lead or
+     session:<name> ("bob" does not hold);
+   - every row's `tag` is `[ruflo · <tier> · <model>]`, and exactly
+     f"[ruflo · {tier} · {model}]" when the row has tier and model fields;
+   - exactly one of the keys `tiers` and `model_routing` is present;
+   - the problems validate() finds with `requests` are none: validate()
+     of the ledger minus validate() of the ledger without `requests`.
+     A PROXY for requests: their shape is checked, but whether the other
+     session named in `from`/`to` exists or knows of the request cannot be
+     verified read-only from this project.
+   Offending ids are named, the first five of each kind. No ledger does not
+   hold.
+ 7 Proposals. `bin/proposalcheck --project DIR` exits 0. Exit 2, no
+   docs/proposals, does not hold.
+ 8 No hand-kept duplicates. Holds when .common-rules.json validly declares
+   plan_page. Otherwise, for every ledger NN-slug.json, a sibling
+   NN-slug.md either does not exist, or has at most 5 lines and contains
+   the ledger's file name. No ledger: nothing to duplicate, so it holds.
+   A PROXY: only a same-stem .md twin is checked. A hand-kept mirror under
+   any other name, or a hand-updated artifact, is not seen.
+ 9 Ruflo around items -- a PROXY. No file proves the Ruflo loop ran around
+   each item; these are the traces it leaves. The item holds when any of
+   these is true, checked in order:
+   - a ledger records switches.ruflo off (reported as "switched off by ...");
+   - there is Ruflo memory state: a non-empty *.db in .swarm/ (memory.db
+     among them), in DIR or in its main checkout. The database lives only in
+     the main checkout, never in a worktree. A 0-byte file does not count;
+   - a row in progress or done has a log entry whose event or evidence names
+     a Ruflo step -- `ruflo-item`, `post-task` or `memory store`,
+     case-insensitive. The bare word "ruflo" does not count.
+10 Publishing recorded. Every docs/proposals/tracker/*.published.json is
+   well-formed. One beside its ledger is read by bin/warmup's own
+   publish_state(), and a problem it names does not hold. One without a
+   ledger is read with tools/tracker/render.published_problems(), and never
+   through a symlink or outside DIR. "Page changed since publish" is a
+   to-do, not a failure. No sidecar holds.
+11 CLAUDE.md pointer. A CLAUDE.md that is a symlink, or resolves outside the
+   project, is not read and does not hold -- the policy of items 5 and 10.
+   CLAUDE.md contains the `<!-- common-rules:warmup -->`
+   ... `<!-- /common-rules:warmup -->` block, and the block equals
+   tools/migrate.pointer_block() for the read order tools/project.load()
+   gives. CLAUDE.md must be tracked at HEAD, and when
+   `git diff HEAD -- CLAUDE.md` is not empty, the block at HEAD must equal
+   the block on disk. That is: the uncommitted diff does not touch the
+   block. Staged but uncommitted counts as uncommitted. The diff runs as its
+   plumbing form, `git diff-index -p HEAD`, because porcelain `git diff`
+   rewrites .git/index when the stat data is stale.
+12 Card. `bin/warmup --project DIR --check --no-recall` exits 0.
+
+READ-ONLY. Nothing here writes. It runs two tools, each confirmed read-only
+from its code -- `proposalcheck`, and `warmup --check --no-recall` with no
+--state or --migrate -- and calls rulecheck's mandatory_pending() in-process,
+which only reads. Every git and child process runs with GIT_OPTIONAL_LOCKS=0,
+and the tool sets it in its own environment before calling rulecheck
+in-process, whose git runs inherit it; so a `git diff` or a warmup `git log`
+never refreshes an index opportunistically. Children also get
+PYTHONDONTWRITEBYTECODE=1. This tool's own git calls add
+`-c core.fsmonitor=false`, `--no-ext-diff` and `--no-textconv`: a project's
+config or .gitattributes must not make a read run a command.
+tests/test_conformance.py snapshots every byte and mtime of a project,
+.git included, around a run.
+
+Exit codes:
+  0  no item does not hold. A waiting item does not make it 1: what is
+     missing is in common-rules, not the project.
+  1  any item does not hold.
+  2  could not run: DIR is not inside a git repository, or bin/warmup
+     could not be loaded.
+"""
+from __future__ import annotations
+
+import argparse
+import functools
+import hashlib
+import importlib.machinery
+import importlib.util
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path, PurePosixPath
+from typing import NamedTuple
+
+sys.dont_write_bytecode = True
+RULES_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RULES_DIR))
+
+from tools import migrate as M  # noqa: E402
+from tools import project as P  # noqa: E402
+from tools.tracker import ledger as L  # noqa: E402
+from tools.tracker import render as R  # noqa: E402
+
+HOLDS, NOT, WAITING = "holds", "does not hold", "waiting"
+TOTAL = 12
+TIMEOUT = 900
+STAMP = ".common-rules-version"
+LEAD_TEMPLATE = RULES_DIR / "templates" / "lead-prompt.md"
+LEAD_MARKER = "<!-- common-rules:lead-prompt proposal/21 -->"
+SETTINGS_HOOKS = (("SessionStart", "sessionstart"), ("PreCompact", "precompact"),
+                  ("Stop", "stop"), ("PostToolUse", "posttooluse-agent"))
+FIRST = 5
+_TAG_PART = r"[^·\[\]\s](?:[^·\[\]\x00-\x1f]*[^·\[\]\s])?"
+TAG = re.compile(rf"\[ruflo · ({_TAG_PART}) · ({_TAG_PART})\]")
+RUFLO_STEPS = ("ruflo-item", "post-task", "memory store")
+
+
+def _load(name: str, path: Path):
+    loader = importlib.machinery.SourceFileLoader(name, str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+try:
+    W = _load("_conformance_warmup", RULES_DIR / "bin" / "warmup")
+except Exception:  # noqa: BLE001 -- any failure to load is "could not run", reported by main()
+    W = None
+
+
+def _mandatory_pending():
+    """rulecheck.mandatory_pending (S-09) when this checkout's rulecheck has it, else None."""
+    try:
+        module = _load("_conformance_rulecheck", RULES_DIR / "bin" / "rulecheck")
+    except Exception:  # noqa: BLE001
+        return None
+    fn = getattr(module, "mandatory_pending", None)
+    return fn if callable(fn) else None
+
+
+MANDATORY_PENDING = _mandatory_pending()
+
+
+def shown(value) -> str:
+    return W.shown(value)
+
+
+class Result(NamedTuple):
+    # A NamedTuple, not a dataclass: @dataclass looks its module up in
+    # sys.modules, and this file is loaded by path (no .py), where it is not.
+    state: str
+    why: str = ""
+    fix: str = ""
+
+
+def holds(why: str = "") -> Result:
+    return Result(HOLDS, why, "")
+
+
+def not_hold(why: str, fix: str) -> Result:
+    return Result(NOT, why, fix)
+
+
+def waiting(why: str, fix: str = "") -> Result:
+    return Result(WAITING, why, fix)
+
+
+class CouldNotRun(Exception):
+    pass
+
+
+def _env() -> dict:
+    return dict(os.environ, GIT_OPTIONAL_LOCKS="0", PYTHONDONTWRITEBYTECODE="1")
+
+
+def run(cmd: list, input: str | None = None) -> subprocess.CompletedProcess | str:
+    """The finished process, or a sentence saying why it did not finish."""
+    feed = {"input": input} if input is not None else {"stdin": subprocess.DEVNULL}
+    try:
+        return subprocess.run([str(c) for c in cmd], capture_output=True, text=True, errors="replace",
+                              check=False, timeout=TIMEOUT, env=_env(), **feed)
+    except subprocess.TimeoutExpired:
+        return f"{Path(str(cmd[1] if cmd[0] == sys.executable else cmd[0])).name} did not finish in {TIMEOUT} s"
+    except OSError as exc:
+        return f"{Path(str(cmd[0])).name} could not be started ({type(exc).__name__})"
+
+
+def _joined(values: list, cap: int = FIRST) -> str:
+    head = ", ".join(str(v) for v in values[:cap])
+    return head + (f" (+{len(values) - cap} more)" if len(values) > cap else "")
+
+
+def _first_line(text: str) -> str:
+    return next((l.strip() for l in text.splitlines() if l.strip()), "")
+
+
+class Context:
+    def __init__(self, root: Path):
+        self.root = Path(root)
+        self._ledgers: list | None = None
+
+    def git(self, *args: str, input: str | None = None) -> subprocess.CompletedProcess | str:
+        return run(["git", "-c", "core.fsmonitor=false", "-C", self.root, *args], input=input)
+
+    def git_out(self, *args: str, input: str | None = None) -> str | None:
+        r = self.git(*args, input=input)
+        return r.stdout if isinstance(r, subprocess.CompletedProcess) and r.returncode == 0 else None
+
+    def rel(self, path: Path) -> str:
+        try:
+            return str(Path(path).relative_to(self.root))
+        except ValueError:
+            return str(path)
+
+    def ledgers(self) -> list[tuple[Path, dict | None, str | None]]:
+        """(path, the ledger or None, why it could not be read or None), in find() order."""
+        if self._ledgers is None:
+            out = []
+            for p in L.find(self.root):
+                try:
+                    data = L.load(p)
+                except (OSError, ValueError):
+                    out.append((p, None, "is not valid JSON"))
+                    continue
+                if not isinstance(data, dict):
+                    out.append((p, None, "is not a JSON object"))
+                    continue
+                out.append((p, data, None))
+            self._ledgers = out
+        return self._ledgers
+
+    def declared(self) -> dict:
+        try:
+            return P.declared(self.root)
+        except (OSError, ValueError):
+            return {}
+
+
+def common_dir(path: Path) -> Path | None:
+    r = run(["git", "-C", path, "rev-parse", "--git-common-dir"])
+    if not isinstance(r, subprocess.CompletedProcess) or r.returncode != 0 or not r.stdout.strip():
+        return None
+    p = Path(r.stdout.strip())
+    return (p if p.is_absolute() else Path(path) / p).resolve()
+
+
+def toplevel(project: Path) -> Path | None:
+    if not Path(project).is_dir():
+        return None
+    r = run(["git", "-C", project, "rev-parse", "--show-toplevel"])
+    if not isinstance(r, subprocess.CompletedProcess) or r.returncode != 0 or not r.stdout.strip():
+        return None
+    return Path(r.stdout.strip())
+
+
+# --- 1 -----------------------------------------------------------------------
+
+def is_rules_repository(root: Path) -> bool:
+    if Path(root).resolve() == RULES_DIR.resolve():
+        return True
+    mine, theirs = common_dir(RULES_DIR), common_dir(root)
+    return mine is not None and mine == theirs
+
+
+def check_rules(ctx: Context) -> Result:
+    root = ctx.root
+    if is_rules_repository(root):
+        return holds("this is the rules repository itself -- rulecheck: nothing to align against")
+    align = f"{RULES_DIR}/bin/rulecheck --project {root} --align"
+    if not (root / STAMP).is_file():
+        return not_hold(f"{STAMP} is absent -- the project has never recorded which rules it follows",
+                        f"read common-rules' CHANGELOG.md, implement every Standard change entry, then run "
+                        f"{align} and commit the stamp")
+    if not stamp_committed(ctx):
+        return not_hold(f"{STAMP} is not committed -- untracked, or it differs from HEAD -- so the project's "
+                        f"record does not say which rules it follows",
+                        f"commit {STAMP}; if it is behind, implement what rulecheck names first, then {align}")
+    fn = MANDATORY_PENDING
+    if fn is None:
+        return waiting("RULES' bin/rulecheck has no mandatory_pending() (S-09), so a mandatory Standard change "
+                       "cannot be told from information",
+                       "nothing to do in the project; update common-rules")
+    # rulecheck runs git in-process, against the rules repo: the same promise
+    # the child processes get, never an index refresh.
+    os.environ["GIT_OPTIONAL_LOCKS"] = "0"
+    try:
+        p = fn(root)
+    except Exception as exc:  # noqa: BLE001
+        return not_hold(f"rulecheck's mandatory_pending() failed ({type(exc).__name__})",
+                        f"run {RULES_DIR}/bin/rulecheck --project {root} --mandatory and fix what it names")
+    entries = tuple(p.entries or ())
+    headings = _joined([e.heading for e in entries], 3)
+    implement = (f"implement each entry and record it in the ledger (skills/standard section 3), then run "
+                 f"{align} and commit the stamp")
+    if p.state == "aligned":
+        return holds(f"stamp aligned with common-rules {p.current}")
+    if p.state == "ahead":
+        return holds(f"stamp {p.stamp} is ahead of this rules checkout -- update common-rules")
+    if p.state == "behind" and not entries:
+        return holds(f"stamp {p.stamp} is behind {p.current} on information only -- no mandatory Standard "
+                     f"change pending")
+    if p.state == "behind":
+        return not_hold(f"{len(entries)} mandatory Standard change(s) pending since the stamp: {headings}", implement)
+    if p.state == "unresolvable":
+        listed = (f"; every mandatory Standard change counts ({len(entries)}): {headings}" if entries
+                  else "; the rules CHANGELOG carries no mandatory Standard change")
+        return not_hold(f"the stamp names no commit in common-rules{listed}", implement)
+    if p.state == "no stamp":
+        return not_hold(f"{STAMP} is absent", implement)
+    if p.state == "could not check":
+        return not_hold(f"rulecheck could not check the stamp: {p.why}",
+                        f"run {RULES_DIR}/bin/rulecheck --project {root} --mandatory and fix what it names")
+    if p.state == "not adopting":
+        return not_hold("rulecheck does not count the project as adopting the rules, though it has a stamp",
+                        f"run {RULES_DIR}/bin/rulecheck --project {root} and fix what it names")
+    return not_hold(f"rulecheck answered a state bin/conformance does not know: {p.state!r}",
+                    "nothing the project can do; common-rules must teach bin/conformance this state")
+
+
+def stamp_committed(ctx: Context) -> bool:
+    """The stamp is tracked, and the file on disk is what HEAD holds. Compared
+    by content, not `git diff`, which reads stale stat data as a change."""
+    if ctx.git_out("ls-files", "--error-unmatch", "--", STAMP) is None:
+        return False
+    at_head = ctx.git_out("show", "--no-textconv", f"HEAD:{STAMP}")
+    try:
+        on_disk = (ctx.root / STAMP).read_bytes().decode("utf-8", errors="replace")
+    except OSError:
+        return False
+    return at_head is not None and at_head == on_disk
+
+
+# --- 2 -----------------------------------------------------------------------
+
+def check_migrated(ctx: Context) -> Result:
+    ledgers = ctx.ledgers()
+    migrate = f"{RULES_DIR}/bin/warmup --project {ctx.root} --migrate --dry-run --at <now>, then without --dry-run"
+    if not ledgers:
+        return not_hold("no ledger under docs/proposals (docs/proposals/NN-*.json with an items list)",
+                        f"run {migrate}; a plan that is not a ledger yet becomes one with tracker import")
+    bad = []
+    for path, data, err in ledgers:
+        rel = ctx.rel(path)
+        if err:
+            bad.append(f"{rel} {err}")
+            continue
+        problems = L.validate(data)
+        if problems:
+            bad.append(f"{rel}: {len(problems)} problem(s), first: {problems[0]}")
+            continue
+        page = R.default_out(path)
+        fresh = R.freshness(path, page)
+        if fresh != "ok":
+            bad.append(f"page {ctx.rel(page)} is {fresh}")
+    if bad:
+        return not_hold("; ".join(bad[:3]) + (f" (+{len(bad) - 3} more)" if len(bad) > 3 else ""),
+                        f"fix what {RULES_DIR}/bin/tracker validate names, then run {RULES_DIR}/bin/tracker "
+                        f"render <ledger> (the pre-commit hook does it on commit)")
+    return holds(f"{len(ledgers)} ledger(s), each valid, each page matching")
+
+
+# --- 3 -----------------------------------------------------------------------
+
+def check_declared(ctx: Context) -> Result:
+    if not (ctx.root / P.FILE).is_file():
+        return not_hold(f"{P.FILE} is absent",
+                        f"declare read_order, safety_rules, gates.quick and gates.merge in {P.FILE}")
+    problems = P.problems(ctx.root)
+    if problems:
+        return not_hold(f"{P.FILE} has {len(problems)} problem(s), first: {problems[0]}",
+                        f"fix {P.FILE}; {RULES_DIR}/bin/warmup --check names every problem")
+    own = ctx.declared()
+    missing = [k for k in ("read_order", "safety_rules") if k not in own]
+    missing += [f"gates.{g}" for g in ("quick", "merge") if g not in own.get("gates", {})]
+    if missing:
+        return not_hold(f"{P.FILE} does not declare {', '.join(missing)}",
+                        f"declare {', '.join(missing)} in {P.FILE}")
+    return holds("declares read_order, safety_rules, gates.quick and gates.merge")
+
+
+# --- 4 -----------------------------------------------------------------------
+
+@functools.lru_cache(maxsize=None)
+def _rules_common_dir() -> Path | None:
+    return common_dir(RULES_DIR)
+
+
+def is_rules_checkout(path: Path) -> bool:
+    """`path` is this common-rules checkout, or the top of a checkout sharing its
+    git common directory (the main checkout, or another worktree of it)."""
+    try:
+        real = Path(path).resolve()
+    except (OSError, RuntimeError, ValueError):
+        return False
+    if real == RULES_DIR.resolve():
+        return True
+    if not real.is_dir():
+        return False
+    top = toplevel(real)
+    mine = _rules_common_dir()
+    return top is not None and top.resolve() == real and mine is not None and common_dir(real) == mine
+
+
+def derecord_hook_template() -> str | None:
+    """The hook body bin/derecord writes, read from derecord itself: its
+    `<<'HOOKBODY'` heredoc, with __RULES_DIR__ still in it."""
+    text = (RULES_DIR / "bin" / "derecord").read_text(errors="replace")
+    m = re.search(r"<<'HOOKBODY'\n(.*?\n)HOOKBODY\n", text, re.S)
+    return m.group(1) if m else None
+
+
+def hook_is_derecords(path: Path, template: str) -> bool:
+    """The hook is byte for byte what this derecord installs: its template with
+    a rules checkout substituted, under the marker derecord computes. A
+    self-consistent marker is only derecord's "may I overwrite" test -- a hook
+    edited by hand, from an older derecord, or naming a copy of the rules
+    passes that and fails this."""
+    text = path.read_bytes().decode("utf-8", errors="replace")
+    m = re.search(r'^RULES="([^"\n]*)"$', text, re.M)
+    if not m or not is_rules_checkout(Path(m.group(1))):
+        return False
+    body = template.replace("__RULES_DIR__", m.group(1))
+    return text == f"#!/usr/bin/env bash\n# derecord-body-sha256: {hashlib.sha256(body.encode()).hexdigest()}\n{body}"
+
+
+def derecord_ignore_lines() -> list[str]:
+    text = (RULES_DIR / "bin" / "derecord").read_text(errors="replace")
+    m = re.search(r"^IGNORE_LINES=\(\n(.*?)^\)", text, re.M | re.S)
+    return re.findall(r'"([^"\n]+)"', m.group(1)) if m else []
+
+
+def ignored_by_gitignore(ctx: Context, line: str) -> bool:
+    """git ignores the line's path -- as written, or as a directory -- by a
+    .gitignore file inside the project, with a pattern that is not a negation.
+    .git/info/exclude and a personal core.excludesFile are this machine's, not
+    the project's: a clone would track the file, so neither counts. -z, so a
+    source or path with a colon or quoting cannot be misread -- and git
+    refuses -z without --stdin ("-z only makes sense with --stdin", exit 128),
+    so the path goes in on stdin, NUL-terminated, never as an argument."""
+    for probe in dict.fromkeys((line, line.rstrip("/") + "/")):
+        out = ctx.git_out("check-ignore", "-v", "-z", "--stdin", "--no-index", input=probe + "\0")
+        fields = (out or "").split("\0")
+        if len(fields) < 4:
+            continue
+        source, pattern = fields[0], fields[2]
+        where = PurePosixPath(source)
+        if (source and not where.is_absolute() and ".." not in where.parts and where.name == ".gitignore"
+                and not where.parts[0] == ".git" and not pattern.startswith("!")):
+            return True
+    return False
+
+
+def check_installed(ctx: Context) -> Result:
+    root = ctx.root
+    problems: list[str] = []
+    template = derecord_hook_template()
+    if template is None:
+        return waiting("bin/derecord no longer writes its hook from a <<'HOOKBODY' heredoc where conformance "
+                       "reads it", "nothing to do in the project; common-rules must reconcile the two")
+    derecord = f"{RULES_DIR}/bin/derecord {root}"
+    fixes = [f"run {derecord}"]
+
+    hooks_dir = ctx.git_out("rev-parse", "--git-path", "hooks")
+    hook = None
+    if hooks_dir and hooks_dir.strip():
+        hook = Path(hooks_dir.strip())
+        hook = (hook if hook.is_absolute() else root / hook) / "pre-commit"
+    if hook is None or not hook.is_file():
+        problems.append("no git pre-commit hook")
+    elif not hook_is_derecords(hook, template):
+        problems.append("the git pre-commit hook is not the one this common-rules' bin/derecord installs "
+                        "(edited by hand, from an older derecord, or naming another rules checkout)")
+
+    settings_path = root / ".claude" / "settings.json"
+    settings = None
+    if not settings_path.is_file():
+        problems.append("no .claude/settings.json")
+    else:
+        try:
+            settings = json.loads(settings_path.read_text())
+        except (OSError, ValueError):
+            problems.append(".claude/settings.json is not valid JSON")
+    if settings is not None:
+        hooks = settings.get("hooks") if isinstance(settings, dict) else None
+        hooks = hooks if isinstance(hooks, dict) else {}
+        for event, name in SETTINGS_HOOKS:
+            commands = [h.get("command") for e in (hooks.get(event) or []) if isinstance(e, dict)
+                        for h in (e.get("hooks") or []) if isinstance(h, dict)]
+            ok = False
+            for c in commands:
+                if not isinstance(c, str) or not Path(c.strip()).is_absolute():
+                    continue
+                try:
+                    real = Path(c.strip()).resolve()
+                except (OSError, RuntimeError, ValueError):
+                    continue
+                # Resolved: RULES_DIR/hooks/<name>, or hooks/<name> in a checkout
+                # sharing its git common directory. A copied hooks/ is not ours.
+                if (real.name == name and real.parent.name == "hooks" and real.is_file()
+                        and is_rules_checkout(real.parent.parent)):
+                    ok = True
+                    break
+            if not ok:
+                problems.append(f"no {event} hook running common-rules' hooks/{name}")
+
+    lines = derecord_ignore_lines()
+    if not lines:
+        return waiting("bin/derecord no longer declares IGNORE_LINES where conformance reads them",
+                       "nothing to do in the project; common-rules must reconcile the two")
+    # Always git's answer: a verbatim line can be undone by a later `!line`.
+    missing = [l for l in lines if not ignored_by_gitignore(ctx, l)]
+    if missing:
+        problems.append(f".gitignore does not ignore {_joined(missing)}")
+
+    tracked: list[str] = []
+    for line in lines:
+        out = ctx.git_out("ls-files", "--", line.rstrip("/"))
+        tracked += [t for t in (out or "").splitlines() if t]
+    tracked = sorted(set(tracked))
+    if tracked:
+        problems.append(f"Ruflo runtime file(s) tracked: {_joined(tracked)}")
+        fixes.append("untrack them, after asking the sponsor (the files stay on disk): git rm -r --cached "
+                     + " ".join(tracked[:FIRST]))
+    if problems:
+        return not_hold("; ".join(problems), "; ".join(fixes))
+    return holds("derecord's pre-commit hook, checkpoint and agent hooks, and Ruflo ignore lines are in place")
+
+
+# --- 5 -----------------------------------------------------------------------
+
+def lead_prompts(root: Path) -> list[Path]:
+    docs = root / "docs"
+    found = []
+    if not docs.is_dir():
+        return found
+    for dirpath, dirnames, filenames in os.walk(docs, followlinks=False):
+        depth = len(Path(dirpath).relative_to(docs).parts)
+        dirnames[:] = [d for d in dirnames if d != "superseded" and depth < 2]
+        for name in filenames:
+            p = Path(dirpath) / name
+            if (re.fullmatch(r".*lead-prompt.*\.md", name) and p.is_file() and not p.is_symlink()
+                    and P.inside(root, str(p.relative_to(root)))):
+                found.append(p)
+    return sorted(found)
+
+
+def check_lead_prompt(ctx: Context) -> Result:
+    prompts = lead_prompts(ctx.root)
+    template = f"{RULES_DIR}/templates/lead-prompt.md"
+    if not prompts:
+        return not_hold("no lead prompt under docs/ (docs/handovers/*lead-prompt*.md, or *lead-prompt*.md up to "
+                        "three levels down)",
+                        f"regenerate it from {template}; {RULES_DIR}/bin/derecord seeds docs/handovers/lead-prompt.md")
+    try:
+        carries = LEAD_MARKER in Path(LEAD_TEMPLATE).read_text(errors="replace")
+    except OSError:
+        carries = False
+    if not carries:
+        return waiting(f"RULES' templates/lead-prompt.md does not carry {LEAD_MARKER} yet (S-06), so a prompt "
+                       f"regenerated from it cannot be told from an older one",
+                       "nothing to do in the project yet; this re-measures once S-06 is merged")
+    missing = [ctx.rel(p) for p in prompts if LEAD_MARKER not in p.read_text(errors="replace")]
+    if missing:
+        return not_hold(f"{_joined(missing, 3)} does not carry {LEAD_MARKER} -- not regenerated from the template",
+                        f"regenerate it from {template}, carry the project's own rules into its sections, and keep "
+                        f"the old prompt under docs/handovers/superseded/")
+    return holds(f"{len(prompts)} lead prompt(s), each from the template")
+
+
+# --- 6 -----------------------------------------------------------------------
+
+def owned(row: dict) -> bool:
+    """`owner` is sponsor, lead or session:<name> -- tools/tracker/ledger.py's OWNER."""
+    return isinstance(row.get("owner"), str) and bool(L.OWNER.match(row["owner"]))
+
+
+def tagged(row: dict) -> bool:
+    """The tag is `[ruflo · <tier> · <model>]`, and exactly the row's own when it
+    names a tier and a model."""
+    tag = row.get("tag")
+    if not isinstance(tag, str) or not TAG.fullmatch(tag):
+        return False
+    tier, model = row.get("tier"), row.get("model")
+    if isinstance(tier, str) and tier and isinstance(model, str) and model:
+        return tag == f"[ruflo · {tier} · {model}]"
+    return True
+
+
+def _request_problems(data: dict) -> list[str]:
+    without = {k: v for k, v in data.items() if k != "requests"}
+    other = set(L.validate(without))
+    return [p for p in L.validate(data) if p not in other]
+
+
+def check_language(ctx: Context) -> Result:
+    ledgers = ctx.ledgers()
+    if not ledgers:
+        return not_hold("no ledger to speak it", "migrate first (item 2)")
+    parts = []
+    for path, data, err in ledgers:
+        rel = ctx.rel(path)
+        if err:
+            parts.append(f"{rel} {err}")
+            continue
+        rows = [i for i in (data.get("items") or []) if isinstance(i, dict)]
+        asks = [a for a in (data.get("asks") or []) if isinstance(a, dict)]
+
+        def ident(x, n, kind):
+            return x.get("id") if x.get("id") else f"{kind}[{n}]"
+
+        blocked = [ident(i, n, "items") for n, i in enumerate(rows) if i.get("status") == "blocked" and not owned(i)]
+        open_asks = [ident(a, n, "asks") for n, a in enumerate(asks)
+                     if a.get("state") == "open" and a.get("kind") == "decision" and not owned(a)]
+        untagged = [ident(i, n, "items") for n, i in enumerate(rows) if not tagged(i)]
+        tables = [k for k in ("tiers", "model_routing") if k in data]
+        requests = _request_problems(data)
+        mine = []
+        if blocked:
+            mine.append(f"blocked without a valid owner: {_joined(blocked)}")
+        if open_asks:
+            mine.append(f"open decision asks without a valid owner: {_joined(open_asks)}")
+        if untagged:
+            mine.append(f"rows whose tag is not [ruflo · <tier> · <model>] for their own tier and model: "
+                        f"{_joined(untagged)}")
+        if len(tables) != 1:
+            mine.append("two routing tables, tiers and model_routing" if tables else
+                        "no routing table (tiers or model_routing)")
+        if requests:
+            mine.append(f"requests: {_joined(requests, 3)}")
+        if mine:
+            parts.append(f"{rel}: " + "; ".join(mine))
+    if parts:
+        return not_hold(" | ".join(parts),
+                        "give every blocked row and open decision ask an owner (sponsor, lead or session:<name>), "
+                        "every row its [ruflo · tier · model] tag, keep exactly one routing table, and fix the "
+                        "requests tracker validate names")
+    return holds(f"{len(ledgers)} ledger(s): owners, tags, one routing table, requests valid")
+
+
+# --- 7 -----------------------------------------------------------------------
+
+def check_proposals(ctx: Context) -> Result:
+    r = run([sys.executable, RULES_DIR / "bin" / "proposalcheck", "--project", ctx.root])
+    fix = f"fix what {RULES_DIR}/bin/proposalcheck --project {ctx.root} names; create proposals with bin/new-proposal"
+    if isinstance(r, str):
+        return not_hold(r, fix)
+    if r.returncode == 0:
+        return holds(_first_line(r.stdout.splitlines()[-1] if r.stdout.strip() else ""))
+    if r.returncode == 2:
+        return not_hold("no docs/proposals/ -- proposalcheck has nothing to check",
+                        f"create proposals with {RULES_DIR}/bin/new-proposal")
+    last = [l for l in r.stdout.splitlines() if l.strip()]
+    count = last[-1].strip() if last else f"exit {r.returncode}"
+    return not_hold(f"proposalcheck: {_first_line(r.stdout) or _first_line(r.stderr)} ({count})", fix)
+
+
+# --- 8 -----------------------------------------------------------------------
+
+def check_duplicates(ctx: Context) -> Result:
+    if "plan_page" in ctx.declared():
+        return holds("declares plan_page -- its page is generated, not hand-kept")
+    twins = []
+    for path, _data, _err in ctx.ledgers():
+        md = path.with_suffix(".md")
+        if not (md.exists() or md.is_symlink()):
+            continue
+        text = ""
+        if md.is_file() and not md.is_symlink() and P.inside(ctx.root, ctx.rel(md)):
+            text = md.read_text(errors="replace")
+        if len(text.splitlines()) <= 5 and path.name in text:
+            continue
+        twins.append(ctx.rel(md))
+    if twins:
+        return not_hold(f"{_joined(twins)} mirror(s) a ledger by hand: more than 5 lines, or not naming the ledger file",
+                        "retire each to a pointer of at most 5 lines naming its ledger file, or declare plan_page")
+    return holds("no hand-kept twin of a ledger")
+
+
+# --- 9 -----------------------------------------------------------------------
+
+def check_ruflo(ctx: Context) -> Result:
+    ledgers = [(p, d) for p, d, err in ctx.ledgers() if not err]
+    for path, data in ledgers:
+        if not L.switch_on(data, "ruflo"):
+            sw = data["switches"]["ruflo"]
+            return holds(f"switched off by {sw.get('by')} at {sw.get('at')} ({ctx.rel(path)})")
+    bases = [ctx.root]
+    common = common_dir(ctx.root)
+    if common is not None and common.name == ".git" and common.parent not in bases:
+        bases.append(common.parent)
+    for base in bases:
+        swarm = base / ".swarm"
+        try:
+            # A 0-byte database is a file someone touched, not memory Ruflo kept.
+            has_db = swarm.is_dir() and any(p.suffix == ".db" and p.is_file() and p.stat().st_size > 0
+                                            for p in swarm.iterdir())
+        except OSError:
+            has_db = False
+        if has_db:
+            return holds(f"Ruflo memory state in {swarm} (a proxy: the loop's trace, not proof it ran per item)")
+    for path, data in ledgers:
+        for row in (data.get("items") or []):
+            if not isinstance(row, dict) or row.get("status") not in ("in progress", "done"):
+                continue
+            for entry in (row.get("log") or []):
+                if isinstance(entry, dict) and any(step in str(entry.get(k) or "").lower()
+                                                   for step in RUFLO_STEPS for k in ("event", "evidence")):
+                    return holds(f"{row.get('id')} in {ctx.rel(path)} logs a Ruflo step (a proxy)")
+    return not_hold("no Ruflo trace -- a proxy, not proof: switches.ruflo is on, there is no non-empty .swarm/ "
+                    "memory database, and no row in progress or done logs a ruflo-item, post-task or memory "
+                    "store step",
+                    f"run {RULES_DIR}/bin/ruflo-item start | done | note | recall around every item, with RUFLO "
+                    f"and RUFLO_NAMESPACE set")
+
+
+# --- 10 ----------------------------------------------------------------------
+
+def check_publishing(ctx: Context) -> Result:
+    tracker = ctx.root / "docs" / "proposals" / "tracker"
+    sidecars = sorted(tracker.glob("*.published.json")) if tracker.is_dir() else []
+    if not sidecars:
+        return holds("no published page recorded")
+    bad = []
+    for sidecar in sidecars:
+        stem = sidecar.name[:-len(".published.json")]
+        ledger = ctx.root / "docs" / "proposals" / f"{stem}.json"
+        data = None
+        if ledger.is_file():
+            try:
+                data = L.load(ledger)
+            except (OSError, ValueError):
+                data = None
+        if isinstance(data, dict):
+            _pub, problem, _label = W.publish_state(ctx.root, ledger, data, R.default_out(ledger))
+            if problem:
+                bad.append(problem)
+            continue
+        rel = ctx.rel(sidecar)
+        if sidecar.is_symlink() or not P.inside(ctx.root, rel):
+            bad.append(f"{rel} is a symlink or resolves outside the project -- not read")
+            continue
+        try:
+            record = json.loads(sidecar.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, ValueError, RecursionError) as exc:
+            bad.append(f"{rel} is malformed ({type(exc).__name__})")
+            continue
+        problems = R.published_problems(record)
+        if problems:
+            bad.append(f"{rel} is malformed: {'; '.join(problems)}")
+    if bad:
+        return not_hold("; ".join(bad[:3]) + (f" (+{len(bad) - 3} more)" if len(bad) > 3 else ""),
+                        f"republish the page and record it with {RULES_DIR}/bin/tracker published <ledger> --url "
+                        f"<url> (--page <path> for a declared plan_page), then commit the sidecar on its own")
+    return holds(f"{len(sidecars)} publish record(s), each well-formed")
+
+
+# --- 11 ----------------------------------------------------------------------
+
+def _block(text: str) -> str | None:
+    if M.BEGIN not in text or M.END not in text:
+        return None
+    a = text.index(M.BEGIN)
+    end = text.find(M.END, a)
+    return text[a:end + len(M.END)] if end >= 0 else None
+
+
+def check_pointer(ctx: Context) -> Result:
+    migrate = f"{RULES_DIR}/bin/warmup --project {ctx.root} --migrate"
+    commit = "show the sponsor the diff, then commit the pointer block (/standard authorizes that and nothing else in CLAUDE.md)"
+    cm = ctx.root / "CLAUDE.md"
+    if cm.is_symlink() or (cm.exists() and not P.inside(ctx.root, "CLAUDE.md")):
+        # The policy of items 5 and 10: a symlink, or a path outside the project, is never read.
+        return not_hold("CLAUDE.md is a symlink, or resolves outside the project -- not read",
+                        f"make CLAUDE.md a regular file in the project, run {migrate}; {commit}")
+    if not cm.is_file():
+        return not_hold("no CLAUDE.md", f"run {migrate}; it writes the warm-up pointer block; {commit}")
+    block = _block(cm.read_text(errors="replace"))
+    if block is None:
+        return not_hold(f"CLAUDE.md has no {M.BEGIN} block", f"run {migrate}; {commit}")
+    if block != M.pointer_block(P.load(ctx.root)["read_order"]):
+        return not_hold("the warm-up block in CLAUDE.md is not the one migrate writes for the declared read order",
+                        f"run {migrate} to rewrite it; {commit}")
+    if ctx.git_out("ls-files", "--error-unmatch", "--", "CLAUDE.md") is None:
+        return not_hold("CLAUDE.md is not committed", commit)
+    # `git diff HEAD`, as plumbing: porcelain `git diff` refreshes .git/index
+    # and writes it back when the stat data is stale (a fresh clone or copy),
+    # and GIT_OPTIONAL_LOCKS=0 does not stop it -- measured by
+    # tests/test_conformance.py's snapshot. diff-index never writes the index.
+    # A stat-only difference it reports is harmless: the block comparison
+    # below decides.
+    diff = ctx.git_out("diff-index", "-p", "--no-ext-diff", "--no-textconv", "--no-color", "HEAD", "--", "CLAUDE.md")
+    if diff is None:
+        return not_hold("CLAUDE.md cannot be compared with HEAD", commit)
+    if diff.strip():
+        at_head = ctx.git_out("show", "--no-textconv", "HEAD:CLAUDE.md")
+        if at_head is None or _block(at_head) != block:
+            return not_hold("the warm-up block in CLAUDE.md has an uncommitted change", commit)
+    return holds("CLAUDE.md carries the committed warm-up block for the declared read order")
+
+
+# --- 12 ----------------------------------------------------------------------
+
+def check_card(ctx: Context) -> Result:
+    fix = f"run {RULES_DIR}/bin/warmup --project {ctx.root} --check and fix each problem it names"
+    r = run([sys.executable, RULES_DIR / "bin" / "warmup", "--project", ctx.root, "--check", "--no-recall"])
+    if isinstance(r, str):
+        return not_hold(r, fix)
+    if r.returncode == 0:
+        return holds("warmup --check: ready")
+    lines = r.stdout.splitlines()
+    summary = next((l.strip() for l in lines if l.startswith("warmup --check:")), f"exit {r.returncode}")
+    at = next((i for i, l in enumerate(lines) if l.startswith("warmup --check:")), len(lines))
+    first = next((l.strip()[2:] for l in lines[at + 1:] if l.strip().startswith("✗ ")), _first_line(r.stderr))
+    return not_hold(f"{summary}" + (f", first: {first}" if first else ""), fix)
+
+
+ITEMS = (
+    (1, "Rules read and implemented", check_rules),
+    (2, "Migrated", check_migrated),
+    (3, "Declared", check_declared),
+    (4, "Installed", check_installed),
+    (5, "Lead prompt", check_lead_prompt),
+    (6, "The ledger speaks the common language", check_language),
+    (7, "Proposals", check_proposals),
+    (8, "No hand-kept duplicates", check_duplicates),
+    (9, "Ruflo around items", check_ruflo),
+    (10, "Publishing recorded", check_publishing),
+    (11, "CLAUDE.md pointer", check_pointer),
+    (12, "Card", check_card),
+)
+
+
+def measure(project: Path) -> dict:
+    """The report, every string already escaped. Raises CouldNotRun."""
+    root = toplevel(Path(project))
+    if root is None:
+        raise CouldNotRun(f"{project} is not inside a git repository")
+    ctx = Context(root)
+    items = []
+    for n, name, check in ITEMS:
+        try:
+            result = check(ctx)
+        except Exception as exc:  # noqa: BLE001 -- one broken check must not hide the other eleven
+            result = not_hold(f"the check itself failed ({type(exc).__name__}: {exc})",
+                              "report this to common-rules; the item cannot be shown to hold")
+        items.append({"n": n, "name": name, "state": result.state, "why": shown(result.why), "fix": shown(result.fix)})
+    return {"project": shown(root), "hold": sum(1 for i in items if i["state"] == HOLDS),
+            "total": TOTAL, "items": items}
+
+
+def exit_code(data: dict) -> int:
+    return 1 if any(i["state"] == NOT for i in data["items"]) else 0
+
+
+def text(data: dict) -> str:
+    out = [f"standard: {data['hold']} of {data['total']} hold"]
+    for i in data["items"]:
+        head = f"{i['n']} {i['name']}"
+        if i["state"] == HOLDS:
+            out.append(f"✓ {head}" + (f": {i['why']}" if i["why"] else ""))
+        elif i["state"] == WAITING:
+            out.append(f"… {head}: waiting on common-rules -- {i['why']}" + (f" -- {i['fix']}" if i["fix"] else ""))
+        else:
+            out.append(f"✗ {head}: {i['why']} -- fix: {i['fix']}")
+    return "\n".join(out)
+
+
+def main(argv) -> int:
+    ap = argparse.ArgumentParser(prog="conformance", description=__doc__.splitlines()[0])
+    ap.add_argument("--project", type=Path, default=Path.cwd())
+    ap.add_argument("--json", action="store_true", help="the report as JSON")
+    args = ap.parse_args(argv)
+    if W is None:
+        print("conformance: bin/warmup could not be loaded -- could not run", file=sys.stderr)
+        return 2
+    try:
+        data = measure(args.project)
+    except CouldNotRun as exc:
+        print(f"conformance: {shown(exc)} -- could not run", file=sys.stderr)
+        return 2
+    print(json.dumps(data, indent=2, ensure_ascii=False) if args.json else text(data))
+    return exit_code(data)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
