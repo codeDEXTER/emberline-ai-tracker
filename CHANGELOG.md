@@ -21,7 +21,8 @@ ruling is in the ledger's log.
   floors, receipts and merged shas. Readiness is computed with the PhotoVault
   app's own `build_plan.py` formula, and a test holds both to the same number
   on the app's real ledger. That test caught a first version that said 30%
-  where the app says 26%. Text the card prints must be one line.
+  where the app says 26%. Ids, owners, switch and request text must be one
+  line, and every problem `validate` returns is printable.
 - **Tracker page v2 (V-03)** draws readiness, gates, floors, open requests,
   owners, switches that are off, and merged rows still awaiting evidence.
 - **`tracker sync` honours `switches.issues` (V-04):** with issues switched
@@ -39,6 +40,13 @@ ruling is in the ledger's log.
   ignored, config stays tracked, and already-tracked runtime files are
   reported with the `git rm --cached` command. The PostToolUse hook is
   installed with matcher `Agent|Task`.
+- **The warm card v2 (V-02):** readiness, merged rows awaiting evidence, the
+  sponsor's own items on the yours line, switches that are off, open requests
+  both ways, and the project's routing table as declared -- each line only when
+  the ledger or declaration has the data. Every printed value goes through one
+  escaping function, and so does `--check`'s report: a ledger value carrying a
+  newline cannot forge a line such as "warmup --check: ready". A declared
+  safety-rules heading that is not in its file fails `--check`.
 - **Templates (V-08, D10):** high-tier items run in parallel on disjoint files,
   each with a report-only reviewer. A brief carries its verify level.
 

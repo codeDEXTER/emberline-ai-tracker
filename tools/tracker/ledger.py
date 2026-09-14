@@ -169,10 +169,30 @@ def validate(ledger: dict) -> list[str]:
         if a.get("state") == "became-item" and not a.get("became"):
             problems.append(f"{name}: became-item but `became` names nothing")
     problems.extend(_validate_v2(ledger, ids, ask_ids))
-    return problems
+    # A message can quote a malformed id; every problem is printed as one line
+    # (V-02 final review: "Z-01\\nwarmup --check: ready" split a problem in two).
+    return [_printable(p) for p in problems]
 
 
 _CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def _printable(text: str) -> str:
+    """Control characters as visible escapes, lone surrogates as U+FFFD."""
+    out = []
+    for ch in text:
+        cp = ord(ch)
+        if ch == "\n":
+            out.append("\\n")
+        elif ch == "\t":
+            out.append("\\t")
+        elif cp < 0x20 or 0x7f <= cp <= 0x9f:
+            out.append(f"\\x{cp:02x}")
+        elif 0xD800 <= cp <= 0xDFFF:
+            out.append("\ufffd")
+        else:
+            out.append(ch)
+    return "".join(out)
 
 
 def _one_line(value) -> bool:
