@@ -37,17 +37,17 @@ ASK_STATES = ("open", "answered", "became-item", "declined")
 CLASSES = ("C1", "C2", "C3", "C4")
 
 # An item id is a phase letter-group and a number: R-01, E1-09, X-03, W-10.
-ITEM_ID = re.compile(r"^[A-Z][A-Z0-9]*-\d{2,}$")
-ASK_ID = re.compile(r"^A-\d{2,}$")
+ITEM_ID = re.compile(r"^[A-Z][A-Z0-9]*-\d{2,}\Z")
+ASK_ID = re.compile(r"^A-\d{2,}\Z")
 
 REQUIRED_ITEM_KEYS = ("id", "phase", "cx", "title", "status")
 
 # Proposal 20 additions. Every one is optional: a ledger that declares none of
 # them validates exactly as before, which is how the PhotoVault engine's and
 # app's ledgers stay valid while they adopt the pieces they want.
-OWNER = re.compile(r"^(sponsor|lead|session:.+)$")          # D4
+OWNER = re.compile(r"^(sponsor|lead|session:[^\x00-\x1f\x7f-\x9f]+)\Z")          # D4
 SWITCHES = ("issues", "publish", "ruflo")                     # D5
-REQUEST_ID = re.compile(r"^RQ-\d{2,}$")                       # D7
+REQUEST_ID = re.compile(r"^RQ-\d{2,}\Z")                       # D7
 REQUEST_STATES = ("open", "in progress", "answered", "declined")
 
 
@@ -172,6 +172,21 @@ def validate(ledger: dict) -> list[str]:
     return problems
 
 
+_CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def _one_line(value) -> bool:
+    """A string with no control character and no lone surrogate: safe to print
+    as part of one card or page line (\\Z, not $, so a trailing newline fails)."""
+    if not isinstance(value, str) or _CONTROL.search(value):
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
 def _number(value) -> bool:
     """A finite, non-negative int or float -- not a bool (JSON true is not a
     weight), and not NaN or Infinity, which json.loads accepts."""
@@ -251,6 +266,10 @@ def _validate_v2(ledger: dict, ids: set, ask_ids: set) -> list[str]:
                     problems.append(f"switches.{sname}: `on` must be true or false")
                 elif sw["on"] is False and not (sw.get("by") and sw.get("at")):
                     problems.append(f"switches.{sname}: off without `by` and `at`")
+                else:
+                    for field in ("by", "at", "quote"):
+                        if field in sw and not _one_line(sw[field]):
+                            problems.append(f"switches.{sname}: `{field}` must be one line of text")
 
     seen: set[str] = set()                                                                     # D7
     for n, r in enumerate(ledger.get("requests") or []):
@@ -270,6 +289,8 @@ def _validate_v2(ledger: dict, ids: set, ask_ids: set) -> list[str]:
         for side in ("from", "to"):
             if not r.get(side):
                 problems.append(f"{name}: no `{side}`")
+            elif not _one_line(r[side]):
+                problems.append(f"{name}: `{side}` must be one line of text")
         for u in r.get("unblocks") or []:
             if isinstance(u, str) and ITEM_ID.match(u) and u not in ids:
                 problems.append(f"{name}: unblocks {u}, which is not an item")
