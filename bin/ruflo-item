@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""ruflo-item -- the mandatory Ruflo loop around one plan item (proposal 20, D11).
+
+  ruflo-item start  <ID> "<task>"      hooks pre-task, memory search, hooks route
+  ruflo-item done   <ID> "<summary>"   the project's merge gate, then hooks post-task + memory store
+  ruflo-item note   <ID> "<text>"      memory store, keyed to the item, timestamped from the real clock
+  ruflo-item recall "<keywords>"       memory list, then memory search
+  ruflo-item ... --project DIR         default: `git rev-parse --show-toplevel` of the current directory
+
+This lifts PhotoVault app's own `tools/ruflo_task.sh` into common-rules, so
+every project gets the same four commands instead of the four steps as prose
+in templates/lead-prompt.md SS2 -- proposal 19's build had one agent's loop
+error with nothing noticing, and the engine's Ruflo ledger recorded 0 usable
+memory hits across 43 agents who were doing the four steps by hand.
+
+WHY `done` RUNS THE GATE FIRST. `hooks post-task --success true` and a
+`memory store` are how the rest of the project learns an item is finished;
+recording that before the project's own test gate has run would let a broken
+item read as done everywhere Ruflo is asked. So `done` calls
+`tools/project.py`'s `test_command()` -- the exact function `bin/land` answers
+its own gate question with -- runs it, and only calls `hooks post-task` and
+`memory store` once it is green. A gate that refuses (a `.common-rules.json`
+`false  # <why>` line, same as `bin/land` prints) is a failure like any
+other: no post-task, no store, and ruflo-item exits non-zero. When no gate is
+declared and none can be guessed (`test_command()` answers ""), that is not
+"nothing to run" -- it is the same "cannot verify, so refuse" `bin/land`
+enforces, and `done` refuses the same way rather than recording success on
+top of zero evidence.
+
+WHY THE DAEMON STOPS ON EVERY EXIT. Every Ruflo CLI call auto-starts its
+daemon, which spawns headless Claude sessions that burn tokens until told to
+stop (measured in the PhotoVault engine, 7 September; see bin/warmup). So
+`<binary> daemon stop` runs in a `finally`, after a clean run, after a
+refused or failing gate, after a CLI error mid-command, and after
+KeyboardInterrupt -- never `pkill` or `killall`, which this repo's own rules
+forbid killing by name.
+
+BINARY RESOLUTION. `$RUFLO` if set, else `claude-flow` on PATH, else `ruflo`
+on PATH. Never `npx` implicitly: it auto-starts the daemon on its own and may
+download a package, neither of which this tool may trigger on someone's
+behalf. No binary found: say so, exit 2 -- there is nothing to call
+`daemon stop` on, so that step is skipped, not attempted.
+
+Exit codes: 0 ok, 1 the gate refused or failed (or a bad done/note/recall
+argument), 2 no Ruflo binary found.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+RULES_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RULES_DIR))
+
+from tools import project as P  # noqa: E402
+
+PREFIX = "ruflo-item:"
+
+
+def resolve_binary() -> str | None:
+    """$RUFLO, else claude-flow on PATH, else ruflo on PATH. Never npx."""
+    env = os.environ.get("RUFLO", "").strip()
+    if env:
+        return env
+    for name in ("claude-flow", "ruflo"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
+
+
+def project_root(explicit: str | None) -> Path:
+    """--project DIR when given; otherwise `git rev-parse --show-toplevel` of
+    the current directory, falling back to the current directory itself when
+    that is not a git repository at all (a scratch project with no VCS yet)."""
+    if explicit:
+        return Path(explicit).resolve()
+    r = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                        capture_output=True, text=True, cwd=str(Path.cwd()))
+    if r.returncode == 0 and r.stdout.strip():
+        return Path(r.stdout.strip()).resolve()
+    return Path.cwd().resolve()
+
+
+def namespace_for(project: Path) -> str:
+    """One namespace per project, the same way the app's wrapper used the
+    fixed 'photovault-app' -- here derived, since this tool serves every
+    project, not one."""
+    return project.name
+
+
+def now_iso() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def run_ruflo(binary: str, project: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run([binary, *args], cwd=str(project), capture_output=True, text=True)
+
+
+def daemon_stop(binary: str | None, project: Path) -> None:
+    if binary is None:
+        return
+    subprocess.run([binary, "daemon", "stop"], cwd=str(project), capture_output=True, text=True)
+
+
+def _note_ignored(label: str, result: subprocess.CompletedProcess) -> None:
+    """Best-effort telemetry, exactly like the app wrapper's `|| true`: a
+    failed pre-task, route, post-task, store or list/search call is noted but
+    never fails the item -- only `done`'s own gate does that."""
+    if result.returncode != 0:
+        print(f"{PREFIX} {label} did not succeed (ignored): "
+              f"{(result.stderr or result.stdout).strip()}", file=sys.stderr)
+    elif result.stdout.strip():
+        print(result.stdout.strip())
+
+
+def cmd_start(binary: str, project: Path, item_id: str, task: str) -> int:
+    ns = namespace_for(project)
+    print(f"{PREFIX} pre-task for {item_id}")
+    _note_ignored("hooks pre-task", run_ruflo(
+        binary, project, "hooks", "pre-task", "--description", f"{item_id}: {task}"))
+
+    print(f"{PREFIX} searched memory for {item_id!r} (namespace {ns})")
+    _note_ignored("memory search", run_ruflo(
+        binary, project, "memory", "search", "--query", item_id, "--namespace", ns))
+
+    print(f"{PREFIX} routed via hooks route --task")
+    _note_ignored("hooks route", run_ruflo(
+        binary, project, "hooks", "route", "--task", f"{item_id}: {task}"))
+    return 0
+
+
+def cmd_done(binary: str, project: Path, item_id: str, summary: str) -> int:
+    gate = P.test_command(project)
+    if not gate:
+        print(f"{PREFIX} no merge gate declared, and none could be guessed -- "
+              f"refusing, the same as `bin/land` does", file=sys.stderr)
+        return 1
+
+    reason = None
+    if gate.strip().startswith("false") and "#" in gate:
+        reason = gate.split("#", 1)[1].strip()
+
+    print(f"{PREFIX} running gate: {gate}")
+    result = subprocess.run(["bash", "-c", gate], cwd=str(project), capture_output=True, text=True)
+    if result.returncode != 0:
+        if reason:
+            print(f"{PREFIX} gate refuses -- {reason}", file=sys.stderr)
+        else:
+            print(f"{PREFIX} gate failed", file=sys.stderr)
+            tail = "\n".join((result.stdout + result.stderr).splitlines()[-15:])
+            if tail:
+                print(tail, file=sys.stderr)
+        return 1
+    print(f"{PREFIX} gate green")
+
+    ns = namespace_for(project)
+    _note_ignored("hooks post-task", run_ruflo(
+        binary, project, "hooks", "post-task", "--task-id", item_id,
+        "--success", "true", "--store-results", "true"))
+
+    key = f"item:{item_id}:done"
+    value = f"{now_iso()} {summary}"
+    _note_ignored("memory store", run_ruflo(
+        binary, project, "memory", "store", "--namespace", ns, "--key", key, "--value", value))
+    print(f"{PREFIX} stored {key}")
+    return 0
+
+
+def cmd_note(binary: str, project: Path, item_id: str, text: str) -> int:
+    ns = namespace_for(project)
+    ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    key = f"item:{item_id}:note:{ts}"
+    value = f"{now_iso()} {text}"
+    _note_ignored("memory store", run_ruflo(
+        binary, project, "memory", "store", "--namespace", ns, "--key", key, "--value", value))
+    print(f"{PREFIX} stored {key}")
+    return 0
+
+
+def cmd_recall(binary: str, project: Path, keywords: str) -> int:
+    ns = namespace_for(project)
+    print(f"{PREFIX} memory keys (namespace {ns}):")
+    _note_ignored("memory list", run_ruflo(binary, project, "memory", "list", "--namespace", ns))
+
+    print(f"{PREFIX} searching memory for {keywords!r}")
+    _note_ignored("memory search", run_ruflo(
+        binary, project, "memory", "search", "--query", keywords, "--namespace", ns))
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser(prog="ruflo-item", description=__doc__.splitlines()[0])
+    ap.add_argument("--project", help="the project root (default: git rev-parse --show-toplevel of cwd)")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p_start = sub.add_parser("start")
+    p_start.add_argument("id")
+    p_start.add_argument("task")
+
+    p_done = sub.add_parser("done")
+    p_done.add_argument("id")
+    p_done.add_argument("summary")
+
+    p_note = sub.add_parser("note")
+    p_note.add_argument("id")
+    p_note.add_argument("text")
+
+    p_recall = sub.add_parser("recall")
+    p_recall.add_argument("keywords")
+
+    args = ap.parse_args(argv)
+
+    binary = resolve_binary()
+    if binary is None:
+        print(f"{PREFIX} no Ruflo binary found -- set $RUFLO, or put claude-flow "
+              f"or ruflo on PATH", file=sys.stderr)
+        return 2
+
+    project = project_root(args.project)
+    try:
+        if args.cmd == "start":
+            return cmd_start(binary, project, args.id, args.task)
+        if args.cmd == "done":
+            return cmd_done(binary, project, args.id, args.summary)
+        if args.cmd == "note":
+            return cmd_note(binary, project, args.id, args.text)
+        if args.cmd == "recall":
+            return cmd_recall(binary, project, args.keywords)
+        return 2  # pragma: no cover -- argparse's `required=True` rules this out
+    finally:
+        daemon_stop(binary, project)
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except KeyboardInterrupt:
+        sys.exit(130)
