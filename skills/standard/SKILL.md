@@ -62,8 +62,9 @@ Every item is mechanical, so the report can prove it. If a tool below is not in 
    - When the sponsor switches something off, record it in `switches` with `by` and `at`.
 7. **Proposals.**
    - Create every new proposal with `RULES/bin/new-proposal`, which writes the page and its ledger in the checked shape.
-   - `RULES/bin/proposalcheck --project <dir>` is clean for every proposal numbered after the declared legacy floor.
-   - Older proposals are grandfathered, never rewritten.
+   - `RULES/bin/proposalcheck --project <dir>` is clean. A proposal page first committed on or after 14 Sep 2026 must carry its status.
+   - Older pages are grandfathered by that date, never rewritten.
+   - A project that shares proposal numbers with a sibling declares `proposal_series` in both projects' `.common-rules.json`.
 8. **No hand-kept duplicates.**
    - A page generated from a ledger is regenerated, never edited.
    - A hand-kept document mirroring a ledger (a `.md` twin, a hand-updated artifact) is either retired, with a one-line pointer to the ledger, or declared as `plan_page`.
