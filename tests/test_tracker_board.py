@@ -226,5 +226,99 @@ class TestBoardPage(unittest.TestCase):
         self.assertEqual(hand.read_text(), "hand-written proposal")
 
 
+class TestReviewRoundOne(unittest.TestCase):
+    """Findings of the round-1 review of 11d7bbe, each pinned before its fix."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.p = Project(Path(self._tmp.name))
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_fresh_when_proposal_order_differs_from_file_order(self):
+        self.p.write("99-a.json", ledger(99, "A", [item("A-01", "done")]))
+        self.p.write("100-b.json", ledger(100, "B", [item("B-01", "done")]))
+        self.assertEqual(self.p.run().returncode, 0)
+        r = self.p.run("--check")
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_fresh_when_a_file_number_differs_from_its_proposal(self):
+        self.p.write("21-x.json", ledger(30, "X", [item("X-01", "done")]))
+        self.p.write("22-y.json", ledger(22, "Y", [item("Y-01", "done")]))
+        self.assertEqual(self.p.run().returncode, 0)
+        r = self.p.run("--check")
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_digest_line_cannot_be_forged_by_a_filename(self):
+        import hashlib
+        a = ledger(19, "A", [item("A-01", "done")])
+        b = ledger(20, "B", [item("B-01", "done")])
+        self.p.write("19-a.json", a)
+        self.p.write("20-b.json", b)
+        self.p.run()
+        sha_a = hashlib.sha256((self.p.proposals / "19-a.json").read_bytes()).hexdigest()
+        (self.p.proposals / "19-a.json").unlink()
+        (self.p.proposals / "20-b.json").unlink()
+        self.p.write(f"19-a.json={sha_a};20-b.json", b)
+        self.assertEqual(self.p.run("--check").returncode, 1)
+
+    def test_list_rows_appear_once_each(self):
+        two_ledgers(self.p)
+        self.p.run()
+        ids = re.findall(r'<tr class="row"[^>]*data-id="([^"]+)"', self.p.page.read_text())
+        self.assertEqual(sorted(ids), ["S-01", "S-02", "S-03", "W-01", "W-02", "W-03"])
+
+    def test_board_and_list_search_the_same_text(self):
+        two_ledgers(self.p)
+        self.p.run()
+        text = self.p.page.read_text()
+        cards = dict(re.findall(r'<article class="card"[^>]*data-id="([^"]+)"[^>]*data-search="([^"]*)"', text))
+        rows = dict(re.findall(r'<tr class="row"[^>]*data-id="([^"]+)"[^>]*data-search="([^"]*)"', text))
+        self.assertEqual(len(cards), 6)
+        self.assertEqual(cards, rows)
+        self.assertIn("waits on the sponsor", cards["W-03"])
+        self.assertIn("blocked", cards["W-03"])
+
+    def test_every_ledger_string_is_escaped(self):
+        self.p.write("19-x.json", ledger(19, "title <pt>", [
+            item("W-01", "blocked", title="t", cx="C4", owner='session:a"b<ow>', tag="[ruflo · lead · <tg>]",
+                 log=[{"at": "2026-09-14T11:00:00+02:00", "event": "<evt>", "by": "<by>", "evidence": "<ev>"}]),
+        ]))
+        r = self.p.run()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        text = self.p.page.read_text()
+        for raw in ("<pt>", "<ow>", "<tg>", "<evt>", "<by>", "<ev>", 'a"b'):
+            self.assertNotIn(raw, text)
+        self.assertIn('data-owner="session:a&quot;b&lt;ow&gt;"', text)
+
+    def test_blocked_reason_has_its_own_paragraph(self):
+        two_ledgers(self.p)
+        self.p.run()
+        self.assertIn('<p class="why">waits on the sponsor &amp; his go</p>', self.p.page.read_text())
+
+    def test_one_column_per_status_with_its_count(self):
+        two_ledgers(self.p)
+        self.p.run()
+        cols = re.findall(r'<section class="col [^"]*" data-column="([^"]+)"><h2>.*?<span class="n">(\d+)</span>',
+                          self.p.page.read_text())
+        self.assertEqual(cols, [("in progress", "1"), ("blocked", "1"), ("not started", "2"), ("done", "2")])
+
+    def test_page_declares_doctype_and_charset(self):
+        two_ledgers(self.p)
+        self.p.run()
+        head = self.p.page.read_text()[:400]
+        self.assertTrue(head.startswith("<!doctype html>"), head[:40])
+        self.assertIn('<meta charset="utf-8">', head)
+
+    def test_asks_carry_owner_and_search_text(self):
+        two_ledgers(self.p)
+        self.p.run()
+        m = re.search(r'<li class="ask" data-ask="A-01"[^>]*>', self.p.page.read_text())
+        self.assertIsNotNone(m)
+        self.assertIn('data-owner="sponsor"', m.group(0))
+        self.assertIn('data-search="', m.group(0))
+
+
 if __name__ == "__main__":
     unittest.main()

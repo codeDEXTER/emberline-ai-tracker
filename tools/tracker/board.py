@@ -80,7 +80,12 @@ def project_name(project: Path) -> str:
 
 
 def digests(paths: list[Path]) -> str:
-    return ";".join(f"{p.name}={hashlib.sha256(p.read_bytes()).hexdigest()}" for p in paths)
+    """Each ledger's name and sha256, as JSON in file-name order. Round 1: the
+    order is fixed here, not by the caller (the render sorted by proposal and
+    --check by name, so 99 and 100 read stale straight after a render), and a
+    JSON string cannot be forged by a file name holding ; or =."""
+    return json.dumps([[p.name, hashlib.sha256(p.read_bytes()).hexdigest()]
+                       for p in sorted(paths, key=lambda p: p.name)], ensure_ascii=True, separators=(",", ":"))
 
 
 def freshness(paths: list[Path], page: Path) -> str:
@@ -100,6 +105,20 @@ def mini_bar(counts: dict) -> str:
     segs = "".join(f'<span class="seg {slug(s)}" style="width:{counts[s] * 100 / total:.2f}%"></span>'
                    for s in ("done", "in progress", "blocked", "not started") if counts[s])
     return f'<span class="bar">{segs}</span>'
+
+
+def search_text(*parts) -> str:
+    """One lowercase line the page's search box matches. Round 1: the card and
+    the list row carry the same string, so board and list find the same items."""
+    return re.sub(r"\s+", " ", " ".join(str(p) for p in parts if p not in (None, ""))).strip().lower()
+
+
+def item_search(item: dict, number) -> str:
+    log = [f'{x.get("event") or ""} {x.get("by") or ""} {x.get("evidence") or ""}'
+           for x in (item.get("log") or []) if isinstance(x, dict)]
+    return search_text(item.get("id"), f"p{number}", item.get("title"), item.get("status"), item.get("owner"),
+                       item.get("tier"), item.get("tag") or item.get("cx"),
+                       f'#{item["issue"]}' if item.get("issue") else None, *log)
 
 
 def last_entry(item: dict) -> dict:
@@ -131,7 +150,8 @@ def item_card(item: dict, number, repo) -> str:
     details = (f'<details><summary>Log · {len(log)} {"entry" if len(log) == 1 else "entries"}</summary>'
                f'<ol class="log">{entries}</ol></details>' if log else "")
     return (f'<article class="card" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
-            f'data-status="{e(status)}" data-owner="{e(owner)}" data-tier="{e(item.get("tier") or "")}">'
+            f'data-status="{e(status)}" data-owner="{e(owner)}" data-tier="{e(item.get("tier") or "")}" '
+            f'data-search="{e(item_search(item, number))}">'
             f'<header><span class="id">{e(item.get("id"))}</span><span class="pnum">P{e(number)}</span></header>'
             f'<h3>{e(item.get("title"))}</h3>'
             f'<p class="meta">{"".join(meta)}</p>{reason}{lastline}{details}</article>')
@@ -142,7 +162,8 @@ def item_row(item: dict, number, repo) -> str:
     last = last_entry(item)
     owner = item.get("owner") or ""
     return (f'<tr class="row" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
-            f'data-status="{e(status)}" data-owner="{e(owner)}" data-tier="{e(item.get("tier") or "")}">'
+            f'data-status="{e(status)}" data-owner="{e(owner)}" data-tier="{e(item.get("tier") or "")}" '
+            f'data-search="{e(item_search(item, number))}">'
             f'<td class="id">{e(item.get("id"))}</td><td class="pnum">P{e(number)}</td>'
             f'<td>{e(item.get("title"))}</td>'
             f'<td><span class="pill {slug(status)}">{e(status)}</span></td>'
@@ -155,7 +176,9 @@ def item_row(item: dict, number, repo) -> str:
 def ask_row(ask: dict, number) -> str:
     owner = ask.get("owner") or ""
     became = f' <span class="dim">→ {e(ask.get("became"))}</span>' if ask.get("became") else ""
-    return (f'<li class="ask" data-ask="{e(ask.get("id"))}" data-proposal="{e(number)}">'
+    search = search_text(ask.get("id"), f"p{number}", ask.get("kind"), ask.get("quote"), owner, ask.get("became"))
+    return (f'<li class="ask" data-ask="{e(ask.get("id"))}" data-proposal="{e(number)}" '
+            f'data-owner="{e(owner)}" data-search="{e(search)}">'
             f'<span class="id">{e(ask.get("id"))}</span><span class="pnum">P{e(number)}</span>'
             f'<span class="kind">{e(ask.get("kind"))}</span>'
             f'<q>{e(ask.get("quote"))}</q>'
@@ -163,12 +186,16 @@ def ask_row(ask: dict, number) -> str:
 
 
 def request_row(req: dict, number) -> str:
-    return (f'<li class="ask" data-request="{e(req.get("id"))}" data-proposal="{e(number)}">'
+    unblocks = L.as_list(req.get("unblocks"))
+    search = search_text(req.get("id"), f"p{number}", "request", req.get("from"), req.get("to"),
+                         req.get("state"), *unblocks)
+    return (f'<li class="ask" data-request="{e(req.get("id"))}" data-proposal="{e(number)}" '
+            f'data-owner="" data-search="{e(search)}">'
             f'<span class="id">{e(req.get("id"))}</span><span class="pnum">P{e(number)}</span>'
             f'<span class="kind">request</span>'
             f'<q>{e(req.get("from"))} → {e(req.get("to"))}</q>'
             f'<span class="asked">{e(req.get("state"))}'
-            f'{" · unblocks " + e(" ".join(req.get("unblocks") or [])) if req.get("unblocks") else ""}</span></li>')
+            f'{" · unblocks " + e(" ".join(unblocks)) if unblocks else ""}</span></li>')
 
 
 def column_order(status: str, entries: list) -> list:
@@ -256,6 +283,8 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo) -> str:
 
     title = f"{name} tracker"
     return (
+        "<!doctype html>\n"
+        '<meta charset="utf-8">\n'
         f"<!-- generated by bin/tracker board from every ledger in docs/proposals -- edit the ledgers, not this page -->\n"
         f"<title>{e(title)}</title>\n"
         f'<meta name="ledger-digests" content="{e(digests([p for p, _ in ledgers]))}">\n'
@@ -309,6 +338,7 @@ CSS = """
 --done:#5FB58A;--prog:#EE7A45;--block:#DB7480;--todo:#6F7B87;--block-soft:#2E1C20;color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
+.card h3,.card .why,.card .meta,.log p,.ask q,td,.proposal .pt{unicode-bidi:isolate}
 body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.5 var(--sans)}
 .wrap{max-width:1360px;margin:0 auto;padding:32px 24px 96px;display:flex;flex-direction:column;gap:22px}
 button,input,select{font:inherit;color:inherit}
@@ -412,22 +442,22 @@ SCRIPT = r"""
   var state = {proposal: "", statuses: [], owner: "", tier: "", q: "", view: "board"};
   try { var v = localStorage.getItem("tracker-view"); if (v === "list" || v === "board") state.view = v; } catch (e) {}
   var items = $$("[data-item]");
-  var text = new Map(items.map(function(el){ return [el, el.textContent.toLowerCase()]; }));
   function match(el, ignoreStatus){
     var d = el.dataset;
     if (state.proposal && d.proposal !== state.proposal) return false;
     if (!ignoreStatus && state.statuses.length && state.statuses.indexOf(d.status) < 0) return false;
     if (state.owner && d.owner !== state.owner) return false;
     if (state.tier && d.tier !== state.tier) return false;
-    if (state.q && text.get(el).indexOf(state.q) < 0) return false;
+    if (state.q && (d.search || "").indexOf(state.q) < 0) return false;
     return true;
   }
   function apply(){
     var shown = 0, total = 0, byStatus = {};
+    var counted = state.view === "list" ? "TR" : "ARTICLE";
     items.forEach(function(el){
       var ok = match(el, false);
       el.hidden = !ok;
-      if (el.tagName === "ARTICLE") {
+      if (el.tagName === counted) {
         total++;
         if (ok) shown++;
         if (match(el, true)) byStatus[el.dataset.status] = (byStatus[el.dataset.status] || 0) + 1;
@@ -446,12 +476,14 @@ SCRIPT = r"""
       b.setAttribute("aria-pressed", b.dataset.proposal === state.proposal ? "true" : "false");
     });
     $$("[data-ask],[data-request]").forEach(function(el){
-      el.hidden = !!state.proposal && el.dataset.proposal !== state.proposal;
+      var d = el.dataset;
+      el.hidden = (!!state.proposal && d.proposal !== state.proposal) || (!!state.owner && d.owner !== state.owner)
+        || (!!state.q && (d.search || "").indexOf(state.q) < 0);
     });
     $$("[data-view]").forEach(function(b){ b.setAttribute("aria-pressed", b.dataset.view === state.view ? "true" : "false"); });
     $("#board").hidden = state.view !== "board";
     $("#list").hidden = state.view !== "list";
-    $("#none").hidden = shown > 0;
+    $("#none").hidden = shown > 0 || total === 0;
     var filtered = state.proposal || state.statuses.length || state.owner || state.tier || state.q;
     $("#shown").textContent = filtered ? shown + " of " + total + " items" : total + " items";
     $("#clear").hidden = !filtered;
