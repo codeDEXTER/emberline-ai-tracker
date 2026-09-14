@@ -1,5 +1,7 @@
 # Lead prompt — execute {{PLAN_LEDGER}} to completion
 
+<!-- common-rules:lead-prompt proposal/21 -->
+
 Copy everything below the line into a fresh session started in
 `{{PROJECT}}`. Nothing above the line is part of the prompt.
 
@@ -63,7 +65,7 @@ this job and is not watching in real time. You are.
   evidence, and commit the ledger — in the same turn the state changed,
   not batched for later.
 - Every blocked row and every decision ask carries an `owner` —
-  `sponsor`, `lead`, or a session named by its own name (proposal 20 D4).
+  `sponsor`, `lead`, or `session:<name>` (proposal 20 D4).
 - After the ledger moves, run `bin/tracker render` so the rendered page
   never drifts from the JSON it comes from. When the card says the page
   changed since it was last published, republish it (proposal 20 D1):
@@ -129,6 +131,28 @@ this job and is not watching in real time. You are.
 - **Checkpoint before stopping.** Write
   `docs/handovers/<date>-checkpoint.md` before you stop for any reason. A
   session that ends without one has failed.
+
+## 8 Proposals, requests and owners
+
+- Every new proposal is created with `bin/new-proposal "Title"`, which
+  writes the page, its ledger and its tracker page together in the checked
+  shape — never drafted by hand. A ledger that already exists but has no
+  page uses `bin/new-proposal --page-for LEDGER`.
+- When {{PROJECT}} shares proposal numbers with a sibling project, both
+  declare `proposal_series` in their `.common-rules.json` so numbers are
+  taken across both, never independently.
+- Anything you need from another project's session is a `requests` entry
+  in the ledger (`RQ-NN`, `from`, `to`, `state`, `unblocks`) — never
+  prose in a report or a message.
+- Every blocked row and every open decision ask carries an `owner`:
+  `sponsor`, `lead`, or `session:<name>`.
+- Start with the card: `/warmup`, at the start of the session and again
+  after any compaction.
+- The sponsor's `/standard` is mandatory. When common-rules' `CHANGELOG.md`
+  carries a later entry beginning `**Standard change (mandatory):**`, queue
+  it as your next item, ahead of other queued work, implement it, and only
+  then run `rulecheck --align` — never align past an entry you have not
+  implemented.
 
 Start now: read the four documents, confirm Ruflo, and spawn every
 unblocked C1 and C2 item in one message while you take the first C3 item
