@@ -85,7 +85,7 @@ ask), never from the summary.
      tracker. The project page is still rendered and checked beside it — it is
      simply not the page that is published.
 
-  `tracker published` refuses while the ledger has uncommitted changes, and,
+  `tracker published` refuses while any ledger has uncommitted changes, and,
   with `--page`, when the page was last committed before the ledger changed
   — an old page recorded as current would keep the card silent for good.
   Only when a committed ledger change leaves the page's bytes identical, pass
@@ -96,11 +96,11 @@ ask), never from the summary.
   gets a log entry": a log entry would itself move the page, and the line
   would come straight back.
 
-  A republish needs no sponsor prompt: when the ledger's `switches.publish`
-  is on (the default), republishing a changed page is part of keeping the
-  ledger current, like rendering it. When `switches.publish` is switched off,
-  nothing is published — the card prints no such line and `tracker published`
-  refuses to record. The line never fails `warmup --check`; it is a to-do,
+  A republish needs no sponsor prompt: when `switches.publish` is on (the
+  default) — every ledger's, for the project page — republishing a changed
+  page is part of keeping the ledger current, like rendering it. When any is
+  switched off, nothing is published — the card prints no such line and
+  `tracker published` refuses to record, naming that ledger. The line never fails `warmup --check`; it is a to-do,
   not a broken standard. Only a session's Artifact tool can publish; no hook
   or script does it for you.
 - **A page published before it was recorded.** When the project's tracker page
