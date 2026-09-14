@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""PostToolUse hook for the Agent/Task tool (proposal 20, docs/proposals/
+20-proposal-warmup-from-the-app.json row V-05, redesigned by proposed change
+PC-01). Leads kept spawning agents whose briefs dropped the tier and model
+scope; the `[ruflo · tier · model] ID` tag makes that scope visible in the
+transcript. This hook fires right after an Agent/Task call and, when the
+brief was not tagged, reminds the lead of the tag it should have carried --
+it never blocks. PreToolUse was rejected for this precisely because it can
+only allow, deny or ask; PostToolUse can only add context, which is all this
+does.
+
+Reads the hook's JSON on stdin: `tool_name`, `tool_input` (with a `prompt`
+string) and `cwd`, per Claude Code's PostToolUse contract. Only ever looks at
+the first non-blank line of the prompt -- that is where a brief's tag (or its
+id, if the tag was dropped) lives by convention, and reading only that line
+keeps the hook fast and its behaviour easy to predict from the transcript.
+
+The Agent tool's own hook `tool_name` is not documented anywhere Claude Code
+publishes, so both "Agent" and "Task" are accepted; every other tool_name is
+ignored. Never fails the calling tool use: every exception is swallowed, the
+exit code is always 0, and nothing is printed unless a reminder is due.
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
+
+AGENT_TOOL_NAMES = ("Agent", "Task")
+
+# `[ruflo · tier · model]`, accepting the two other separators a lead's
+# fingers reach for and any spacing around them or inside the brackets.
+_SEP = r"[·\-|]"
+TAG_RE = re.compile(rf"^\[\s*ruflo\s*{_SEP}\s*[^\[\]]+?\s*{_SEP}\s*[^\[\]]+?\s*\]")
+
+# A ledger item id: phase letters, a hyphen, at least two digits (W-01,
+# E1-09, X-03). Unanchored, since the id can sit anywhere on the line.
+ITEM_ID_RE = re.compile(r"[A-Z][A-Z0-9]*-\d{2,}")
+
+
+def _read_payload() -> dict:
+    try:
+        raw = sys.stdin.read()
+    except Exception:
+        return {}
+    if not raw or not raw.strip():
+        return {}
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _first_nonblank_line(text: str) -> str | None:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped:
+            return stripped
+    return None
+
+
+def _tag_for(item: dict) -> str | None:
+    """The row's own `tag`, or one built from `tier`/`model` (PC-01)."""
+    tag = item.get("tag")
+    if isinstance(tag, str) and tag.strip():
+        return tag.strip()
+    tier, model = item.get("tier"), item.get("model")
+    if tier and model:
+        return f"[ruflo · {tier} · {model}]"
+    return None
+
+
+def _find_item(project: str, item_id: str) -> dict | None:
+    """The ledger row for `item_id`, searching every ledger under `project`
+    via this checkout's own tools.tracker.ledger (imported from the hook's
+    own path, not whatever `tools/tracker` cwd might shadow). Any failure
+    here -- no ledger, an unparseable one, an import failure -- means the
+    caller stays silent."""
+    from tools.tracker import ledger
+
+    for path in ledger.find(project):
+        try:
+            data = ledger.load(path)
+        except Exception:
+            continue
+        row = ledger.by_id(data).get(item_id)
+        if row:
+            return row
+    return None
+
+
+def main() -> int:
+    try:
+        payload = _read_payload()
+        if payload.get("tool_name") not in AGENT_TOOL_NAMES:
+            return 0
+
+        tool_input = payload.get("tool_input")
+        if not isinstance(tool_input, dict):
+            return 0
+        prompt = tool_input.get("prompt")
+        if not isinstance(prompt, str):
+            return 0
+
+        line = _first_nonblank_line(prompt)
+        if line is None:
+            return 0
+
+        if TAG_RE.match(line):
+            return 0
+
+        match = ITEM_ID_RE.search(line)
+        if not match:
+            return 0
+        item_id = match.group(0)
+
+        project = payload.get("cwd")
+        if not project:
+            return 0
+
+        item = _find_item(project, item_id)
+        if not item:
+            return 0
+        tag = _tag_for(item)
+        if not tag:
+            return 0
+
+        sentence = f"This brief names {item_id} but did not start with its tag; it should have started with {tag}."
+        print(json.dumps({
+            "hookSpecificOutput": {
+                "hookEventName": "PostToolUse",
+                "additionalContext": sentence,
+            }
+        }))
+    except Exception:
+        pass
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
