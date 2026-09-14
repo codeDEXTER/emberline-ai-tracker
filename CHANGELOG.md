@@ -47,6 +47,14 @@ ruling is in the ledger's log.
   escaping function, and so does `--check`'s report: a ledger value carrying a
   newline cannot forge a line such as "warmup --check: ready". A declared
   safety-rules heading that is not in its file fails `--check`.
+- **Publishing is recorded, and the card says when a page has moved (V-09, D1).**
+  Only a session's Artifact tool can publish, so nothing publishes by itself.
+  `tracker published <ledger> --url <url>` records the page's digest in a
+  committed `<stem>.published.json`. The card then says "page changed since last
+  publish" whenever the page differs; that line never fails `--check`.
+  `/warmup` and the lead prompt republish the page in place and record it again.
+  No sponsor prompt is needed, and nothing is published when
+  `switches.publish` is off. The page shows readiness as its headline number.
 - **Templates (V-08, D10):** high-tier items run in parallel on disjoint files,
   each with a report-only reviewer. A brief carries its verify level.
 
