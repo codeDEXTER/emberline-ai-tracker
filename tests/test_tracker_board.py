@@ -416,5 +416,39 @@ class TestProjectPageState(unittest.TestCase):
         self.assertEqual("stale", board.project_page_state(self.p.root)[0])
 
 
+class TestTheSidecarHelpers(unittest.TestCase):
+    """T-03: `tracker published --project` and bin/warmup ask board.py where
+    the project page's publish record lives, and what ledger digests the page
+    itself carries -- neither re-derives the path or re-reads the markup."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.p = Project(Path(self._tmp.name))
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_the_sidecar_sits_beside_the_page(self):
+        from tools.tracker import board
+        self.assertEqual(self.p.proposals / "tracker" / "index.published.json",
+                         board.published_path(self.p.root))
+
+    def test_page_digests_is_the_pages_own_meta(self):
+        from tools.tracker import board
+        two_ledgers(self.p)
+        self.assertEqual(0, self.p.run().returncode)
+        paths = board.ledger_paths(self.p.root)
+        self.assertEqual(board.digests(paths), board.page_digests(self.p.page))
+        for name in ("19-warmup.json", "21-standard.json"):
+            self.assertIn(name, board.page_digests(self.p.page))
+
+    def test_a_page_without_the_meta_or_no_page_at_all_reads_none(self):
+        from tools.tracker import board
+        self.assertIsNone(board.page_digests(self.p.page))
+        self.p.page.parent.mkdir(parents=True, exist_ok=True)
+        self.p.page.write_text("<p>not the generated page</p>\n")
+        self.assertIsNone(board.page_digests(self.p.page))
+
+
 if __name__ == "__main__":
     unittest.main()

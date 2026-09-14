@@ -45,15 +45,27 @@ declaration the card and --check are unchanged. --json and --state carry four
 more keys either way -- prose, prohibitions_from, quick_gate and
 merge_gate_declared -- and tests/test_project_declaration.py pins the set.
 
-PAGE CHANGED SINCE LAST PUBLISH (proposal 20, V-09, D1). A page is published
-only through a session's Artifact tool, which no script can call; `tracker
-published` records the URL and the page's digest in
-docs/proposals/tracker/<stem>.published.json. When the page on disk no longer
-matches that digest the card prints `page changed since last publish: <stem>
-→ <url>` -- and --since prints it when it is news. It is a to-do, not a
-broken standard, so --check never fails on it. No sidecar, or
-switches.publish off: no line. A sidecar that cannot be read is a problem.
-Each ledger in --json/--state carries `published` (None without a record).
+PAGE CHANGED SINCE LAST PUBLISH (proposal 20, V-09, D1; proposal 22, T-03). A
+page is published only through a session's Artifact tool, which no script can
+call; `tracker published` records the URL and the page's digest in a sidecar
+beside the page. When the page on disk no longer matches that digest the card
+prints `page changed since last publish: <the page> → <url>` -- and --since
+prints it when it is news. It is a to-do, not a broken standard, so --check
+never fails on it. No sidecar, or switches.publish off: no line. A sidecar
+that cannot be read is a problem.
+
+T-03: the page of record is the project's one tracker page,
+docs/proposals/tracker/index.html, recorded in index.published.json by
+`tracker published --project`; the line names that path, and the record is
+read only while switches.publish is on in every ledger. --json/--state carry
+it as the top-level `published` key, present only when there is such a
+sidecar. A per-ledger sidecar is read only for a ledger that records its own
+tracker (`tracker.own`) and for a declared plan_page's record -- one the
+project declares, or one the sidecar itself names a `page` in (records_a_page,
+so a real publish never goes silent because the declaration moved). A leftover
+per-ledger sidecar of any other ledger is never read, prints nothing and is no
+problem here -- bin/conformance item 10 is where it is named. Each ledger in
+--json/--state still carries `published` (None when nothing is read).
 
 A DECLARED PLAN PAGE (proposal 20, V-11, D1 with D9). A record written with
 `tracker published --page <path>` names the file the project's own plan_page
@@ -448,6 +460,66 @@ def publish_state(project: Path, ledger_path: Path, data: dict,
     return pub, None, None
 
 
+def records_a_page(sidecar: Path) -> bool:
+    """True when a per-ledger sidecar is a declared plan_page's record: a real
+    file whose JSON names a `page` (proposal 20, V-11).
+
+    Proposal 22, T-03: a per-ledger record exists only for a ledger with a
+    tracker of its own or for a declared plan_page, and a project's
+    declaration can be read after the record was made -- so the record's own
+    shape is asked too, and a plan_page record is never silenced by a
+    declaration that has since changed. A symlink is not followed: a leftover
+    is not read at all, here or anywhere."""
+    try:
+        if sidecar.is_symlink() or sidecar.parent.is_symlink() or not sidecar.is_file():
+            return False
+        record = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError, RecursionError):
+        return False
+    return isinstance(record, dict) and "page" in record
+
+
+def project_publish_state(project: Path, page: Path,
+                          ledgers: list[dict]) -> tuple[dict | None, str | None, str | None]:
+    """(the project page's last recorded publish, or None) · (a named problem,
+    or None) · (the chain's label for it, or None).
+
+    Proposal 22, T-03. The sponsor asked for one tracker per project, so the
+    page that is published is docs/proposals/tracker/index.html and the record
+    beside it is index.published.json, written by `tracker published
+    --project`. Read exactly as a per-ledger record is: never through a
+    symlink, never from outside the project, and not at all while any ledger
+    switches publishing off -- the project page shows every ledger, so one
+    ledger's switch silences the whole page. `changed` is a to-do, never a
+    problem; a page that is missing is already a problem of its own, so it is
+    not also "changed"."""
+    if not all(L.switch_on(d, "publish") for d in ledgers):
+        return None, None, None
+    sidecar = B.published_path(project)
+    if not (sidecar.is_file() or sidecar.is_symlink()):
+        return None, None, None
+    rel = str(sidecar.relative_to(project))
+    srel = shown(rel)
+    fix = "republish the project page and run: tracker published --project . --url <artifact url>"
+    if not P.inside(project, rel):
+        return None, f"{srel} resolves outside the project -- not read; remove the symlink, then {fix}", \
+               "outside the project"
+    if sidecar.is_symlink() or sidecar.parent.is_symlink():
+        return (None, f"{srel} is a symlink, or its tracker directory is -- not read; remove the symlink, "
+                f"then {fix}", "is a symlink")
+    try:
+        record = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError, RecursionError) as exc:
+        return None, f"{srel} is malformed ({type(exc).__name__}) -- {fix}", "malformed"
+    bad = R.project_published_problems(record)
+    if bad:
+        return None, f"{srel} is malformed: {'; '.join(bad)} -- {fix}", "malformed"
+    current = R.digest(page) if page.is_file() and not page.is_symlink() else None
+    return {"page": str(page.relative_to(project)), "url": record["url"], "digest": record["digest"],
+            "ledgers": record["ledgers"], "at": record["at"], "by": record["by"],
+            "page_digest": current, "changed": current is not None and current != record["digest"]}, None, None
+
+
 def publish_line(pub: dict) -> str:
     where = pub["page"] if pub.get("page") else pub["stem"]
     return f"  page changed since last publish: {shown(where)} → {shown(pub['url'])}"
@@ -531,6 +603,7 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             state["chain"].append(("✓", f"{rel} · {where}"))
 
     ledgers = L.find(project)
+    ledger_datas: list[dict] = []
     if not ledgers:
         state["problems"].append("no ledger under docs/proposals (docs/proposals/NN-*.json) -- a plan of record is a ledger")
         state["chain"].append(("✗", "ledger · none under docs/proposals"))
@@ -552,9 +625,10 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             state["chain"].append(("✓", f"ledger {rel} · well-formed"))
         # Proposal 22, T-02: a per-ledger page only for a ledger that records
         # its own tracker; the project page is checked once, after the loop.
-        own = L.own_tracker(data)
+        own_page = L.own_tracker(data)
+        ledger_datas.append(data)
         page = R.default_out(lp)
-        if own:
+        if own_page:
             ps, _ = page_state(lp)
             prel = str(page.relative_to(project))
             if ps == "ok":
@@ -562,8 +636,14 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             else:
                 state["problems"].append(f"page {prel} is {ps} -- run: tracker render {rel}")
                 state["chain"].append(("✗", f"page {prel} · {ps} -- run: tracker render {rel}"))
-        # The publish line still reads the per-ledger page (T-03 moves it).
-        published, problem, label = publish_state(project, lp, data, page)
+        # Proposal 22, T-03: a per-ledger sidecar is read only where a
+        # per-ledger page exists -- a ledger with its own tracker, or a
+        # declared plan_page, whose record names the file its generator writes.
+        # A leftover sidecar of any other ledger is not read at all, so it
+        # prints nothing here; conformance item 10 names it.
+        published, problem, label = (None, None, None)
+        if own_page or decl["plan_page"] or records_a_page(R.published_path(lp)):
+            published, problem, label = publish_state(project, lp, data, page)
         if problem:
             state["problems"].append(problem)
             state["chain"].append(("✗", f"{shown(R.published_path(lp).relative_to(project))} · {label}"))
@@ -595,7 +675,7 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             # None with no sidecar or with switches.publish off.
             "published": published,
             # Proposal 22, T-02: the sponsor asked for this proposal's own tracker.
-            "own_tracker": own,
+            "own_tracker": own_page,
         }
         if "session" in data:
             clean, problem = _session_problem(data["session"], rel)
@@ -614,6 +694,15 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
         else:
             state["problems"].append(f"page {brel} is {board_state} -- run: tracker board --project .")
             state["chain"].append(("✗", f"page {brel} · {board_state} -- run: tracker board --project ."))
+        # Proposal 22, T-03: what was last published of that one page. The key
+        # is present only when there is a record to carry, so a project that
+        # never publishes carries exactly the state it carried before.
+        pub, problem, label = project_publish_state(project, board_page, ledger_datas)
+        if pub is not None or problem is not None:
+            state["published"] = pub
+        if problem:
+            state["problems"].append(problem)
+            state["chain"].append(("✗", f"{shown(B.published_path(project).relative_to(project))} · {label}"))
 
     if state.get("session") is None:
         clean, problem = session_from_declaration(project)
@@ -752,6 +841,10 @@ def card(s: dict) -> str:
             if a["state"] == "open":
                 out.append(f"  open ask     {shown(aid)} ({shown(a['kind'])}) “{shown(a['quote'])}”")
         out += ledger_v2_lines(led, s.get("session"))
+    # Proposal 22, T-03: the project's one page, named once, after the ledgers.
+    project_pub = s.get("published")
+    if project_pub and project_pub.get("changed"):
+        out.append(publish_line(project_pub))
     out.append("Chain:")
     out += [f"  {mark} {text}" for mark, text in s["chain"]]
     if s.get("superseded"):
@@ -824,6 +917,12 @@ def delta(old: dict, new: dict) -> str:
                                                 and old_pub.get(moved) == pub[moved]):
             lines.append(publish_line(pub))
         out += lines
+    # T-03: the project page, named again only when it is news -- newly
+    # changed, or the page (or the URL) moved again since the saved state.
+    pub, old_pub = new.get("published"), old.get("published") or {}
+    if pub and pub.get("changed") and not (old_pub.get("changed") and old_pub.get("url") == pub["url"]
+                                           and old_pub.get("page_digest") == pub["page_digest"]):
+        out.append(publish_line(pub))
     for rel in new.get("prose", PROSE):
         if old.get("files", {}).get(rel) and new["files"].get(rel) and old["files"][rel] != new["files"][rel]:
             out.append(f"{rel} changed since the last warm-up -- re-read it")

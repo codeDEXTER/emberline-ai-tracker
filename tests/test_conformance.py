@@ -463,6 +463,7 @@ class TestItem1AgainstRulecheck(unittest.TestCase):
 OWN_TRACKER = {"own": True, "by": "sponsor", "at": "2026-09-14T21:00:00+02:00",
                "quote": "this one gets a tracker of its own"}
 INDEX = "docs/proposals/tracker/index.html"
+URL = "https://claude.ai/code/artifact/00000000-0000-0000-0000-000000000000"
 
 
 class TestItem2Migrated(Copy):
@@ -802,13 +803,60 @@ class TestItem9Ruflo(Copy):
 
 
 class TestItem10Publishing(Copy):
+    """Proposal 22, T-03: the sidecar of record is the project page's,
+    docs/proposals/tracker/index.published.json. A per-ledger sidecar is read
+    only for a ledger that records its own tracker (or a declared plan_page);
+    a leftover one does not hold, and the fix is to remove it."""
 
-    def test_a_malformed_sidecar_does_not_hold(self):
+    def tracker(self, *args):
+        return run([sys.executable, ROOT / "bin" / "tracker", *args])
+
+    def published_project(self):
+        return run([sys.executable, ROOT / "bin" / "tracker", "published", "--project", self.p,
+                    "--url", URL, "--by", "lead"])
+
+    def test_a_leftover_per_ledger_sidecar_does_not_hold(self):
+        stem = ledger_path(self.p).stem
+        write(self.p, f"docs/proposals/tracker/{stem}.published.json",
+              json.dumps({"url": URL, "digest": "0" * 64, "at": NOW, "by": None}) + "\n")
+        # The card is silent about it (T-03), so item 12 still holds.
+        data = self.assert_breaks({10})
+        self.assertIn(f"{stem}.published.json", self.item(data, 10)["why"])
+        self.assertIn("git rm", self.item(data, 10)["fix"])
+        self.assertIn("tracker published --project", self.item(data, 10)["fix"])
+
+    def test_a_malformed_leftover_is_not_read_either(self):
         stem = ledger_path(self.p).stem
         write(self.p, f"docs/proposals/tracker/{stem}.published.json", "{\"url\": 1}\n")
-        # The card names the same unreadable sidecar.
+        data = self.assert_breaks({10})
+        self.assertIn(f"{stem}.published.json", self.item(data, 10)["why"])
+
+    def test_an_own_tracker_ledgers_sidecar_is_still_read(self):
+        edit_ledger(self.p, lambda d: d.update(tracker=OWN_TRACKER))
+        self.tracker("board", "--project", self.p)
+        self.tracker("render", ledger_path(self.p))
+        self.tracker("checkpoint", "--project", self.p)
+        stem = ledger_path(self.p).stem
+        write(self.p, f"docs/proposals/tracker/{stem}.published.json", "{\"url\": 1}\n")
+        commit(self.p, "own tracker, a malformed sidecar")
+        # The card reads this one, so item 12 sees the same fault.
         data = self.assert_breaks({10}, also={12})
         self.assertIn(f"{stem}.published.json", self.item(data, 10)["why"])
+
+    def test_the_recorded_project_page_holds(self):
+        r = self.published_project()
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        commit(self.p, "record the project page")
+        data, code = report(self.p)
+        self.assertEqual(states_of(data), expected_base(), json.dumps(data, indent=2, ensure_ascii=False))
+        self.assertEqual(0, code)
+        self.assertIn("1 publish record(s)", self.item(data, 10)["why"])
+
+    def test_a_malformed_project_sidecar_does_not_hold(self):
+        write(self.p, "docs/proposals/tracker/index.published.json", "{\"url\": 1}\n")
+        # The card names the same unreadable sidecar.
+        data = self.assert_breaks({10}, also={12})
+        self.assertIn("index.published.json", self.item(data, 10)["why"])
 
 
 class TestItem11Pointer(Copy):
