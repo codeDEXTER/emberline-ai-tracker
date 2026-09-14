@@ -1,5 +1,43 @@
 # Changelog — common-rules
 
+## 2026-09-14 · An unimplemented Standard change fails the card (P21 S-09)
+
+The sponsor ruled that every later improvement to the standard is mandatory
+(proposal 21, A-03). An entry here that carries a column-0
+`**Standard change (mandatory):**` line must be implemented before a project's
+`.common-rules-version` stamp moves. Until now, "behind" was only information.
+
+`rulecheck --project DIR --mandatory` lists the entries whose requirement
+paragraph changed since the stamp.
+- Exit codes: 0 means nothing to do, 1 means pending, 2 means the rules
+  repository or its CHANGELOG cannot be read.
+- Adding, rewording or deleting any line of the requirement paragraph counts.
+  An unchanged entry that only moved does not.
+- Markers inside closed code fences are ignored. A fence never spans a dated
+  entry heading, so an unclosed fence cannot hide a requirement.
+- A stamp that cannot be resolved (bad form, or a commit the rules do not have)
+  counts every mandatory entry.
+- A stamp on a diverged commit (a side branch, or history rewritten) is compared
+  tree to tree.
+- Only a stamp truly ahead of the rules checkout reads "ahead". Plain
+  `rulecheck` exits 0 for that stamp.
+- A stamp's sha reaches git only when it is hex. This closes an injection where
+  a crafted stamp made `git diff` write a file.
+
+`warmup`'s card shows "rules behind · N mandatory Standard change(s) to
+implement first", naming each. `--check` fails while any is pending. Entries
+without the line stay informational and never fail.
+
+Two review rounds, then the lead fixed the final round's findings (7746c80): a
+diverged stamp misread as ahead, an unclosed fence, `--check` naming the
+entries, and deleted requirement lines.
+
+**Behaviour change:** every project with a `.common-rules-version` stamp fails
+`warmup --check` from now on until it implements the mandatory entries since its
+stamp and runs `rulecheck --align`. The PhotoVault app does today, for "Later
+changes to the standard are mandatory too" and the proposal 21 entries. That is
+the sponsor's ruling doing its job.
+
 ## 2026-09-14 · Sessions that start above their projects get the card (P21 S-05)
 
 The PhotoVault app and engine sessions start in `PhotoVault/`, the folder above
