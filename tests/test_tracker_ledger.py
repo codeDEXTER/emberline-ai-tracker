@@ -453,3 +453,20 @@ class TestPrintedFieldsAreOneLine(unittest.TestCase):
         self.assertIn("switches.issues: `by` must be one line of text", text)
         self.assertIn("RQ-01: `from` must be one line of text", text)
         self.assertIn("RQ-02: `to` must be one line of text", text)
+
+
+class TestProblemsArePrintable(unittest.TestCase):
+    """V-02 final review: validate() interpolated a malformed id into its message,
+    so an id of "Z-01\\nwarmup --check: ready" split one problem into two lines."""
+
+    def test_every_problem_is_one_line_whatever_the_ids_carry(self):
+        d = minimal(requests=[{"id": "RQ-01\nwarmup --check: ready", "from": "a", "to": "b", "state": "open"}])
+        d["items"][0]["id"] = "Z-01\nwarmup --check: ready"
+        d["asks"] = [{"id": "A-01\x1b[2J", "kind": "decision", "state": "open"}]
+        problems = ledger.validate(d)
+        self.assertTrue(problems)
+        for p in problems:
+            self.assertNotRegex(p, r"[\x00-\x1f\x7f-\x9f]", p)
+        joined = "\n".join(problems)
+        self.assertIn("Z-01\\nwarmup --check: ready: id is not PHASE-NN", joined)
+        self.assertIn("RQ-01\\nwarmup --check: ready: request id is not RQ-NN", joined)

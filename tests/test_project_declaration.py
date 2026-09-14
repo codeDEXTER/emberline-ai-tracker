@@ -613,6 +613,9 @@ class TestTheStateKeysWithNoDeclaration(unittest.TestCase):
                 "read_order", "read_bytes", "recall",
                 # added by proposal 20, V-00:
                 "prohibitions_from", "prose", "quick_gate", "merge_gate_declared",
+                # added by proposal 20, V-02: the project's own session name,
+                # when a ledger or the declaration names one (else None).
+                "session",
             }, set(json.loads(r.stdout)))
         finally:
             p.close()
