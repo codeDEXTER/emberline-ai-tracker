@@ -26,7 +26,9 @@
     {"id": "A-05", "kind": "decision", "state": "answered", "at": "2026-09-14T18:16:03+02:00", "by": "sponsor", "quote": "Asked: \"May I commit the warm-up pointer block to common-rules' CLAUDE.md? It is the only part of CLAUDE.md that changes, and it takes common-rules from 11 to 12 of 12.\" Answered: \"Commit it (Recommended)\""},
     {"id": "A-06", "kind": "decision", "state": "answered", "at": "2026-09-14T18:16:03+02:00", "by": "sponsor", "quote": "Asked: \"May I install the start card on the PhotoVault folder with derecord --parent /Users/the-sponsor/apps/PhotoVault? It writes only a SessionStart hook in PhotoVault/.claude/settings.json.\" Answered: \"Install it (Recommended)\""},
     {"id": "A-07", "kind": "decision", "state": "answered", "at": "2026-09-14T18:16:03+02:00", "by": "sponsor", "quote": "Asked: \"May I install the same start card on /Users/the-sponsor/apps, where this session, MacExplorer and most of your other sessions start?\" Answered: \"Not now (Recommended)\""},
-    {"id": "A-08", "kind": "decision", "state": "answered", "at": "2026-09-14T18:44:53+02:00", "by": "sponsor", "quote": "/standard: the common-rules standard is mandatory"}
+    {"id": "A-08", "kind": "decision", "state": "answered", "at": "2026-09-14T18:44:53+02:00", "by": "sponsor", "quote": "/standard: the common-rules standard is mandatory"},
+    {"id": "A-09", "kind": "feature", "state": "answered", "at": "2026-09-14T19:14:13+02:00", "by": "sponsor", "quote": "Show me the tracker for common rules#."},
+    {"id": "A-10", "kind": "decision", "state": "answered", "at": "2026-09-14T19:41:05+02:00", "by": "sponsor", "quote": "automatically merge the, uh, pull requests."}
   ],
   "requests": [],
   "proposed_changes": [],

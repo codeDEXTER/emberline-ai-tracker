@@ -1,5 +1,30 @@
 # Changelog — common-rules
 
+## 2026-09-14 · `tracker board`: one tracker page per project (P22 T-01)
+
+The sponsor asked: "Can we make the tracker a little bit visually readable
+with some filters or something like that? Like, a top level, uh, you know,
+where it filters everything, and I can see things in block, maybe visually
+appealing a little bit? Also, per project, there should be one tracker unless
+and until specified for a proposal if I need another tracker."
+
+`bin/tracker board [--project DIR] [--check]` renders every ledger in
+`docs/proposals` into one page, `docs/proposals/tracker/index.html`:
+- the project's totals, and one block per proposal (click one to filter the
+  page to it);
+- a filter bar that stays in view: search, status, owner, tier, and Board or
+  List;
+- open asks and requests, then the board, one column per status, with each
+  item's full log a click away; the list; and the answered asks.
+
+The page is deterministic and carries each ledger's digest; `--check` is
+stale when any ledger changes, is added or is removed. The filters run in the
+page's own script, with no external script.
+
+**Behaviour change:** none yet. The per-proposal pages, derecord's hook, the
+card, conformance and publishing are unchanged until T-02 and T-03; proposal
+22 moves them onto this page, and that entry carries the Standard change line.
+
 ## 2026-09-14 · common-rules is on its own standard (P21 S-10)
 
 The sponsor asked for common-rules itself to follow the standard: "Common rules

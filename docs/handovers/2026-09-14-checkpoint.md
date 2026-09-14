@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-14 18:44
+# Checkpoint — 2026-09-14 20:45
 
-Reason: manual · branch: p21 · HEAD: 8981397
+Reason: manual · branch: p22 · HEAD: 1e3afa9
 
-<!-- ledger-digest: e2d76d9bf1a9b1edbc2296f22e054893ee42bad579262130f02b8647540384b3 -->
+<!-- ledger-digest: 198c4a06ddc301d2c08b795232456a18e57bc84b16c2648e83e576f426950fbc -->
 
 ## Proposal 19 · Warm-up
 
@@ -44,6 +44,26 @@ Reason: manual · branch: p21 · HEAD: 8981397
 
 - S-07 · [ruflo · lead · lead model] · PhotoVault app on the standard
 - S-08 · [ruflo · lead · lead model] · PhotoVault engine on the standard
+
+## Proposal 22 · One tracker per project
+
+1 done / 0 in progress / 0 blocked / 4 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- T-02 · [ruflo · high · opus] · The chain reads the project page, not one page per proposal
 
 ## Exact next action
 

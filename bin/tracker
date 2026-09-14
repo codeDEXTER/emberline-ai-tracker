@@ -10,6 +10,8 @@
   tracker published LEDGER.json --url URL [--by NAME] [--page PATH]
                                        record the page a session just published    (P20 V-09;
                                        --page is required when plan_page is declared, V-11)
+  tracker board [--project DIR] [--check]
+                                       every ledger -> the project's one tracker page (P22 T-01)
 
 Each command is a module in tools/tracker/ with a `main(argv) -> int`, so
 commands built in parallel never edit the same file.
@@ -23,7 +25,7 @@ from pathlib import Path
 RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
-COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import", "published")
+COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import", "published", "board")
 
 
 def validate(argv):
