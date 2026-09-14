@@ -1,0 +1,59 @@
+{
+  "proposal": 20,
+  "title": "Warm-up, from the app",
+  "status": "accepted",
+  "updated": "2026-09-14",
+  "tiers": {
+      "C1": {
+          "tier": "low",
+          "model": "haiku",
+          "effort": "low",
+          "rule": "Mechanical, one owned file, fully specified"
+      },
+      "C2": {
+          "tier": "medium",
+          "model": "sonnet",
+          "effort": "medium",
+          "rule": "Bounded implementation or tests, one or two owned files and their tests"
+      },
+      "C3": {
+          "tier": "high",
+          "model": "opus",
+          "effort": "high",
+          "rule": "Cross-module design; changes a contract every project inherits"
+      },
+      "C4": {
+          "tier": "lead",
+          "model": "lead model",
+          "effort": "-",
+          "rule": "Planning, merging, reconciling, another project's real data, a sponsor decision"
+      }
+  },
+  "phases": [
+      {
+          "id": "V",
+          "name": "Warm-up v2",
+          "goal": "Proposal 20's thirteen decisions built, and both PhotoVault projects reheated onto them.",
+          "exit": "Every item done with its evidence; both PhotoVault cards read ready on the new tools."
+      }
+  ],
+  "items": [
+    {"id": "V-00", "phase": "V", "cx": "C3", "title": "Project declaration: .common-rules.json (D9)", "what": "A shared loader for .common-rules.json: read_order, safety_rules (file#heading), gates.quick and gates.merge, plan_check, plan_page. .common-rules-test keeps working as gates.merge. bin/land's test_cmd and bin/warmup read it; migrate writes the pointer's read order from it.", "files": ["tools/project.py", "bin/land", "bin/warmup", "tools/migrate.py"], "tests": ["tests/test_project_declaration.py"], "done": "A project declaring its own read order, safety heading and two gates gets a card and a land run that use them; one without the file behaves exactly as today.", "depends": [], "status": "not started", "tier": "high", "model": "opus", "tag": "[ruflo · high · opus]", "issue": null, "log": []},
+    {"id": "V-01", "phase": "V", "cx": "C3", "title": "Ledger contract v2 (D2, D4, D5, D6, D7, D8)", "what": "ledger.py learns: model_routing (and a check that a row's model matches its class unless it carries a reason); owner on blocked rows and decision asks; switches; requests; evidence and verify when the ledger declares an evidence rule and a verification ladder; gates, quality_floors, receipts; readiness computed; the merged flag. Every addition optional, so the engine's and the app's ledgers still validate.", "files": ["tools/tracker/ledger.py"], "tests": ["tests/test_tracker_ledger.py"], "done": "The engine's 71 and the app's 70 ledgers validate unchanged; each new rule has a red test and a named problem.", "depends": [], "status": "not started", "tier": "high", "model": "opus", "tag": "[ruflo · high · opus]", "issue": null, "log": []},
+    {"id": "V-02", "phase": "V", "cx": "C2", "title": "Card v2", "what": "bin/warmup prints readiness and merged-awaiting-evidence, only the sponsor-owned items on the yours line, switches that are off, open requests both ways, the project's routing, and prohibitions from the declared safety rules.", "files": ["bin/warmup"], "tests": ["tests/test_warmup.py"], "done": "Card tests cover each line; the app's and engine's cards read ready.", "depends": ["V-00", "V-01"], "status": "not started", "tier": "medium", "model": "sonnet", "tag": "[ruflo · medium · sonnet]", "issue": null, "log": []},
+    {"id": "V-03", "phase": "V", "cx": "C2", "title": "Tracker page v2", "what": "render draws readiness, gates and floors, requests, owners and merged flags.", "files": ["tools/tracker/render.py"], "tests": ["tests/test_tracker_render.py"], "done": "Render tests cover each section; the engine's and app's pages render.", "depends": ["V-01"], "status": "not started", "tier": "medium", "model": "sonnet", "tag": "[ruflo · medium · sonnet]", "issue": null, "log": []},
+    {"id": "V-04", "phase": "V", "cx": "C2", "title": "sync honours switches.issues (D5)", "what": "tracker sync exits 0 with a sentence naming who switched issues off, and when.", "files": ["tools/tracker/sync.py"], "tests": ["tests/test_tracker_sync.py"], "done": "A ledger with issues off makes no gh call.", "depends": ["V-01"], "status": "not started", "tier": "medium", "model": "sonnet", "tag": "[ruflo · medium · sonnet]", "issue": null, "log": []},
+    {"id": "V-05", "phase": "V", "cx": "C2", "title": "Agent tag hook (D3)", "what": "hooks/pretooluse-agent reads the Agent prompt's first line and warns, with the ledger row's tag, when [ruflo · tier · model] ID is missing. It warns, never refuses, and never fails the session.", "files": ["hooks/pretooluse-agent"], "tests": ["tests/test_hooks.py"], "done": "Tagged prompt: silent. Untagged prompt naming a ledger id: a warning with that row's tag.", "depends": [], "status": "not started", "tier": "medium", "model": "sonnet", "tag": "[ruflo · medium · sonnet]", "issue": null, "log": []},
+    {"id": "V-06", "phase": "V", "cx": "C2", "title": "bin/ruflo-item (D11)", "what": "start | done | note | recall around an item: pre-task and memory store; done runs the declared merge gate before post-task; recall lists keys before semantic search; the daemon is stopped on every exit.", "files": ["bin/ruflo-item"], "tests": ["tests/test_ruflo_item.py"], "done": "Driven by a fake ruflo on PATH: the call order is exact, the gate runs before done, and the daemon is stopped even on failure.", "depends": ["V-00"], "status": "not started", "tier": "medium", "model": "sonnet", "tag": "[ruflo · medium · sonnet]", "issue": null, "log": []},
+    {"id": "V-07", "phase": "V", "cx": "C2", "title": "derecord v2 (D12, D13)", "what": "The pre-commit hook regenerates and stages the page and checkpoint when a ledger is staged, alongside the conflict-marker guard. It ignores Ruflo runtime state only and installs the V-05 hook.", "files": ["bin/derecord"], "tests": ["tests/test_derecord.py"], "done": "A staged ledger commits with its page and checkpoint; Ruflo runtime files are ignored while config stays tracked; derecord stays idempotent.", "depends": ["V-05"], "status": "not started", "tier": "medium", "model": "sonnet", "tag": "[ruflo · medium · sonnet]", "issue": null, "log": []},
+    {"id": "V-08", "phase": "V", "cx": "C2", "title": "Templates: parallel high tier, reviewer, verify level (D10)", "what": "lead-prompt.md: parallel C3 on disjoint files, each with a report-only reviewer of at most the same tier, two rounds; the lead merges, reconciles and decides. brief.md gains a verify level. OPERATING-RULES.md is corrected to branch from origin/main.", "files": ["templates/lead-prompt.md", "templates/brief.md", "templates/OPERATING-RULES.md"], "tests": ["tests/test_templates.py"], "done": "Template tests pin the new sections and the removal of both old lines.", "depends": [], "status": "not started", "tier": "medium", "model": "sonnet", "tag": "[ruflo · medium · sonnet]", "issue": null, "log": []},
+    {"id": "V-09", "phase": "V", "cx": "C3", "title": "Publish (D1)", "what": "Artifacts publish only through a session's Artifact tool, which a hook cannot call. So render records the digest last published; the card says 'page changed since last publish'; the lead prompt and /warmup republish when it does.", "files": ["tools/tracker/render.py", "bin/warmup", "skills/warmup/SKILL.md", "templates/lead-prompt.md"], "tests": ["tests/test_tracker_render.py", "tests/test_warmup.py"], "done": "A changed ledger shows 'changed since last publish' until the publish is recorded.", "depends": ["V-03", "V-02"], "status": "not started", "tier": "high", "model": "opus", "tag": "[ruflo · high · opus]", "issue": null, "log": []},
+    {"id": "V-10", "phase": "V", "cx": "C4", "title": "Reheat the PhotoVault engine and app, then measure", "what": "Reheat both sessions now on the current standard; after the build, message each as its pieces land and reheat again; record each card's delta.", "files": [], "tests": [], "done": "Both cards read ready on proposal 20's tools, and each session's reply is logged.", "depends": ["V-02", "V-07", "V-09"], "status": "in progress", "tier": "lead", "model": "lead model", "tag": "[ruflo · lead · lead model]", "issue": null, "log": [{"at": "2026-09-14T07:15:52+02:00", "event": "started", "by": "lead", "evidence": "first reheat sent to both PhotoVault sessions (engine queued, app delivered); a second follows the build"}], "discovered_from": "A-02"}
+  ],
+  "asks": [
+    {"id": "A-01", "at": "2026-09-14T07:12:59+02:00", "kind": "decision", "quote": "proposal 20 accepted", "became": null, "state": "answered"},
+    {"id": "A-02", "at": "2026-09-14T07:12:59+02:00", "kind": "feature", "quote": "reheat the photovault app and engine", "became": "V-10", "state": "became-item"}
+  ],
+  "proposed_changes": [],
+  "execution": {"started": "2026-09-14T07:15:52+02:00", "ruflo_route": "CLI, cached ruflo v3.41.2 at ~/.npm/_npx/85fb20e3e7e3a233", "integration_branch": "p20"}
+}
