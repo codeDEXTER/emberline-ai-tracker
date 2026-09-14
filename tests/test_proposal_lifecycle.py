@@ -44,6 +44,11 @@ STATUS_BEFORE_FLOOR = "2026-08-19"
 STATUS_ON_FLOOR = "2026-08-20"
 STATUS_AFTER_FLOOR = "2026-08-21"
 
+# NEW_PROPOSAL_FLOOR in proposalcheck (2026-09-14, proposal 21 / S-03) is a
+# third, later floor still -- gates a page's own git-add date, not its
+# proposal-decided meta, so it gets its own trio too.
+NEW_PROPOSAL_AFTER_FLOOR = "2026-09-14T00:00:00+00:00"
+
 
 def proposal(status: str | None, decided: str | None = None, *,
              asks_decisions: bool = False, answered: bool = False,
@@ -319,6 +324,118 @@ class ProposalIsEitherAProposalOrAnArtifactTests(unittest.TestCase):
                     self.skipTest(f"{name} not present beside {apps}")
                 r = run(proj)
                 self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+
+class NewProposalMustCarryStatusTests(unittest.TestCase):
+    """Proposal 21 (S-03): a lead with no `proposal-status` meta at all is a
+    violation once the *page itself* is new -- measured by when it was first
+    added to git, not by its (often-absent) `proposal-decided` date.
+
+    PhotoVault's app proposals 72, 75, 76 and the engine's 77 all carry no
+    status meta and no decided date, so the existing lead-status check (which
+    is gated by `proposal-decided`) reads them as undated and silently
+    grandfathers them -- this is the gap that check leaves open. This rule
+    has its own floor (NEW_PROPOSAL_FLOOR, 2026-09-14) and needs real git
+    history to answer "when was this page first added", so each test here
+    builds a scratch git repo rather than writing loose files."""
+
+    NEW_STATUS_MESSAGE = "carries no proposal status"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.repo = Path(self._tmp.name) / "proj"
+        self.repo.mkdir()
+        self.addCleanup(self._tmp.cleanup)
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "t@example.com")
+        self.git("config", "user.name", "t")
+        (self.repo / "CLAUDE.md").write_text("test project\n")
+        (self.repo / "docs" / "proposals").mkdir(parents=True)
+        self.git("add", "-A")
+        self.git("commit", "-qm", "seed")
+
+    def git(self, *args, env=None):
+        return subprocess.run(["git", "-C", str(self.repo), *args],
+                              capture_output=True, text=True, check=True, env=env)
+
+    def commit_page(self, name: str, text: str, *, when: str | None = None):
+        """Write `name` under docs/proposals/ and commit it, optionally
+        back-dating the commit (both author and committer, as `git log
+        --format=%aI` reads the author date)."""
+        (self.repo / "docs" / "proposals" / name).write_text(text)
+        self.git("add", "-A")
+        env = dict(os.environ)
+        if when:
+            env["GIT_AUTHOR_DATE"] = when
+            env["GIT_COMMITTER_DATE"] = when
+        self.git("commit", "-qm", f"add {name}", env=env)
+
+    def write_uncommitted(self, name: str, text: str):
+        (self.repo / "docs" / "proposals" / name).write_text(text)
+
+    def run_check(self):
+        return run(self.repo)
+
+    def test_new_committed_page_without_status_is_a_violation(self):
+        self.commit_page("01-x.html", proposal(None), when=NEW_PROPOSAL_AFTER_FLOOR)
+        r = self.run_check()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn(self.NEW_STATUS_MESSAGE, r.stdout)
+        self.assertIn("01-x.html", r.stdout)
+
+    def test_old_page_committed_before_the_floor_is_not_a_violation(self):
+        self.commit_page("01-x.html", proposal(None), when="2026-01-01T00:00:00+00:00")
+        r = self.run_check()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn(self.NEW_STATUS_MESSAGE, r.stdout)
+
+    def test_uncommitted_page_without_status_is_a_violation(self):
+        """A proposal cannot dodge this rule by staying out of git entirely."""
+        self.write_uncommitted("01-x.html", proposal(None))
+        r = self.run_check()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn(self.NEW_STATUS_MESSAGE, r.stdout)
+
+    def test_artifact_page_is_not_a_violation(self):
+        """An artifact/section (proposal-part-of set) has nothing of its own
+        to decide, so it never needs a status -- new or not."""
+        self.commit_page("01-lead.html", proposal("accepted", STATUS_AFTER_FLOOR),
+                         when=NEW_PROPOSAL_AFTER_FLOOR)
+        self.commit_page("02-artifact.html", proposal(None, part_of="01", pid="02"),
+                         when=NEW_PROPOSAL_AFTER_FLOOR)
+        r = self.run_check()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn(self.NEW_STATUS_MESSAGE, r.stdout)
+
+    def test_section_page_is_not_a_violation(self):
+        self.commit_page("01-lead.html", proposal("accepted", STATUS_AFTER_FLOOR),
+                         when=NEW_PROPOSAL_AFTER_FLOOR)
+        self.commit_page("02-section.html", proposal(None, part_of="01", pid="02"),
+                         when=NEW_PROPOSAL_AFTER_FLOOR)
+        r = self.run_check()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn(self.NEW_STATUS_MESSAGE, r.stdout)
+
+    def test_new_page_with_status_passes_the_new_rule(self):
+        self.commit_page("01-x.html", proposal("proposed"),
+                         when=NEW_PROPOSAL_AFTER_FLOOR)
+        r = self.run_check()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn(self.NEW_STATUS_MESSAGE, r.stdout)
+
+    def test_outside_a_git_repository_the_rule_never_fires(self):
+        """No git history to ask "when was this first added" -- today's
+        behaviour holds rather than guessing. Uses a plain (non-git) tmpdir,
+        same shape as ProposalLifecycleTests above."""
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = Path(tmp)
+            (proj / "CLAUDE.md").write_text("test project\n")
+            proposals = proj / "docs" / "proposals"
+            proposals.mkdir(parents=True)
+            (proposals / "01-x.html").write_text(proposal(None))
+            r = run(proj)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertNotIn(self.NEW_STATUS_MESSAGE, r.stdout)
 
 
 if __name__ == "__main__":
