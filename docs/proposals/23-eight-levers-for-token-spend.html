@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>23 · accepted · Eight levers for token spend</title>
+<meta name="proposal-id" content="23">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-15">
+<meta name="common-rules-template" content="proposal/21">
+<!--
+  Written by common-rules bin/new-proposal from templates/proposal.html
+  (proposal 21, S-02), then filled in by the Common Rules rework session.
+-->
+<style>
+  :root {
+    --ground: #F1F2F4; --surface: #FFFFFF; --ink: #16191D; --dim: #5E6873;
+    --border: #D3D8DE; --accent: #C2521F; --accent-soft: #F7E3D8;
+    --fill: #FFF3BF; --fill-ink: #5C4400;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #111417; --surface: #1A1F24; --ink: #E5E8EB; --dim: #939DA7;
+      --border: #2F3841; --accent: #EE7A45; --accent-soft: #3A2419;
+      --fill: #3B3313; --fill-ink: #F2DC8C;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 90px; }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.01em; margin: 0; }
+  h1 .num, h1 .status { color: var(--accent); }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 40px 0 10px; }
+  .sub { color: var(--dim); margin: 10px 0 0; max-width: 72ch; }
+  .card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; margin-top: 12px; }
+  blockquote { margin: 0; padding: 14px 20px; background: var(--surface); border-left: 3px solid var(--accent); font-size: 17px; }
+  blockquote + blockquote { margin-top: 10px; }
+  blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--dim); }
+  .opt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .opt .card h3 { margin: 0 0 6px; font-size: 16px; }
+  .opt .card p { margin: 0; }
+  ol.decisions { background: var(--surface); border: 1px solid var(--border); margin: 12px 0 0; padding: 14px 20px 14px 44px; }
+  ol.decisions li + li { margin-top: 6px; }
+  .slot { border: 1px dashed var(--border); padding: 14px 20px; margin-top: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--dim); font-weight: 600; font-size: 13px; }
+  .tbl { overflow-x: auto; }
+  .m { font-family: var(--mono); font-size: .9em; }
+  .src { font-size: 13px; color: var(--dim); margin-top: 36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="num">23</span> · <span class="status">accepted</span> · Eight levers for token spend</h1>
+<p class="sub">Proposal 23 · accepted 2026-09-15. The sponsor asked why building simple features costs so many tokens. A transcript measurement found where the spend goes, eight levers were offered on a decision page, and he picked one option per lever. This proposal records those picks and turns them into ledger items.</p>
+
+<h2>The ask</h2>
+<blockquote>
+  I would like you to analyze the Photo Vault app and Photo Vault engine and also the common rules chat v1. analyze where the tokens are getting spent and why it's getting so expensive to build simple features. I would like to optimize things.
+  <cite>The sponsor, 14 September 2026, in the Common Rules rework session (its transcript).</cite>
+</blockquote>
+<blockquote>
+  Can you make a visual proposal out of that? What does it mean and what are the other options there? I don't want to read too much text and then I can decide if the strategy needs to be different.
+  <cite>The sponsor, 14 September 2026, same session, after the Where the Tokens Go charts.</cite>
+</blockquote>
+
+<h2>What was found</h2>
+<div class="card">
+  <ul>
+    <li>Leads carry about 500k tokens into every call: 66% (App), 67% (Engine) and 56% (Common Rules chat v1) of lead spend happened with more than 500k tokens in context. Measured from the three transcripts, each API response counted once.</li>
+    <li>Cache re-reads are 68–79% of lead spend; output is 10–15%.</li>
+    <li>Ledger, tracker and ruflo work is the lead's largest line: 33% (App), 23% (Engine), 42% (common-rules).</li>
+    <li>Nearly every item gets build plus review, and sometimes fix, agents. Items needing more than one agent carried 98% (App) and 92% (common-rules) of subagent spend.</li>
+    <li>Build, test and receipt runs are 62% of App subagent spend; Engine agents spend 53% reading and inspecting code.</li>
+    <li>Not verified: the per-step split divides a response's cost evenly across its tool calls; dollar figures are API list-price equivalents, not a bill.</li>
+  </ul>
+</div>
+
+<h2>Options</h2>
+<p class="sub">Each lever offered a recommended option, one to three alternatives, and "keep as is". The full set is on the Eight Levers page; the picked option is shown here.</p>
+<div class="opt">
+  <div class="card"><h3>L1 · Fresh leads</h3><p>A · A fresh lead per milestone or day, under about 150k context, handed over by warmup and checkpoint.</p></div>
+  <div class="card"><h3>L2 · Review for risk</h3><p>A · A separate reviewer only for money, data safety, cross-cutting changes and releases.</p></div>
+  <div class="card"><h3>L3 · Quiet builds</h3><p>A · Output to a file; agents read only the summary line.</p></div>
+  <div class="card"><h3>L4 · Bookkeeping out of the lead</h3><p>A · One-line tracker commands instead of inline python on ledger JSON.</p></div>
+  <div class="card"><h3>L5 · Bundle small issues</h3><p>A · By surface: one agent, one commit per issue, one gate, one PR.</p></div>
+  <div class="card"><h3>L6 · Context pack</h3><p>B · A Haiku scout writes the pack before the builder starts.</p></div>
+  <div class="card"><h3>L7 · Screenshots</h3><p>Keep as is: the lead reads receipt images itself.</p></div>
+  <div class="card"><h3>L8 · Models by role</h3><p>Keep as is, and rethink sizing by value and story points first (proposal 25).</p></div>
+</div>
+<p><b>Recommended:</b> A for L1 to L8, except where "keep" protects a rule the sponsor holds. He took the recommendation on L1 to L5, the alternative on L6, and kept L7 and L8.</p>
+
+<h2>Decisions</h2>
+<p class="sub">Each numbered line is one thing the sponsor answers. Keep the numbers stable once shown: answers and ledger items cite them.</p>
+<ol class="decisions">
+  <li><b>D1.</b> L1: how should lead sessions be kept short?</li>
+  <li><b>D2.</b> L2: which items get a separate reviewer?</li>
+  <li><b>D3.</b> L3: how do agents read build and test output?</li>
+  <li><b>D4.</b> L4: how are ledger updates made?</li>
+  <li><b>D5.</b> L5: how are small issues grouped for work?</li>
+  <li><b>D6.</b> L6: who prepares the builder's context?</li>
+  <li><b>D7.</b> L7: who looks at receipt screenshots?</li>
+  <li><b>D8.</b> L8: how are models assigned?</li>
+</ol>
+
+<h2>Decided</h2>
+<section class="slot" id="decided">
+  <p>Decided by the sponsor on 14–15 September 2026 (23:52 to 00:00 CEST), by picking one option per lever on the Eight Levers page. His picks and notes are stored in that page's database (collection <span class="m">picks</span>) and copied verbatim into this proposal's ledger as asks A-01 to A-10.</p>
+  <div class="tbl"><table>
+    <tr><th>Decision</th><th>Answer</th><th>His note, verbatim</th><th>Ledger</th></tr>
+    <tr><td>D1</td><td>A · Fresh lead per milestone or day</td><td>"how we will ensure nothing important is missed. make a separate proposal. also the work needs to continue autonomsly."</td><td>L-01, X-03 → proposal 24</td></tr>
+    <tr><td>D2</td><td>A · Review only risky work</td><td>"but the issues need to be catalauges and clustered together for later"</td><td>L-02, X-02</td></tr>
+    <tr><td>D3</td><td>A · Log to file, read the summary line</td><td>–</td><td>L-03</td></tr>
+    <tr><td>D4</td><td>A · One-line tracker commands</td><td>–</td><td>L-04</td></tr>
+    <tr><td>D5</td><td>A · Bundle by surface</td><td>"issues need to be catalauges and clustered together for later"</td><td>L-05, X-02</td></tr>
+    <tr><td>D6</td><td>B · Haiku scout writes the pack</td><td>–</td><td>L-06</td></tr>
+    <tr><td>D7</td><td>Keep as is</td><td>–</td><td>none</td></tr>
+    <tr><td>D8</td><td>Keep as is</td><td>"this needs to be rethaught. its not only the complexity of the task, but the importance and value of the feature. each feature or task should have a userstory point to understand complexitxy and effort. research how this could be implemented"</td><td>X-01 → proposal 25</td></tr>
+  </table></div>
+  <p>Not taken: the three extras on the page (Ruflo through its CLI only, a turn cap per agent, cost per item on the card) were left unticked.</p>
+</section>
+
+<p class="src">Sources: transcripts <span class="m">~/.claude/projects/-Users-aashish-apps-PhotoVault/c45825a1…jsonl</span> (PhotoVault App, 128 subagents), <span class="m">9062f63c…jsonl</span> (PhotoVault Engine, 53), <span class="m">-Users-aashish-apps/bd66c5cc…jsonl</span> (Common Rules chat v1, 61), measured by scripts in the Common Rules rework session scratchpad on 14 September 2026. Charts: Where the Tokens Go, https://claude.ai/artifact/JRw4N9ufySvRvUSTvi4kpk. Decision page and picks: Eight Levers, https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip. Not verified: the dollar conversion undercounted App agent output by about 14% against the unit pass; the per-step attribution splits a response evenly across its tool calls.</p>
+
+</div>
+</body>
+</html>
