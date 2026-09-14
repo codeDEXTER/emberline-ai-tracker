@@ -233,6 +233,7 @@ class TestLeadPrompt(SectionOrder):
         "## 5 Do not stop",
         "## 6 Hand-over to other sessions",
         "## 7 How you talk",
+        "## 8 Proposals, requests and owners",
     ]
 
     def test_sections_in_order(self):
@@ -306,6 +307,169 @@ class TestLeadPrompt(SectionOrder):
         self.assertIn(
             "republish", text,
             "lead-prompt.md: no republish-when-changed reference (D1)",
+        )
+
+
+class TestLeadPromptStandard(SectionOrder):
+    """Proposal 21, S-06: the marker line and the Proposals/requests/owners
+    section (RULES/bin/new-proposal, requests, owner, the Standard change
+    rule)."""
+
+    MARKER = "<!-- common-rules:lead-prompt proposal/21 -->"
+
+    def test_marker_present_exactly_once_near_the_top(self):
+        text = read("lead-prompt.md")
+        count = text.count(self.MARKER)
+        self.assertEqual(
+            count, 1,
+            f"lead-prompt.md: marker {self.MARKER!r} appears {count} times, expected exactly 1",
+        )
+        # "near the top": before the first '## ' section heading.
+        marker_pos = text.index(self.MARKER)
+        first_heading_pos = text.index("## ")
+        self.assertLess(
+            marker_pos, first_heading_pos,
+            "lead-prompt.md: marker is not near the top (appears after the first section heading)",
+        )
+
+    def test_proposals_requests_and_owners_section_present(self):
+        text = read("lead-prompt.md")
+        all_headings = headings(text)
+        matches = [h for h in all_headings if "Proposals, requests and owners" in h]
+        self.assertEqual(
+            len(matches), 1,
+            f"lead-prompt.md: expected exactly one 'Proposals, requests and owners' section, found {matches}",
+        )
+        section_heading = matches[0]
+        idx = all_headings.index(section_heading)
+        start = text.index(section_heading) + len(section_heading)
+        if idx + 1 < len(all_headings):
+            end = text.index(all_headings[idx + 1], start)
+            section = text[start:end]
+        else:
+            section = text[start:]
+        for phrase in ("new-proposal", "--page-for", "proposal_series", "requests", "owner", "/warmup", "Standard change"):
+            self.assertIn(
+                phrase, section,
+                f"lead-prompt.md: 'Proposals, requests and owners' section missing {phrase!r}",
+            )
+
+    def test_owner_names_the_accepted_forms(self):
+        """Round 2 ruling: the exact accepted owner forms, `session:<name>`
+        (not 'a session named by its own name'), named both in the new
+        section and at the pre-existing owner line in §4."""
+        text = read("lead-prompt.md")
+        self.assertIn(
+            "session:<name>", text,
+            "lead-prompt.md: does not name the exact accepted owner form session:<name>",
+        )
+        self.assertNotIn(
+            "a session named by its own name", text,
+            "lead-prompt.md: still uses the loose 'a session named by its own name' form",
+        )
+        section_4 = text.split("## 4 Keep the ledger current", 1)[1].split("## 5 Do not stop", 1)[0]
+        self.assertIn(
+            "session:<name>", section_4,
+            "lead-prompt.md: §4's owner line does not name session:<name>",
+        )
+
+    def test_no_undefined_rules_alias(self):
+        """Round 2 ruling: lead-prompt.md never uses a bare `RULES` alias --
+        it is undefined in this template. Bare command names and
+        "common-rules' CHANGELOG.md" instead."""
+        text = read("lead-prompt.md")
+        self.assertNotIn(
+            "RULES/", text,
+            "lead-prompt.md: uses the undefined RULES/ alias",
+        )
+        self.assertIn(
+            "common-rules' `CHANGELOG.md`", text,
+            "lead-prompt.md: does not reference common-rules' CHANGELOG.md by name",
+        )
+
+
+class TestWorkflowStandardSection(unittest.TestCase):
+    """Proposal 21, S-06: CLAUDE-workflow.md names the mandatory standard."""
+
+    def read_workflow(self) -> str:
+        path = ROOT / "CLAUDE-workflow.md"
+        self.assertTrue(path.exists(), f"CLAUDE-workflow.md: does not exist at {path}")
+        return path.read_text()
+
+    def test_section_present_after_intro_before_detailed_rules(self):
+        text = self.read_workflow()
+        title = "## The warm-up standard is mandatory"
+        self.assertIn(title, text, "CLAUDE-workflow.md: no 'The warm-up standard is mandatory' section")
+        first_rules_heading = "## The four things that actually work"
+        self.assertIn(first_rules_heading, text, "CLAUDE-workflow.md: expected heading not found")
+        self.assertLess(
+            text.index(title), text.index(first_rules_heading),
+            "CLAUDE-workflow.md: standard section is not before the detailed rules",
+        )
+
+    def test_section_names_the_required_items(self):
+        text = self.read_workflow()
+        section = text.split("## The warm-up standard is mandatory", 1)[1]
+        section = section.split("\n## ", 1)[0]
+        for phrase in ("/standard", "/warmup", "conformance", "new-proposal"):
+            self.assertIn(
+                phrase, section,
+                f"CLAUDE-workflow.md: standard section missing {phrase!r}",
+            )
+
+    def test_section_is_short(self):
+        text = self.read_workflow()
+        section = text.split("## The warm-up standard is mandatory", 1)[1]
+        section = section.split("\n## ", 1)[0]
+        line_count = len([l for l in section.splitlines() if l.strip()])
+        self.assertLessEqual(
+            line_count, 25,
+            f"CLAUDE-workflow.md: standard section is {line_count} non-blank lines, expected at most ~25",
+        )
+
+    def test_conformance_is_hedged_not_asserted(self):
+        """Round 2 ruling: bin/conformance is S-04, not merged yet. The
+        section must not describe it as already working -- same hedge as
+        SKILL.md ("once it lands" / "waiting on common-rules")."""
+        text = self.read_workflow()
+        section = text.split("## The warm-up standard is mandatory", 1)[1]
+        section = section.split("\n## ", 1)[0]
+        self.assertIn(
+            "once it lands", section,
+            "CLAUDE-workflow.md: bin/conformance is not hedged as not-yet-merged",
+        )
+        self.assertIn(
+            "waiting on common-rules", section,
+            "CLAUDE-workflow.md: no mention of the 'waiting on common-rules' fallback",
+        )
+
+
+class TestReadmeAdoption(unittest.TestCase):
+    """Proposal 21, S-06: README's 'How a project adopts this' names /standard."""
+
+    def test_mentions_standard(self):
+        path = ROOT / "README.md"
+        self.assertTrue(path.exists(), f"README.md: does not exist at {path}")
+        text = path.read_text()
+        section = text.split("## How a project adopts this", 1)[1].split("\n## ", 1)[0]
+        self.assertIn(
+            "/standard", section,
+            "README.md: 'How a project adopts this' does not mention /standard",
+        )
+
+    def test_does_not_promise_a_phantom_second_step(self):
+        """Round 2 ruling: the section only describes one step below (the
+        CLAUDE.md pointer) -- it must not claim there are two."""
+        path = ROOT / "README.md"
+        text = path.read_text()
+        section = text.split("## How a project adopts this", 1)[1].split("\n## ", 1)[0]
+        self.assertNotIn(
+            "the two steps below", section,
+            "README.md: still claims 'the two steps below', but only one is described",
+        )
+        self.assertIn(
+            "bin/derecord", section,
+            "README.md: does not name bin/derecord as what installs the enforced rules",
         )
 
 
