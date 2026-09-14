@@ -460,13 +460,54 @@ class TestItem1AgainstRulecheck(unittest.TestCase):
         self.assertNotIn("CLAUDE-workflow.md", r.fix)
 
 
+OWN_TRACKER = {"own": True, "by": "sponsor", "at": "2026-09-14T21:00:00+02:00",
+               "quote": "this one gets a tracker of its own"}
+INDEX = "docs/proposals/tracker/index.html"
+
+
 class TestItem2Migrated(Copy):
+    """Proposal 22, T-02: item 2 reads the project's one tracker page, and a
+    per-ledger page only for a ledger that records its own tracker."""
+
+    def tracker(self, *args):
+        return run([sys.executable, ROOT / "bin" / "tracker", *args])
 
     def test_a_stale_tracker_page_does_not_hold(self):
         edit_ledger(self.p, lambda d: d.update(title="Demo plan, renamed"))
         # The card fails on the same stale page and checkpoint.
         data = self.assert_breaks({2}, also={12})
+        self.assertIn(f"page {INDEX} is stale", self.item(data, 2)["why"])
+        self.assertIn("tracker board", self.item(data, 2)["fix"])
+
+    def test_a_missing_project_page_does_not_hold(self):
+        (self.p / INDEX).unlink()
+        data = self.assert_breaks({2}, also={12})
+        self.assertIn(f"page {INDEX} is missing", self.item(data, 2)["why"])
+        self.assertIn("tracker board --project", self.item(data, 2)["fix"])
+
+    def test_the_conforming_project_holds_on_its_project_page(self):
+        data, _ = report(self.p)
+        self.assertEqual(HOLDS, self.item(data, 2)["state"])
+        self.assertIn("the project page matching", self.item(data, 2)["why"])
+
+    def test_a_per_ledger_page_of_a_ledger_without_its_own_tracker_is_not_read(self):
+        write(self.p, f"docs/proposals/tracker/{ledger_path(self.p).stem}.html", "an old per-proposal page\n")
+        data, code = report(self.p)
+        self.assertEqual(states_of(data), expected_base(), json.dumps(data, indent=2, ensure_ascii=False))
+        self.assertEqual(code, 0)
+
+    def test_a_ledger_with_its_own_tracker_needs_its_own_page(self):
+        edit_ledger(self.p, lambda d: d.update(tracker=OWN_TRACKER))
+        self.tracker("board", "--project", self.p)
+        own_page = self.p / "docs" / "proposals" / "tracker" / f"{ledger_path(self.p).stem}.html"
+        own_page.unlink(missing_ok=True)
+        data = self.assert_breaks({2}, also={12})
+        self.assertIn(f"page docs/proposals/tracker/{own_page.name} is missing", self.item(data, 2)["why"])
         self.assertIn("tracker render", self.item(data, 2)["fix"])
+        self.tracker("render", ledger_path(self.p))
+        data, _ = report(self.p)
+        self.assertEqual(HOLDS, self.item(data, 2)["state"], self.item(data, 2))
+        self.assertIn("1 own tracker page(s) matching", self.item(data, 2)["why"])
 
 
 class TestItem3Declared(Copy):

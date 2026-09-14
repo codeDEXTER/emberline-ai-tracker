@@ -13,9 +13,11 @@
 # Installs seven things (ordinary mode):
 #   1. .gitattributes merge rules for the record files
 #   2. a pre-commit hook that refuses to commit conflict markers and, when a
-#      ledger is staged, regenerates and stages its tracker page and the
-#      checkpoint (proposal 20, D12); a project's own pre-commit hook, if it
-#      had one, is preserved and chained rather than dropped
+#      ledger is staged, regenerates and stages the project's one tracker
+#      page (proposal 22, T-02), a per-ledger page only for a ledger that
+#      records its own tracker, and the checkpoint (proposal 20, D12); a
+#      project's own pre-commit hook, if it had one, is preserved and chained
+#      rather than dropped
 #   3. a SessionStart hook that runs rulecheck --quiet
 #   4. the project-owned prose (HANDOFF.md, docs/OPERATING-RULES.md,
 #      docs/handovers/lead-prompt.md), seeded from templates/ only where a
@@ -290,12 +292,19 @@ $GIT config merge.ours.driver true
 # Never commit a conflict marker (2026-08-05: a hand-rolled conflict resolver
 # put `<<<<<<< HEAD` into three Python files and main stopped importing at
 # all -- the cheapest possible guard against it). Then, when a ledger is
-# staged (proposal 20, D12): regenerate its tracker page and the checkpoint
-# and stage them in the same commit, so the two never go stale between a
+# staged (proposal 20, D12): regenerate the tracker pages and the checkpoint
+# and stage them in the same commit, so they never go stale between a
 # ledger commit and a later, separate "refresh checkpoint" one -- the finding
 # that opened this row: the PhotoVault engine's checkpoint went stale because
 # nothing regenerated it when the ledger moved, and the lead had to run
 # `tracker checkpoint` by hand.
+#
+# Proposal 22, T-02: the tracker page is the project's one page,
+# docs/proposals/tracker/index.html (`tracker board`), rendered whenever a
+# ledger is staged, deleted or renamed; a per-ledger page (`tracker render`)
+# only for a staged ledger whose `tracker.own` is true. The project page reads
+# every ledger, so a ledger that is not staged, or has unstaged changes,
+# refuses the commit as a partly staged one always did.
 #
 # V-07 round 2 findings, all inside the generated hook below:
 #   * finding 1 -- a ledger, its page, or the checkpoint with UNSTAGED edits
@@ -336,68 +345,211 @@ if [ -n "$bad" ]; then
     exit 1
 fi
 
-# 2. a staged ledger (proposal 20, D12) regenerates and stages its tracker
-#    page and the checkpoint. common-rules is resolved from the absolute path
-#    baked in at install time -- never from cwd, the same way the other
-#    installed hooks (hooks/precompact, hooks/stop, ...) are.
+# 2. a staged ledger (proposal 20, D12) regenerates and stages the project's
+#    one tracker page, docs/proposals/tracker/index.html (proposal 22, T-02),
+#    a per-ledger page only for a ledger whose `tracker.own` is true, and the
+#    checkpoint. common-rules is resolved from the absolute path baked in at
+#    install time -- never from cwd, the same way the other installed hooks
+#    (hooks/precompact, hooks/stop, ...) are. A hook runs from the top of the
+#    working tree, so every path below is relative to it.
 RULES="__RULES_DIR__"
 TOP="$($GIT rev-parse --show-toplevel)"
+BOARD="docs/proposals/tracker/index.html"
 refuse_unstaged() {
-    echo "pre-commit: $1 has unstaged changes; stage all of it (git add $1) or none, so its page matches what is committed" >&2
+    echo "pre-commit: $1 has unstaged changes; stage all of it (git add $1) or none, so the tracker page matches what is committed" >&2
     exit 1
 }
-
-# "is a ledger" is read from the INDEX (`git show :path`), what will actually
-# be committed -- not the working tree, which may already have moved on.
-ledgers=""
-for f in $($GIT diff --cached --name-only --diff-filter=ACM); do
-    case "$f" in
-        docs/proposals/[0-9][0-9]*-*.json) ;;
-        *) continue ;;
-    esac
-    # docs/proposals also holds plain data files shaped like NN-*.json -- a
-    # sidecar with no `items` -- and those get no tracker work at all
-    # (tools/tracker/ledger.find's own rule for "is this a ledger").
-    if $GIT show ":$f" 2>/dev/null | python3 -c '
+refuse_untracked() {
+    echo "pre-commit: $1 is a ledger that is not staged; the project page reads every ledger, so stage it (git add $1) or move it out of docs/proposals" >&2
+    exit 1
+}
+IS_LEDGER='
 import json, sys
 try:
     d = json.load(sys.stdin)
 except Exception:
     sys.exit(1)
 sys.exit(0 if isinstance(d, dict) and isinstance(d.get("items"), list) else 1)
-'; then
-        ledgers="$ledgers $f"
+'
+IS_OWN='
+import json, sys
+sys.path.insert(0, sys.argv[1])
+from tools.tracker import ledger as L
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+sys.exit(0 if isinstance(d, dict) and L.own_tracker(d) else 1)
+'
+page_of() {
+    echo "docs/proposals/tracker/$(basename "$1" .json).html"
+}
+# A tracker page, or the tracker folder, that is a symlink or not a regular
+# file (or folder) refuses before anything is rendered: rendering writes
+# through the link, and staging it commits the link (T-02 review round 1).
+refuse_link() {
+    echo "pre-commit: $1 is a symlink or not a regular $2; tracker pages are written in place -- replace it with a regular $2, or remove it, and commit again (nothing rendered)" >&2
+    exit 1
+}
+check_page_file() {
+    if [ -L "$1" ] || { [ -e "$1" ] && [ ! -f "$1" ]; }; then
+        refuse_link "$1" file
+    fi
+}
+remove_page() {
+    # A page nothing will render again leaves the index and the working tree
+    # in this same commit.
+    if $GIT ls-files --error-unmatch -- "$1" >/dev/null 2>&1; then
+        $GIT rm -q -f -- "$1" >/dev/null
+    elif [ -f "$1" ]; then
+        rm -f -- "$1"
+    fi
+}
+
+# "is a ledger" is read from the INDEX (`git show :path`), what will actually
+# be committed -- not the working tree, which may already have moved on. A
+# ledger the commit deletes or renames away is read from HEAD: the project
+# page lists it, so the page moves too, and its own page (if it had one)
+# goes. --no-renames: a rename is its deletion and its addition.
+ledgers=""
+moved=""
+own_moved=""
+for f in $($GIT diff --cached --name-only --no-renames --diff-filter=ACMD); do
+    case "$f" in
+        docs/proposals/*/*) continue ;;
+        docs/proposals/[0-9][0-9]*-*.json) ;;
+        *) continue ;;
+    esac
+    # docs/proposals also holds plain data files shaped like NN-*.json -- a
+    # sidecar with no `items` -- and those get no tracker work at all
+    # (tools/tracker/ledger.find's own rule for "is this a ledger").
+    if $GIT cat-file -e ":$f" 2>/dev/null; then
+        if $GIT show ":$f" 2>/dev/null | python3 -c "$IS_LEDGER"; then
+            ledgers="$ledgers $f"
+        fi
+    elif $GIT show "HEAD:$f" 2>/dev/null | python3 -c "$IS_LEDGER"; then
+        moved="$moved $f"
+        if $GIT show "HEAD:$f" 2>/dev/null | python3 -c "$IS_OWN" "$RULES"; then
+            own_moved="$own_moved $f"
+        fi
     fi
 done
 
-if [ -n "$ledgers" ]; then
-    # Refuse first, render nothing, if a ledger, its page, or today's
-    # checkpoint has changes that are not staged -- the page about to be
-    # regenerated must carry only what is actually being committed.
+if [ -n "$ledgers$moved" ]; then
+    # `git commit <paths>` commits from a temporary index built from HEAD and
+    # those paths: the pages staged below would be committed while the real
+    # index and the working tree keep the old ones, and the next commit would
+    # revert them (T-02 review round 1). `git commit` uses the index itself,
+    # `git commit -a` its lock file; any other index refuses.
+    if [ -n "${GIT_INDEX_FILE:-}" ]; then
+        real_index=$(env -u GIT_INDEX_FILE $GIT rev-parse --git-path index)
+        if ! python3 -c '
+import os, sys
+given, index = (os.path.realpath(p) for p in sys.argv[1:3])
+sys.exit(0 if given in (index, index + ".lock") else 1)
+' "$GIT_INDEX_FILE" "$real_index"; then
+            echo "pre-commit: this commit names paths (git commit <paths>) and a ledger is among them; git commits them from a temporary index, so the tracker pages would not match what stays staged -- stage the files (git add <paths>) and run git commit without paths" >&2
+            exit 1
+        fi
+    fi
+
+    # Refuse first, render nothing, if a page or its folder is a symlink, or
+    # a staged ledger, a page about to be regenerated or removed, or today's
+    # checkpoint has changes that are not staged -- a page must carry only
+    # what is actually being committed.
+    tracker_dir="docs/proposals/tracker"
+    if [ -L "$tracker_dir" ] || { [ -e "$tracker_dir" ] && [ ! -d "$tracker_dir" ]; }; then
+        refuse_link "$tracker_dir" folder
+    fi
+    check_page_file "$BOARD"
+    own=""
     for f in $ledgers; do
         $GIT diff --quiet -- "$f" || refuse_unstaged "$f"
-        base=$(basename "$f" .json)
-        page="$TOP/docs/proposals/tracker/$base.html"
+        # A per-ledger page only for a ledger that records its own tracker;
+        # any other ledger's old page is neither rendered nor refused.
+        if $GIT show ":$f" 2>/dev/null | python3 -c "$IS_OWN" "$RULES"; then
+            own="$own $f"
+        fi
+    done
+    for f in $own $own_moved; do
+        page=$(page_of "$f")
+        check_page_file "$page"
         if $GIT ls-files --error-unmatch -- "$page" >/dev/null 2>&1; then
             $GIT diff --quiet -- "$page" || refuse_unstaged "$page"
         fi
+    done
+    if $GIT ls-files --error-unmatch -- "$BOARD" >/dev/null 2>&1; then
+        $GIT diff --quiet -- "$BOARD" || refuse_unstaged "$BOARD"
+    fi
+    # The project page reads EVERY ledger in the working tree, not only the
+    # staged ones, so each must be exactly what the commit holds: a ledger in
+    # the working tree (tools/tracker/ledger.find) that is not in the index,
+    # or a ledger in the index whose working-tree copy differs, refuses.
+    every_ledger=$(python3 - "$RULES" "$GIT" <<'PY'
+import json, subprocess, sys
+from fnmatch import fnmatch
+from pathlib import Path
+rules, git = sys.argv[1], sys.argv[2]
+sys.path.insert(0, rules)
+from tools.tracker import ledger as L
+top = Path.cwd()
+names = {p.relative_to(top).as_posix() for p in L.find(top)}
+listed = subprocess.run([git, "ls-files", "-z", "--", "docs/proposals"], capture_output=True).stdout
+for rel in listed.decode("utf-8", "surrogateescape").split("\0"):
+    parts = rel.split("/")
+    if len(parts) != 3 or not fnmatch(parts[2], "[0-9][0-9]*-*.json"):
+        continue
+    blob = subprocess.run([git, "show", f":{rel}"], capture_output=True).stdout
+    try:
+        d = json.loads(blob)
+    except ValueError:
+        continue
+    if isinstance(d, dict) and isinstance(d.get("items"), list):
+        names.add(rel)
+print("\n".join(sorted(names)))
+PY
+    ) || {
+        echo "pre-commit: could not list the ledgers under docs/proposals (the error is above); nothing rendered" >&2
+        exit 1
+    }
+    for f in $every_ledger; do
+        $GIT ls-files --error-unmatch -- "$f" >/dev/null 2>&1 || refuse_untracked "$f"
+        $GIT diff --quiet -- "$f" || refuse_unstaged "$f"
     done
     cp_guess="$TOP/docs/handovers/$(date +%Y-%m-%d)-checkpoint.md"
     if $GIT ls-files --error-unmatch -- "$cp_guess" >/dev/null 2>&1; then
         $GIT diff --quiet -- "$cp_guess" || refuse_unstaged "$cp_guess"
     fi
 
-    for f in $ledgers; do
+    for f in $own; do
         out=$(python3 "$RULES/bin/tracker" render "$TOP/$f" 2>&1) || {
             echo "$out" >&2
             exit 1
         }
-        base=$(basename "$f" .json)
-        page="$TOP/docs/proposals/tracker/$base.html"
+        page=$(page_of "$f")
         if [ -f "$page" ]; then
             $GIT add -- "$page"
         fi
     done
+
+    # An own-tracker ledger this commit deletes or renames away: its old page
+    # goes in the same commit. Another ledger's leftover page is not ours.
+    for f in $own_moved; do
+        remove_page "$(page_of "$f")"
+    done
+
+    if [ -n "$every_ledger" ]; then
+        out=$(python3 "$RULES/bin/tracker" board --project "$TOP" 2>&1) || {
+            echo "$out" >&2
+            exit 1
+        }
+        if [ -f "$BOARD" ]; then
+            $GIT add -- "$BOARD"
+        fi
+    else
+        # The commit deletes the last ledger: the project page goes with it.
+        remove_page "$BOARD"
+    fi
 
     # Stage exactly the path tracker itself reports, never a path recomputed
     # a second time from today's date -- the two can disagree across

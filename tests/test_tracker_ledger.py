@@ -470,3 +470,154 @@ class TestProblemsArePrintable(unittest.TestCase):
         joined = "\n".join(problems)
         self.assertIn("Z-01\\nwarmup --check: ready: id is not PHASE-NN", joined)
         self.assertIn("RQ-01\\nwarmup --check: ready: request id is not RQ-NN", joined)
+
+
+OWN = {"own": True, "by": "sponsor", "at": "2026-09-14T21:00:00+02:00",
+       "quote": "this one gets a tracker of its own"}
+
+
+class TestOwnTracker(unittest.TestCase):
+    """Proposal 22, T-02. The sponsor (A-01): "per project, there should be one
+    tracker unless and until specified for a proposal if I need another
+    tracker." A ledger records that he asked, in his words, with a top-level
+    `tracker` object; without one the proposal lives on the project page only."""
+
+    def problems(self, d):
+        return "\n".join(ledger.validate(d))
+
+    def test_a_recorded_own_tracker_is_well_formed_and_read(self):
+        d = minimal(tracker=dict(OWN))
+        self.assertEqual([], ledger.validate(d))
+        self.assertTrue(ledger.own_tracker(d))
+
+    def test_no_tracker_key_means_the_project_page_only(self):
+        self.assertFalse(ledger.own_tracker(minimal()))
+        self.assertEqual([], ledger.validate(minimal()))
+
+    def test_own_tracker_is_true_only_for_own_exactly_true(self):
+        for value in (False, "true", 1, None):
+            with self.subTest(own=value):
+                self.assertFalse(ledger.own_tracker(minimal(tracker=dict(OWN, own=value))))
+        for value in ("yes", [OWN], True, None):
+            with self.subTest(tracker=value):
+                self.assertFalse(ledger.own_tracker(minimal(tracker=value)))
+
+    def test_a_tracker_that_is_not_an_object_is_named(self):
+        for value in ("yes", [OWN], True, None, 1):
+            with self.subTest(tracker=value):
+                self.assertIn("tracker: must be an object", self.problems(minimal(tracker=value)))
+
+    def test_own_must_be_exactly_true(self):
+        for value in (False, "true", 1, None):
+            with self.subTest(own=value):
+                self.assertIn("tracker: `own` must be true", self.problems(minimal(tracker=dict(OWN, own=value))))
+        missing = {k: v for k, v in OWN.items() if k != "own"}
+        self.assertIn("tracker: `own` must be true", self.problems(minimal(tracker=missing)))
+
+    def test_by_at_and_quote_are_required(self):
+        for field in ("by", "at", "quote"):
+            with self.subTest(missing=field):
+                d = minimal(tracker={k: v for k, v in OWN.items() if k != field})
+                self.assertIn(f"tracker: no `{field}`", self.problems(d))
+            with self.subTest(empty=field):
+                self.assertIn(f"tracker: no `{field}`", self.problems(minimal(tracker=dict(OWN, **{field: ""}))))
+
+    def test_by_at_and_quote_must_be_one_line(self):
+        for field in ("by", "at", "quote"):
+            for value in ("two\nlines", "esc\x1b[2J", 7, ["x"]):
+                with self.subTest(field=field, value=value):
+                    probs = ledger.validate(minimal(tracker=dict(OWN, **{field: value})))
+                    self.assertIn(f"tracker: `{field}` must be one line of text", "\n".join(probs))
+                    for p in probs:
+                        self.assertNotRegex(p, r"[\x00-\x1f\x7f-\x9f]")
+
+    def test_at_needs_an_offset(self):
+        for value in ("2026-09-14T21:00:00", "2026-09-14 21:00", "2026-09-14"):
+            with self.subTest(at=value):
+                self.assertIn("tracker: `at` has no offset", self.problems(minimal(tracker=dict(OWN, at=value))))
+        for value in ("yesterday", "2026-13-40T25:00:00+02:00", "2026-09-14T21:00:00+2"):
+            with self.subTest(at=value):
+                self.assertIn("tracker: `at` is not an ISO 8601 date and time",
+                              self.problems(minimal(tracker=dict(OWN, at=value))))
+        for value in ("2026-09-14T21:00:00+02:00", "2026-09-14T19:00:00Z", "2026-09-14T21:00+02:00",
+                      "2026-09-14T21:00:00.5-05:00"):
+            with self.subTest(at=value):
+                self.assertEqual([], ledger.validate(minimal(tracker=dict(OWN, at=value))))
+
+
+class TestProposalAndLogHoles(unittest.TestCase):
+    """The T-01 review found both: `proposal: true` passed validate (a bool is
+    an int in Python), and a log entry that is a string passed too, so the
+    board had to learn to skip it."""
+
+    def problems(self, d):
+        return "\n".join(ledger.validate(d))
+
+    def test_proposal_must_be_a_non_negative_integer_not_a_bool(self):
+        for value in (True, False, -1, 1.5, "19", None):
+            with self.subTest(proposal=value):
+                self.assertIn("top level: `proposal` must be the proposal number, a non-negative integer",
+                              self.problems(minimal(proposal=value)))
+        for value in (0, 19, 700):
+            with self.subTest(proposal=value):
+                self.assertEqual([], ledger.validate(minimal(proposal=value)))
+        missing = minimal(); del missing["proposal"]
+        self.assertIn("`proposal` must be the proposal number", self.problems(missing))
+
+    def test_a_log_entry_that_is_not_an_object_is_named(self):
+        for value in ("merged abc123", 7, None, ["x"]):
+            with self.subTest(entry=value):
+                d = minimal()
+                d["items"][0]["log"].append(value)
+                self.assertIn("W-01: log[1] is not an object", self.problems(d))
+
+    def test_a_log_that_is_not_a_list_is_named(self):
+        d = minimal(); d["items"][1]["log"] = "started yesterday"
+        self.assertIn("W-02: `log` must be a list", self.problems(d))
+
+
+REAL_LEDGER_PROJECTS = (Path("/Users/aashish/apps/common-rules"), Path("/Users/aashish/apps/PhotoVault/engine"),
+                        Path("/Users/aashish/apps/PhotoVault/app"))
+
+
+class TestEveryRealLedgerStillValidates(unittest.TestCase):
+    """T-02 tightened `proposal` and `log`; every ledger on this machine must
+    validate unchanged. Read-only."""
+
+    def test_the_real_ledgers(self):
+        found = [p for root in REAL_LEDGER_PROJECTS if root.is_dir() for p in ledger.find(root)]
+        if not found:
+            self.skipTest("no real project's ledgers are on this machine")
+        for p in found:
+            with self.subTest(ledger=str(p)):
+                self.assertEqual([], ledger.validate(ledger.load(p)))
+
+
+class TestTrackerTextIsPlain(unittest.TestCase):
+    """T-02 review round 1: `at` took non-ASCII digits, and `by` and `quote`
+    took line and paragraph separators and bidi or invisible characters --
+    text that reorders or hides itself on a card or a page."""
+
+    def problems(self, d):
+        return "\n".join(ledger.validate(d))
+
+    def test_at_digits_are_ascii(self):
+        for value in ("\u0662\u0660\u0662\u0666-\u0660\u0669-\u0661\u0664T21:00:00+02:00", "2026-09-14T\uff12\uff11:00:00+02:00", "2026-09-14T21:00:00+\u0660\u0662:00",
+                      "2026-09-14T21:00:00+02:0\u0660"):
+            with self.subTest(at=value):
+                self.assertIn("tracker: `at` is not an ISO 8601 date and time",
+                              self.problems(minimal(tracker=dict(OWN, at=value))))
+
+    def test_by_and_quote_refuse_separators_and_bidi_or_invisible_characters(self):
+        for field in ("by", "quote"):
+            for ch in ("\u2028", "\u2029", "\u202e", "\u200b", "\u2066", "\ufeff", "\u061c", "\u200f", "\u2060"):
+                with self.subTest(field=field, char=f"U+{ord(ch):04X}"):
+                    probs = ledger.validate(minimal(tracker=dict(OWN, **{field: f"the sponsor{ch} said"})))
+                    self.assertIn(f"tracker: `{field}` carries a line separator or a bidi or invisible character",
+                                  "\n".join(probs))
+
+    def test_joiners_and_other_scripts_stay_readable(self):
+        for field in ("by", "quote"):
+            with self.subTest(field=field):
+                d = minimal(tracker=dict(OWN, **{field: "\u0928\u092e\u0938\u094d\u0924\u0947 \u200d\U0001f468\u200d\U0001f469\u200d\U0001f467 soft\u00adhyphen \u200c"}))
+                self.assertEqual([], ledger.validate(d))

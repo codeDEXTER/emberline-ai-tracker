@@ -275,6 +275,8 @@ class AppProject(unittest.TestCase):
         self.write(".common-rules.json", json.dumps(self.declaration, indent=2))
         self.write(LEDGER, json.dumps(ledger_data(), indent=2))
         subprocess.run([sys.executable, str(TRACKER), "render", str(self.root / LEDGER)], capture_output=True, check=True)
+        # Proposal 22, T-02: the project's one tracker page, which warmup --check reads.
+        subprocess.run([sys.executable, str(TRACKER), "board", "--project", str(self.root)], capture_output=True, check=True)
         subprocess.run([sys.executable, str(TRACKER), "checkpoint", "--project", str(self.root)],
                        capture_output=True, check=True)
         self.commit("app-shaped seed")
