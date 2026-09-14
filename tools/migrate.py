@@ -37,6 +37,7 @@ from pathlib import Path
 RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
+from tools import project as P  # noqa: E402
 from tools.tracker import ledger as L  # noqa: E402
 
 BEGIN, END = "<!-- common-rules:warmup -->", "<!-- /common-rules:warmup -->"
@@ -153,13 +154,19 @@ def supersede(text: str, rules: list[dict], date: str) -> tuple[str, list[tuple[
     return "\n".join(keep) + "\n", [(lead.strip(), section, rule) for _, _, lead, section, rule in chosen]
 
 
-def pointer_block() -> str:
+def pointer_block(read_order: list[str] | None = None) -> str:
+    """The warm-up pointer. Its read order is the project's declared one
+    (.common-rules.json, proposal 20 D9) -- the PhotoVault app's CLAUDE.md says
+    "Read this first, then SPONSOR-CONSTRAINTS.md" and the pointer beneath it
+    said HANDOFF.md first. With no declaration, the standard's order: the same
+    text, byte for byte, as before."""
+    order = " → ".join(read_order if read_order is not None else P.DEFAULTS["read_order"])
     return "\n".join([
         BEGIN,
         "## Warm-up (common-rules proposal 19)",
         "",
-        "Start every session with `/warmup`, and run it again after a compaction. Read, in order: HANDOFF.md → "
-        "docs/OPERATING-RULES.md → the ledger(s) in docs/proposals/NN-*.json → the latest "
+        f"Start every session with `/warmup`, and run it again after a compaction. Read, in order: {order} → "
+        "the ledger(s) in docs/proposals/NN-*.json → the latest "
         "docs/handovers/*-checkpoint.md → common-rules' CLAUDE-workflow.md.",
         "",
         "The ledger is the record. A compaction summary is a paraphrase: quote rulings from disk.",
@@ -167,23 +174,50 @@ def pointer_block() -> str:
     ])
 
 
-def claude_md(path: Path, dry_run: bool) -> str:
-    block = pointer_block()
+# What bin/derecord seeds when missing (its lead prompt is skipped when the
+# project already keeps one, so only these two are certain).
+DERECORD_SEEDS = ("HANDOFF.md", "docs/OPERATING-RULES.md")
+
+
+def claude_md(path: Path, dry_run: bool) -> tuple[str, bool]:
+    """(what happened, whether the step succeeded). A refused pointer is a
+    failed step: migrate exits 1, with --dry-run too."""
+    project = path.parent
+    block = pointer_block(P.load(project)["read_order"])
+    # A declared value that carries a marker would split the block, and the
+    # next run would replace the wrong span. Refuse it; never strip it.
+    if block.count(BEGIN) != 1 or block.count(END) != 1:
+        return (f"CLAUDE.md: not written -- a read_order entry in {P.FILE} contains the warm-up pointer's "
+                f"marker; fix the declaration"), False
+    # P.load() falls back to the defaults in silence, so a declaration it
+    # could not read would have put "HANDOFF.md first" into CLAUDE.md over
+    # the project's own order (review round 2). Nothing is written while the
+    # declaration has any problem -- the same ones warmup --check fails on.
+    broken = P.problems(project)
+    if dry_run:
+        # derecord runs before this step for real, and seeds these where they
+        # are missing; a dry run skips derecord, so it must not refuse a
+        # declaration naming a file the real run would create (review round 3).
+        seeded = {f"{P.FILE}: read_order names {rel}, which does not exist" for rel in DERECORD_SEEDS}
+        broken = [b for b in broken if b not in seeded]
+    if broken:
+        return (f"CLAUDE.md: not written -- the pointer's read order comes from {P.FILE}, which has "
+                f"{len(broken)} problem(s); fix them and run again:" + "".join(f"\n    {b}" for b in broken)), False
     text = path.read_text() if path.is_file() else ""
     if BEGIN in text and END in text:
         a, b = text.index(BEGIN), text.index(END) + len(END)
         if text[a:b] == block:
-            return "CLAUDE.md: warm-up pointer already current"
+            return "CLAUDE.md: warm-up pointer already current", True
         new = text[:a] + block + text[b:]
         verb = "updated"
     else:
         new = (text.rstrip("\n") + "\n\n" if text.strip() else "") + block + "\n"
         verb = "added"
     if dry_run:
-        return f"CLAUDE.md: would have the warm-up pointer {verb} -- CLAUDE.md is reserved for the sponsor"
+        return f"CLAUDE.md: would have the warm-up pointer {verb} -- CLAUDE.md is reserved for the sponsor", True
     path.write_text(new)
     return (f"CLAUDE.md: warm-up pointer {verb} -- CLAUDE.md is reserved for the sponsor (land will not land it): "
-            f"review the change and commit it yourself")
+            f"review the change and commit it yourself"), True
 
 
 def next_number(project: Path) -> int:
@@ -253,7 +287,10 @@ def migrate(project: Path, at: str, dry_run: bool) -> int:
                 rules_path.write_text(new)
 
     # 4. CLAUDE.md
-    out.append("4 " + claude_md(project / "CLAUDE.md", dry_run))
+    said, wrote_or_current = claude_md(project / "CLAUDE.md", dry_run)
+    out.append("4 " + said)
+    if not wrote_or_current:
+        code = 1
     out.append("Nothing committed. Review with `git status`, and commit what you keep." if not dry_run
                else "Run again without --dry-run to apply.")
     print("\n".join(out))

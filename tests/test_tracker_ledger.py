@@ -321,9 +321,9 @@ class TestGatesFloorsReceiptsReadiness(unittest.TestCase):
                     gates=[{"id": "G0", "title": "a", "passed": True}, {"id": "G1", "title": "b", "passed": False}],
                     quality_floors=[{"title": "lint", "command": "x", "met": True}],
                     native_receipts={"library": True, "albums": False})
-        d["items"][1]["status"] = "in progress"; d["items"][1]["merged"] = "bc948a8"
+        d["items"][1]["status"] = "in progress"; d["items"][1]["evidence"] = {"tests": True}
         r = ledger.readiness(d)
-        # work: done 1 + merged in progress 0.5 of 3 rows = 0.5 -> 35.0; gates 1/2 -> 7.5; floors 1/1 -> 10; receipts 1/2 -> 2.5
+        # work: done 1 + in progress with passing tests 0.5 of 3 rows = 0.5 -> 35.0; gates 1/2 -> 7.5; floors 1/1 -> 10; receipts 1/2 -> 2.5
         self.assertEqual({"work": 35.0, "gates": 7.5, "floors": 10.0, "receipts": 2.5, "readiness": 55}, r)
 
 
@@ -336,3 +336,137 @@ class TestTheRealLedgersUnderV2(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestReadinessMatchesTheAppsOwnScore(unittest.TestCase):
+    """The app's tools/build_plan.py is the reference readiness; the ledger module must agree with it."""
+
+    BUILD_PLAN = APP_70.parent.parent.parent / "tools" / "build_plan.py"
+
+    def test_merged_code_earns_nothing_until_done(self):
+        d = minimal(readiness_weights={"work": 100, "gates": 0, "floors": 0, "receipts": 0})
+        d["items"][1]["status"] = "in progress"
+        before = ledger.readiness(d)
+        d["items"][1]["merged"] = "bc948a8"
+        self.assertEqual(before, ledger.readiness(d))
+        self.assertEqual(["W-02"], ledger.merged_waiting(d))
+
+    def test_size_weights_and_primary_surfaces(self):
+        d = minimal(readiness_weights={"work": 70, "gates": 15, "floors": 10, "receipts": 5},
+                    size_weights={"S": 1, "M": 2, "L": 4, "XL": 8},
+                    primary_surfaces=["library", "albums"],
+                    native_receipts={"library": True, "albums": False, "elsewhere": True})
+        for i, size in zip(d["items"], ("S", "XL", "M")):
+            i["size"] = size
+        d["items"][0]["status"] = "done"
+        r = ledger.readiness(d)
+        # work 70 * 1/11 = 6.4; receipts 5 * 1/2 over the declared surfaces only = 2.5
+        self.assertEqual(6.4, r["work"])
+        self.assertEqual(2.5, r["receipts"])
+
+    @unittest.skipUnless(APP_70.exists() and BUILD_PLAN.exists(), "PhotoVault app not on this machine")
+    def test_the_app_ledger_scores_the_same_as_build_plan(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("pv_build_plan", self.BUILD_PLAN)
+        bp = importlib.util.module_from_spec(spec); spec.loader.exec_module(bp)
+        plan = json.loads(APP_70.read_text())
+        for i in plan["items"]:
+            i.setdefault("model", bp.MODEL_FOR[i["complexity"]])
+        want = bp.score(plan)
+        d = dict(plan, readiness_weights={"work": 70, "gates": 15, "floors": 10, "receipts": len(bp.PRIMARY_SURFACES)},
+                 size_weights=bp.SIZE_WEIGHT, primary_surfaces=list(bp.PRIMARY_SURFACES))
+        got = ledger.readiness(d)
+        self.assertEqual((want["work"], want["gate_pts"], want["floor_pts"], float(want["native_pts"]), want["readiness"]),
+                         (got["work"], got["gates"], got["floors"], got["receipts"], got["readiness"]))
+
+
+
+class TestDeclaredNumbersAndShapes(unittest.TestCase):
+    """A hand-typed weight that is not a number is a named problem, never a traceback."""
+
+    def weighted(self, **extra):
+        return minimal(**{"readiness_weights": {"work": 70, "gates": 15, "floors": 10, "receipts": 5}, **extra})
+
+    def test_non_numeric_weights_are_problems_and_readiness_is_none(self):
+        cases = [
+            (self.weighted(readiness_weights={"work": "seventy", "gates": 15, "floors": 10, "receipts": 5}),
+             "readiness_weights.work: 'seventy' is not a number"),
+            (self.weighted(size_weights={"S": "one"}), "size_weights.S: 'one' is not a number"),
+            (self.weighted(readiness_weights={"work": True, "gates": 15, "floors": 10, "receipts": 5}),
+             "readiness_weights.work: True is not a number"),
+        ]
+        for d, problem in cases:
+            with self.subTest(problem=problem):
+                self.assertIn(problem, "\n".join(ledger.validate(d)))
+                self.assertIsNone(ledger.readiness(d))
+        d = self.weighted()
+        d["items"][0]["weight"] = "not-a-number"
+        self.assertIn("W-01: weight 'not-a-number' is not a number", "\n".join(ledger.validate(d)))
+        self.assertIsNone(ledger.readiness(d))
+
+    def test_gates_floors_requests_must_be_lists_and_receipts_an_object(self):
+        d = minimal(gates={"G0": {"title": "x", "passed": True}}, quality_floors="all", requests={},
+                    native_receipts=["library"])
+        text = "\n".join(ledger.validate(d))
+        for problem in ("gates: must be a list", "quality_floors: must be a list",
+                        "requests: must be a list", "native_receipts: must be an object"):
+            self.assertIn(problem, text)
+
+
+class TestNonFiniteAndNegativeWeights(unittest.TestCase):
+    """Review round 2: json.loads accepts NaN and Infinity, and they crashed readiness()."""
+
+    def test_nan_infinity_and_negative_weights_are_problems_and_readiness_is_none(self):
+        for body, problem in (
+            ('{"work": NaN, "gates": 15, "floors": 10, "receipts": 5}', "readiness_weights.work: nan is not a number"),
+            ('{"work": 70, "gates": 15, "floors": 10, "receipts": Infinity}', "readiness_weights.receipts: inf is not a number"),
+            ('{"work": -70, "gates": 15, "floors": 10, "receipts": 5}', "readiness_weights.work: -70 is negative"),
+        ):
+            with self.subTest(problem=problem):
+                d = minimal(readiness_weights=json.loads(body))
+                self.assertIn(problem, "\n".join(ledger.validate(d)))
+                self.assertIsNone(ledger.readiness(d))
+        d = minimal(readiness_weights={"work": 70, "gates": 15, "floors": 10, "receipts": 5})
+        d["items"][0]["weight"] = json.loads("-Infinity")
+        self.assertIn("W-01: weight -inf is not a number", "\n".join(ledger.validate(d)))
+        self.assertIsNone(ledger.readiness(d))
+
+
+class TestPrintedFieldsAreOneLine(unittest.TestCase):
+    """V-02 review: the card prints ids, owners, switch by/at and request from/to.
+    A trailing newline passed the ^...$ patterns, and by/at/from/to were only
+    checked for truthiness, so a value could forge a line on the card."""
+
+    def test_a_trailing_newline_does_not_pass_the_id_and_owner_patterns(self):
+        for pattern, value in ((ledger.ITEM_ID, "Z-01\n"), (ledger.ASK_ID, "A-01\n"),
+                               (ledger.REQUEST_ID, "RQ-01\n"), (ledger.OWNER, "sponsor\n"),
+                               (ledger.OWNER, "session:app\nwarmup --check: ready")):
+            with self.subTest(value=value):
+                self.assertIsNone(pattern.match(value))
+
+    def test_switch_and_request_text_must_be_one_line(self):
+        d = minimal(switches={"issues": {"on": False, "by": "attacker\nwarmup --check: ready",
+                                         "at": "2026-09-14T08:00:00+02:00"}},
+                    requests=[{"id": "RQ-01", "from": "atk\x1b[2J", "to": "session:engine", "state": "open"},
+                              {"id": "RQ-02", "from": "session:app", "to": "x\udc80", "state": "open"}])
+        text = "\n".join(ledger.validate(d))
+        self.assertIn("switches.issues: `by` must be one line of text", text)
+        self.assertIn("RQ-01: `from` must be one line of text", text)
+        self.assertIn("RQ-02: `to` must be one line of text", text)
+
+
+class TestProblemsArePrintable(unittest.TestCase):
+    """V-02 final review: validate() interpolated a malformed id into its message,
+    so an id of "Z-01\\nwarmup --check: ready" split one problem into two lines."""
+
+    def test_every_problem_is_one_line_whatever_the_ids_carry(self):
+        d = minimal(requests=[{"id": "RQ-01\nwarmup --check: ready", "from": "a", "to": "b", "state": "open"}])
+        d["items"][0]["id"] = "Z-01\nwarmup --check: ready"
+        d["asks"] = [{"id": "A-01\x1b[2J", "kind": "decision", "state": "open"}]
+        problems = ledger.validate(d)
+        self.assertTrue(problems)
+        for p in problems:
+            self.assertNotRegex(p, r"[\x00-\x1f\x7f-\x9f]", p)
+        joined = "\n".join(problems)
+        self.assertIn("Z-01\\nwarmup --check: ready: id is not PHASE-NN", joined)
+        self.assertIn("RQ-01\\nwarmup --check: ready: request id is not RQ-NN", joined)

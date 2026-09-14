@@ -2,6 +2,7 @@
 
   tracker render LEDGER.json [--out PATH] [--repo OWNER/NAME]
   tracker render LEDGER.json --check
+  tracker published LEDGER.json --url URL [--by NAME]   (proposal 20, V-09; see published_main)
 
 Writes docs/proposals/tracker/<ledger stem>.html beside the ledger. Two
 reasons it is a subdirectory and not the proposal page itself:
@@ -28,6 +29,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
+import json
 import re
 import subprocess
 import sys
@@ -101,21 +103,25 @@ def last_log(item: dict) -> str:
     return cell
 
 
-def item_row(item: dict, repo) -> str:
+def item_row(item: dict, repo, merged_waiting_ids=frozenset()) -> str:
     status = item.get("status", "")
     deps = L.as_list(item.get("depends"))
     dep = f'<div class="dep">after {e(" ".join(deps))}</div>' if deps else ""
     found = f'<div class="dep">from {e(item["discovered_from"])}</div>' if item.get("discovered_from") else ""
+    owner = (f'<div class="dep">owner: {e(item.get("owner"))}</div>'
+             if status == "blocked" and item.get("owner") else "")
+    merged = ('<div class="dep">merged, awaiting evidence</div>'
+              if item.get("id") in merged_waiting_ids else "")
     return (f'<tr class="item" data-id="{e(item.get("id"))}" data-status="{e(status)}">'
             f'<td class="id">{e(item.get("id"))}</td>'
-            f'<td>{e(item.get("title"))}{dep}{found}</td>'
+            f'<td>{e(item.get("title"))}{dep}{found}{owner}{merged}</td>'
             f'<td class="tag">{e(item.get("tag") or item.get("cx"))}</td>'
             f'<td><span class="pill {slug(status)}">{e(status)}</span></td>'
             f'<td class="issue">{issue_cell(item.get("issue"), repo)}</td>'
             f'<td class="last">{last_log(item)}</td></tr>')
 
 
-def phase_section(phase: dict, its_items: list, repo) -> str:
+def phase_section(phase: dict, its_items: list, repo, merged_waiting_ids=frozenset()) -> str:
     counts = {s: 0 for s in STATUS_ORDER}
     for i in its_items:
         if i.get("status") in counts:
@@ -125,7 +131,7 @@ def phase_section(phase: dict, its_items: list, repo) -> str:
             f'<span class="count">{counts["done"]}/{len(its_items)}</span></h2>')
     goal = f'<p class="goal">{e(phase.get("goal"))}</p>' if phase.get("goal") else ""
     exit_ = f'<p class="goal"><b>Exit:</b> {e(phase.get("exit"))}</p>' if phase.get("exit") else ""
-    rows = "".join(item_row(i, repo) for i in its_items)
+    rows = "".join(item_row(i, repo, merged_waiting_ids) for i in its_items)
     table = ('<div class="scroll"><table class="items"><thead><tr><th>ID</th><th>Item</th><th>Tag</th>'
              f'<th>Status</th><th>Issue</th><th>Last</th></tr></thead><tbody>{rows}</tbody></table></div>'
              if its_items else '<p class="empty">No items in this phase.</p>')
@@ -135,16 +141,110 @@ def phase_section(phase: dict, its_items: list, repo) -> str:
 def asks_section(asks: list) -> str:
     if not asks:
         return ""
-    rows = "".join(
-        f'<tr class="ask" data-id="{e(a.get("id"))}" data-state="{e(a.get("state"))}">'
-        f'<td class="id">{e(a.get("id"))}</td><td>{e(a.get("kind"))}</td>'
-        f'<td>“{e(a.get("quote"))}”</td><td>{e(a.get("became") or "—")}</td>'
-        f'<td><span class="pill a-{e(str(a.get("state", "")).replace(" ", "-"))}">{e(a.get("state"))}</span></td></tr>'
-        for a in asks)
+    rows = []
+    for a in asks:
+        owner = (f'<div class="dep">owner: {e(a.get("owner"))}</div>'
+                 if a.get("state") == "open" and a.get("owner") else "")
+        rows.append(
+            f'<tr class="ask" data-id="{e(a.get("id"))}" data-state="{e(a.get("state"))}">'
+            f'<td class="id">{e(a.get("id"))}</td><td>{e(a.get("kind"))}</td>'
+            f'<td>“{e(a.get("quote"))}”</td><td>{e(a.get("became") or "—")}</td>'
+            f'<td><span class="pill a-{e(str(a.get("state", "")).replace(" ", "-"))}">{e(a.get("state"))}</span>'
+            f'{owner}</td></tr>')
     open_n = sum(1 for a in asks if a.get("state") == "open")
     return (f'<section class="asks"><h2>Asks <span class="count">{open_n} open</span></h2>'
             '<div class="scroll"><table class="items"><thead><tr><th>ID</th><th>Kind</th><th>In his words</th>'
-            f'<th>Became</th><th>State</th></tr></thead><tbody>{rows}</tbody></table></div></section>')
+            f'<th>Became</th><th>State</th></tr></thead><tbody>{"".join(rows)}</tbody></table></div></section>')
+
+
+def readiness_section(r: dict | None) -> str:
+    """Readiness (D8) as the page's headline number, its four parts --
+    work/gates/floors/receipts -- beneath it (proposal 20, V-09; it was small
+    grey text beside its label). Only when the ledger declares
+    readiness_weights (L.readiness returns None otherwise), and never
+    recomputed: r is exactly what L.readiness(ledger) gave."""
+    if r is None:
+        return ""
+    parts = "".join(f"<li>{name} {e(r[name])}</li>" for name in ("work", "gates", "floors", "receipts"))
+    return (f'<section class="readiness"><h2>Readiness</h2>'
+            f'<p class="headline">{e(r["readiness"])}<span class="unit">%</span></p>'
+            f'<ul class="parts">{parts}</ul></section>')
+
+
+def gates_section(gates: list) -> str:
+    if not gates:
+        return ""
+    rows = "".join(
+        f'<tr><td class="id">{e(g.get("id"))}</td><td>{e(g.get("title") or g.get("name"))}</td>'
+        f'<td><span class="pill {"s-done" if g.get("passed") else "s-not-started"}">'
+        f'{"passed" if g.get("passed") else "not passed"}</span></td></tr>'
+        for g in gates if isinstance(g, dict))
+    return ('<section class="gates"><h2>Gates</h2><div class="scroll"><table class="items"><thead><tr>'
+            '<th>ID</th><th>Gate</th><th>Passed</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></section>')
+
+
+def floors_section(floors: list) -> str:
+    if not floors:
+        return ""
+    rows = "".join(
+        f'<tr><td>{e(f.get("title"))}</td><td><span class="pill {"s-done" if f.get("met") else "s-not-started"}">'
+        f'{"met" if f.get("met") else "not met"}</span></td></tr>'
+        for f in floors if isinstance(f, dict))
+    return ('<section class="floors"><h2>Quality floors</h2><div class="scroll"><table class="items"><thead><tr>'
+            '<th>Floor</th><th>Met</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></section>')
+
+
+def requests_section(requests: list) -> str:
+    """Open requests, both directions (D7) -- exactly L.open_requests(ledger),
+    which already keeps only the open/in-progress ones."""
+    if not requests:
+        return ""
+    rows = "".join(
+        f'<tr class="request" data-id="{e(r.get("id"))}" data-state="{e(r.get("state"))}">'
+        f'<td class="id">{e(r.get("id"))}</td><td>{e(r.get("from"))}</td><td>{e(r.get("to"))}</td>'
+        f'<td><span class="pill">{e(r.get("state"))}</span></td>'
+        f'<td>{e(" ".join(r.get("unblocks") or []))}</td></tr>'
+        for r in requests)
+    return ('<section class="requests"><h2>Open requests</h2><div class="scroll"><table class="items"><thead><tr>'
+            '<th>ID</th><th>From</th><th>To</th><th>State</th><th>Unblocks</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></section>')
+
+
+def waiting_section(ledger: dict) -> str:
+    """Who is blocking whom (D4): every owner named on a blocked row or an
+    open ask, with what L.waiting_on(ledger, owner) says they are waiting on."""
+    owners = sorted({i.get("owner") for i in L.items(ledger)
+                      if i.get("status") == "blocked" and i.get("owner")} |
+                     {a.get("owner") for a in (ledger.get("asks") or [])
+                      if a.get("state") == "open" and a.get("owner")})
+    if not owners:
+        return ""
+    rows = "".join(
+        f'<tr><td class="id">{e(owner)}</td><td>{e(", ".join(L.waiting_on(ledger, owner)))}</td></tr>'
+        for owner in owners)
+    return ('<section class="waiting"><h2>Waiting on</h2><div class="scroll"><table class="items"><thead><tr>'
+            '<th>Owner</th><th>Items and asks</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></section>')
+
+
+def switches_section(ledger: dict) -> str:
+    """Switches the ledger records off (D5) -- on is the default and not
+    worth a row; L.switch_on(ledger, name) decides off, never re-derived."""
+    switches = ledger.get("switches")
+    if not isinstance(switches, dict):
+        return ""
+    off = [name for name in L.SWITCHES if name in switches and not L.switch_on(ledger, name)]
+    if not off:
+        return ""
+    rows = "".join(
+        f'<tr><td class="id">{e(name)}</td><td>{e(switches[name].get("by"))}</td>'
+        f'<td>{e(str(switches[name].get("at", ""))[:16].replace("T", " "))}</td></tr>'
+        for name in off)
+    return ('<section class="switches"><h2>Switches off</h2><div class="scroll"><table class="items"><thead><tr>'
+            '<th>Switch</th><th>By</th><th>At</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></section>')
 
 
 def changes_section(changes: list) -> str:
@@ -224,6 +324,17 @@ padding:8px 10px;border-bottom:1px solid var(--ink)}
 .asks,.changes,.tiers,.phase{display:block}
 """
 
+# Appended to CSS only on a page whose ledger declares readiness, so a page
+# without it stays byte for byte what it was (tests/test_tracker_render.py
+# TestBackwardCompatibility pins that).
+READINESS_CSS = """.readiness{margin-top:22px;padding:18px 20px 16px;background:var(--surface);border-top:3px solid var(--done)}
+.readiness h2{font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.readiness .headline{font:700 72px/1 var(--sans);letter-spacing:-.02em;margin:6px 0 0;font-variant-numeric:tabular-nums}
+.readiness .unit{font-size:36px;font-weight:600;color:var(--dim);margin-left:2px}
+.readiness .parts{display:flex;flex-wrap:wrap;gap:4px 22px;list-style:none;padding:0;margin:12px 0 0;
+font:500 14px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+"""
+
 
 def render(data: dict, source: Path, repo: str | None) -> str:
     counts = L.counts(data)
@@ -232,30 +343,214 @@ def render(data: dict, source: Path, repo: str | None) -> str:
     loose = [i for i in L.items(data) if i.get("phase") not in known]
     if loose:
         phases.append({"id": "", "name": "Unphased"})
+    merged_waiting_ids = set(L.merged_waiting(data))
     sections = []
     for p in phases:
         its = [i for i in L.items(data) if (i.get("phase") == p.get("id")) or (p.get("id") == "" and i in loose)]
-        sections.append(phase_section(p, its, repo))
+        sections.append(phase_section(p, its, repo, merged_waiting_ids))
     n, status, title = data.get("proposal"), data.get("status", ""), data.get("title", "")
+    readiness = L.readiness(data)
     return (
         f"<!-- generated by bin/tracker render from {e(source.name)} -- edit the ledger, not this page -->\n"
         f"<title>{e(n)} · {e(status)} · {e(title)} · tracker</title>\n"
         f'<meta name="ledger-source" content="{e(source.name)}">\n'
         f'<meta name="ledger-digest" content="{digest(source)}">\n'
-        f"<style>{CSS}</style>\n"
+        f"<style>{CSS}{READINESS_CSS if readiness is not None else ''}</style>\n"
         '<main class="wrap">'
         f'<header class="head"><p class="eyebrow">Proposal {e(n)} · {e(status)} · updated {e(data.get("updated", ""))}</p>'
         f"<h1>{e(title)}</h1></header>"
-        f'<section class="status" data-done="{counts["done"]}" data-in-progress="{counts["in progress"]}" '
+        + readiness_section(readiness)
+        + f'<section class="status" data-done="{counts["done"]}" data-in-progress="{counts["in progress"]}" '
         f'data-blocked="{counts["blocked"]}" data-not-started="{counts["not started"]}">'
         f'<p class="line">{e(L.status_line(data))}</p>{bar(counts, "overall")}</section>'
         + "".join(sections)
         + asks_section(data.get("asks") or [])
+        + gates_section(data.get("gates") or [])
+        + floors_section(data.get("quality_floors") or [])
+        + requests_section(L.open_requests(data))
+        + waiting_section(data)
         + priority_section(data.get("priority") or {})
         + changes_section(data.get("proposed_changes") or [])
         + tiers_section(data.get("tiers") or {})
+        + switches_section(data)
         + "</main>\n"
     )
+
+
+def freshness(ledger_path: Path, page: Path) -> str:
+    """"ok", "missing", or "stale": does the page carry this ledger's digest?"""
+    if not page.exists():
+        return "missing"
+    m = re.search(r'<meta name="ledger-digest" content="([0-9a-f]{64})">', page.read_text(errors="replace"))
+    return "ok" if m and m.group(1) == digest(ledger_path) else "stale"
+
+
+# ---------------------------------------------------------------------------
+# tracker published (proposal 20, V-09, D1)
+#
+# An artifact is published only through a Claude session's Artifact tool; no
+# hook or script can call it. So nothing here publishes. The session
+# publishes the page, then runs `tracker published` to record what went out:
+# a committed sidecar beside the page,
+#
+#   docs/proposals/tracker/<ledger stem>.published.json
+#   {"at": "<real clock, with offset>", "by": "<name>" | null,
+#    "digest": "<sha256 of the page file as published>", "url": "https://..."}
+#
+# and bin/warmup names the page when its bytes no longer match that digest.
+# The digest is of the page, not the ledger: a page that changed because the
+# renderer did is also a page the published copy no longer matches.
+
+def published_path(ledger_path: Path) -> Path:
+    return default_out(ledger_path).with_name(f"{ledger_path.stem}.published.json")
+
+
+def _one_line_utf8(s: str) -> bool:
+    try:
+        s.encode("utf-8")
+    except UnicodeEncodeError:           # a lone surrogate
+        return False
+    return not any(ord(c) < 32 or 127 <= ord(c) < 160 for c in s)
+
+
+def _printable(value) -> str:
+    """A value safe to print on one line in an error: bin/warmup's shown(),
+    for the messages this module prints itself. C0, DEL, C1 and Unicode
+    format characters (Cf, e.g. a U+202E bidi override) become visible
+    escapes; a lone surrogate becomes U+FFFD."""
+    import unicodedata
+    out = []
+    for ch in str(value):
+        cp = ord(ch)
+        if 0xD800 <= cp <= 0xDFFF:
+            out.append("�")
+        elif cp < 0x20 or cp == 0x7F or 0x80 <= cp <= 0x9F:
+            out.append({"\n": "\\n", "\r": "\\r", "\t": "\\t"}.get(ch, f"\\x{cp:02x}"))
+        elif unicodedata.category(ch) == "Cf":
+            out.append(f"\\u{cp:04x}" if cp <= 0xFFFF else f"\\U{cp:08x}")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def url_problem(url) -> str | None:
+    """None for one line of https://host[:port]/..., else what is wrong --
+    never echoing the value, which is untrusted and may carry a forged line.
+    Refused as well (round 2): a Unicode format character, which can make one
+    URL read as another; userinfo, which puts a lookalike in front of the real
+    host; and a port that is empty, not a number, or outside 1-65535."""
+    import unicodedata
+    if not isinstance(url, str) or not url:
+        return "url must be a non-empty string"
+    if not _one_line_utf8(url) or any(c.isspace() for c in url):
+        return "url must be one line of UTF-8 with no spaces or control characters"
+    if any(unicodedata.category(c) == "Cf" for c in url):
+        return "url must not contain a Unicode format character (such as a bidi override or zero-width space)"
+    from urllib.parse import urlsplit
+    try:
+        parts = urlsplit(url)
+        host = parts.hostname
+    except ValueError:
+        return "url is not a URL"
+    if parts.scheme != "https" or not host:
+        return "url must be https://<host>/..."
+    if "@" in parts.netloc:
+        return "url must not carry userinfo (user:password@) before its host"
+    try:
+        port = parts.port
+    except ValueError:
+        port = 0
+    if parts.netloc.endswith(":") or port == 0:
+        return "url port must be a number from 1 to 65535"
+    return None
+
+
+def published_problems(record) -> list[str]:
+    """What is wrong with a sidecar's contents, without echoing any value."""
+    if not isinstance(record, dict):
+        return ["not a JSON object"]
+    out = []
+    for key in ("url", "digest", "at", "by"):
+        if key not in record:
+            out.append(f"no {key!r}")
+    if "url" in record and url_problem(record["url"]):
+        out.append(url_problem(record["url"]))
+    if "digest" in record and not (isinstance(record["digest"], str)
+                                   and re.fullmatch(r"[0-9a-f]{64}", record["digest"])):
+        out.append("digest must be 64 lowercase hex characters")
+    if "at" in record:
+        import datetime
+        at = record["at"]
+        try:
+            ok = (isinstance(at, str) and _one_line_utf8(at)
+                  and datetime.datetime.fromisoformat(at).tzinfo is not None)
+        except ValueError:
+            ok = False
+        if not ok:
+            out.append("at must be an ISO 8601 time with its offset")
+    if "by" in record and record["by"] is not None and not (
+            isinstance(record["by"], str) and record["by"].strip() and _one_line_utf8(record["by"])):
+        out.append("by must be null or a one-line name")
+    return out
+
+
+def published_main(argv) -> int:
+    ap = argparse.ArgumentParser(prog="tracker published",
+                                 description="record the page a session just published with its Artifact tool")
+    ap.add_argument("ledger", type=Path)
+    ap.add_argument("--url", required=True, help="the artifact's URL, https, one line")
+    ap.add_argument("--by", help="who published it (default: recorded as null)")
+    args = ap.parse_args(argv)
+    say = "tracker published:"
+
+    where = _printable(args.ledger)
+    folder = args.ledger.resolve().parent
+    if not (folder.name == "proposals" and folder.parent.name == "docs"):
+        # Round 2, finding 5: the sidecar is the page's, and the page of
+        # record lives under docs/proposals/tracker/.
+        print(f"{say} {where} is not in a docs/proposals directory -- only a ledger of record is "
+              "published; nothing recorded", file=sys.stderr)
+        return 1
+    if not args.ledger.is_file():
+        print(f"{say} no ledger at {where} -- nothing recorded", file=sys.stderr)
+        return 2
+    try:
+        data = json.loads(args.ledger.read_text(encoding="utf-8"))
+    except (OSError, ValueError, RecursionError) as exc:   # UnicodeDecodeError is a ValueError
+        print(f"{say} {where} could not be read as a JSON ledger ({type(exc).__name__}) -- nothing recorded",
+              file=sys.stderr)
+        return 2
+    if not isinstance(data, dict):
+        print(f"{say} {where} is not a ledger: not a JSON object -- nothing recorded", file=sys.stderr)
+        return 2
+    if not L.switch_on(data, "publish"):
+        sw = data["switches"]["publish"]
+        print(f"{say} publish is switched off in {_printable(args.ledger.name)} by {_printable(sw.get('by'))} "
+              f"at {_printable(sw.get('at'))} -- nothing recorded, and nothing should have been published",
+              file=sys.stderr)
+        return 1
+    problem = url_problem(args.url)
+    if problem:
+        print(f"{say} {problem} (got {_printable(args.url)}) -- nothing recorded", file=sys.stderr)
+        return 1
+    if args.by is not None and not (args.by.strip() and _one_line_utf8(args.by)):
+        print(f"{say} --by must be a one-line name (got {_printable(args.by)}) -- nothing recorded",
+              file=sys.stderr)
+        return 1
+    page = default_out(args.ledger)
+    fresh = freshness(args.ledger, page)
+    if fresh != "ok":
+        print(f"{say} {page} is {fresh} against {args.ledger.name} -- render first: tracker render {args.ledger}, "
+              "publish that page, then record it", file=sys.stderr)
+        return 1
+
+    import datetime
+    record = {"url": args.url, "digest": digest(page),
+              "at": datetime.datetime.now().astimezone().isoformat(timespec="seconds"), "by": args.by}
+    sidecar = published_path(args.ledger)
+    sidecar.write_text(json.dumps(record, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
+    print(f"recorded {sidecar} · {args.url} · commit it")
+    return 0
 
 
 def main(argv) -> int:
@@ -274,11 +569,11 @@ def main(argv) -> int:
     out = args.out or default_out(args.ledger)
 
     if args.check:
-        if not out.exists():
+        fresh = freshness(args.ledger, out)
+        if fresh == "missing":
             print(f"stale: {out} is missing -- run: tracker render {args.ledger}")
             return 1
-        m = re.search(r'<meta name="ledger-digest" content="([0-9a-f]{64})">', out.read_text(errors="replace"))
-        if not m or m.group(1) != digest(args.ledger):
+        if fresh == "stale":
             print(f"stale: {out} was rendered from a different {args.ledger.name} -- run: tracker render {args.ledger}")
             return 1
         print(f"ok {out} matches {args.ledger.name}")
