@@ -156,6 +156,13 @@ class TestBoardPage(unittest.TestCase):
         self.assertIn('data-ask="A-01"', text)
         self.assertIn("waits on the sponsor &amp; his go", text)
 
+    def test_filtered_blocks_hide_outside_the_artifact_wrapper(self):
+        # A card is display:flex, which beats the browser's own [hidden] rule, so a
+        # filtered-out block stayed on screen when the file was opened directly.
+        self.p.run()
+        text = self.p.page.read_text()
+        self.assertRegex(text, r"\[hidden\]\s*\{\s*display:\s*none\s*!important\s*\}")
+
     def test_no_external_script(self):
         self.p.run()
         text = self.p.page.read_text()
