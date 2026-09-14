@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 00:24
+# Checkpoint — 2026-09-15 00:35
 
-Reason: manual · branch: p23-eight-levers · HEAD: b958146
+Reason: manual · branch: p23-eight-levers · HEAD: c790596
 
-<!-- ledger-digest: b9eb8f72da2a81710e0c1c827992d9b0afc5c2226c819195678abe226b41db0a -->
+<!-- ledger-digest: 0a8d42c0fc128b5747e19001e27945ccaa092b2c11f5bd99b0c44f6af486a1b3 -->
 
 ## Proposal 19 · Warm-up
 

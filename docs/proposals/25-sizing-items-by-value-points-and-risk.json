@@ -191,8 +191,9 @@
       "became": "Z-02",
       "at": "2026-09-15T00:12:06+02:00",
       "by": "sponsor",
-      "quote": "D1: picked \"A · Value + points + risk, with a routing table\" (no note).",
-      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers"
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D1: picked \"A · Value + points + risk, with a routing table\".",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     },
     {
       "id": "A-04",
@@ -201,8 +202,9 @@
       "became": "Z-03",
       "at": "2026-09-15T00:12:22+02:00",
       "by": "sponsor",
-      "quote": "D2: picked \"A · Default per surface, override when needed\" (no note).",
-      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers"
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D2: picked \"A · Default per surface, override when needed\".",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     },
     {
       "id": "A-05",
@@ -211,8 +213,9 @@
       "became": "Z-02",
       "at": "2026-09-15T00:12:33+02:00",
       "by": "sponsor",
-      "quote": "D3: picked \"A · No, kept from the builder\" (no note).",
-      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers"
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D3: picked \"A · No, kept from the builder\".",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     },
     {
       "id": "A-06",
@@ -221,8 +224,9 @@
       "became": "Z-04",
       "at": "2026-09-15T00:12:43+02:00",
       "by": "sponsor",
-      "quote": "D4: picked \"A · Always restricted\" (no note).",
-      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers"
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D4: picked \"A · Always restricted\".",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     },
     {
       "id": "A-07",
@@ -231,8 +235,9 @@
       "became": "Z-05",
       "at": "2026-09-15T00:12:51+02:00",
       "by": "sponsor",
-      "quote": "D5: picked \"A · Every 20 items\" (no note).",
-      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers"
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D5: picked \"A · Every 20 items\".",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     },
     {
       "id": "A-08",
@@ -241,8 +246,9 @@
       "became": "Z-06",
       "at": "2026-09-15T00:13:08+02:00",
       "by": "sponsor",
-      "quote": "D6: picked \"A · Cluster by files touched, on the tracker page\" (no note).",
-      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers"
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D6: picked \"A · Cluster by files touched, on the tracker page\".",
+      "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
+      "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
     }
   ],
   "proposed_changes": [],
