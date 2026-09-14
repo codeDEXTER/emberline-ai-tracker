@@ -923,3 +923,21 @@ class TestSince(Case):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCheckReportCannotBeForged(Case):
+    """V-02 final review: --check printed validate()'s problems raw, so a
+    malformed item id carrying a newline forged a line in --check's report."""
+
+    def test_a_malformed_id_does_not_forge_a_check_line(self):
+        d = ledger_data()
+        d["items"][0]["id"] = "Z-01\nwarmup --check: ready"
+        self.p.set_ledger(d)
+        self.p.commit("adversarial id")
+        r = self.p.warmup("--check")
+        self.assertEqual(1, r.returncode, r.stdout)
+        lines = r.stdout.splitlines()
+        self.assertNotIn("warmup --check: ready", [l.strip() for l in lines])
+        after = lines[[i for i, l in enumerate(lines) if l.startswith("warmup --check:")][0] + 1:]
+        for l in after:
+            self.assertTrue(l.startswith("  ✗ "), f"a problem split across lines: {l!r}")

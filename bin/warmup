@@ -610,9 +610,9 @@ def card(s: dict) -> str:
 
 
 def check_report(s: dict) -> str:
-    lines = [f"  {mark} {text}" for mark, text in s["chain"]]
+    lines = [f"  {mark} {shown(text)}" for mark, text in s["chain"]]
     lines.append(f"warmup --check: {'ready' if not s['problems'] else str(len(s['problems'])) + ' problem(s)'}")
-    lines += [f"  ✗ {p}" for p in s["problems"]]
+    lines += [f"  ✗ {shown(p)}" for p in s["problems"]]
     return "\n".join(lines)
 
 
