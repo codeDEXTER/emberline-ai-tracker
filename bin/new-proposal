@@ -1,0 +1,521 @@
+#!/usr/bin/env python3
+"""new-proposal -- create a numbered proposal in the checked shape (proposal 21, S-02).
+
+  new-proposal [--project DIR] [--number NN] "Title"
+  new-proposal [--project DIR] --page-for docs/proposals/NN-slug.json
+  new-proposal -- "-5% budget"        a title starting with a dash goes after --
+
+The sponsor made the common-rules standard mandatory (proposal 21, A-01 and
+A-02): every project creates proposals the same way. The PhotoVault app's and
+engine's newest proposals carried none of the shape bin/proposalcheck reads,
+and there was nothing to create one from.
+
+A NEW PROPOSAL writes, into the git top of DIR (default: the current
+directory):
+
+  docs/proposals/NN-slug.html           from templates/proposal.html
+  docs/proposals/NN-slug.json           from templates/ledger.json, no items
+  docs/proposals/tracker/NN-slug.html   tracker render of that ledger
+
+NN is the next number free across every docs/proposals entry whose name
+starts with one to three digits, an optional letter and a hyphen (02a-,
+02b-, 77-; never a date such as 2026-09-14-notes.md), in this project and in
+every sibling its .common-rules.json declares in proposal_series. --number
+NN is refused when any of those entries already uses it, naming the file.
+The slug is the title in lowercase ASCII with hyphens. A title that is
+empty, spans lines or carries control characters is refused.
+
+--page-for LEDGER writes only the page, for a ledger that already exists
+under docs/proposals without one. The title and number come from the ledger,
+so it takes no title and no --number. It is refused when any page already
+holds that number.
+
+After writing it runs bin/tracker validate, bin/tracker render and
+bin/proposalcheck. If any of them rejects what was written, everything this
+run wrote is removed and the failure is named: all of it, or none. A
+violation proposalcheck reports in some other document is mentioned but does
+not block. Nothing is ever overwritten; if another session claims the number
+while this runs, it says so -- run it again.
+
+Exit codes: 0 written and checked. 1 refused: a bad title or number, a number
+already in use, or a checker rejecting the result. 2 could not run: not
+inside a git repository, a proposal_series that cannot be used, a template
+missing, a file that could not be read or written, or a checker that crashed.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime
+import html
+import json
+import os
+import re
+import subprocess
+import sys
+import unicodedata
+from pathlib import Path
+
+RULES_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RULES_DIR))
+
+from tools import project as P  # noqa: E402
+
+PAGE_TEMPLATE = RULES_DIR / "templates" / "proposal.html"
+LEDGER_TEMPLATE = RULES_DIR / "templates" / "ledger.json"
+PROPOSALCHECK = RULES_DIR / "bin" / "proposalcheck"
+TRACKER = RULES_DIR / "bin" / "tracker"
+
+# What bin/conformance (S-04) reads to know a page came from this template.
+TEMPLATE_META = '<meta name="common-rules-template" content="proposal/21">'
+
+PLACEHOLDER = re.compile(r"\{\{([A-Z][A-Z0-9_]*)\}\}")
+# A proposal number: one to three digits, an optional letter (pip's 02a and
+# 02b), then a hyphen. A date-prefixed file (2026-09-14-notes.md) is not one.
+NUMBERED = re.compile(r"^(\d{1,3})[a-z]?-")
+MAX_NUMBER = 999
+LEDGER_NAME = re.compile(r"^(\d{1,3})-.+\.json\Z")
+# C0 and C1 controls (newline, tab, escape, NEL ...) and the two Unicode line
+# and paragraph separators: anything that would make the title more than one
+# line in a <title>, a card or a terminal.
+# Plus bidi controls and invisible characters (S-02 final review): a title that
+# reorders or hides its own text on a card or in a terminal.
+BAD_TITLE_CHARS = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029\u061c\u200b\u200e\u200f\u202a-\u202e"
+                             r"\u2060-\u2064\u2066-\u2069\ufeff]")
+SLUG_MAX = 60
+COLLISION = re.compile(r'^proposal id ".*" is claimed by \d+ documents: (.*)$')
+
+
+class Refused(Exception):
+    """A refusal the person can fix: exit 1."""
+
+
+class CannotRun(Exception):
+    """Nothing to fix in the arguments: exit 2."""
+
+
+# -- inputs ------------------------------------------------------------------
+
+def slugify(title: str) -> str:
+    ascii_ = unicodedata.normalize("NFKD", title).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_.lower()).strip("-")
+    if len(slug) > SLUG_MAX:
+        cut = slug[:SLUG_MAX + 1]
+        slug = cut.rsplit("-", 1)[0] if "-" in cut else slug[:SLUG_MAX]
+    return slug.strip("-")
+
+
+def check_title(title: str) -> str:
+    """The title, stripped, or Refused naming what is wrong with it."""
+    if BAD_TITLE_CHARS.search(title):
+        raise Refused(f"the title {ascii(title)} spans lines or carries a control character "
+                      "(or a bidi or invisible one)")
+    try:
+        title.encode("utf-8")
+    except UnicodeEncodeError:
+        raise Refused(f"the title {ascii(title)} is not valid UTF-8") from None
+    title = title.strip()
+    if not title:
+        raise Refused("the title is empty")
+    if not slugify(title):
+        raise Refused(f"the title {ascii(title)} has no ASCII letter or digit to make a file name from")
+    return title
+
+
+def check_number(raw: str) -> int:
+    if not re.fullmatch(r"[0-9]+", raw or "") or not 1 <= int(raw) <= MAX_NUMBER:
+        raise Refused(f"--number {ascii(raw)} is not a whole number from 1 to {MAX_NUMBER}")
+    return int(raw)
+
+
+def git_top(start: Path) -> Path:
+    if not start.is_dir():
+        raise CannotRun(f"{start} is not a directory")
+    r = subprocess.run(["git", "-C", str(start), "rev-parse", "--show-toplevel"],
+                       capture_output=True, text=True, check=False)
+    if r.returncode != 0 or not r.stdout.strip():
+        raise CannotRun(f"{start} is not inside a git repository")
+    return Path(r.stdout.strip())
+
+
+def series_of(top: Path) -> list[tuple[str, Path]]:
+    roots, problems = P.proposal_series(top)
+    if problems:
+        raise CannotRun("cannot number across the declared proposal_series:\n  " + "\n  ".join(problems))
+    # S-02 final review: declared on one side only, both repos took the same
+    # number and nothing noticed. A series is declared by every member or none.
+    here = Path(top).resolve()
+    for rel, path in roots:
+        back, back_problems = P.proposal_series(path)
+        if back_problems:
+            raise CannotRun(f"cannot number across the declared proposal_series: {rel}'s own declaration "
+                            "has problems:\n  " + "\n  ".join(back_problems))
+        if not any(p.resolve() == here for _r, p in back):
+            raise CannotRun(f"proposal_series is one-sided: {rel} does not declare this project back -- "
+                            "declare the series in every member's .common-rules.json, or in none")
+    return roots
+
+
+def numbers_in_use(top: Path, series: list[tuple[str, Path]]) -> dict[int, list[str]]:
+    """Every numbered entry, file or directory, in this project's
+    docs/proposals and each sibling's, by number, as a path to show."""
+    used: dict[int, list[str]] = {}
+    for prefix, root in [("", top)] + [(f"{rel.rstrip('/')}/", path) for rel, path in series]:
+        folder = root / "docs" / "proposals"
+        if not folder.is_dir():
+            continue
+        for entry in folder.iterdir():
+            m = NUMBERED.match(entry.name)
+            if m:
+                used.setdefault(int(m.group(1)), []).append(f"{prefix}docs/proposals/{entry.name}")
+    return {n: sorted(names) for n, names in used.items()}
+
+
+# -- rendering ---------------------------------------------------------------
+
+def render_page(template: str, number: str, title: str, date: str) -> str:
+    if TEMPLATE_META not in template:
+        raise CannotRun(f"{PAGE_TEMPLATE} does not carry {TEMPLATE_META}")
+    values = {"NUMBER": number, "TITLE": html.escape(title, quote=True), "DATE": date}
+    unknown = sorted(set(PLACEHOLDER.findall(template)) - values.keys())
+    if unknown:
+        raise CannotRun(f"{PAGE_TEMPLATE} has placeholders new-proposal cannot fill: {', '.join(unknown)}")
+    # One pass: a title that itself contains "{{DATE}}" stays literal.
+    return PLACEHOLDER.sub(lambda m: values[m.group(1)], template)
+
+
+def _has_placeholder(value) -> bool:
+    return "{{" in json.dumps(value)
+
+
+def render_ledger(template: str, number: int, title: str, date: str) -> str:
+    """The ledger contract's minimum: the proposal's number, title, status and
+    date, the routing table, no items yet. Template rows and phases that are
+    only placeholders are left out rather than written half-filled."""
+    try:
+        data = json.loads(template)
+    except ValueError as exc:
+        raise CannotRun(f"{LEDGER_TEMPLATE}: not valid JSON ({exc})") from None
+    data["proposal"] = number
+    data["title"] = title
+    data["status"] = "proposed"
+    data["updated"] = date
+    data["items"] = []
+    data["asks"] = []
+    data["proposed_changes"] = []
+    data["phases"] = [p for p in data.get("phases") or [] if not _has_placeholder(p)]
+    execution = data.get("execution") if isinstance(data.get("execution"), dict) else {}
+    data["execution"] = {k: v for k, v in execution.items() if not _has_placeholder(v)}
+    if _has_placeholder({k: v for k, v in data.items() if k != "title"}):
+        raise CannotRun(f"{LEDGER_TEMPLATE} has a placeholder new-proposal does not know how to fill")
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+
+# -- writing, all or nothing -------------------------------------------------
+
+class Writes:
+    """Everything one run creates, so a failure can take all of it back."""
+
+    def __init__(self, top: Path):
+        self.top = top
+        self.files: list[Path] = []
+        self.dirs: list[Path] = []
+
+    def show(self, path: Path) -> str:
+        try:
+            return str(path.relative_to(self.top))
+        except ValueError:
+            return str(path)
+
+    def note_missing_dirs(self, folder: Path) -> None:
+        d = folder
+        while not d.exists():
+            if d not in self.dirs:
+                self.dirs.append(d)
+            d = d.parent
+
+    def mkdir(self, folder: Path) -> None:
+        self.note_missing_dirs(folder)
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise CannotRun(f"could not write {self.show(folder)}: {exc.strerror or exc}") from None
+
+    def create(self, path: Path, text: str) -> None:
+        try:
+            fh = open(path, "x", encoding="utf-8")      # never overwrite, even in a race
+        except FileExistsError:
+            raise Refused(f"{self.show(path)} was just claimed by another run while new-proposal "
+                          "was working; nothing overwritten -- run it again") from None
+        except OSError as exc:
+            raise CannotRun(f"could not write {self.show(path)}: {exc.strerror or exc}") from None
+        self.files.append(path)
+        try:
+            with fh:
+                fh.write(text)
+        except OSError as exc:
+            raise CannotRun(f"could not write {self.show(path)}: {exc.strerror or exc}") from None
+
+    def adopt(self, path: Path) -> None:
+        """A file a tool wrote for this run: it goes if the run fails."""
+        if path.exists() and path not in self.files:
+            self.files.append(path)
+
+    def rollback(self) -> None:
+        for path in reversed(self.files):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        for d in sorted(self.dirs, key=lambda p: len(p.parts), reverse=True):
+            try:
+                d.rmdir()
+            except OSError:
+                pass
+
+
+def claimed_meanwhile(top, series, n: int, ours: set[str], before: set[str] = frozenset()) -> None:
+    """Refuses when an entry holding n appeared during this run. Entries that
+    were already there at the first scan (a .md twin, an assets folder) are not
+    a race (S-02 final review)."""
+    others = [name for name in numbers_in_use(top, series).get(n, []) if name not in ours and name not in before]
+    if others:
+        raise Refused(f"proposal number {n:02d} was just claimed by {', '.join(others)} while "
+                      "new-proposal was working; what it wrote is removed -- run it again")
+
+
+def run_tool(label: str, argv: list[str]) -> subprocess.CompletedProcess:
+    try:
+        r = subprocess.run([sys.executable, *argv], capture_output=True, text=True, check=False)
+    except OSError as exc:
+        raise CannotRun(f"{label} could not be started: {exc}") from None
+    if r.returncode not in (0, 1):
+        raise CannotRun(f"{label} could not check what was written (exit {r.returncode}):\n  "
+                        + "\n  ".join((r.stdout + r.stderr).splitlines()))
+    return r
+
+
+def about(line: str, page_name: str) -> bool:
+    """Does this proposalcheck line name the page? A document's violation
+    starts with its exact name and a colon; a collision lists exact names."""
+    if line.startswith(page_name + ": "):
+        return True
+    m = COLLISION.match(line)
+    return bool(m and page_name in [name.strip() for name in m.group(1).split(", ")])
+
+
+def check_page(top: Path, page: Path) -> str:
+    r = run_tool("proposalcheck", [str(PROPOSALCHECK), "--project", str(top)])
+    ours = [line for line in (r.stdout + r.stderr).splitlines() if about(line, page.name)]
+    if ours:
+        raise Refused("proposalcheck rejects what was written:\n  " + "\n  ".join(ours))
+    if r.returncode == 1:
+        return ("proposalcheck: clean for the new page; other documents in the project have "
+                "violations (run bin/proposalcheck to see them)")
+    return "proposalcheck: clean"
+
+
+def validate_ledger(ledger: Path) -> str:
+    r = run_tool("tracker validate", [str(TRACKER), "validate", str(ledger)])
+    if r.returncode != 0:
+        raise Refused("tracker validate rejects the ledger:\n  " + "\n  ".join((r.stdout + r.stderr).splitlines()))
+    return "tracker validate: well-formed"
+
+
+def render_tracker(writes: Writes, ledger: Path, out: Path) -> None:
+    if out.parent.exists() and not os.access(out.parent, os.W_OK):
+        raise CannotRun(f"could not write {writes.show(out.parent)}: Permission denied")
+    writes.note_missing_dirs(out.parent)
+    try:
+        r = run_tool("tracker render", [str(TRACKER), "render", str(ledger)])
+    finally:
+        writes.adopt(out)
+    if r.returncode != 0 and "Traceback (most recent call last)" in r.stderr:
+        last = (r.stderr.strip().splitlines() or ["tracker render failed"])[-1]
+        raise CannotRun(f"could not write {writes.show(out)}: {last}")
+    if r.returncode != 0:
+        raise Refused("tracker render rejects the ledger:\n  " + "\n  ".join((r.stdout + r.stderr).splitlines()))
+
+
+# -- the two modes -----------------------------------------------------------
+
+def create(top: Path, number_arg: str | None, title_arg: str) -> int:
+    title = check_title(title_arg)
+    wanted = check_number(number_arg) if number_arg is not None else None
+    series = series_of(top)
+    proposals = top / "docs" / "proposals"
+    if proposals.exists() and not proposals.is_dir():
+        raise CannotRun(f"{proposals} exists and is not a directory")
+    for tpl in (PAGE_TEMPLATE, LEDGER_TEMPLATE):
+        if not tpl.is_file():
+            raise CannotRun(f"template missing: {tpl}")
+
+    used = numbers_in_use(top, series)
+    if wanted is None:
+        n = max(used, default=0) + 1
+        if n > MAX_NUMBER:
+            raise Refused(f"the next number would be {n}, above {MAX_NUMBER}; pass --number")
+    else:
+        n = wanted
+        if n in used:
+            raise Refused(f"proposal number {n:02d} is already used by {', '.join(used[n])}")
+
+    number = f"{n:02d}"
+    stem = f"{number}-{slugify(title)}"
+    page, ledger = proposals / f"{stem}.html", proposals / f"{stem}.json"
+    tracker_page = proposals / "tracker" / f"{stem}.html"
+    writes = Writes(top)
+    if tracker_page.exists():
+        raise Refused(f"{writes.show(tracker_page)} already exists; nothing overwritten")
+    date = datetime.date.today().isoformat()
+    page_text = render_page(PAGE_TEMPLATE.read_text(encoding="utf-8"), number, title, date)
+    ledger_text = render_ledger(LEDGER_TEMPLATE.read_text(encoding="utf-8"), n, title, date)
+
+    done = False
+    try:
+        writes.mkdir(proposals)
+        writes.create(page, page_text)
+        writes.create(ledger, ledger_text)
+        claimed_meanwhile(top, series, n, {writes.show(page), writes.show(ledger)}, set(used.get(n, [])))
+        notes = [validate_ledger(ledger)]
+        render_tracker(writes, ledger, tracker_page)
+        notes.insert(0, check_page(top, page))
+        done = True
+    finally:
+        if not done:
+            writes.rollback()
+
+    print(f"new-proposal: proposal {number} · proposed · {title}")
+    print(f"  page     {page}")
+    print(f"  ledger   {ledger}")
+    print(f"  tracker  {tracker_page}  (tracker render of the ledger)")
+    for note in notes:
+        print(f"  {note}")
+    print("Next: fill the page -- the ask in the sponsor's words, what was found, the options,")
+    print("and the decisions D1, D2 ... in place of the highlighted text. When the sponsor accepts,")
+    print("record the answers in the Decided section and add the items to the ledger.")
+    return 0
+
+
+def page_for(top: Path, ledger_arg: str) -> int:
+    series = series_of(top)
+    proposals = top / "docs" / "proposals"
+    given = Path(ledger_arg)
+    ledger = given if given.is_absolute() else top / given
+    if ledger.parent.resolve() != proposals.resolve():
+        raise Refused(f"--page-for {ascii(ledger_arg)} is not a ledger directly under docs/proposals")
+    m = LEDGER_NAME.match(ledger.name)
+    if not m:
+        raise Refused(f"--page-for {ascii(ledger_arg)} is not named NN-slug.json under docs/proposals")
+    shown = f"docs/proposals/{ledger.name}"
+    if not ledger.is_file():
+        raise Refused(f"--page-for: {shown} does not exist")
+    try:
+        data = json.loads(ledger.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        raise Refused(f"--page-for: {shown} is not valid JSON ({exc})") from None
+    if not isinstance(data, dict):
+        raise Refused(f"--page-for: {shown} is not a ledger (not a JSON object)")
+    n = int(m.group(1))
+    declared = data.get("proposal")
+    if isinstance(declared, bool) or declared != n:
+        raise Refused(f"--page-for: {shown} records proposal {ascii(declared)}, but its name says {n:02d}")
+    if not isinstance(data.get("title"), str):
+        raise Refused(f"--page-for: {shown} has no title to put on the page")
+    try:
+        title = check_title(data["title"])
+    except Refused as exc:
+        raise Refused(f"--page-for: {shown}: {exc}") from None
+    if not PAGE_TEMPLATE.is_file():
+        raise CannotRun(f"template missing: {PAGE_TEMPLATE}")
+
+    page = proposals / f"{ledger.stem}.html"
+    writes = Writes(top)
+    existing = numbers_in_use(top, series).get(n, [])
+    holders = [name for name in existing
+               if name != shown and (name.endswith(".html") or not name.startswith("docs/proposals/"))]
+    if page.exists() and writes.show(page) not in holders:
+        holders.append(writes.show(page))
+    if holders:
+        raise Refused(f"proposal {n:02d} already has a page: {', '.join(holders)}; nothing written")
+    other_ledgers = []
+    for name in existing:
+        if name == shown or not name.startswith("docs/proposals/") or not name.endswith(".json"):
+            continue
+        try:
+            other = json.loads((top / name).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(other, dict) and isinstance(other.get("items"), list):
+            other_ledgers.append(name)
+    if other_ledgers:
+        raise Refused(f"proposal {n:02d} has another ledger too: {', '.join(other_ledgers)}; "
+                      "one number, one ledger -- nothing written")
+    tracker_page = proposals / "tracker" / f"{ledger.stem}.html"
+
+    number = m.group(1)
+    page_text = render_page(PAGE_TEMPLATE.read_text(encoding="utf-8"), number, title,
+                            datetime.date.today().isoformat())
+    done = False
+    try:
+        writes.create(page, page_text)
+        claimed_meanwhile(top, series, n, {writes.show(page), shown}, set(existing))
+        if tracker_page.exists():
+            r = run_tool("tracker render --check", [str(TRACKER), "render", "--check", str(ledger)])
+            verdict = ((r.stdout + r.stderr).strip().splitlines() or ["no output"])[-1]
+            tracker_note = f"tracker  {tracker_page} exists, left alone; render --check: {verdict}"
+        else:
+            render_tracker(writes, ledger, tracker_page)
+            tracker_note = f"tracker  {tracker_page}  (tracker render of the ledger)"
+        notes = [check_page(top, page), tracker_note]
+        done = True
+    finally:
+        if not done:
+            writes.rollback()
+
+    print(f"new-proposal: page for proposal {number} · {title}")
+    print(f"  page     {page}")
+    print(f"  ledger   {ledger}  (unchanged)")
+    for note in notes:
+        print(f"  {note}")
+    status = data.get("status")
+    if isinstance(status, str) and status != "proposed" and P._one_line(status):
+        print(f"  the ledger's status is {ascii(status)}; the page says proposed -- follow its Decided "
+              "section to record the decision")
+    print("Next: fill the page -- the ask in the sponsor's words, what was found, the options,")
+    print("and the decisions D1, D2 ... in place of the highlighted text.")
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser(prog="new-proposal", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--project", default=None, help="a directory inside the project (default: cwd)")
+    ap.add_argument("--number", default=None, help="the proposal number (default: the next free one)")
+    ap.add_argument("--page-for", default=None, metavar="LEDGER",
+                    help="write only the page for an existing docs/proposals/NN-slug.json")
+    ap.add_argument("title", nargs="?", default=None,
+                    help='the proposal\'s title, one line (after -- if it starts with a dash)')
+    a = ap.parse_args(argv)
+    if a.page_for is not None and (a.title is not None or a.number is not None):
+        ap.error("--page-for takes its title and number from the ledger; give no title and no --number")
+    if a.page_for is None and a.title is None:
+        ap.error("a title is required, or --page-for LEDGER")
+    try:
+        top = git_top(Path(a.project) if a.project else Path.cwd())
+        if a.page_for is not None:
+            return page_for(top, a.page_for)
+        return create(top, a.number, a.title)
+    except Refused as exc:
+        print(f"new-proposal: refused: {exc}", file=sys.stderr)
+        return 1
+    except CannotRun as exc:
+        print(f"new-proposal: {exc}", file=sys.stderr)
+        return 2
+    except OSError as exc:
+        print(f"new-proposal: could not read or write {exc.filename or ''}: {exc.strerror or exc}",
+              file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

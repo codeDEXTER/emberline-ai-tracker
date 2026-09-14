@@ -760,5 +760,140 @@ class TestDerecordIgnoreDoesNotUntrack(LedgerCommitHelpers, DerecordCase):
         self.assertNotIn("already tracked", r.stdout)
 
 
+class TestDerecordParent(unittest.TestCase):
+    """`derecord --parent DIR` (proposal 21, S-05): a start folder above
+    several projects, itself not a git repo, gets only the SessionStart entry
+    for hooks/sessionstart -- nothing else this file installs."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.parent = Path(self.tmp.name) / "PhotoVault"
+        self.parent.mkdir()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def make_child_project(self, name: str) -> Path:
+        """A minimal child that qualifies as a project: its own git repo and
+        its own .common-rules.json (S-05's own test for project-hood)."""
+        child = self.parent / name
+        child.mkdir()
+        subprocess.run(["git", "init", "-q", str(child)], check=True)
+        (child / ".common-rules.json").write_text("{}")
+        return child
+
+    def run_parent(self):
+        return subprocess.run([str(DERECORD), "--parent", str(self.parent)],
+                              capture_output=True, text=True, check=False)
+
+    def session_start_commands(self) -> list[str]:
+        d = json.loads((self.parent / ".claude" / "settings.json").read_text())
+        return [h["command"] for e in d.get("hooks", {}).get("SessionStart", [])
+                for h in e.get("hooks", [])]
+
+    def test_installs_the_sessionstart_entry_once(self):
+        self.make_child_project("app")
+        self.make_child_project("engine")
+        r = self.run_parent()
+        self.assertEqual(0, r.returncode, r.stderr)
+        commands = self.session_start_commands()
+        matches = [c for c in commands if c.endswith("/hooks/sessionstart")]
+        self.assertEqual([f"{ROOT}/hooks/sessionstart"], matches)
+        self.assertIn("installed", r.stdout)
+
+    def test_prints_how_many_child_projects_it_found(self):
+        """Round 2, item 3: derecord --parent says the count, not just that
+        it found at least one."""
+        self.make_child_project("app")
+        self.make_child_project("engine")
+        r = self.run_parent()
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("2 child project(s) found", r.stdout)
+
+    def test_a_second_run_changes_nothing(self):
+        self.make_child_project("app")
+        self.run_parent()
+        before = (self.parent / ".claude" / "settings.json").read_text()
+        r2 = self.run_parent()
+        self.assertEqual(0, r2.returncode, r2.stderr)
+        self.assertEqual(before, (self.parent / ".claude" / "settings.json").read_text())
+        self.assertIn("already present", r2.stdout)
+
+    def test_other_settings_survive(self):
+        self.make_child_project("app")
+        settings_path = self.parent / ".claude" / "settings.json"
+        settings_path.parent.mkdir(parents=True, exist_ok=True)
+        settings_path.write_text(json.dumps({
+            "hooks": {"PostToolUse": [{"hooks": [{"type": "command", "command": "/some/other/hook"}]}]},
+            "unrelatedTopLevelKey": "kept",
+        }))
+        r = self.run_parent()
+        self.assertEqual(0, r.returncode, r.stderr)
+        d = json.loads(settings_path.read_text())
+        self.assertEqual("kept", d.get("unrelatedTopLevelKey"))
+        self.assertEqual("/some/other/hook", d["hooks"]["PostToolUse"][0]["hooks"][0]["command"])
+
+    def test_a_stale_command_is_corrected_in_place(self):
+        self.make_child_project("app")
+        settings_path = self.parent / ".claude" / "settings.json"
+        settings_path.parent.mkdir(parents=True, exist_ok=True)
+        settings_path.write_text(json.dumps({
+            "hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "/old/rules/hooks/sessionstart"}]}]}
+        }))
+        r = self.run_parent()
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertEqual([f"{ROOT}/hooks/sessionstart"], self.session_start_commands())
+        self.assertIn("corrected", r.stdout)
+
+    def test_malformed_settings_json_is_refused(self):
+        self.make_child_project("app")
+        settings_path = self.parent / ".claude" / "settings.json"
+        settings_path.parent.mkdir(parents=True, exist_ok=True)
+        settings_path.write_text("{not valid json")
+        before = settings_path.read_text()
+        r = self.run_parent()
+        self.assertNotEqual(0, r.returncode)
+        self.assertIn("not valid JSON", r.stderr + r.stdout)
+        self.assertEqual(before, settings_path.read_text())
+
+    def test_a_git_repo_is_refused(self):
+        self.make_child_project("app")
+        subprocess.run(["git", "init", "-q", str(self.parent)], check=True)
+        r = self.run_parent()
+        self.assertNotEqual(0, r.returncode)
+        self.assertIn("is a git repository", r.stderr + r.stdout)
+        self.assertFalse((self.parent / ".claude" / "settings.json").exists())
+
+    def test_no_children_is_refused(self):
+        (self.parent / "notes").mkdir()
+        r = self.run_parent()
+        self.assertNotEqual(0, r.returncode)
+        self.assertIn("no child project", r.stderr + r.stdout)
+        self.assertFalse((self.parent / ".claude" / "settings.json").exists())
+
+    def test_a_child_with_only_an_open_ledger_also_qualifies(self):
+        """Project-hood via an open ledger under docs/proposals/, not just
+        .common-rules.json -- the same second marker the hook itself uses."""
+        child = self.parent / "engine"
+        (child / "docs" / "proposals").mkdir(parents=True)
+        (child / "docs" / "proposals" / "19-x.json").write_text(json.dumps({
+            "proposal": 19, "title": "x", "status": "accepted",
+            "items": [{"id": "W-01", "phase": "W", "cx": "C2", "title": "a", "status": "not started"}],
+        }))
+        r = self.run_parent()
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("installed", r.stdout)
+
+    def test_installs_nothing_else(self):
+        self.make_child_project("app")
+        r = self.run_parent()
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertFalse((self.parent / ".gitattributes").exists())
+        self.assertFalse((self.parent / ".gitignore").exists())
+        self.assertFalse((self.parent / "HANDOFF.md").exists())
+        d = json.loads((self.parent / ".claude" / "settings.json").read_text())
+        self.assertEqual(["SessionStart"], list(d.get("hooks", {}).keys()))
+
+
 if __name__ == "__main__":
     unittest.main()
