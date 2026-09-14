@@ -13,6 +13,7 @@ Run:  python3 -m unittest discover -s tests -q
 from __future__ import annotations
 
 import datetime
+import hashlib
 import json
 import subprocess
 import tempfile
@@ -393,9 +394,10 @@ class TestDerecordIgnoreRuflo(DerecordCase):
         self.assertIn("already present", second_result.stdout)
 
 
-class TestDerecordPreCommitLedger(DerecordCase):
-    """D12: a staged ledger regenerates and stages its tracker page and the
-    checkpoint, alongside the existing conflict-marker guard."""
+class LedgerCommitHelpers:
+    """Shared by every TestCase below that stages and commits a ledger.
+    Not a TestCase itself -- mixed in, so its methods are never collected
+    and re-run as tests under more than one class name."""
 
     def setUp(self):
         super().setUp()
@@ -414,6 +416,10 @@ class TestDerecordPreCommitLedger(DerecordCase):
         path.write_text(json.dumps(data, indent=2))
         return path
 
+    def git(self, *args, check=True):
+        return subprocess.run(["git", "-C", str(self.proj), *args],
+                              capture_output=True, text=True, check=check)
+
     def commit(self, *paths):
         subprocess.run(["git", "-C", str(self.proj), "add", *[str(p) for p in paths]], check=True)
         return subprocess.run(["git", "-C", str(self.proj), "commit", "-m", "test"],
@@ -423,6 +429,11 @@ class TestDerecordPreCommitLedger(DerecordCase):
         r = subprocess.run(["git", "-C", str(self.proj), "show", "--stat", "--pretty=", "HEAD"],
                            capture_output=True, text=True, check=True)
         return r.stdout
+
+
+class TestDerecordPreCommitLedger(LedgerCommitHelpers, DerecordCase):
+    """D12: a staged ledger regenerates and stages its tracker page and the
+    checkpoint, alongside the existing conflict-marker guard."""
 
     def test_a_staged_ledger_gets_its_page_and_checkpoint_committed_alongside(self):
         self.run_derecord()
@@ -520,6 +531,231 @@ class TestDerecordPreCommitLedger(DerecordCase):
         self.run_derecord()
         content = (self.proj / ".git" / "hooks" / "pre-commit").read_text()
         self.assertIn(str(ROOT), content)
+
+
+class TestDerecordSettingsGuard(DerecordCase):
+    """V-07 round 2, finding 2: a malformed .claude/settings.json must be
+    refused, not silently replaced with {} -- checked before any step writes,
+    so a broken settings file leaves the whole run a no-op."""
+
+    def write_settings(self, text):
+        path = self.proj / ".claude" / "settings.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        return path
+
+    def test_invalid_json_refuses_and_changes_nothing(self):
+        self.write_settings("{not valid json")
+        r = self.run_derecord()
+        self.assertNotEqual(r.returncode, 0, "a malformed settings.json should refuse the whole run")
+        self.assertIn("derecord: .claude/settings.json is not valid JSON; fix it and run again (nothing changed)",
+                       r.stderr + r.stdout)
+        self.assertFalse((self.proj / ".gitattributes").exists(), "gitattributes step ran despite the refusal")
+        self.assertFalse((self.proj / ".git" / "hooks" / "pre-commit").exists(),
+                          "pre-commit was installed despite the refusal")
+        self.assertFalse((self.proj / ".gitignore").exists(), "gitignore step ran despite the refusal")
+
+    def test_valid_json_that_is_not_an_object_refuses(self):
+        self.write_settings("[1, 2, 3]")
+        r = self.run_derecord()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("is not valid JSON", r.stderr + r.stdout)
+        self.assertFalse((self.proj / ".gitattributes").exists())
+
+    def test_a_missing_settings_json_still_starts_from_an_empty_object(self):
+        r = self.run_derecord()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        d = settings_in(self.proj)
+        self.assertIn("hooks", d)
+
+
+class TestDerecordPreCommitUnstagedGuard(LedgerCommitHelpers, DerecordCase):
+    """V-07 round 2, finding 1: the page must never carry text that was
+    never staged. A ledger, its page, or the checkpoint with unstaged edits
+    refuses the commit rather than rendering from the working tree."""
+
+    def test_a_ledger_with_unstaged_edits_after_staging_refuses(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger()
+        self.git("add", str(ledger_path))
+        # Edit again without re-staging -- the reviewer's exact reproduction.
+        ledger_path.write_text(ledger_path.read_text().replace("Thing", "Something else entirely"))
+        r = subprocess.run(["git", "-C", str(self.proj), "commit", "-m", "test"],
+                           capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0, "a ledger with unstaged edits must not be committed")
+        self.assertIn("has unstaged changes", r.stderr + r.stdout)
+        self.assertIn("docs/proposals/42-thing.json", r.stderr + r.stdout)
+        page = self.proj / "docs" / "proposals" / "tracker" / "42-thing.html"
+        self.assertFalse(page.exists(), "the page must not be rendered from the never-staged text")
+
+    def test_the_committed_page_never_carries_never_staged_text(self):
+        """Even if the guard above did not exist, the page that does get
+        committed must reflect only the staged content."""
+        self.run_derecord()
+        ledger_path = self.write_ledger(title="Original Title")
+        r = self.commit(ledger_path)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.proj / "docs" / "proposals" / "tracker" / "42-thing.html"
+        self.assertIn("Original Title", page.read_text())
+
+    def test_a_page_with_unstaged_edits_refuses_the_next_ledger_commit(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger()
+        r = self.commit(ledger_path)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        page = self.proj / "docs" / "proposals" / "tracker" / "42-thing.html"
+        # A local, unstaged hand-edit to the generated page.
+        page.write_text(page.read_text() + "\n<!-- local note -->\n")
+
+        self.write_ledger(title="Thing v2")
+        r = self.commit(ledger_path)
+        self.assertNotEqual(r.returncode, 0, "an unstaged edit to the page must refuse the commit")
+        self.assertIn("has unstaged changes", r.stderr + r.stdout)
+        self.assertIn("42-thing.html", r.stderr + r.stdout)
+
+    def test_a_checkpoint_with_unstaged_edits_refuses_the_next_ledger_commit(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger()
+        r = self.commit(ledger_path)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        checkpoints = list((self.proj / "docs" / "handovers").glob("*-checkpoint.md"))
+        self.assertTrue(checkpoints)
+        checkpoint = checkpoints[0]
+        checkpoint.write_text(checkpoint.read_text() + "\nlocal note\n")
+
+        self.write_ledger(title="Thing v3")
+        r = self.commit(ledger_path)
+        self.assertNotEqual(r.returncode, 0, "an unstaged edit to the checkpoint must refuse the commit")
+        self.assertIn("has unstaged changes", r.stderr + r.stdout)
+        self.assertIn("checkpoint.md", r.stderr + r.stdout)
+
+
+class TestDerecordCheckpointPathFromStdout(LedgerCommitHelpers, DerecordCase):
+    """V-07 round 2, finding 4: the checkpoint path is whatever tracker
+    itself reports having written, not recomputed a second time from today's
+    date -- the two can disagree across midnight."""
+
+    def test_a_ledger_with_nothing_open_makes_checkpoint_report_no_path_and_the_commit_is_refused(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger(items=[{
+            "id": "X-01", "phase": "X", "cx": "C2", "title": "t", "status": "done",
+            "log": [{"at": "2026-09-14T00:00:00+00:00", "event": "done", "by": "lead", "evidence": "e"}],
+        }])
+        r = self.commit(ledger_path)
+        self.assertNotEqual(r.returncode, 0,
+                             "checkpoint reported no path to stage -- the commit must not silently proceed")
+        self.assertIn("no open ledger", r.stderr + r.stdout)
+
+    def test_the_staged_checkpoint_path_matches_what_tracker_reported(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger()
+        r = self.commit(ledger_path)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        checkpoints = list((self.proj / "docs" / "handovers").glob("*-checkpoint.md"))
+        self.assertEqual(len(checkpoints), 1)
+        self.assertIn(checkpoints[0].name, self.committed_files())
+
+
+class TestDerecordPreCommitHookIdentity(LedgerCommitHelpers, DerecordCase):
+    """V-07 round 2, finding 3: "ours" is a `# derecord-body-sha256: <hex>`
+    line whose value equals the sha256 of the hook body after that line --
+    never a text match, since coincidental text should not be mistaken for
+    ours."""
+
+    def hooks_dir(self):
+        return self.proj / ".git" / "hooks"
+
+    def test_an_unmarked_v1_hook_is_treated_as_foreign_and_chained(self):
+        """The PhotoVault app and engine have exactly this today: an older
+        derecord-installed hook with prose but no sha256 marker."""
+        hooks = self.hooks_dir()
+        hooks.mkdir(parents=True, exist_ok=True)
+        v1 = hooks / "pre-commit"
+        v1.write_text("#!/usr/bin/env bash\n"
+                       "# derecord: managed pre-commit hook -- edit bin/derecord in common-rules, not this file\n"
+                       "exit 0\n")
+        v1.chmod(0o755)
+        r = self.run_derecord()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        local = hooks / "pre-commit.local"
+        self.assertTrue(local.exists(), "the unmarked v1 hook was not preserved as foreign")
+        self.assertIn("derecord: managed pre-commit hook", local.read_text())
+        new_hook = (hooks / "pre-commit").read_text()
+        self.assertIn("derecord-body-sha256:", new_hook)
+
+    def test_a_hook_with_coincidental_marker_text_but_wrong_hash_is_foreign(self):
+        hooks = self.hooks_dir()
+        hooks.mkdir(parents=True, exist_ok=True)
+        fake_body = "echo not really ours\nexit 1\n"
+        fake = hooks / "pre-commit"
+        fake.write_text(f"#!/usr/bin/env bash\n# derecord-body-sha256: {'0' * 64}\n{fake_body}")
+        fake.chmod(0o755)
+        r = self.run_derecord()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        local = hooks / "pre-commit.local"
+        self.assertTrue(local.exists(), "a hook with a non-matching hash must be treated as foreign")
+        self.assertIn(fake_body, local.read_text())
+
+    def test_our_own_hook_is_corrected_in_place_without_touching_local(self):
+        self.run_derecord()
+        hooks = self.hooks_dir()
+        local = hooks / "pre-commit.local"
+        self.assertFalse(local.exists())
+        first = (hooks / "pre-commit").read_text()
+        self.run_derecord()
+        self.assertFalse(local.exists(), "our own, unchanged hook must never be chained to itself")
+        self.assertEqual(first, (hooks / "pre-commit").read_text())
+
+    def test_the_marker_hash_actually_matches_the_body_that_follows_it(self):
+        self.run_derecord()
+        content = (self.hooks_dir() / "pre-commit").read_text()
+        lines = content.split("\n")
+        idx = next(i for i, l in enumerate(lines) if l.startswith("# derecord-body-sha256: "))
+        claimed = lines[idx].split(": ", 1)[1]
+        body = "\n".join(lines[idx + 1:])
+        self.assertEqual(hashlib.sha256(body.encode()).hexdigest(), claimed)
+
+    def test_when_pre_commit_local_already_exists_a_foreign_hook_refuses_and_changes_nothing(self):
+        hooks = self.hooks_dir()
+        hooks.mkdir(parents=True, exist_ok=True)
+        local = hooks / "pre-commit.local"
+        local.write_text("#!/usr/bin/env bash\n# unrelated, pre-existing local hook\nexit 0\n")
+        local.chmod(0o755)
+        foreign = hooks / "pre-commit"
+        foreign.write_text("#!/usr/bin/env bash\n# some foreign hook, not ours\nexit 0\n")
+        foreign.chmod(0o755)
+        before_foreign, before_local = foreign.read_text(), local.read_text()
+
+        r = self.run_derecord()
+        self.assertNotEqual(r.returncode, 0, "a foreign hook with an existing pre-commit.local must refuse")
+        self.assertIn("pre-commit", r.stderr + r.stdout)
+        self.assertIn("pre-commit.local", r.stderr + r.stdout)
+        self.assertEqual(before_foreign, foreign.read_text(), "the foreign hook must be left untouched")
+        self.assertEqual(before_local, local.read_text(), "the pre-existing local hook must be left untouched")
+
+
+class TestDerecordIgnoreDoesNotUntrack(LedgerCommitHelpers, DerecordCase):
+    """V-07 round 2, finding 5: the ignore lines cannot untrack a file
+    already committed. derecord must say so and never run git rm itself."""
+
+    def test_an_already_tracked_runtime_file_is_reported_not_untracked(self):
+        tracked = self.proj / ".claude-flow" / "data" / "state.json"
+        tracked.parent.mkdir(parents=True, exist_ok=True)
+        tracked.write_text("{}")
+        self.git("add", str(tracked))
+        subprocess.run(["git", "-C", str(self.proj), "commit", "-m", "pre-existing runtime file"], check=True)
+
+        r = self.run_derecord()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("already tracked", r.stdout)
+        self.assertIn("git rm -r --cached", r.stdout)
+        tracked_files = self.git("ls-files").stdout
+        self.assertIn(".claude-flow/data/state.json", tracked_files, "derecord must never untrack the file itself")
+
+    def test_no_warning_when_nothing_tracked_matches(self):
+        r = self.run_derecord()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("already tracked", r.stdout)
 
 
 if __name__ == "__main__":
