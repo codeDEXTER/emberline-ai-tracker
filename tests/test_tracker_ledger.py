@@ -591,3 +591,33 @@ class TestEveryRealLedgerStillValidates(unittest.TestCase):
         for p in found:
             with self.subTest(ledger=str(p)):
                 self.assertEqual([], ledger.validate(ledger.load(p)))
+
+
+class TestTrackerTextIsPlain(unittest.TestCase):
+    """T-02 review round 1: `at` took non-ASCII digits, and `by` and `quote`
+    took line and paragraph separators and bidi or invisible characters --
+    text that reorders or hides itself on a card or a page."""
+
+    def problems(self, d):
+        return "\n".join(ledger.validate(d))
+
+    def test_at_digits_are_ascii(self):
+        for value in ("\u0662\u0660\u0662\u0666-\u0660\u0669-\u0661\u0664T21:00:00+02:00", "2026-09-14T\uff12\uff11:00:00+02:00", "2026-09-14T21:00:00+\u0660\u0662:00",
+                      "2026-09-14T21:00:00+02:0\u0660"):
+            with self.subTest(at=value):
+                self.assertIn("tracker: `at` is not an ISO 8601 date and time",
+                              self.problems(minimal(tracker=dict(OWN, at=value))))
+
+    def test_by_and_quote_refuse_separators_and_bidi_or_invisible_characters(self):
+        for field in ("by", "quote"):
+            for ch in ("\u2028", "\u2029", "\u202e", "\u200b", "\u2066", "\ufeff", "\u061c", "\u200f", "\u2060"):
+                with self.subTest(field=field, char=f"U+{ord(ch):04X}"):
+                    probs = ledger.validate(minimal(tracker=dict(OWN, **{field: f"the sponsor{ch} said"})))
+                    self.assertIn(f"tracker: `{field}` carries a line separator or a bidi or invisible character",
+                                  "\n".join(probs))
+
+    def test_joiners_and_other_scripts_stay_readable(self):
+        for field in ("by", "quote"):
+            with self.subTest(field=field):
+                d = minimal(tracker=dict(OWN, **{field: "\u0928\u092e\u0938\u094d\u0924\u0947 \u200d\U0001f468\u200d\U0001f469\u200d\U0001f467 soft\u00adhyphen \u200c"}))
+                self.assertEqual([], ledger.validate(d))
