@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-14 17:51
+# Checkpoint — 2026-09-14 18:04
 
-Reason: manual · branch: p21 · HEAD: b3198a0
+Reason: manual · branch: p21 · HEAD: e4165d5
 
-<!-- ledger-digest: 40cfdb456d18235c469a45ee8f6cca4ce126e87b93c71209b7853c0c66dac9d8 -->
+<!-- ledger-digest: 1bd444a8633985abdde6e1666a9604e2e3fbff4c2d134c70971a837e619bf6b5 -->
 
 ## Proposal 19 · Warm-up
 
@@ -30,7 +30,7 @@ Reason: manual · branch: p21 · HEAD: b3198a0
 
 ### In progress
 
-- S-10 · [ruflo · lead · lead model] · common-rules on its own standard · refactored, pointer waiting
+- S-10 · [ruflo · lead · lead model] · common-rules on its own standard · review passed
 
 ### Blocked, and why
 
