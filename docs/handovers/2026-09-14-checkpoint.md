@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-14 23:21
+# Checkpoint — 2026-09-14 23:37
 
-Reason: manual · branch: p22 · HEAD: 513ab84
+Reason: manual · branch: p22 · HEAD: a7ce1a6
 
-<!-- ledger-digest: b9822b18b9eaa0554613768a2628269a07e661f4ae89cff7a835583d4b9b6550 -->
+<!-- ledger-digest: ca847991283b7c1d0a153531fad249765a1df1ff2926f4cc710225244bf13e0e -->
 
 ## Proposal 19 · Warm-up
 
