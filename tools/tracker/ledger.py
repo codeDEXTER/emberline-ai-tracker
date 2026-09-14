@@ -171,6 +171,11 @@ def validate(ledger: dict) -> list[str]:
     return problems
 
 
+def _number(value) -> bool:
+    """An int or float, not a bool (JSON true is not a weight)."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def _evident(value) -> bool:
     """The PhotoVault app's rule (tools/build_plan.py): true, or a declared "n/a"."""
     return value is True or value == "n/a"
@@ -179,6 +184,24 @@ def _evident(value) -> bool:
 def _validate_v2(ledger: dict, ids: set, ask_ids: set) -> list[str]:
     """Proposal 20's contract additions, each checked only when declared."""
     problems: list[str] = []
+    for key in ("gates", "quality_floors", "requests"):
+        if key in ledger and not isinstance(ledger[key], list):
+            problems.append(f"{key}: must be a list")
+    if "native_receipts" in ledger and not isinstance(ledger["native_receipts"], dict):
+        problems.append("native_receipts: must be an object")
+    for key in ("readiness_weights", "size_weights"):
+        table = ledger.get(key)
+        if table is None:
+            continue
+        if not isinstance(table, dict):
+            problems.append(f"{key}: must be an object")
+            continue
+        for name, value in table.items():
+            if not _number(value):
+                problems.append(f"{key}.{name}: {value!r} is not a number")
+    for n, i in enumerate(items(ledger)):
+        if "weight" in i and not _number(i["weight"]):
+            problems.append(f"{i.get('id') or f'items[{n}]'}: weight {i['weight']!r} is not a number")
     tiers = ledger.get("tiers") if isinstance(ledger.get("tiers"), dict) else {}
     was_ids = {i.get("was") for i in items(ledger) if i.get("was")}
     ladder = {l.get("level") for l in (ledger.get("verification_ladder") or []) if isinstance(l, dict)}
@@ -294,12 +317,17 @@ def readiness(ledger: dict) -> dict | None:
                 the total, as the app does).
       receipts  the share of native_receipts recorded, over primary_surfaces
                 when declared, else over every receipt key.
-    Never typed: computed each time from the rows.
+    Never typed: computed each time from the rows. None, too, when a declared
+    weight is not a number; validate() names it.
     """
     w = ledger.get("readiness_weights")
-    if not isinstance(w, dict):
-        return None
+    if not isinstance(w, dict) or not all(_number(v) for v in w.values()):
+        return None                      # validate() names the bad value
     sizes = ledger.get("size_weights") if isinstance(ledger.get("size_weights"), dict) else None
+    if sizes is not None and not all(_number(v) for v in sizes.values()):
+        return None
+    if any("weight" in i and not _number(i["weight"]) for i in items(ledger)):
+        return None
 
     def weight(i: dict) -> float:
         if sizes is not None and i.get("size") in sizes:
