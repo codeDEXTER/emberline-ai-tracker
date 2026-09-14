@@ -728,6 +728,13 @@ def published_main(argv) -> int:
         print(f"{say} {_printable(published_path(args.ledger))} resolves outside the project {_printable(root)} "
               "(a symlinked tracker directory or sidecar) -- nothing recorded", file=sys.stderr)
         return 1
+    sidecar_path = published_path(args.ledger)
+    if sidecar_path.is_symlink() or sidecar_path.parent.is_symlink():
+        # V-11 final review: a symlink pointing inside the project was followed,
+        # and a sidecar linked to the ledger had the record overwrite the ledger.
+        print(f"{say} {_printable(sidecar_path)} is a symlink, or its tracker directory is -- a record is "
+              "written only to a real file in the project -- nothing recorded", file=sys.stderr)
+        return 1
     if not in_git:
         print(f"{say} {_printable(root)} is not inside a git repository -- a record is made only of a committed "
               "ledger -- nothing recorded", file=sys.stderr)

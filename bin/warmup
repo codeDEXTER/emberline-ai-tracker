@@ -326,6 +326,10 @@ def publish_state(project: Path, ledger_path: Path, data: dict,
         # V-11 round 2 (from V-09): a symlinked sidecar or tracker directory. Never read.
         return (None, f"{srel} resolves outside the project -- not read; remove the symlink, then {fix}",
                 "outside the project")
+    if sidecar.is_symlink() or sidecar.parent.is_symlink():
+        # V-11 final review: a symlink inside the project is never read either.
+        return (None, f"{srel} is a symlink, or its tracker directory is -- not read; remove the symlink, "
+                f"then {fix}", "is a symlink")
     try:
         record = json.loads(sidecar.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, ValueError, RecursionError) as exc:

@@ -884,6 +884,24 @@ class TestPublishedDeclaredPage(unittest.TestCase):
         self.assert_refused(self.p.published("--page", APP_PAGE), "outside the project")
         self.assertEqual([], list(outside.iterdir()))
 
+    def test_a_sidecar_symlinked_inside_the_project_is_refused_and_nothing_is_overwritten(self):
+        """V-11 final review (S3): a sidecar committed as a symlink to the ledger was
+        followed, and the record overwrote the ledger. A symlinked sidecar is refused
+        whatever it points at."""
+        (self.p.proposals / "tracker").mkdir(exist_ok=True)
+        self.p.sidecar.symlink_to("../70-r9-delivery-plan.json")
+        self.p.commit("sidecar symlinked to the ledger")
+        before = self.p.ledger.read_bytes()
+        self.assert_refused(self.p.published("--page", APP_PAGE), "symlink")
+        self.assertEqual(before, self.p.ledger.read_bytes())
+
+    def test_a_tracker_dir_symlinked_inside_the_project_is_refused(self):
+        """V-11 final review (S4): tracker -> . recorded into docs/proposals."""
+        (self.p.proposals / "tracker").symlink_to(".", target_is_directory=True)
+        self.p.commit("tracker dir symlinked to docs/proposals")
+        self.assert_refused(self.p.published("--page", APP_PAGE), "symlink")
+        self.assertFalse((self.p.proposals / "70-r9-delivery-plan.published.json").exists())
+
     def test_a_broken_declaration_is_refused_with_its_problems_named(self):
         for name, decl, needle in (("not json", "{not json", "not valid JSON"),
                                    ("not an object", "[]", "not a JSON object"),
