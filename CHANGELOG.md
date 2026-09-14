@@ -1,5 +1,39 @@
 # Changelog — common-rules
 
+## 2026-09-14 · common-rules is on its own standard (P21 S-10)
+
+The sponsor asked for common-rules itself to follow the standard: "Common rules
+also works with the same workflow. So I would like you to maintain the same
+processes what we are implementing in other projects." The same steps a
+project runs under `/standard` were run on this repository:
+- derecord installed the pre-commit hook (the old conflict guard is kept as
+  `pre-commit.local` and chained), the checkpoint and Agent hooks, the Ruflo
+  ignore lines and `/warmup`. `.gitattributes` now matches the shared rules.
+- `.common-rules.json` declares the read order (CLAUDE.md, HANDOFF.md,
+  docs/OPERATING-RULES.md), the safety rules (HANDOFF.md, Prohibitions) and
+  both gates.
+- `HANDOFF.md`, `docs/OPERATING-RULES.md` and `docs/handovers/lead-prompt.md`
+  are written for common-rules. The operating rules record what this session
+  learned the hard way on 14 Sep.
+- Proposal 21 has its page, from `bin/new-proposal --page-for`, accepted with
+  its four decisions.
+
+`bin/conformance --project .` now reads 11 of 12. The remaining item is the
+CLAUDE.md warm-up pointer, which waits for the sponsor, because CLAUDE.md is
+his.
+
+Seeding this repository exposed two template defects, fixed here:
+- **templates/lead-prompt.md** closed with "take the first C3 item yourself",
+  which contradicts its own section 3 (C3 runs in parallel; the lead merges,
+  reconciles and decides).
+- **templates/OPERATING-RULES.md** still carried the rule proposal 19
+  replaced, "One plan, updated in place", so every seeded project had it
+  superseded on the spot by migrate.
+
+**Behaviour change:** a project seeded from now on gets the current plan rule
+and the corrected lead prompt closing. Already-seeded projects keep their own
+files; `/standard` item 5 regenerates the lead prompt when they refactor.
+
 ## 2026-09-14 · `bin/conformance`: the 12 items, measured (P21 S-04)
 
 Sessions report "standard: N of 12 hold". The number now comes from a tool
