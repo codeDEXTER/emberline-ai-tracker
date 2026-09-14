@@ -1,5 +1,71 @@
 # Changelog — common-rules
 
+## 2026-09-14 · A new proposal page must carry its status (P21 S-03)
+
+`proposalcheck` only inspected pages that already carried a status, so a
+proposal written without the meta passed unchecked (the PhotoVault app's 72–76
+and the engine's 77 did). Now:
+- A numbered lead page with no status is a violation when it was first
+  committed on or after 2026-09-14. The date is the committer date of the page's
+  newest add, so `git commit --date` cannot backdate it, and a page deleted and
+  re-added counts as new. An uncommitted page counts as new.
+- Older pages are grandfathered.
+- A shallow clone skips this rule and says so.
+- A page made from the template that reaches a decision status (accepted,
+  completed, completed in part, built) without a `proposal-decided` date is a
+  violation.
+- A self-closed `<meta ... />` tag is read.
+- A git history that cannot be read is named as a violation, never treated as
+  "new".
+
+Two review rounds, all findings reproduced and re-verified.
+
+**Behaviour change:** a project that adds a proposal page from 14 Sep 2026
+without a status now fails `proposalcheck`. Today that is the PhotoVault app's
+uncommitted 73, 74, 75 and 76. The app has to fix them when it refactors under
+`/standard`.
+
+## 2026-09-14 · Proposals are created from one template: `bin/new-proposal` (P21 S-02)
+
+There was nothing to create a checked proposal from. Now there are two tools:
+
+`templates/proposal.html` carries:
+- the status meta and `proposal-id`;
+- `<meta name="common-rules-template" content="proposal/21">`;
+- sections for the ask, what was found, the options, and an
+  `<ol class="decisions">`;
+- a Decided section giving the literal date and status lines to copy.
+
+It holds no empty `id="decided"` block: `proposalcheck` only looks for the
+attribute, and an empty block would let a page reach accepted with nothing
+recorded.
+
+`bin/new-proposal "Title"` writes the page, its ledger and its tracker page in
+one step, and keeps none of them if any checker rejects the result.
+- It never overwrites.
+- It numbers only names that start with 1–3 digits.
+- A race or collision is refused, naming the file.
+- Exit 2 means "could not run". There are no tracebacks.
+- `--page-for LEDGER` writes the page for an existing ledger. A `.md` twin or
+  an assets folder does not block it, and a missing tracker page is rendered.
+- A project that shares proposal numbers with a sibling (the PhotoVault app and
+  engine interleave theirs) declares `proposal_series` in `.common-rules.json`.
+  Numbers are then taken across both.
+  - A series declared on only one side cannot run, since both repos would take
+    the same number.
+  - A folder inside the project is not a sibling.
+  - Bidi, invisible and line-separator characters are refused, in titles and in
+    series entries.
+
+The lead fixed the final review's findings (6b66b58): the `.md` twin race, the
+one-sided series, the read-only tracker directory, and the tracker page for
+`--page-for`.
+
+**Standard change (mandatory):** create every new proposal with
+`bin/new-proposal`, or with `--page-for` for a ledger that has no page. A
+project that shares proposal numbers with a sibling declares `proposal_series`
+in both projects' `.common-rules.json`.
+
 ## 2026-09-14 · Later changes to the standard are mandatory too
 
 The sponsor added to his ruling: "if I improve something in the common rules in

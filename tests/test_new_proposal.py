@@ -355,7 +355,6 @@ class TestTemplateDoesNotDefeatTheChecks(Scratch):
     # meta, is a violation. Today an undated page is grandfathered, so this
     # fails. When S-03 merges it passes, unittest reports an unexpected
     # success (FAILED), and this marker must come off.
-    @unittest.expectedFailure
     def test_accepted_without_a_decided_date_is_a_violation(self):
         r = self.flip("accepted", decided=None)
         self.assertEqual(r.returncode, 1, r.stdout)
