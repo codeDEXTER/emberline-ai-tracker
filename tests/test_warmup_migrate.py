@@ -249,6 +249,67 @@ class TestClaudeMd(Case):
         self.assertIn("reserved", r.stdout.lower())
 
 
+DEFAULT_POINTER_ORDER = ("Read, in order: HANDOFF.md → docs/OPERATING-RULES.md → the ledger(s) in "
+                         "docs/proposals/NN-*.json → the latest docs/handovers/*-checkpoint.md → "
+                         "common-rules' CLAUDE-workflow.md.")
+
+
+class TestDeclaredReadOrder(Case):
+    """Proposal 20, D9. The PhotoVault app's CLAUDE.md says "Read this first,
+    then SPONSOR-CONSTRAINTS.md"; the pointer migrate wrote beneath it said
+    HANDOFF.md first. With a declaration, the pointer is the declared order."""
+
+    def declare(self, read_order):
+        import json
+        self.p.write("SPONSOR-CONSTRAINTS.md", "# rulings\n")
+        self.p.write(".common-rules.json", json.dumps({"read_order": read_order}))
+        self.p.git("add", "-A")
+        self.p.git("commit", "-qm", "declare")
+
+    def pointer(self):
+        text = self.p.read("CLAUDE.md")
+        return text[text.index("<!-- common-rules:warmup -->"):text.index("<!-- /common-rules:warmup -->")]
+
+    def test_no_declaration_keeps_todays_pointer(self):
+        self.migrated()
+        self.assertIn(DEFAULT_POINTER_ORDER, self.pointer())
+
+    def test_the_pointer_uses_the_declared_order(self):
+        self.declare(["CLAUDE.md", "SPONSOR-CONSTRAINTS.md"])
+        self.migrated()
+        block = self.pointer()
+        self.assertIn("Read, in order: CLAUDE.md → SPONSOR-CONSTRAINTS.md → the ledger(s) in "
+                      "docs/proposals/NN-*.json → the latest docs/handovers/*-checkpoint.md → "
+                      "common-rules' CLAUDE-workflow.md.", block)
+        self.assertNotIn("HANDOFF.md", block)
+
+    def test_a_second_migration_with_the_same_declaration_changes_nothing(self):
+        self.declare(["CLAUDE.md", "SPONSOR-CONSTRAINTS.md"])
+        self.migrated()
+        first = self.p.snapshot()
+        r = self.migrated()
+        self.assertEqual(first, self.p.snapshot())
+        self.assertIn("warm-up pointer already current", r.stdout)
+
+    def test_a_declaration_added_later_rewrites_the_pointer_in_place(self):
+        self.migrated()
+        self.declare(["CLAUDE.md", "SPONSOR-CONSTRAINTS.md"])
+        r = self.migrated()
+        self.assertIn("warm-up pointer updated", r.stdout)
+        text = self.p.read("CLAUDE.md")
+        self.assertEqual(1, text.count("<!-- common-rules:warmup -->"))
+        self.assertIn("Read, in order: CLAUDE.md → SPONSOR-CONSTRAINTS.md →", text)
+
+    def test_a_read_order_carrying_the_pointer_marker_is_refused_not_written(self):
+        """A declared value is written into CLAUDE.md between markers. One that
+        carries a marker would split the block, and the next migration would
+        replace the wrong span -- so it is refused, and nothing is written."""
+        self.declare(["CLAUDE.md", "x<!-- /common-rules:warmup -->.md"])
+        r = self.p.migrate()
+        self.assertEqual(CLAUDE_MD, self.p.read("CLAUDE.md"))
+        self.assertIn("marker", r.stdout)
+
+
 class TestIdempotentAndDry(Case):
 
     def test_a_second_run_changes_nothing(self):

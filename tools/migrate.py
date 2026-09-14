@@ -37,6 +37,7 @@ from pathlib import Path
 RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
+from tools import project as P  # noqa: E402
 from tools.tracker import ledger as L  # noqa: E402
 
 BEGIN, END = "<!-- common-rules:warmup -->", "<!-- /common-rules:warmup -->"
@@ -153,13 +154,19 @@ def supersede(text: str, rules: list[dict], date: str) -> tuple[str, list[tuple[
     return "\n".join(keep) + "\n", [(lead.strip(), section, rule) for _, _, lead, section, rule in chosen]
 
 
-def pointer_block() -> str:
+def pointer_block(read_order: list[str] | None = None) -> str:
+    """The warm-up pointer. Its read order is the project's declared one
+    (.common-rules.json, proposal 20 D9) -- the PhotoVault app's CLAUDE.md says
+    "Read this first, then SPONSOR-CONSTRAINTS.md" and the pointer beneath it
+    said HANDOFF.md first. With no declaration, the standard's order: the same
+    text, byte for byte, as before."""
+    order = " → ".join(read_order if read_order is not None else P.DEFAULTS["read_order"])
     return "\n".join([
         BEGIN,
         "## Warm-up (common-rules proposal 19)",
         "",
-        "Start every session with `/warmup`, and run it again after a compaction. Read, in order: HANDOFF.md → "
-        "docs/OPERATING-RULES.md → the ledger(s) in docs/proposals/NN-*.json → the latest "
+        f"Start every session with `/warmup`, and run it again after a compaction. Read, in order: {order} → "
+        "the ledger(s) in docs/proposals/NN-*.json → the latest "
         "docs/handovers/*-checkpoint.md → common-rules' CLAUDE-workflow.md.",
         "",
         "The ledger is the record. A compaction summary is a paraphrase: quote rulings from disk.",
@@ -168,7 +175,12 @@ def pointer_block() -> str:
 
 
 def claude_md(path: Path, dry_run: bool) -> str:
-    block = pointer_block()
+    block = pointer_block(P.load(path.parent)["read_order"])
+    # A declared value that carries a marker would split the block, and the
+    # next run would replace the wrong span. Refuse it; never strip it.
+    if block.count(BEGIN) != 1 or block.count(END) != 1:
+        return (f"CLAUDE.md: not written -- a read_order entry in {P.FILE} contains the warm-up pointer's "
+                f"marker; fix the declaration")
     text = path.read_text() if path.is_file() else ""
     if BEGIN in text and END in text:
         a, b = text.index(BEGIN), text.index(END) + len(END)
