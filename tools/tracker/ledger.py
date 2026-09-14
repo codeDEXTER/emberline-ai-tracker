@@ -360,7 +360,14 @@ TRACKER_FIELDS = ("by", "at", "quote")
 # ISO 8601 date and time: the pieces are read here and the ranges checked
 # with datetime, so the rule does not move with the Python version's own
 # fromisoformat (3.11 widened it).
-_AT = re.compile(r"(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?(Z|[+-]\d{2}:\d{2})?")
+_AT = re.compile(r"(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?(Z|[+-]\d{2}:\d{2})?",
+                 re.ASCII)   # T-02 review round 1: \d took Arabic-Indic and fullwidth digits
+# Text that reorders or hides itself, or breaks a line without a newline:
+# the line and paragraph separators, bidi controls and invisible characters
+# (the set bin/new-proposal refuses in a title). Joiners and the soft hyphen
+# are not in it -- emoji, Devanagari and Persian need them.
+_REORDER_HIDE_OR_BREAK = re.compile("[\u2028\u2029\u061c\u200b\u200e\u200f\u202a-\u202e"
+                                    "\u2060-\u2064\u2066-\u2069\ufeff]")
 
 
 def _at_problem(value: str) -> str | None:
@@ -400,6 +407,8 @@ def _validate_tracker(ledger: dict) -> list[str]:
             problems.append(f"tracker: no `{field}`" + (" -- in the sponsor's words" if field == "quote" else ""))
         elif not _one_line(value):
             problems.append(f"tracker: `{field}` must be one line of text")
+        elif field in ("by", "quote") and _REORDER_HIDE_OR_BREAK.search(value):
+            problems.append(f"tracker: `{field}` carries a line separator or a bidi or invisible character")
         elif field == "at":
             at = _at_problem(value)
             if at:

@@ -801,6 +801,167 @@ class TestDerecordProjectPage(LedgerCommitHelpers, DerecordCase):
         self.assertTrue(mod.hook_is_derecords(self.proj / ".git" / "hooks" / "pre-commit", template))
 
 
+class TestDerecordHookRefusesSymlinks(LedgerCommitHelpers, DerecordCase):
+    """T-02 review round 1: the hook wrote through a symlinked index.html -- an
+    outside file was overwritten and a mode-120000 entry committed. A tracker
+    page, or the tracker folder, that is a symlink refuses before anything is
+    rendered, the same rule new-proposal keeps."""
+
+    def outside(self) -> Path:
+        target = Path(self.tmp.name) / "outside.html"
+        target.write_text("outside the project\n")
+        return target
+
+    def tracker_dir(self) -> Path:
+        d = self.proj / "docs" / "proposals" / "tracker"
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def assert_refused(self, r, name):
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(name, r.stderr)
+        self.assertIn("symlink", r.stderr)
+        self.assertNotEqual(0, self.git("rev-parse", "--verify", "-q", "HEAD", check=False).returncode,
+                            "a commit was made")
+
+    def test_a_symlinked_project_page_is_refused_and_nothing_written(self):
+        self.run_derecord()
+        target = self.outside()
+        (self.tracker_dir() / "index.html").symlink_to(target)
+        r = self.commit(self.write_ledger())
+        self.assert_refused(r, "docs/proposals/tracker/index.html")
+        self.assertEqual("outside the project\n", target.read_text())
+
+    def test_a_symlinked_tracker_folder_is_refused_and_nothing_written(self):
+        self.run_derecord()
+        elsewhere = Path(self.tmp.name) / "elsewhere"
+        elsewhere.mkdir()
+        (self.proj / "docs" / "proposals").mkdir(parents=True)
+        (self.proj / "docs" / "proposals" / "tracker").symlink_to(elsewhere)
+        r = self.commit(self.write_ledger())
+        self.assert_refused(r, "docs/proposals/tracker")
+        self.assertEqual([], list(elsewhere.iterdir()))
+
+    def test_a_symlinked_own_tracker_page_is_refused_and_nothing_written(self):
+        self.run_derecord()
+        target = self.outside()
+        (self.tracker_dir() / "42-thing.html").symlink_to(target)
+        r = self.commit(self.write_ledger(tracker=OWN_TRACKER))
+        self.assert_refused(r, "docs/proposals/tracker/42-thing.html")
+        self.assertEqual("outside the project\n", target.read_text())
+        self.assertFalse((self.tracker_dir() / "index.html").exists())
+
+
+class TestDerecordPathModeCommit(LedgerCommitHelpers, DerecordCase):
+    """T-02 review round 1: `git commit -m x <path>` commits from a temporary
+    index, so the page the hook stages is committed while the working tree is
+    left MM, and the next commit reverts the page. With a ledger involved, that
+    refuses; `git commit` and `git commit -a` do not."""
+
+    def names(self):
+        return self.git("show", "--name-only", "--pretty=", "HEAD").stdout.split()
+
+    def count(self):
+        return self.git("rev-list", "--count", "HEAD").stdout.strip()
+
+    def test_a_path_mode_commit_of_a_ledger_is_refused(self):
+        self.run_derecord()
+        self.assertEqual(self.commit(self.write_ledger()).returncode, 0)
+        self.write_ledger(title="Thing v2")
+        r = self.git("commit", "-m", "only", "--", "docs/proposals/42-thing.json", check=False)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("stage", r.stderr)
+        self.assertIn("without paths", r.stderr)
+        self.assertEqual("1", self.count())
+
+    def test_git_commit_a_still_works_and_leaves_nothing_behind(self):
+        self.run_derecord()
+        self.assertEqual(self.commit(self.write_ledger()).returncode, 0)
+        self.write_ledger(title="Thing v2")
+        r = self.git("commit", "-a", "-m", "all", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("docs/proposals/tracker/index.html", self.names())
+        self.assertEqual("", self.git("status", "--porcelain", "--", "docs/proposals").stdout)
+        self.assertIn("Thing v2", (self.proj / "docs/proposals/tracker/index.html").read_text())
+
+    def test_a_plain_git_commit_still_works(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger()
+        self.git("add", str(ledger_path))
+        r = self.git("commit", "-m", "plain", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("docs/proposals/tracker/index.html", self.names())
+
+    def test_a_path_mode_commit_with_no_ledger_is_not_refused(self):
+        self.run_derecord()
+        self.assertEqual(self.commit(self.write_ledger()).returncode, 0)
+        readme = self.proj / "README.md"
+        readme.write_text("one\n")
+        self.assertEqual(self.commit(readme).returncode, 0)
+        readme.write_text("two\n")
+        r = self.git("commit", "-m", "readme", "--", "README.md", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(["README.md"], self.names())
+
+
+class TestDerecordDeletedPages(LedgerCommitHelpers, DerecordCase):
+    """T-02 review round 1: a page nothing will render again goes in the same
+    commit -- the project page with the last ledger, an own-tracker page with
+    its ledger. Another ledger's leftover page is not ours to remove."""
+
+    TRACKER_DIR = "docs/proposals/tracker"
+
+    def tracked(self, rel):
+        return self.git("ls-files", "--error-unmatch", "--", rel, check=False).returncode == 0
+
+    def test_deleting_the_last_ledger_removes_the_project_page(self):
+        self.run_derecord()
+        self.assertEqual(self.commit(self.write_ledger()).returncode, 0)
+        self.git("rm", "-q", "docs/proposals/42-thing.json")
+        r = self.git("commit", "-m", "remove the last ledger", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertFalse((self.proj / self.TRACKER_DIR / "index.html").exists())
+        self.assertFalse(self.tracked(f"{self.TRACKER_DIR}/index.html"))
+        self.assertEqual("", self.git("status", "--porcelain", "--", "docs/proposals").stdout)
+
+    def test_deleting_or_renaming_an_own_tracker_ledger_removes_its_old_page(self):
+        self.run_derecord()
+        own = self.write_ledger(tracker=OWN_TRACKER)
+        other = self.write_ledger(rel="docs/proposals/43-other.json", proposal=43, title="Other")
+        self.assertEqual(self.commit(own, other).returncode, 0)
+        self.assertTrue(self.tracked(f"{self.TRACKER_DIR}/42-thing.html"))
+
+        self.git("mv", "docs/proposals/42-thing.json", "docs/proposals/42-renamed.json")
+        r = self.git("commit", "-m", "rename", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertFalse((self.proj / self.TRACKER_DIR / "42-thing.html").exists())
+        self.assertFalse(self.tracked(f"{self.TRACKER_DIR}/42-thing.html"))
+        self.assertTrue(self.tracked(f"{self.TRACKER_DIR}/42-renamed.html"))
+        self.assertEqual("", self.git("status", "--porcelain", "--", "docs/proposals").stdout)
+
+        self.git("rm", "-q", "docs/proposals/42-renamed.json")
+        r = self.git("commit", "-m", "remove", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertFalse((self.proj / self.TRACKER_DIR / "42-renamed.html").exists())
+        self.assertFalse(self.tracked(f"{self.TRACKER_DIR}/42-renamed.html"))
+        self.assertTrue(self.tracked(f"{self.TRACKER_DIR}/index.html"))
+        self.assertEqual("", self.git("status", "--porcelain", "--", "docs/proposals").stdout)
+
+    def test_a_plain_ledgers_leftover_page_is_untouched_when_it_is_deleted(self):
+        self.run_derecord()
+        first = self.write_ledger()
+        other = self.write_ledger(rel="docs/proposals/43-other.json", proposal=43, title="Other")
+        self.assertEqual(self.commit(first, other).returncode, 0)
+        leftover = self.proj / self.TRACKER_DIR / "43-other.html"
+        leftover.write_text("a leftover page\n")
+        self.assertEqual(self.commit(leftover).returncode, 0)
+        self.git("rm", "-q", "docs/proposals/43-other.json")
+        r = self.git("commit", "-m", "remove other", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual("a leftover page\n", leftover.read_text())
+        self.assertTrue(self.tracked(f"{self.TRACKER_DIR}/43-other.html"))
+
+
 class TestDerecordCheckpointPathFromStdout(LedgerCommitHelpers, DerecordCase):
     """V-07 round 2, finding 4: the checkpoint path is whatever tracker
     itself reports having written, not recomputed a second time from today's

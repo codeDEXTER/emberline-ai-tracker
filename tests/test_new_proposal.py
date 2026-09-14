@@ -833,6 +833,85 @@ class TestProjectPageIsRestored(InProcess):
         self.assertEqual(self.listing(), ["21-standard-is-mandatory.json", "tracker"])
 
 
+CHILD = r'''
+import importlib.machinery, importlib.util, pathlib, sys
+loader = importlib.machinery.SourceFileLoader("new_proposal_child", sys.argv[1])
+spec = importlib.util.spec_from_loader(loader.name, loader)
+tool = importlib.util.module_from_spec(spec)
+loader.exec_module(tool)
+tool.PROPOSALCHECK = pathlib.Path(sys.argv[2])
+sys.exit(tool.main(sys.argv[3:]))
+'''
+
+
+class TestSignalsRollBack(ProjectPage):
+    """T-02 review round 1: SIGTERM or SIGHUP left the created files and a
+    changed index.html. Each now raises inside the run, so the same rollback
+    runs. A real signal, sent to this test's own child by its PID, while the
+    child waits on a proposalcheck that sleeps -- after the board was written."""
+
+    def interrupt(self, signum, *argv):
+        import signal
+        import time
+        tmp = Path(self._tmp.name)
+        marker = tmp / "checking.pid"
+        # A marker left by an earlier run in this test would send the signal
+        # before the child is ready (it would then die of the default action).
+        marker.unlink(missing_ok=True)
+        Path(str(marker) + ".part").unlink(missing_ok=True)
+        sleeper = tmp / "sleeper.py"
+        sleeper.write_text("import os, pathlib, time\n"
+                           f"part = pathlib.Path({str(marker) + '.part'!r})\n"
+                           "part.write_text(str(os.getpid()))\n"
+                           f"os.replace(part, {str(marker)!r})\n"
+                           "time.sleep(60)\n")
+        child = subprocess.Popen([sys.executable, "-c", CHILD, str(NEW_PROPOSAL), str(sleeper),
+                                  "--project", str(self.root), *argv],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            deadline = time.monotonic() + 30
+            while not marker.exists() and child.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.05)
+            self.assertTrue(marker.exists(), "the child never reached proposalcheck")
+            os.kill(child.pid, signum)
+            out, err = child.communicate(timeout=30)
+        finally:
+            if child.poll() is None:
+                os.kill(child.pid, signal.SIGKILL)
+                child.wait()
+            if marker.exists():
+                # The sleeper is this test's grandchild: stopped by its PID, and only
+                # if that PID is still the sleeper (never a recycled one).
+                pid = int(marker.read_text())
+                cmd = subprocess.run(["ps", "-p", str(pid), "-o", "command="],
+                                     capture_output=True, text=True).stdout
+                if str(sleeper) in cmd:
+                    os.kill(pid, signal.SIGKILL)
+        return child.returncode, out, err
+
+    def test_sigterm_and_sighup_roll_back_a_new_proposal(self):
+        import signal
+        self.assert_ok(self.run_new("First"))
+        before = b"the project page as committed\n"
+        for signum in (signal.SIGTERM, signal.SIGHUP):
+            with self.subTest(signal=signum.name):
+                self.index.write_bytes(before)
+                rc, out, err = self.interrupt(signum, "Second")
+                self.assertEqual(rc, 128 + signum, out + err)
+                self.assertIn(f"stopped by {signum.name}", err)
+                self.assertNotIn("Traceback", err)
+                self.assertEqual(self.listing(), ["01-first.html", "01-first.json", "tracker"])
+                self.assertEqual(self.index.read_bytes(), before)
+
+    def test_sigterm_rolls_back_page_for(self):
+        import signal
+        self.seed("21-standard-is-mandatory.json", json.dumps(LEDGER_21))
+        rc, out, err = self.interrupt(signal.SIGTERM, "--page-for", "docs/proposals/21-standard-is-mandatory.json")
+        self.assertEqual(rc, 128 + signal.SIGTERM, out + err)
+        self.assertEqual(self.listing(), ["21-standard-is-mandatory.json"])
+        self.assertFalse(self.index.exists())
+
+
 class TestSeries(unittest.TestCase):
     """The PhotoVault app and engine number from one series across two repos."""
 

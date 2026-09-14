@@ -53,6 +53,8 @@ Exit codes: 0 written and checked. 1 refused: a bad title or number, a number
 already in use, or a checker rejecting the result. 2 could not run: not
 inside a git repository, a proposal_series that cannot be used, a template
 missing, a file that could not be read or written, or a checker that crashed.
+128+N stopped by signal N -- 143 for SIGTERM, 129 for SIGHUP -- after the
+same rollback: the created files removed, index.html put back.
 """
 from __future__ import annotations
 
@@ -62,6 +64,7 @@ import html
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import unicodedata
@@ -528,6 +531,42 @@ def page_for(top: Path, ledger_arg: str) -> int:
     return 0
 
 
+STOP_SIGNALS = (signal.SIGTERM, signal.SIGHUP)
+
+
+class Stopped(Exception):
+    """SIGTERM or SIGHUP during a run (T-02 review round 1). Raised wherever the
+    run is, so the rollback in its `finally` runs as for any other failure."""
+
+    def __init__(self, signum: int):
+        super().__init__(signum)
+        self.signum = signum
+
+
+def _stopped(signum, _frame):
+    # A second signal must not cut the rollback short: ignored from here on,
+    # until main() restores what was installed before the run.
+    for sig in STOP_SIGNALS:
+        signal.signal(sig, signal.SIG_IGN)
+    raise Stopped(signum)
+
+
+def _install_stop_handlers() -> dict:
+    previous = {}
+    for sig in STOP_SIGNALS:
+        try:
+            previous[sig] = signal.signal(sig, _stopped)
+        except ValueError:            # not the main thread: nothing can be installed
+            break
+    return previous
+
+
+def _restore_handlers(previous: dict) -> None:
+    for sig, handler in previous.items():
+        if handler is not None:
+            signal.signal(sig, handler)
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="new-proposal", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -542,6 +581,7 @@ def main(argv: list[str]) -> int:
         ap.error("--page-for takes its title and number from the ledger; give no title and no --number")
     if a.page_for is None and a.title is None:
         ap.error("a title is required, or --page-for LEDGER")
+    previous = _install_stop_handlers()
     try:
         top = git_top(Path(a.project) if a.project else Path.cwd())
         if a.page_for is not None:
@@ -557,6 +597,13 @@ def main(argv: list[str]) -> int:
         print(f"new-proposal: could not read or write {exc.filename or ''}: {exc.strerror or exc}",
               file=sys.stderr)
         return 2
+    except Stopped as exc:
+        name = signal.Signals(exc.signum).name
+        print(f"new-proposal: stopped by {name}; what this run wrote is removed and index.html put back",
+              file=sys.stderr)
+        return 128 + exc.signum
+    finally:
+        _restore_handlers(previous)
 
 
 if __name__ == "__main__":
