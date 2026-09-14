@@ -22,6 +22,32 @@ common-rules/bin/derecord /Users/the-sponsor/apps/<project>
 
 ---
 
+## The warm-up standard is mandatory
+
+Every project under `/Users/the-sponsor/apps/` follows proposals 19, 20 and 21 —
+one ledger shape, one card, one proposal shape, one way to ask another
+session for something. Detail lives in `skills/standard/SKILL.md`; this is
+only the pointer.
+
+- **`/warmup`** opens every session, and runs again after a compaction.
+- **The sponsor's `/standard`** is what adopts this for a project — typed
+  by him, in that session, with his own authority there. A session does
+  not wait to be told twice.
+- **`bin/conformance --project <dir>`** will measure the 12-item checklist
+  and report each item as holding, not holding, or waiting on
+  common-rules, once it lands. Until then, `/standard` marks an item whose
+  tool isn't in common-rules yet as "waiting on common-rules", never a
+  substitute — re-checked at the next `/warmup`.
+- **A later change to the standard is mandatory too.** A `CHANGELOG.md`
+  entry here beginning `**Standard change (mandatory):**` is implemented
+  before the next `rulecheck --align` — never the reverse.
+- **Every new proposal** is created with `bin/new-proposal`, never drafted
+  by hand.
+- **Anything needed from another project's session** is a `requests`
+  entry in the ledger, never prose; every blocked row carries an `owner`.
+
+---
+
 ## The four things that actually work
 
 Measured across 30 sessions and 29.2M output tokens, the gain came from these
