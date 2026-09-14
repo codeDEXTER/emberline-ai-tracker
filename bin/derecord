@@ -3,8 +3,14 @@
 # and install the guards that stop a bad merge reaching main.
 #
 #   derecord [project-dir]     default: current directory
+#   derecord --parent DIR      a start folder that is NOT itself a git repo,
+#                              above several projects (proposal 21, S-05):
+#                              installs only the SessionStart entry for
+#                              hooks/sessionstart into DIR/.claude/settings.json.
+#                              Refuses on a git repo or on no child project.
+#                              Nothing else in this file applies to that mode.
 #
-# Installs seven things:
+# Installs seven things (ordinary mode):
 #   1. .gitattributes merge rules for the record files
 #   2. a pre-commit hook that refuses to commit conflict markers and, when a
 #      ledger is staged, regenerates and stages its tracker page and the
@@ -42,11 +48,137 @@
 set -euo pipefail
 
 RULES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROJ="${1:-$PWD}"
-cd "$PROJ"
 
 GIT="git"
 command -v git >/dev/null 2>&1 || GIT=/Library/Developer/CommandLineTools/usr/bin/git
+
+# --- --parent DIR: a start folder above several projects (proposal 21, S-05)
+#
+# PhotoVault/ holds app/ and engine/, each its own git repo; PhotoVault/
+# itself is not one, so ordinary derecord (which requires a git repo) cannot
+# install anything there, and Claude Code loads SessionStart hooks from the
+# folder a session starts in. This mode installs ONLY the SessionStart entry
+# for hooks/sessionstart -- the hook that, from proposal 21 S-05 on, looks
+# one level down when the start folder has no open ledger of its own -- into
+# DIR/.claude/settings.json. Nothing else: no .gitattributes, no pre-commit
+# hook, no seeded prose, no other hook event, no .gitignore lines. Refuses on
+# a git repo (run ordinary derecord there instead) and on a folder with no
+# child project, using the same "project" test the hook itself uses: a child
+# directory with its own .common-rules.json, or an open ledger under its own
+# docs/proposals/.
+if [ "${1:-}" = "--parent" ]; then
+    PARENT="${2:-}"
+    if [ -z "$PARENT" ]; then
+        echo "usage: derecord --parent DIR" >&2
+        exit 1
+    fi
+    if [ ! -d "$PARENT" ]; then
+        echo "derecord --parent: not a directory: $PARENT" >&2
+        exit 1
+    fi
+    PARENT="$(cd "$PARENT" && pwd)"
+
+    if $GIT -C "$PARENT" rev-parse --git-dir >/dev/null 2>&1; then
+        echo "derecord --parent: $PARENT is a git repository -- run derecord $PARENT instead (nothing changed)" >&2
+        exit 1
+    fi
+
+    # Counts every qualifying child, not just whether one exists (round 2,
+    # item 3 asks derecord --parent to say how many it found). Each child's
+    # own check is wrapped so one unreadable sibling (permissions, a race)
+    # does not stop the count of the rest -- the same fix as the hook's
+    # _is_child_project/_safe_open_ledgers.
+    CHILD_COUNT="$(python3 - "$PARENT" "$RULES_DIR" <<'PY'
+import sys
+from pathlib import Path
+
+parent, rules = sys.argv[1], sys.argv[2]
+sys.path.insert(0, rules)
+from tools.tracker import checkpoint
+
+
+def is_project(child: Path) -> bool:
+    try:
+        if (child / ".common-rules.json").is_file():
+            return True
+    except OSError:
+        return False
+    try:
+        return bool(checkpoint.open_ledgers(child))
+    except OSError:
+        return False
+
+
+try:
+    children = [p for p in Path(parent).iterdir() if p.is_dir() and not p.name.startswith(".")]
+except OSError:
+    children = []
+print(sum(1 for c in children if is_project(c)))
+PY
+    )"
+    if [ "$CHILD_COUNT" = "0" ]; then
+        echo "derecord --parent: no child project under $PARENT -- nothing to install (nothing changed)" >&2
+        exit 1
+    fi
+    echo "derecord --parent: $CHILD_COUNT child project(s) found under $PARENT"
+
+    if [ -f "$PARENT/.claude/settings.json" ]; then
+        python3 -c '
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+sys.exit(0 if isinstance(d, dict) else 1)
+' "$PARENT/.claude/settings.json" || {
+            echo "derecord --parent: $PARENT/.claude/settings.json is not valid JSON; fix it and run again (nothing changed)" >&2
+            exit 1
+        }
+    fi
+
+    mkdir -p "$PARENT/.claude"
+    python3 - "$PARENT/.claude/settings.json" "$RULES_DIR" <<'PY'
+import json, sys
+
+path, rules = sys.argv[1], sys.argv[2]
+try:
+    d = json.load(open(path))
+except Exception:
+    d = {}
+hooks = d.setdefault("hooks", {})
+entries = hooks.setdefault("SessionStart", [])
+cmd = f"{rules}/hooks/sessionstart"
+suffix = "/hooks/sessionstart"
+
+status = None
+for entry in entries:
+    for h in entry.get("hooks", []):
+        command = h.get("command", "")
+        if not command.endswith(suffix):
+            continue
+        if command != cmd:
+            h["command"] = cmd
+            status = "corrected"
+        else:
+            status = "already present"
+        break
+    if status:
+        break
+if status is None:
+    entries.append({"hooks": [{"type": "command", "command": cmd}]})
+    status = "installed"
+
+if status in ("installed", "corrected"):
+    json.dump(d, open(path, "w"), indent=2)
+print(f"  .claude/settings.json: SessionStart sessionstart hook {status}")
+PY
+    echo "derecord --parent: $PARENT is done."
+    exit 0
+fi
+
+PROJ="${1:-$PWD}"
+cd "$PROJ"
+
 $GIT rev-parse --git-dir >/dev/null 2>&1 || { echo "not a git repo: $PROJ" >&2; exit 1; }
 
 TOP="$($GIT rev-parse --show-toplevel)"
