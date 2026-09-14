@@ -85,8 +85,9 @@ ask), never from the summary.
      tracker. The project page is still rendered and checked beside it — it is
      simply not the page that is published.
 
-  `tracker published` refuses while any ledger has uncommitted changes, and,
-  with `--page`, when the page was last committed before the ledger changed
+  `tracker published` refuses while the ledger it records has uncommitted
+  changes — every ledger, for `--project` — and, with `--page`, when the
+  page was last committed before the ledger changed
   — an old page recorded as current would keep the card silent for good.
   Only when a committed ledger change leaves the page's bytes identical, pass
   `--page-unchanged`; the sidecar records that you did.
@@ -100,9 +101,9 @@ ask), never from the summary.
   default) — every ledger's, for the project page — republishing a changed
   page is part of keeping the ledger current, like rendering it. When any is
   switched off, nothing is published — the card prints no such line and
-  `tracker published` refuses to record, naming that ledger. The line never fails `warmup --check`; it is a to-do,
-  not a broken standard. Only a session's Artifact tool can publish; no hook
-  or script does it for you.
+  `tracker published` refuses to record, naming that ledger. The line never
+  fails `warmup --check`; it is a to-do, not a broken standard. Only a
+  session's Artifact tool can publish; no hook or script does it for you.
 - **A page published before it was recorded.** When the project's tracker page
   is published for the first time, or you find one already published (a URL in
   the handover, lead prompt or log) with no
