@@ -822,6 +822,87 @@ class MandatoryStandardChanges(unittest.TestCase):
         pending = load_rulecheck().mandatory_pending(self.proj, rules=self.rules.root)
         self.assertEqual((pending.state, pending.entries), ("ahead", ()))
 
+    def test_a_stamp_on_a_diverged_branch_is_behind_not_ahead(self):
+        """S-09 final review (A, probe f1): a stamp on a side branch was called
+        "ahead", hiding a mandatory entry main added since."""
+        self.rules.add("2026-09-14 · Here", "already here")
+        self.stamp(self.rules.ahead("2026-09-15 · Side", "only on a side branch"))
+        self.rules.add("2026-09-16 · New on main", "do the new thing")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("2026-09-16 · New on main", r.stdout)
+        self.assertNotIn("ahead of this rules checkout", r.stdout)
+        self.assertEqual(load_rulecheck().mandatory_pending(self.proj, rules=self.rules.root).state, "behind")
+        plain = run(self.proj, rules_dir=self.rules.root)
+        self.assertEqual(plain.returncode, 1, plain.stdout + plain.stderr)
+        self.assertNotIn("ahead of this rules checkout", plain.stdout)
+
+    def test_a_rebased_away_stamp_still_counts_what_main_added(self):
+        """S-09 final review (A, probe f2): the stamp's commit is unreachable but
+        its object is still present."""
+        self.rules.add("2026-09-14 · A", "do a")
+        self.stamp(self.rules.version())
+        self.rules.git("reset", "-q", "--hard", "HEAD~1")
+        self.rules.blocks.pop(0)
+        self.rules.add("2026-09-15 · B", "do b")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("2026-09-15 · B", r.stdout)
+        self.assertNotIn("ahead", r.stdout)
+
+    def test_a_truly_ahead_stamp_exits_0_in_plain_rulecheck(self):
+        """Judgement call: ahead is not a problem, and bin/land's advice to
+        align would move the stamp backwards."""
+        self.rules.add("2026-09-14 · Here", "already here")
+        self.stamp(self.rules.ahead("2026-09-15 · Future", "not here yet"))
+        plain = run(self.proj, rules_dir=self.rules.root)
+        self.assertEqual(plain.returncode, 0, plain.stdout + plain.stderr)
+        self.assertIn("ahead of this rules checkout", plain.stdout)
+
+    def test_an_unclosed_fence_does_not_hide_its_own_requirement_when_an_older_fence_follows(self):
+        """S-09 final review (B, probe k3): the new entry's unclosed fence paired
+        with an older entry's fence and hid the new requirement."""
+        self.rules.add("2026-09-13 · Older", body="```\nold code\n```\n")
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · New", "do the new thing", body="```md\nthe fence was never closed\n")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("2026-09-14 · New", r.stdout)
+
+    def test_deleting_a_line_of_a_requirement_is_pending(self):
+        """S-09 final review (D, probe b4): 'do not / delete the vault.' losing
+        its second line changes what the entry asks."""
+        self.rules.add("2026-09-14 · Vault", "do not\ndelete the vault.")
+        self.stamp(self.rules.version())
+        self.rules.blocks[0] = self.rules.blocks[0].replace("do not\ndelete the vault.", "do not")
+        self.rules.rewrite()
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("2026-09-14 · Vault", r.stdout)
+
+    def test_a_deleted_body_line_next_to_an_unchanged_requirement_is_not_pending(self):
+        self.rules.add("2026-09-14 · Vault", "do the thing", body="First reason.\nSecond reason.\n")
+        self.stamp(self.rules.version())
+        self.rules.blocks[0] = self.rules.blocks[0].replace("Second reason.\n", "")
+        self.rules.rewrite()
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_a_crlf_changelog_entry_is_read(self):
+        self.stamp(self.rules.version())
+        raw = ("# Changelog\r\n\r\n## 2026-09-14 · Crlf\r\n\r\nWhy.\r\n\r\n" + MARKER
+               + " do it\r\n\r\n" + FakeRules.SEED).encode()
+        self.rules.write_raw(raw)
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("2026-09-14 · Crlf", r.stdout)
+
+    def test_a_blockquoted_marker_is_not_a_standard_change(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · Quoted", body="> " + MARKER + " quoted, not a requirement\n")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
     def test_a_non_adopting_project_could_not_check(self):
         (self.proj / "CLAUDE.md").write_text("Deliberately separate.\n")
         r = self.mandatory()

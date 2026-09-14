@@ -93,7 +93,9 @@ GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
 MARKER = "**Standard change (mandatory):**"
 NO_HEADING = "(before the first ## heading)"
 _SHA = re.compile(r"[0-9a-f]{4,40}")
-_HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+_HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+# A dated CHANGELOG entry heading: a fence never spans one (S-09 final review).
+_ENTRY_HEADING = re.compile(r"^## \d{4}-\d{2}-\d{2}")
 _FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 
 
@@ -289,13 +291,18 @@ def _fenced(lines):
     fences included. A fence is ``` or ~~~ (three or more, up to three spaces
     in), closed by a line of at least as many of the same character and nothing
     else. A fence that never closes opens nothing: an unbalanced ``` fails
-    closed, so it cannot hide every Standard change after it."""
+    closed, so it cannot hide every Standard change after it. A fence never
+    spans a dated entry heading (`## YYYY-MM-DD`): an unclosed fence in a new
+    entry used to pair with an older entry's fence and hide the new entry's
+    own requirement (S-09 final review). A `## ` line that is not a dated
+    heading can still sit inside a fence."""
     closers: dict[str, list[tuple[int, int]]] = {"`": [], "~": []}
     for i, line in enumerate(lines):
         m = _FENCE.match(line)
         if m and not m.group(2).strip(" \t"):
             closers[m.group(1)[0]].append((i, len(m.group(1))))
     index = {ch: [i for i, _ in c] for ch, c in closers.items()}
+    entry_headings = [i for i, line in enumerate(lines) if _ENTRY_HEADING.match(line)]
     inside, i = set(), 0
     while i < len(lines):
         m = _FENCE.match(lines[i])
@@ -304,7 +311,9 @@ def _fenced(lines):
             continue
         ch, length = m.group(1)[0], len(m.group(1))
         c = closers[ch]
-        close = next((j for j, n in c[bisect.bisect_right(index[ch], i):] if n >= length), None)
+        after = bisect.bisect_right(entry_headings, i)
+        limit = entry_headings[after] if after < len(entry_headings) else len(lines)
+        close = next((j for j, n in c[bisect.bisect_right(index[ch], i):] if n >= length and j < limit), None)
         if close is None:
             i += 1
             continue
@@ -361,12 +370,18 @@ def _entries(text):
 
 
 def _added_line_numbers(diff):
-    """1-based line numbers, in the new file, of every line a -U0 diff adds."""
+    """1-based line numbers, in the new file, of every line a -U0 diff adds --
+    and, for a hunk that only deletes (`+c,0`), the lines either side of where
+    the deletion was, so deleting a line of what a Standard change asks counts
+    (S-09 final review). An untouched paragraph next to a deletion is still not
+    pending: mandatory_since() finds it unchanged at the stamp."""
     added, n = set(), None
     for line in diff.split("\n"):
         m = _HUNK.match(line)
         if m:
             n = int(m.group(1))
+            if m.group(2) == "0":
+                added.update({max(n, 1), n + 1})
             continue
         if n is None:
             continue
@@ -400,8 +415,9 @@ def mandatory_since(sha, rules=RULES):
     paragraph under that exact heading was already in the CHANGELOG at `sha`.
     So:
       * a new entry, or a marker added inside an older entry, is pending;
-      * rewording any line of what a Standard change asks is pending, and so
-        is re-wrapping it -- the lines are compared as written;
+      * rewording, adding or deleting any line of what a Standard change asks
+        is pending, and so is re-wrapping it -- the lines are compared as
+        written;
       * an entry moved above or below another, otherwise unchanged, is not:
         a diff cannot tell a move from an addition, and the paragraph was
         already there at the stamp;
@@ -473,8 +489,17 @@ def mandatory_pending(project, rules=None) -> Pending:
         return whole("unresolvable", was, f"{STAMP} names no commit in the rules repo")
     rc, _ = _run(rules, "merge-base", "--is-ancestor", full, "HEAD")
     if rc == 1:
-        return Pending("ahead", was, cur, ())
-    if rc != 0:
+        # Not an ancestor of HEAD: truly ahead (HEAD is an ancestor of the
+        # stamp), or diverged -- a side branch, or a commit rebased away whose
+        # object is still present. Diverged is compared tree to tree, like a
+        # stamp behind; calling it "ahead" hid what main added since (S-09
+        # final review).
+        back, _ = _run(rules, "merge-base", "--is-ancestor", "HEAD", full)
+        if back == 0:
+            return Pending("ahead", was, cur, ())
+        if back != 1:
+            return Pending("could not check", was, cur, (), "cannot tell whether the stamp is behind the rules HEAD")
+    elif rc != 0:
         return Pending("could not check", was, cur, (), "cannot tell whether the stamp is behind the rules HEAD")
     since = mandatory_since(full, rules)
     if since is None:
@@ -626,9 +651,12 @@ def main():
         print(f"{unresolvable_line(was)}. Re-read the rules in full (`rulecheck --mandatory` "
               f"lists what they require), then `rulecheck --align`.")
         return 1
-    if _run(RULES, "merge-base", "--is-ancestor", full, "HEAD")[0] == 1:
+    if (_run(RULES, "merge-base", "--is-ancestor", full, "HEAD")[0] == 1
+            and _run(RULES, "merge-base", "--is-ancestor", "HEAD", full)[0] == 0):
+        # Truly ahead is not a problem: bin/land's advice to align would move
+        # the stamp backwards. A diverged stamp falls through and reads behind.
         print("ahead of this rules checkout -- update common-rules, then check again.")
-        return 1
+        return 0
     added = changes_since(full)
     if added is None:
         print(f"Cannot diff from {shown(was)} — the rules CHANGELOG.md cannot be read. "
