@@ -1,5 +1,32 @@
 # Changelog — common-rules
 
+## 2026-09-14 · The templates and the workflow say the standard is mandatory (P21 S-06)
+
+Every session reads its project's lead prompt and this repository's
+`CLAUDE-workflow.md`. Neither said the standard is mandatory, how proposals are
+made, or how sessions ask each other for things. Now:
+- **`CLAUDE-workflow.md`** opens with "The warm-up standard is mandatory": run
+  `/warmup` at every start and after compaction; the sponsor's `/standard`
+  adopts the standard; `bin/conformance` will measure the 12 items once it lands;
+  implement `**Standard change (mandatory):**` entries before aligning; proposals
+  come from `bin/new-proposal`; cross-session asks are `requests`; blocked rows
+  carry owners.
+- **`templates/lead-prompt.md`** carries the marker
+  `<!-- common-rules:lead-prompt proposal/21 -->` (bin/conformance reads it) and
+  a section 8, "Proposals, requests and owners". Owners are written in the forms
+  the ledger accepts: `sponsor`, `lead` or `session:<name>`.
+- **`README.md`**: adoption now starts with the sponsor running `/standard`.
+- **`docs/workflow.html` and its PNG** are regenerated, stamp 397.
+
+Two review rounds. The lead fixed the final one's finding (0d99f87): round 2
+had stamped the page 385 in the same commit that edited the rules file again,
+and its report said the suite passed when the stamp test failed.
+
+**Behaviour change:** a lead prompt regenerated from the template now carries
+the marker. Projects already on the standard pick it up when they refactor
+under `/standard` (checklist item 5); derecord never overwrites an existing
+prompt.
+
 ## 2026-09-14 · An unimplemented Standard change fails the card (P21 S-09)
 
 The sponsor ruled that every later improvement to the standard is mandatory
