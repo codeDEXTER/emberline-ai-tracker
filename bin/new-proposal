@@ -48,6 +48,7 @@ import argparse
 import datetime
 import html
 import json
+import os
 import re
 import subprocess
 import sys
@@ -76,7 +77,10 @@ LEDGER_NAME = re.compile(r"^(\d{1,3})-.+\.json\Z")
 # C0 and C1 controls (newline, tab, escape, NEL ...) and the two Unicode line
 # and paragraph separators: anything that would make the title more than one
 # line in a <title>, a card or a terminal.
-BAD_TITLE_CHARS = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]")
+# Plus bidi controls and invisible characters (S-02 final review): a title that
+# reorders or hides its own text on a card or in a terminal.
+BAD_TITLE_CHARS = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029\u061c\u200b\u200e\u200f\u202a-\u202e"
+                             r"\u2060-\u2064\u2066-\u2069\ufeff]")
 SLUG_MAX = 60
 COLLISION = re.compile(r'^proposal id ".*" is claimed by \d+ documents: (.*)$')
 
@@ -103,7 +107,8 @@ def slugify(title: str) -> str:
 def check_title(title: str) -> str:
     """The title, stripped, or Refused naming what is wrong with it."""
     if BAD_TITLE_CHARS.search(title):
-        raise Refused(f"the title {ascii(title)} spans lines or carries a control character")
+        raise Refused(f"the title {ascii(title)} spans lines or carries a control character "
+                      "(or a bidi or invisible one)")
     try:
         title.encode("utf-8")
     except UnicodeEncodeError:
@@ -136,6 +141,17 @@ def series_of(top: Path) -> list[tuple[str, Path]]:
     roots, problems = P.proposal_series(top)
     if problems:
         raise CannotRun("cannot number across the declared proposal_series:\n  " + "\n  ".join(problems))
+    # S-02 final review: declared on one side only, both repos took the same
+    # number and nothing noticed. A series is declared by every member or none.
+    here = Path(top).resolve()
+    for rel, path in roots:
+        back, back_problems = P.proposal_series(path)
+        if back_problems:
+            raise CannotRun(f"cannot number across the declared proposal_series: {rel}'s own declaration "
+                            "has problems:\n  " + "\n  ".join(back_problems))
+        if not any(p.resolve() == here for _r, p in back):
+            raise CannotRun(f"proposal_series is one-sided: {rel} does not declare this project back -- "
+                            "declare the series in every member's .common-rules.json, or in none")
     return roots
 
 
@@ -257,8 +273,11 @@ class Writes:
                 pass
 
 
-def claimed_meanwhile(top, series, n: int, ours: set[str]) -> None:
-    others = [name for name in numbers_in_use(top, series).get(n, []) if name not in ours]
+def claimed_meanwhile(top, series, n: int, ours: set[str], before: set[str] = frozenset()) -> None:
+    """Refuses when an entry holding n appeared during this run. Entries that
+    were already there at the first scan (a .md twin, an assets folder) are not
+    a race (S-02 final review)."""
+    others = [name for name in numbers_in_use(top, series).get(n, []) if name not in ours and name not in before]
     if others:
         raise Refused(f"proposal number {n:02d} was just claimed by {', '.join(others)} while "
                       "new-proposal was working; what it wrote is removed -- run it again")
@@ -303,11 +322,16 @@ def validate_ledger(ledger: Path) -> str:
 
 
 def render_tracker(writes: Writes, ledger: Path, out: Path) -> None:
+    if out.parent.exists() and not os.access(out.parent, os.W_OK):
+        raise CannotRun(f"could not write {writes.show(out.parent)}: Permission denied")
     writes.note_missing_dirs(out.parent)
     try:
         r = run_tool("tracker render", [str(TRACKER), "render", str(ledger)])
     finally:
         writes.adopt(out)
+    if r.returncode != 0 and "Traceback (most recent call last)" in r.stderr:
+        last = (r.stderr.strip().splitlines() or ["tracker render failed"])[-1]
+        raise CannotRun(f"could not write {writes.show(out)}: {last}")
     if r.returncode != 0:
         raise Refused("tracker render rejects the ledger:\n  " + "\n  ".join((r.stdout + r.stderr).splitlines()))
 
@@ -351,7 +375,7 @@ def create(top: Path, number_arg: str | None, title_arg: str) -> int:
         writes.mkdir(proposals)
         writes.create(page, page_text)
         writes.create(ledger, ledger_text)
-        claimed_meanwhile(top, series, n, {writes.show(page), writes.show(ledger)})
+        claimed_meanwhile(top, series, n, {writes.show(page), writes.show(ledger)}, set(used.get(n, [])))
         notes = [validate_ledger(ledger)]
         render_tracker(writes, ledger, tracker_page)
         notes.insert(0, check_page(top, page))
@@ -406,12 +430,27 @@ def page_for(top: Path, ledger_arg: str) -> int:
 
     page = proposals / f"{ledger.stem}.html"
     writes = Writes(top)
-    holders = [name for name in numbers_in_use(top, series).get(n, [])
+    existing = numbers_in_use(top, series).get(n, [])
+    holders = [name for name in existing
                if name != shown and (name.endswith(".html") or not name.startswith("docs/proposals/"))]
     if page.exists() and writes.show(page) not in holders:
         holders.append(writes.show(page))
     if holders:
         raise Refused(f"proposal {n:02d} already has a page: {', '.join(holders)}; nothing written")
+    other_ledgers = []
+    for name in existing:
+        if name == shown or not name.startswith("docs/proposals/") or not name.endswith(".json"):
+            continue
+        try:
+            other = json.loads((top / name).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(other, dict) and isinstance(other.get("items"), list):
+            other_ledgers.append(name)
+    if other_ledgers:
+        raise Refused(f"proposal {n:02d} has another ledger too: {', '.join(other_ledgers)}; "
+                      "one number, one ledger -- nothing written")
+    tracker_page = proposals / "tracker" / f"{ledger.stem}.html"
 
     number = m.group(1)
     page_text = render_page(PAGE_TEMPLATE.read_text(encoding="utf-8"), number, title,
@@ -419,8 +458,15 @@ def page_for(top: Path, ledger_arg: str) -> int:
     done = False
     try:
         writes.create(page, page_text)
-        claimed_meanwhile(top, series, n, {writes.show(page), shown})
-        notes = [check_page(top, page)]
+        claimed_meanwhile(top, series, n, {writes.show(page), shown}, set(existing))
+        if tracker_page.exists():
+            r = run_tool("tracker render --check", [str(TRACKER), "render", "--check", str(ledger)])
+            verdict = ((r.stdout + r.stderr).strip().splitlines() or ["no output"])[-1]
+            tracker_note = f"tracker  {tracker_page} exists, left alone; render --check: {verdict}"
+        else:
+            render_tracker(writes, ledger, tracker_page)
+            tracker_note = f"tracker  {tracker_page}  (tracker render of the ledger)"
+        notes = [check_page(top, page), tracker_note]
         done = True
     finally:
         if not done:
