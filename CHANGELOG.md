@@ -1,5 +1,50 @@
 # Changelog — common-rules
 
+## 2026-09-14 · `/standard`: the sponsor's command that makes the standard mandatory
+
+The sponsor asked why the PhotoVault app and engine were not creating
+proposals in the new format or following the rules. The reasons, all measured:
+- There was no proposal template or command to create one.
+- Both lead prompts predated proposal 20; derecord never overwrites an existing
+  one.
+- Both sessions start in `PhotoVault/`, above the projects, so the installed
+  hooks never loaded.
+- Both CLAUDE.md pointers were uncommitted.
+- Proposal 20's features went unused: no owners on blocked rows, requests kept
+  as prose.
+
+His ruling: "This is mandatory. It's not optional." Both sessions must follow
+the same structure. Each tells him at which stage, once current tasks finish,
+it will refactor. And it must be "a standard way of proceeding ahead for other
+projects as well… once I use the command, I want the sessions to accept it".
+
+`skills/standard/SKILL.md` is linked at user level, so `/standard` works in every
+session. The sponsor types it himself, so it is his ruling in that session. A
+project whose rules reject rulings relayed by another session still accepts it.
+The session:
+- replies with what is in flight and the exact stage at which it will refactor,
+  and records both in its ledger;
+- at that stage, refactors to one 12-item checklist shared by every project:
+  - rules read
+  - migrated
+  - declared
+  - hooks installed
+  - lead prompt regenerated
+  - owners and requests in the ledger
+  - proposals from the template
+  - no hand-kept duplicates
+  - Ruflo around items
+  - publishes recorded
+  - CLAUDE.md pointer
+  - card ready
+
+Items whose tool is still being built, a proposal template with
+`bin/new-proposal`, `bin/conformance`, a legacy floor for `proposalcheck`, and
+hooks for parent start folders (proposal 21, S-02 to S-06), are reported as
+"waiting on common-rules". Nothing is invented in their place.
+
+**Behaviour change:** none until the sponsor runs `/standard` in a session.
+
 ## 2026-09-14 · A declared plan page is the page that gets published (V-11)
 
 The PhotoVault app recorded its first publish the day proposal 20 shipped.
