@@ -32,11 +32,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # test_rulecheck's FakeRules
 CONFORMANCE = ROOT / "bin" / "conformance"
 DERECORD = ROOT / "bin" / "derecord"
 WARMUP = ROOT / "bin" / "warmup"
@@ -344,33 +345,105 @@ class TestItem1Rules(Copy):
         result = mod.check_rules(mod.Context(ROOT))
         self.assertEqual(result.state, HOLDS, result)
 
-    def test_behind_without_s09_waits_on_common_rules(self):
-        count = git(ROOT, "rev-list", "--count", "HEAD~1", check=False).stdout.strip()
-        sha = git(ROOT, "rev-parse", "--short", "HEAD~1", check=False).stdout.strip()
-        if not (count and sha):
-            self.skipTest("the rules checkout has no parent commit to be behind")
-        write(self.p, ".common-rules-version", f"{count}-{sha}\n")
+    def test_an_untracked_stamp_does_not_hold(self):
+        git(self.p, "rm", "-q", "--cached", ".common-rules-version")
+        # Not commit(): its `git add -A` would track the stamp again.
+        git(self.p, "commit", "-qm", "untrack the stamp")
+        self.assertTrue((self.p / ".common-rules-version").is_file())
+        data = self.assert_breaks({1})
+        self.assertIn("not committed", self.item(data, 1)["why"])
+
+    def test_a_stamp_changed_since_head_does_not_hold(self):
+        stamp = self.p / ".common-rules-version"
+        stamp.write_text(stamp.read_text() + "\n")      # the same version, but not what HEAD holds
+        data = self.assert_breaks({1})
+        self.assertIn("not committed", self.item(data, 1)["why"])
+
+    def test_without_mandatory_pending_it_waits_on_common_rules(self):
         mod = load_module()
         mod.MANDATORY_PENDING = None
         result = mod.check_rules(mod.Context(self.p))
         self.assertEqual(result.state, WAITING, result)
-        self.assertIn("S-09", result.why)
 
-    def test_with_s09_a_pending_mandatory_change_does_not_hold(self):
-        mod = load_module()
-        entry = types.SimpleNamespace(heading="2026-09-14 · the card changed",
-                                      lines=("**Standard change (mandatory):** re-run derecord",))
-        mod.MANDATORY_PENDING = lambda project, rules=None: types.SimpleNamespace(
-            state="behind", stamp="1-abc1234", current="2-def5678", entries=(entry,), why="")
-        result = mod.check_rules(mod.Context(self.p))
-        self.assertEqual(result.state, NOT, result)
-        self.assertIn("the card changed", result.why)
+    def test_rulecheck_runs_in_process_without_optional_locks(self):
+        with mock.patch.dict(os.environ):
+            os.environ.pop("GIT_OPTIONAL_LOCKS", None)
+            mod = load_module()
+            mod.check_rules(mod.Context(self.p))
+            self.assertEqual(os.environ.get("GIT_OPTIONAL_LOCKS"), "0")
 
-    def test_with_s09_behind_on_information_only_holds(self):
+
+class TestItem1AgainstRulecheck(unittest.TestCase):
+    """Item 1 through bin/rulecheck's real mandatory_pending(), on the FakeRules
+    fixture tests/test_rulecheck.py builds. Nothing is mocked."""
+
+    def setUp(self):
+        from test_rulecheck import POINTER, FakeRules
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        tmp = Path(self._tmp.name)
+        self.rules = FakeRules(tmp)
+        env = mock.patch.dict(os.environ, {"COMMON_RULES_DIR": str(self.rules.root)})
+        env.start()
+        self.addCleanup(env.stop)
+        self.proj = tmp / "app"
+        build_empty(self.proj)
+        git(self.proj, "config", "user.email", "t@example.com")
+        git(self.proj, "config", "user.name", "t")
+        write(self.proj, "CLAUDE.md", POINTER)
+
+    def stamp(self, version: str):
+        write(self.proj, ".common-rules-version", version + "\n")
+        commit(self.proj, "stamp")
+
+    def result(self):
         mod = load_module()
-        mod.MANDATORY_PENDING = lambda project, rules=None: types.SimpleNamespace(
-            state="behind", stamp="1-abc1234", current="2-def5678", entries=(), why="")
-        self.assertEqual(mod.check_rules(mod.Context(self.p)).state, HOLDS)
+        self.assertIsNotNone(mod.MANDATORY_PENDING, "bin/rulecheck has no mandatory_pending()")
+        return mod.check_rules(mod.Context(self.proj))
+
+    def test_aligned_holds(self):
+        self.stamp(self.rules.version())
+        self.assertEqual(self.result().state, HOLDS)
+
+    def test_behind_a_mandatory_change_does_not_hold_and_names_it(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord again")
+        r = self.result()
+        self.assertEqual(r.state, NOT, r)
+        self.assertIn("Reheat is mandatory", r.why)
+        self.assertIn("--align", r.fix)
+
+    def test_behind_on_information_only_holds(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · A wording fix")
+        self.assertEqual(self.result().state, HOLDS)
+
+    def test_diverged_counts_what_main_added(self):
+        self.rules.add("2026-09-14 · Here", "already here")
+        self.stamp(self.rules.ahead("2026-09-15 · Side", "only on a side branch"))
+        self.rules.add("2026-09-16 · New on main", "do the new thing")
+        r = self.result()
+        self.assertEqual(r.state, NOT, r)
+        self.assertIn("New on main", r.why)
+
+    def test_truly_ahead_holds_and_says_so(self):
+        self.rules.add("2026-09-14 · Here", "already here")
+        self.stamp(self.rules.ahead("2026-09-15 · Future", "not here yet"))
+        r = self.result()
+        self.assertEqual(r.state, HOLDS, r)
+        self.assertIn("ahead of this rules checkout -- update common-rules", r.why)
+
+    def test_an_unresolvable_stamp_does_not_hold_and_lists_every_entry(self):
+        self.rules.add("2026-09-14 · First", "do one")
+        self.rules.add("2026-09-15 · Second", "do two")
+        self.stamp("9-deadbee")
+        r = self.result()
+        self.assertEqual(r.state, NOT, r)
+        self.assertIn("the stamp names no commit in common-rules", r.why)
+        self.assertIn("First", r.why)
+        self.assertIn("Second", r.why)
+        self.assertIn("--align", r.fix)
+        self.assertNotIn("CLAUDE-workflow.md", r.fix)
 
 
 class TestItem2Migrated(Copy):
@@ -449,6 +522,61 @@ class TestItem4Installed(Copy):
         git(self.p, "config", "core.excludesFile", str(personal))
         data = self.assert_breaks({4})
         self.assertIn("ruvector.db", self.item(data, 4)["why"])
+
+    def test_a_negated_ignore_line_does_not_hold(self):
+        # The verbatim line is still there; a later `!` line re-includes the path.
+        gi = self.p / ".gitignore"
+        gi.write_text(gi.read_text() + "!ruvector.db\n")
+        commit(self.p, "re-include ruvector.db")
+        data = self.assert_breaks({4})
+        self.assertIn("ruvector.db", self.item(data, 4)["why"])
+
+    def hook_path(self) -> Path:
+        hooks = Path(git(self.p, "rev-parse", "--git-path", "hooks").stdout.strip())
+        return (hooks if hooks.is_absolute() else self.p / hooks) / "pre-commit"
+
+    def current_body(self) -> str:
+        return self.hook_path().read_text().split("\n", 2)[2]
+
+    def write_marked_hook(self, body: str):
+        """A hook that passes derecord's own "may I overwrite" test."""
+        digest = hashlib.sha256(body.encode()).hexdigest()
+        self.hook_path().write_text(f"#!/usr/bin/env bash\n# derecord-body-sha256: {digest}\n{body}")
+
+    def test_a_forged_self_consistent_hook_does_not_hold(self):
+        self.write_marked_hook("exit 0\n")
+        data = self.assert_breaks({4})
+        self.assertIn("pre-commit", self.item(data, 4)["why"])
+
+    def test_a_hook_from_an_older_derecord_does_not_hold(self):
+        body = self.current_body()
+        older = body.replace("# 1. never commit a conflict marker.\n", "")
+        self.assertNotEqual(older, body)
+        self.write_marked_hook(older)
+        data = self.assert_breaks({4})
+        self.assertIn("derecord", self.item(data, 4)["fix"])
+
+    def test_a_hook_naming_another_rules_directory_does_not_hold(self):
+        body = self.current_body()
+        elsewhere = body.replace(f'RULES="{ROOT}"', f'RULES="{Path(self.tmp.name) / "other-rules"}"')
+        self.assertNotEqual(elsewhere, body)
+        self.write_marked_hook(elsewhere)
+        self.assert_breaks({4})
+
+    def test_a_copied_hooks_directory_does_not_hold(self):
+        fake = Path(self.tmp.name) / "copied-rules"
+        shutil.copytree(ROOT / "hooks", fake / "hooks")
+        write(fake, "bin/derecord", "#!/bin/sh\n")
+        path = self.p / ".claude" / "settings.json"
+        settings = json.loads(path.read_text())
+        for entry in settings["hooks"]["Stop"]:
+            for h in entry["hooks"]:
+                if h["command"].endswith("/hooks/stop"):
+                    h["command"] = str(fake / "hooks" / "stop")
+        path.write_text(json.dumps(settings, indent=2))
+        commit(self.p, "a copied hook")
+        data = self.assert_breaks({4})
+        self.assertIn("hooks/stop", self.item(data, 4)["why"])
 
     def test_a_tracked_ruflo_runtime_file_does_not_hold(self):
         write(self.p, ".swarm/memory.db", "x")
@@ -529,6 +657,24 @@ class TestItem6CommonLanguage(Copy):
         data = self.assert_breaks({6}, also={2, 12})
         self.assertIn("RQ-01", self.item(data, 6)["why"])
 
+    def test_a_tag_that_is_not_the_tag_shape_does_not_hold(self):
+        edit_ledger(self.p, lambda d: d["items"][2].update(tag="x"))
+        commit(self.p, "tag x")
+        data = self.assert_breaks({6})
+        self.assertIn("B-03", self.item(data, 6)["why"])
+
+    def test_a_tag_that_disagrees_with_the_rows_tier_and_model_does_not_hold(self):
+        edit_ledger(self.p, lambda d: d["items"][2].update(tag="[ruflo · high · opus]"))
+        commit(self.p, "a tag from another row")
+        data = self.assert_breaks({6})
+        self.assertIn("B-03", self.item(data, 6)["why"])
+
+    def test_an_owner_that_is_not_sponsor_lead_or_a_session_does_not_hold(self):
+        edit_ledger(self.p, lambda d: d["items"][1].update(owner="bob"))
+        # validate() names it too, so migration (2) and the card (12) see it.
+        data = self.assert_breaks({6}, also={2, 12})
+        self.assertIn("B-02", self.item(data, 6)["why"])
+
 
 class TestItem7Proposals(Copy):
 
@@ -585,9 +731,19 @@ class TestItem9Ruflo(Copy):
 
     def test_ruflo_memory_state_holds(self):
         self.unlog()
-        write(self.p, ".swarm/memory.db", "")
+        write(self.p, ".swarm/memory.db", "SQLite format 3\0")
         data, _ = report(self.p)
         self.assertEqual(states_of(data)[9], HOLDS)
+
+    def test_an_empty_memory_database_does_not_count(self):
+        self.unlog()
+        write(self.p, ".swarm/memory.db", "")
+        self.assert_breaks({9})
+
+    def test_a_log_that_only_says_ruflo_does_not_count(self):
+        edit_ledger(self.p, lambda d: d["items"][0]["log"][0].update(event="done", evidence="ruflo was used"))
+        commit(self.p, "a bare mention")
+        self.assert_breaks({9})
 
 
 class TestItem10Publishing(Copy):
@@ -624,6 +780,16 @@ class TestItem11Pointer(Copy):
         cm.write_text(cm.read_text().replace("# demo", "# demo, renamed"))
         data, _ = report(self.p)
         self.assertEqual(states_of(data), expected_base())
+
+    def test_a_claude_md_symlinked_out_of_the_project_does_not_hold(self):
+        cm = self.p / "CLAUDE.md"
+        outside = Path(self.tmp.name) / "CLAUDE.md"
+        outside.write_text(cm.read_text())
+        cm.unlink()
+        cm.symlink_to(outside)
+        # The declaration (3) and the card (12) refuse a read order outside the project too.
+        data = self.assert_breaks({11}, also={3, 12})
+        self.assertIn("not read", self.item(data, 11)["why"])
 
     def test_no_pointer_does_not_hold(self):
         cm = self.p / "CLAUDE.md"
