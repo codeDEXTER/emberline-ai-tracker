@@ -1,4 +1,4 @@
-"""`tracker render` turns a ledger into its page (proposal 19, W-02).
+"""`tracker render` turns a ledger into its page (proposal 19, W-02, V-03).
 
 What the page is for: the sponsor reads the plan without reading JSON, and a
 new session sees the same numbers the ledger holds. So the tests pin the
@@ -14,11 +14,18 @@ properties that make the page trustworthy rather than its look:
     three checkers that glob docs/proposals/*.html (proposalcheck's one-number-
     one-document rule, the engine's index builder and its style checker), and
     it never overwrites the hand-authored proposal page.
+  * V-03: readiness, gates, quality floors, open requests, owner markers,
+    "merged, awaiting evidence" markers and switches-off only ever appear
+    when the ledger declares that data -- a ledger with none of it renders
+    byte for byte as it did before this file existed, and every one of these
+    numbers comes from tools/tracker/ledger.py's own functions, never
+    recomputed here.
 
 Run:  python3 -m unittest discover -s tests -q
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import subprocess
@@ -32,6 +39,12 @@ sys.path.insert(0, str(ROOT))
 
 TRACKER = ROOT / "bin" / "tracker"
 ENGINE_71 = Path("/Users/the-sponsor/apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json")
+APP_70 = Path("/Users/the-sponsor/apps/PhotoVault/app/docs/proposals/70-r9-delivery-plan.json")
+
+# The commit V-01 landed the ledger contract v2 on, and the exact base V-03
+# branched from -- pinned so this test does not drift if origin/p20 moves
+# while this branch is out for review.
+V01_COMMIT = "db0ad0cb702ab1383d6169100cf07130d7b98eb5"
 
 
 def sample():
@@ -86,6 +99,37 @@ class Project:
 
     def close(self):
         self.tmp.cleanup()
+
+
+def render_html(data: dict) -> str:
+    """Render an arbitrary ledger dict and return the page text (one-shot,
+    for tests that need a variant of sample() rather than the fixed one
+    RenderCase carries)."""
+    p = Project(data)
+    try:
+        r = p.run(str(p.ledger))
+        assert r.returncode == 0, r.stdout + r.stderr
+        return p.page.read_text()
+    finally:
+        p.close()
+
+
+def _load_render_module(ref: str, name: str):
+    """The render.py blob at `ref`, imported under `name` so it can be called
+    side by side with the current module without clobbering it."""
+    shown = subprocess.run(["git", "show", f"{ref}:tools/tracker/render.py"], cwd=ROOT,
+                           capture_output=True, text=True)
+    if shown.returncode != 0:
+        raise unittest.SkipTest(f"{ref} is not in this checkout's history (no .git, or a shallow clone)")
+    content = shown.stdout
+    tmp = tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w")
+    tmp.write(content)
+    tmp.close()
+    spec = importlib.util.spec_from_file_location(name, tmp.name)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
 
 
 class RenderCase(unittest.TestCase):
@@ -215,6 +259,379 @@ class TestCheck(RenderCase):
         self.assertEqual(2, self.p.run(str(self.p.ledger)).returncode)
 
 
+class TestReadiness(unittest.TestCase):
+
+    def test_readiness_line_has_its_four_parts(self):
+        d = sample()
+        d["readiness_weights"] = {"work": 60, "gates": 20, "floors": 10, "receipts": 10}
+        d["gates"] = [{"id": "G0", "title": "Foundation", "passed": True},
+                      {"id": "G1", "title": "Shell", "passed": False}]
+        d["quality_floors"] = [{"title": "Tests green", "met": True},
+                               {"title": "Coverage", "met": False}]
+        html = render_html(d)
+        self.assertIn('<section class="readiness">', html)
+        self.assertIn("work 15.0", html)
+        self.assertIn("gates 10.0", html)
+        self.assertIn("floors 5.0", html)
+        self.assertIn("receipts 0.0", html)
+        # V-09 made the total the headline; its % is a smaller unit span.
+        self.assertIn('>30<span class="unit">%</span>', html)
+
+    def test_no_readiness_weights_means_no_readiness_line(self):
+        html = render_html(sample())
+        self.assertNotIn('class="readiness"', html)
+
+    def test_readiness_is_the_headline_number_with_its_parts_beneath(self):
+        """Proposal 20, V-09 (carried forward from V-03): readiness was small
+        grey text beside its label. It is the page's headline: a large number
+        first on the page, its four parts on the line beneath it."""
+        d = sample()
+        d["readiness_weights"] = {"work": 60, "gates": 20, "floors": 10, "receipts": 10}
+        d["gates"] = [{"id": "G0", "title": "Foundation", "passed": True},
+                      {"id": "G1", "title": "Shell", "passed": False}]
+        d["quality_floors"] = [{"title": "Tests green", "met": True},
+                               {"title": "Coverage", "met": False}]
+        html = render_html(d)
+        section = re.search(r'<section class="readiness"[^>]*>.*?</section>', html, re.S).group(0)
+        headline = section.find('<p class="headline">30<span class="unit">%</span></p>')
+        parts = section.find('<ul class="parts"><li>work 15.0</li><li>gates 10.0</li>'
+                             '<li>floors 5.0</li><li>receipts 0.0</li></ul>')
+        self.assertGreaterEqual(headline, 0, section)
+        self.assertGreater(parts, headline, "the four parts must sit beneath the number")
+        self.assertNotIn('class="count"', section, "the number is no longer grey text beside the label")
+        # First thing after the header: before the item counts and every phase.
+        self.assertLess(html.find('<section class="readiness"'), html.find('<section class="status"'))
+        # Large and prominent, in the page's own stylesheet.
+        m = re.search(r"\.readiness \.headline\{[^}]*font:700 (\d+)px", html)
+        self.assertIsNotNone(m, "no headline rule in the stylesheet")
+        self.assertGreaterEqual(int(m.group(1)), 56)
+
+    def test_the_headline_css_is_only_on_pages_with_readiness(self):
+        self.assertNotIn(".headline", render_html(sample()))
+
+
+class TestGatesAndFloors(unittest.TestCase):
+
+    def test_gates_table_shows_id_title_and_passed(self):
+        d = sample()
+        d["gates"] = [{"id": "G0", "title": "Foundation", "passed": True},
+                      {"id": "G1", "title": "Shell", "passed": False}]
+        html = render_html(d)
+        section = re.search(r'<section class="gates">.*?</section>', html, re.S).group(0)
+        self.assertIn("G0", section)
+        self.assertIn("Foundation", section)
+        self.assertIn("G1", section)
+        self.assertIn("Shell", section)
+        self.assertIn("passed", section)
+        self.assertIn("not passed", section)
+
+    def test_quality_floors_table_shows_met(self):
+        d = sample()
+        d["quality_floors"] = [{"title": "Tests green", "met": True},
+                               {"title": "Coverage", "met": False}]
+        html = render_html(d)
+        section = re.search(r'<section class="floors">.*?</section>', html, re.S).group(0)
+        self.assertIn("Tests green", section)
+        self.assertIn("Coverage", section)
+        self.assertIn("met", section)
+        self.assertIn("not met", section)
+
+    def test_no_gates_or_floors_means_no_section(self):
+        html = render_html(sample())
+        self.assertNotIn('class="gates"', html)
+        self.assertNotIn('class="floors"', html)
+
+
+class TestOpenRequests(unittest.TestCase):
+
+    def test_open_requests_render_both_directions_and_hide_closed_ones(self):
+        d = sample()
+        d["requests"] = [
+            {"id": "RQ-01", "from": "lead", "to": "sponsor", "state": "open", "unblocks": ["W-02"]},
+            {"id": "RQ-02", "from": "sponsor", "to": "lead", "state": "in progress", "unblocks": []},
+            {"id": "RQ-03", "from": "lead", "to": "sponsor", "state": "declined", "unblocks": []},
+        ]
+        html = render_html(d)
+        self.assertRegex(html, r'<tr class="request" data-id="RQ-01" data-state="open">')
+        self.assertRegex(html, r'<tr class="request" data-id="RQ-02" data-state="in progress">')
+        self.assertNotIn('data-id="RQ-03"', html)
+        row = re.search(r'<tr class="request" data-id="RQ-01".*?</tr>', html, re.S).group(0)
+        self.assertIn("lead", row)
+        self.assertIn("sponsor", row)
+        self.assertIn("W-02", row)
+
+    def test_no_requests_means_no_section(self):
+        html = render_html(sample())
+        self.assertNotIn('class="requests"', html)
+        self.assertNotIn('class="request"', html)
+
+
+class TestOwnerMarkers(unittest.TestCase):
+
+    def test_blocked_row_shows_its_owner(self):
+        d = sample()
+        d["items"][2]["owner"] = "sponsor"  # W-03, blocked
+        html = render_html(d)
+        row = re.search(r'<tr class="item" data-id="W-03".*?</tr>', html, re.S).group(0)
+        self.assertIn("sponsor", row)
+
+    def test_open_ask_shows_its_owner(self):
+        d = sample()
+        d["asks"][1]["owner"] = "lead"  # A-02, open
+        html = render_html(d)
+        row = re.search(r'<tr class="ask" data-id="A-02".*?</tr>', html, re.S).group(0)
+        self.assertIn("lead", row)
+
+    def test_answered_ask_does_not_show_an_owner_marker(self):
+        d = sample()
+        d["asks"][0]["owner"] = "sponsor"  # A-01, became-item, not open
+        html = render_html(d)
+        row = re.search(r'<tr class="ask" data-id="A-01".*?</tr>', html, re.S).group(0)
+        self.assertNotIn("sponsor", row)
+
+    def test_no_owner_means_no_marker(self):
+        html = render_html(sample())
+        row = re.search(r'<tr class="item" data-id="W-03".*?</tr>', html, re.S).group(0)
+        self.assertNotIn("owner", row)
+
+
+class TestMergedAwaitingEvidence(unittest.TestCase):
+
+    def test_merged_but_not_done_row_is_marked(self):
+        d = sample()
+        d["items"][1]["merged"] = "abc1234"  # W-02, in progress
+        html = render_html(d)
+        row = re.search(r'<tr class="item" data-id="W-02".*?</tr>', html, re.S).group(0)
+        self.assertIn("merged, awaiting evidence", row)
+
+    def test_merged_and_done_row_is_not_marked(self):
+        d = sample()
+        d["items"][0]["merged"] = "abc1234"  # W-01, already done
+        html = render_html(d)
+        row = re.search(r'<tr class="item" data-id="W-01".*?</tr>', html, re.S).group(0)
+        self.assertNotIn("merged, awaiting evidence", row)
+
+    def test_no_merged_field_means_no_marker_anywhere(self):
+        html = render_html(sample())
+        self.assertNotIn("awaiting evidence", html)
+
+
+class TestSwitches(unittest.TestCase):
+
+    def test_off_switch_shows_by_and_at(self):
+        d = sample()
+        d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00"}}
+        html = render_html(d)
+        section = re.search(r'<section class="switches">.*?</section>', html, re.S).group(0)
+        self.assertIn("publish", section)
+        self.assertIn("sponsor", section)
+        self.assertIn("2026-09-14 10:00", section)
+
+    def test_on_switch_is_not_listed(self):
+        d = sample()
+        d["switches"] = {"issues": {"on": True}}
+        html = render_html(d)
+        self.assertNotIn('class="switches"', html)
+
+    def test_no_switches_means_no_section(self):
+        html = render_html(sample())
+        self.assertNotIn('class="switches"', html)
+
+
+class TestWaitingOn(unittest.TestCase):
+
+    def test_owners_are_grouped_with_what_blocks_them(self):
+        d = sample()
+        d["items"][2]["owner"] = "sponsor"  # W-03, blocked
+        d["asks"][1]["owner"] = "lead"      # A-02, open
+        html = render_html(d)
+        section = re.search(r'<section class="waiting">.*?</section>', html, re.S).group(0)
+        self.assertIn("sponsor", section)
+        self.assertIn("W-03", section)
+        self.assertIn("lead", section)
+        self.assertIn("A-02", section)
+
+    def test_no_owners_means_no_waiting_section(self):
+        html = render_html(sample())
+        self.assertNotIn('class="waiting"', html)
+
+
+class TestBackwardCompatibility(unittest.TestCase):
+
+    def test_a_ledger_without_the_new_keys_renders_byte_for_byte_as_before(self):
+        baseline = _load_render_module(V01_COMMIT, "tracker_render_v01_baseline")
+        from tools.tracker import render as current
+        data = sample()
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_path = Path(tmp) / "19-proposal-warmup.json"
+            ledger_path.write_text(json.dumps(data, indent=2))
+            old_html = baseline.render(data, ledger_path, None)
+            new_html = current.render(data, ledger_path, None)
+        self.assertEqual(old_html, new_html)
+
+
+URL = "https://claude.ai/code/artifact/00000000-0000-0000-0000-000000000000"
+
+
+class TestPublished(RenderCase):
+    """Proposal 20, V-09 (D1): an artifact is published only through a
+    session's Artifact tool, which no script can call. `tracker published`
+    records what was published -- the URL and the digest of the page as it
+    stands -- in a committed sidecar beside the page, so the card can say when
+    the page has moved since. It refuses to record a page that is not the
+    ledger's current page, a URL that is not one https line, and anything at
+    all when the ledger switches publishing off."""
+
+    @property
+    def sidecar(self):
+        return self.p.proposals / "tracker" / "19-proposal-warmup.published.json"
+
+    def published(self, *args):
+        return subprocess.run([sys.executable, str(TRACKER), "published", str(self.p.ledger), *args],
+                              capture_output=True, text=True, check=False, cwd=self.p.root)
+
+    def test_it_records_url_page_digest_real_clock_and_by(self):
+        import datetime
+        import hashlib
+        self.render()
+        before = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+        r = self.published("--url", URL, "--by", "lead")
+        after = datetime.datetime.now(datetime.timezone.utc)
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        record = json.loads(self.sidecar.read_text())
+        self.assertEqual({"url", "digest", "at", "by"}, set(record))
+        self.assertEqual(URL, record["url"])
+        self.assertEqual(hashlib.sha256(self.p.page.read_bytes()).hexdigest(), record["digest"])
+        self.assertEqual("lead", record["by"])
+        self.assertRegex(record["at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$")
+        at = datetime.datetime.fromisoformat(record["at"])
+        self.assertTrue(before <= at <= after, f"{at} is not the real clock ({before} .. {after})")
+
+    def test_the_sidecar_is_deterministic_json(self):
+        self.render()
+        self.assertEqual(0, self.published("--url", URL).returncode)
+        text = self.sidecar.read_text()
+        self.assertEqual(json.dumps(json.loads(text), indent=2, sort_keys=True, ensure_ascii=False) + "\n", text)
+
+    def test_by_is_optional_and_recorded_as_null(self):
+        self.render()
+        self.assertEqual(0, self.published("--url", URL).returncode)
+        self.assertIsNone(json.loads(self.sidecar.read_text())["by"])
+
+    def test_a_missing_page_is_refused(self):
+        r = self.published("--url", URL)
+        self.assertEqual(1, r.returncode)
+        self.assertIn("missing", r.stderr)
+        self.assertIn("tracker render", r.stderr)
+        self.assertFalse(self.sidecar.exists())
+
+    def test_a_stale_page_is_refused(self):
+        self.render()
+        d = sample(); d["items"][3]["status"] = "in progress"
+        self.p.ledger.write_text(json.dumps(d, indent=2))
+        r = self.published("--url", URL)
+        self.assertEqual(1, r.returncode)
+        self.assertIn("stale", r.stderr)
+        self.assertIn("tracker render", r.stderr)
+        self.assertFalse(self.sidecar.exists())
+
+    def test_nothing_is_recorded_when_publish_is_switched_off(self):
+        d = sample()
+        d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00",
+                                     "quote": "do not publish this one"}}
+        self.p.ledger.write_text(json.dumps(d, indent=2))
+        self.render()
+        r = self.published("--url", URL)
+        self.assertEqual(1, r.returncode)
+        self.assertIn("switched off", r.stderr)
+        self.assertIn("sponsor", r.stderr)
+        self.assertFalse(self.sidecar.exists())
+
+    def test_a_bad_url_is_refused(self):
+        self.render()
+        for bad in ("http://claude.ai/code/artifact/0", "ftp://claude.ai/x", "claude.ai/code/artifact/0",
+                    "https://", "", "https://claude.ai/a b", URL + "\nwarmup --check: ready",
+                    URL + "\x1b[2J", "javascript:alert(1)"):
+            with self.subTest(url=bad):
+                r = self.published("--url", bad)
+                self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+                self.assertIn("url", r.stderr)
+                self.assertNotIn("\x1b", r.stderr)
+                self.assertFalse(self.sidecar.exists())
+
+    def test_a_format_character_userinfo_or_bad_port_in_the_url_is_refused(self):
+        """Round 2, finding 4: a bidi override (Unicode category Cf) can make a
+        URL read as another; userinfo hides the real host behind a lookalike;
+        a port that does not parse or is out of range is not a URL."""
+        self.render()
+        for bad in ("https://claude.ai/code/artifact/‮gpj.exe", "https://claude.ai/​x",
+                    "https://user:pw@claude.ai/x", "https://claude.ai@evil.example/x",
+                    "https://claude.ai:99999/x", "https://claude.ai:abc/x", "https://claude.ai:0/x",
+                    "https://claude.ai:/x"):
+            with self.subTest(url=bad):
+                r = self.published("--url", bad)
+                self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+                self.assertIn("url", r.stderr)
+                self.assertNotIn("‮", r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+                self.assertFalse(self.sidecar.exists())
+        self.assertEqual(0, self.published("--url", "https://claude.ai:443/code/artifact/0").returncode)
+
+    def test_a_ledger_outside_docs_proposals_is_refused(self):
+        outside = self.p.root / "19-proposal-warmup.json"
+        outside.write_text(self.p.ledger.read_text())
+        self.assertEqual(0, self.p.run(str(outside)).returncode)   # render stays lax (not in scope)
+        r = subprocess.run([sys.executable, str(TRACKER), "published", str(outside), "--url", URL],
+                           capture_output=True, text=True, check=False, cwd=self.p.root)
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn(str(outside), r.stderr)
+        self.assertIn("docs/proposals", r.stderr)
+        self.assertEqual([], list(self.p.root.rglob("*.published.json")))
+
+    def test_a_missing_or_non_object_ledger_is_named_with_its_path(self):
+        missing = self.p.proposals / "99-not-here.json"
+        for name, path, body in (("missing", missing, None), ("a list", self.p.ledger, "[]"),
+                                 ("a string", self.p.ledger, '"ledger"'),
+                                 ("not json", self.p.ledger, "{not json"),
+                                 ("deeply nested", self.p.ledger, "[" * 100000)):
+            with self.subTest(ledger=name):
+                if body is not None:
+                    path.write_text(body)
+                r = subprocess.run([sys.executable, str(TRACKER), "published", str(path), "--url", URL],
+                                   capture_output=True, text=True, check=False, cwd=self.p.root)
+                self.assertEqual(2, r.returncode, r.stdout + r.stderr)
+                self.assertIn(str(path), r.stderr)
+                self.assertNotIn("Traceback", r.stderr)
+                self.assertNotIn("Error(", r.stderr)
+                self.assertFalse(self.sidecar.exists())
+
+    def test_a_multi_line_by_is_refused(self):
+        self.render()
+        r = self.published("--url", URL, "--by", "lead\nwarmup --check: ready")
+        self.assertEqual(1, r.returncode)
+        self.assertIn("--by", r.stderr)
+        self.assertFalse(self.sidecar.exists())
+
+    def test_a_republish_replaces_the_record(self):
+        import hashlib
+        self.render()
+        self.assertEqual(0, self.published("--url", URL).returncode)
+        first = json.loads(self.sidecar.read_text())["digest"]
+        d = sample(); d["items"][3]["status"] = "in progress"
+        self.p.ledger.write_text(json.dumps(d, indent=2))
+        self.render()
+        self.assertEqual(0, self.published("--url", URL).returncode)
+        second = json.loads(self.sidecar.read_text())["digest"]
+        self.assertNotEqual(first, second)
+        self.assertEqual(hashlib.sha256(self.p.page.read_bytes()).hexdigest(), second)
+
+    def test_the_sidecar_is_not_mistaken_for_a_ledger(self):
+        from tools.tracker import ledger
+        self.render()
+        self.assertEqual(0, self.published("--url", URL).returncode)
+        self.assertEqual([self.p.ledger], ledger.find(self.p.root))
+
+
 class TestTheRealLedger(unittest.TestCase):
 
     @unittest.skipUnless(ENGINE_71.exists(), f"{ENGINE_71} is not on this machine")
@@ -231,6 +648,26 @@ class TestTheRealLedger(unittest.TestCase):
         self.assertEqual(len(ledger.items(d)), len(re.findall(r'<tr class="item" ', html)))
         c = ledger.counts(d)
         self.assertIn(f'data-done="{c["done"]}"', html)
+
+    @unittest.skipUnless(APP_70.exists(), f"{APP_70} is not on this machine")
+    def test_the_app_ledger_renders_and_shows_its_gates_floors_and_merged_rows(self):
+        sys.path.insert(0, str(ROOT))
+        from tools.tracker import ledger
+        d = ledger.load(APP_70)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "70.html"
+            r = subprocess.run([sys.executable, str(TRACKER), "render", str(APP_70), "--out", str(out)],
+                               capture_output=True, text=True, check=False)
+            self.assertEqual(0, r.returncode, r.stderr)
+            html = out.read_text()
+        self.assertEqual(len(ledger.items(d)), len(re.findall(r'<tr class="item" ', html)))
+        c = ledger.counts(d)
+        self.assertIn(f'data-done="{c["done"]}"', html)
+        # This ledger declares gates and quality floors, and has rows merged
+        # but not yet done -- all three sections/markers should appear.
+        self.assertIn('<section class="gates">', html)
+        self.assertIn('<section class="floors">', html)
+        self.assertIn("merged, awaiting evidence", html)
 
 
 if __name__ == "__main__":

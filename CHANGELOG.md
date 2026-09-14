@@ -1,5 +1,81 @@
 # Changelog — common-rules
 
+## 2026-09-14 · Proposal 20 built: a project declares itself, the ledger carries the rest
+
+The build of proposal 20 (`20-proposal-warmup-from-the-app.json`, V-00 to
+V-10). Every piece ran in its own worktree, with a report-only reviewer of at
+most the same tier for at most two rounds (D10); every review finding and every
+ruling is in the ledger's log.
+
+- **`.common-rules.json` (V-00, D9).** A project declares its read order,
+  safety-rules section, quick and merge gates, plan checker and plan page.
+  `land` runs `gates.merge`, then `.common-rules-test`, then its guess. The
+  card, `--check` and the migration pointer follow the declared order. Every
+  value is untrusted: a malformed or wrong-type declaration, a command that is
+  not one line, or a path outside the project refuses in `land`, fails
+  `--check`, and stops migrate writing the pointer.
+- **Ledger contract v2 (V-01, D2 and D4–D8), every addition optional.** It
+  checks a row's model against `tiers` unless the row gives
+  `model_override_reason`. It adds `owner`, `switches`, `requests` (RQ-NN),
+  verify levels against a declared ladder, evidence keys, gates, quality
+  floors, receipts and merged shas. Readiness is computed with the PhotoVault
+  app's own `build_plan.py` formula, and a test holds both to the same number
+  on the app's real ledger. That test caught a first version that said 30%
+  where the app says 26%. Ids, owners, switch and request text must be one
+  line, and every problem `validate` returns is printable.
+- **Tracker page v2 (V-03)** draws readiness, gates, floors, open requests,
+  owners, switches that are off, and merged rows still awaiting evidence.
+- **`tracker sync` honours `switches.issues` (V-04):** with issues switched
+  off it makes no `gh` call and says who switched it off, and when.
+- **Agent tag reminder (V-05, D3, changed by PC-01):** a PostToolUse hook, not
+  PreToolUse, which can only allow, deny or ask. After an untagged Agent spawn
+  that names a ledger id, it adds the row's `[ruflo · tier · model]` tag.
+- **`bin/ruflo-item` (V-06, D11):** `start | done | note | recall` around an
+  item. `done` runs the declared merge gate before `post-task`. The daemon
+  stops on every exit, including SIGTERM. `RUFLO` takes a command such as
+  `npx -y ruflo@latest`, and `RUFLO_NAMESPACE` keeps a project's existing
+  memories.
+- **derecord v2 (V-07, D12, D13).** The pre-commit hook regenerates and stages
+  the page and checkpoint whenever a ledger is staged. Runtime state is
+  ignored, config stays tracked, and already-tracked runtime files are
+  reported with the `git rm --cached` command. The PostToolUse hook is
+  installed with matcher `Agent|Task`.
+- **The warm card v2 (V-02):** readiness, merged rows awaiting evidence, the
+  sponsor's own items on the yours line, switches that are off, open requests
+  both ways, and the project's routing table as declared -- each line only when
+  the ledger or declaration has the data. Every printed value goes through one
+  escaping function, and so does `--check`'s report: a ledger value carrying a
+  newline cannot forge a line such as "warmup --check: ready". A declared
+  safety-rules heading that is not in its file fails `--check`.
+- **Publishing is recorded, and the card says when a page has moved (V-09, D1).**
+  Only a session's Artifact tool can publish, so nothing publishes by itself.
+  `tracker published <ledger> --url <url>` records the page's digest in a
+  committed `<stem>.published.json`. The card then says "page changed since last
+  publish" whenever the page differs; that line never fails `--check`.
+  `/warmup` and the lead prompt republish the page in place and record it again.
+  No sponsor prompt is needed, and nothing is published when
+  `switches.publish` is off. A page that was already published is recorded at
+  once. The order is: commit the ledger edits, publish the committed page, then
+  commit the sidecar on its own. A republish is not logged in the ledger, because
+  a log entry would move the page again. The page shows readiness as its
+  headline number.
+- **Templates (V-08, D10):** high-tier items run in parallel on disjoint files,
+  each with a report-only reviewer. A brief carries its verify level.
+
+**Behaviour changes for an adopted project**, all from re-running `derecord`
+or adding a declaration:
+- A project that adds `.common-rules.json` changes what `land` runs.
+- After `derecord`, a commit that stages a ledger also carries its page and
+  checkpoint.
+- That commit is refused when the ledger, its page or the checkpoint has
+  unstaged edits.
+- A project's own pre-commit hook is kept as `pre-commit.local` and chained.
+  derecord refuses if that name is taken, and refuses a malformed
+  `.claude/settings.json` without changing anything.
+
+Ledgers that declare none of the new keys validate as before; the PhotoVault
+app's 70 and engine's 71 both do.
+
 ## 2026-09-14 · Proposal 20: Warm-up, from the app — accepted
 
 `docs/proposals/20-proposal-warmup-from-the-app.html`. A second pass on the

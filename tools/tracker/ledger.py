@@ -27,6 +27,7 @@ ledger 58 times a day.
 from __future__ import annotations
 
 import json
+import math
 import re
 from pathlib import Path
 
@@ -36,17 +37,17 @@ ASK_STATES = ("open", "answered", "became-item", "declined")
 CLASSES = ("C1", "C2", "C3", "C4")
 
 # An item id is a phase letter-group and a number: R-01, E1-09, X-03, W-10.
-ITEM_ID = re.compile(r"^[A-Z][A-Z0-9]*-\d{2,}$")
-ASK_ID = re.compile(r"^A-\d{2,}$")
+ITEM_ID = re.compile(r"^[A-Z][A-Z0-9]*-\d{2,}\Z")
+ASK_ID = re.compile(r"^A-\d{2,}\Z")
 
 REQUIRED_ITEM_KEYS = ("id", "phase", "cx", "title", "status")
 
 # Proposal 20 additions. Every one is optional: a ledger that declares none of
 # them validates exactly as before, which is how the PhotoVault engine's and
 # app's ledgers stay valid while they adopt the pieces they want.
-OWNER = re.compile(r"^(sponsor|lead|session:.+)$")          # D4
+OWNER = re.compile(r"^(sponsor|lead|session:[^\x00-\x1f\x7f-\x9f]+)\Z")          # D4
 SWITCHES = ("issues", "publish", "ruflo")                     # D5
-REQUEST_ID = re.compile(r"^RQ-\d{2,}$")                       # D7
+REQUEST_ID = re.compile(r"^RQ-\d{2,}\Z")                       # D7
 REQUEST_STATES = ("open", "in progress", "answered", "declined")
 
 
@@ -168,7 +169,54 @@ def validate(ledger: dict) -> list[str]:
         if a.get("state") == "became-item" and not a.get("became"):
             problems.append(f"{name}: became-item but `became` names nothing")
     problems.extend(_validate_v2(ledger, ids, ask_ids))
-    return problems
+    # A message can quote a malformed id; every problem is printed as one line
+    # (V-02 final review: "Z-01\\nwarmup --check: ready" split a problem in two).
+    return [_printable(p) for p in problems]
+
+
+_CONTROL = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def _printable(text: str) -> str:
+    """Control characters as visible escapes, lone surrogates as U+FFFD."""
+    out = []
+    for ch in text:
+        cp = ord(ch)
+        if ch == "\n":
+            out.append("\\n")
+        elif ch == "\t":
+            out.append("\\t")
+        elif cp < 0x20 or 0x7f <= cp <= 0x9f:
+            out.append(f"\\x{cp:02x}")
+        elif 0xD800 <= cp <= 0xDFFF:
+            out.append("\ufffd")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _one_line(value) -> bool:
+    """A string with no control character and no lone surrogate: safe to print
+    as part of one card or page line (\\Z, not $, so a trailing newline fails)."""
+    if not isinstance(value, str) or _CONTROL.search(value):
+        return False
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+def _number(value) -> bool:
+    """A finite, non-negative int or float -- not a bool (JSON true is not a
+    weight), and not NaN or Infinity, which json.loads accepts."""
+    return (isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(value) and value >= 0)
+
+
+def _not_a_number(value) -> str:
+    finite = isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    return "is negative" if finite and value < 0 else "is not a number"
 
 
 def _evident(value) -> bool:
@@ -179,6 +227,24 @@ def _evident(value) -> bool:
 def _validate_v2(ledger: dict, ids: set, ask_ids: set) -> list[str]:
     """Proposal 20's contract additions, each checked only when declared."""
     problems: list[str] = []
+    for key in ("gates", "quality_floors", "requests"):
+        if key in ledger and not isinstance(ledger[key], list):
+            problems.append(f"{key}: must be a list")
+    if "native_receipts" in ledger and not isinstance(ledger["native_receipts"], dict):
+        problems.append("native_receipts: must be an object")
+    for key in ("readiness_weights", "size_weights"):
+        table = ledger.get(key)
+        if table is None:
+            continue
+        if not isinstance(table, dict):
+            problems.append(f"{key}: must be an object")
+            continue
+        for name, value in table.items():
+            if not _number(value):
+                problems.append(f"{key}.{name}: {value!r} {_not_a_number(value)}")
+    for n, i in enumerate(items(ledger)):
+        if "weight" in i and not _number(i["weight"]):
+            problems.append(f"{i.get('id') or f'items[{n}]'}: weight {i['weight']!r} {_not_a_number(i['weight'])}")
     tiers = ledger.get("tiers") if isinstance(ledger.get("tiers"), dict) else {}
     was_ids = {i.get("was") for i in items(ledger) if i.get("was")}
     ladder = {l.get("level") for l in (ledger.get("verification_ladder") or []) if isinstance(l, dict)}
@@ -220,6 +286,10 @@ def _validate_v2(ledger: dict, ids: set, ask_ids: set) -> list[str]:
                     problems.append(f"switches.{sname}: `on` must be true or false")
                 elif sw["on"] is False and not (sw.get("by") and sw.get("at")):
                     problems.append(f"switches.{sname}: off without `by` and `at`")
+                else:
+                    for field in ("by", "at", "quote"):
+                        if field in sw and not _one_line(sw[field]):
+                            problems.append(f"switches.{sname}: `{field}` must be one line of text")
 
     seen: set[str] = set()                                                                     # D7
     for n, r in enumerate(ledger.get("requests") or []):
@@ -239,6 +309,8 @@ def _validate_v2(ledger: dict, ids: set, ask_ids: set) -> list[str]:
         for side in ("from", "to"):
             if not r.get(side):
                 problems.append(f"{name}: no `{side}`")
+            elif not _one_line(r[side]):
+                problems.append(f"{name}: `{side}` must be one line of text")
         for u in r.get("unblocks") or []:
             if isinstance(u, str) and ITEM_ID.match(u) and u not in ids:
                 problems.append(f"{name}: unblocks {u}, which is not an item")
@@ -283,34 +355,53 @@ def merged_waiting(ledger: dict) -> list[str]:
 def readiness(ledger: dict) -> dict | None:
     """Readiness from the ledger's declared weights (D8), or None when it declares none.
 
-    Work: a done row earns its weight, a row in progress that is merged (or has
-    passing tests) earns half; weight defaults to 1. Gates, floors and receipts
-    score the share passed, met or captured. Never typed -- computed each time.
+    The PhotoVault app's tools/build_plan.py score(), generalised:
+      work      a done row earns its weight; a row in progress earns half only
+                when its focused tests pass (evidence.tests is true). Merged
+                code earns nothing until it is done: merged_waiting() shows it.
+                A row's weight is size_weights[size] when the ledger declares
+                size_weights, else its own `weight`, else 1. Dropped rows are
+                left out.
+      gates     the share passed; floors the share met (rounded to 0.1 before
+                the total, as the app does).
+      receipts  the share of native_receipts recorded, over primary_surfaces
+                when declared, else over every receipt key.
+    Never typed: computed each time from the rows. None, too, when a declared
+    weight is not a number; validate() names it.
     """
     w = ledger.get("readiness_weights")
-    if not isinstance(w, dict):
+    if not isinstance(w, dict) or not all(_number(v) for v in w.values()):
+        return None                      # validate() names the bad value
+    sizes = ledger.get("size_weights") if isinstance(ledger.get("size_weights"), dict) else None
+    if sizes is not None and not all(_number(v) for v in sizes.values()):
         return None
-    rows = items(ledger)
-    total = sum(float(i.get("weight", 1)) for i in rows) or 1.0
+    if any("weight" in i and not _number(i["weight"]) for i in items(ledger)):
+        return None
+
+    def weight(i: dict) -> float:
+        if sizes is not None and i.get("size") in sizes:
+            return float(sizes[i["size"]])
+        return float(i.get("weight", 1))
+
+    rows = [i for i in items(ledger) if i.get("status") != "dropped"]
+    total = sum(weight(i) for i in rows) or 1.0
     earned = 0.0
     for i in rows:
-        weight = float(i.get("weight", 1))
         ev = i.get("evidence") if isinstance(i.get("evidence"), dict) else {}
         if i.get("status") == "done":
-            earned += weight
-        elif i.get("status") == "in progress" and (i.get("merged") not in (None, False, "") or ev.get("tests") is True):
-            earned += weight / 2
+            earned += weight(i)
+        elif i.get("status") == "in progress" and ev.get("tests") is True:
+            earned += weight(i) / 2
     gates = [g for g in (ledger.get("gates") or []) if isinstance(g, dict)]
     floors = [f for f in (ledger.get("quality_floors") or []) if isinstance(f, dict)]
     native = ledger.get("native_receipts") if isinstance(ledger.get("native_receipts"), dict) else {}
-    part = {
-        "work": round(float(w.get("work", 0)) * earned / total, 1),
-        "gates": round(float(w.get("gates", 0)) * sum(1 for g in gates if g.get("passed") is True) / len(gates), 1) if gates else 0.0,
-        "floors": round(float(w.get("floors", 0)) * sum(1 for f in floors if f.get("met") is True) / len(floors), 1) if floors else 0.0,
-        "receipts": round(float(w.get("receipts", 0)) * sum(1 for v in native.values() if v) / len(native), 1) if native else 0.0,
-    }
-    part["readiness"] = round(sum(part.values()))
-    return part
+    surfaces = ledger.get("primary_surfaces") if isinstance(ledger.get("primary_surfaces"), list) else list(native)
+    work = float(w.get("work", 0)) * earned / total
+    gate = float(w.get("gates", 0)) * sum(1 for g in gates if g.get("passed") is True) / (len(gates) or 1)
+    floor = round(float(w.get("floors", 0)) * sum(1 for f in floors if f.get("met") is True) / (len(floors) or 1), 1)
+    receipt = float(w.get("receipts", 0)) * sum(1 for s in surfaces if native.get(s)) / (len(surfaces) or 1)
+    return {"work": round(work, 1), "gates": round(gate, 1), "floors": floor,
+            "receipts": round(receipt, 1), "readiness": round(work + gate + floor + receipt)}
 
 
 def find(project) -> list[Path]:

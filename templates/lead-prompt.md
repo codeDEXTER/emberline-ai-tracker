@@ -65,8 +65,20 @@ this job and is not watching in real time. You are.
 - Every blocked row and every decision ask carries an `owner` —
   `sponsor`, `lead`, or a session named by its own name (proposal 20 D4).
 - After the ledger moves, run `bin/tracker render` so the rendered page
-  never drifts from the JSON it comes from; when the card says the page
-  changed since it was last published, republish it (proposal 20 D1).
+  never drifts from the JSON it comes from. When the card says the page
+  changed since it was last published, republish it (proposal 20 D1):
+  commit ledger edits first (committing re-renders the page), then publish
+  the committed page with your Artifact tool to the same URL, then record
+  it with `bin/tracker published <ledger> --url <url>` and commit the
+  sidecar on its own. No sponsor prompt is needed; when the ledger's
+  `switches.publish` is off, nothing is published. A republish is not
+  logged as a ledger event: the sidecar's `at` and `by` in git are the
+  record. This is the one exception to the log-entry rule above, because
+  a log entry would itself move the page.
+- When a tracker page is published for the first time, or you find one
+  already published (a URL in the handover, lead prompt or log) with no
+  `<stem>.published.json`, record it at once with `tracker published`;
+  from then on the card tells you when it moves.
 - Every sponsor message that is not an answer to a question becomes an
   `A-nn` ask row, in the same turn it is said.
 

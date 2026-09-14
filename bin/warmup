@@ -17,11 +17,34 @@ and asks nothing.
 
 WHAT --check FAILS ON, and what it only shows. It fails on what can be
 verified: a missing standard file, an invalid ledger, a rendered page or a
-checkpoint whose digest no longer matches its ledger, and a HANDOFF.md or
-OPERATING-RULES.md still carrying {{PLACEHOLDERS}} a seed left for the lead.
-It shows, and never fails on, how many commits the prose files are behind
-HEAD: prose cannot be digest-checked, and failing on a count of commits
-punishes the busiest projects rather than the neglected ones.
+checkpoint whose digest no longer matches its ledger, a file in the declared
+read order (HANDOFF.md and docs/OPERATING-RULES.md, by default) still
+carrying {{PLACEHOLDERS}} a seed left for the lead, and a declared
+safety_rules heading that is not in its file (proposal 20, V-02). It shows,
+and never fails on, how many commits the prose files are behind HEAD: prose
+cannot be digest-checked, and failing on a count of commits punishes the
+busiest projects rather than the neglected ones.
+
+A PROJECT'S OWN ENTRY POINTS (proposal 20, D9). A project that declares them
+in .common-rules.json (see tools/project.py) gets them: the prose checks run
+on its read_order instead of HANDOFF.md and OPERATING-RULES.md, prohibitions
+come from its safety_rules section, and the card shows its quick and merge
+gates. A broken declaration -- malformed, a wrong type, a command that is not
+one line, a path outside the project, a declared file that does not exist --
+is a problem, and no declared path outside the project is read or hashed. With no
+declaration the card and --check are unchanged. --json and --state carry four
+more keys either way -- prose, prohibitions_from, quick_gate and
+merge_gate_declared -- and tests/test_project_declaration.py pins the set.
+
+PAGE CHANGED SINCE LAST PUBLISH (proposal 20, V-09, D1). A page is published
+only through a session's Artifact tool, which no script can call; `tracker
+published` records the URL and the page's digest in
+docs/proposals/tracker/<stem>.published.json. When the page on disk no longer
+matches that digest the card prints `page changed since last publish: <stem>
+→ <url>` -- and --since prints it when it is news. It is a to-do, not a
+broken standard, so --check never fails on it. No sidecar, or
+switches.publish off: no line. A sidecar that cannot be read is a problem.
+Each ledger in --json/--state carries `published` (None without a record).
 
 It never runs Ruflo. The CLI auto-starts a daemon that spends tokens until
 stopped (measured in the PhotoVault engine, 7 September). Warm-up says where
@@ -44,11 +67,12 @@ from pathlib import Path
 RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
+from tools import project as P  # noqa: E402
 from tools.tracker import checkpoint as CP  # noqa: E402
 from tools.tracker import ledger as L  # noqa: E402
 from tools.tracker import render as R  # noqa: E402
 
-PROSE = ("HANDOFF.md", "docs/OPERATING-RULES.md")
+PROSE = tuple(P.DEFAULTS["read_order"])
 PLACEHOLDER = re.compile(r"\{\{[A-Z0-9_]+\}\}")
 STOP = {"with", "from", "that", "this", "into", "when", "what", "their", "does", "and", "the", "for"}
 
@@ -71,21 +95,11 @@ def behind(project: Path, rel: str) -> int | None:
 
 
 def test_command(project: Path) -> str:
-    """land's test_cmd(), in the same order with the same tests. Pinned equal
-    to land's own answer by tests/test_warmup.py. A declared gate in
-    .common-rules-test wins over the guess."""
-    declared = project / ".common-rules-test"
-    if declared.is_file():
-        for line in declared.read_text(errors="replace").splitlines():
-            line = line.strip()
-            if line and not line.startswith("#"):
-                return line
-    if (project / "tests").is_dir() and glob.glob(str(project / "tests" / "*.py")):
-        return "python3 -m unittest discover -s tests -q"
-    pkg = project / "package.json"
-    if pkg.is_file() and '"test"' in pkg.read_text(errors="replace"):
-        return "npm test --silent"
-    return ""
+    """land's test_cmd(), in the same order with the same tests: gates.merge in
+    .common-rules.json, then .common-rules-test, then the guess -- and a
+    declaration that cannot be read is land's refusal. Pinned equal to land's
+    own answer by tests/test_warmup.py."""
+    return P.test_command(project)
 
 
 def ruflo_cli() -> str | None:
@@ -107,22 +121,160 @@ def rules_status(project: Path) -> str:
     return {0: "aligned", 1: "STALE -- run rulecheck and read what changed"}.get(rc, "could not check")
 
 
-def prohibitions(handoff: Path) -> list[str]:
-    if not handoff.is_file():
-        return []
-    out, inside = [], False
-    for line in handoff.read_text(errors="replace").splitlines():
-        if line.startswith("## "):
-            # "## Prohibitions, verbatim" in the template; "## Two prohibitions.
-            # Verbatim, non-negotiable." in the PhotoVault engine, whose card
-            # said "none found" until this matched the word, not the prefix.
-            inside = "prohibition" in line.lower()
+def prohibitions(project: Path, safety_rules=P.DEFAULTS["safety_rules"], confine: bool = False) -> list[str]:
+    """List items and bold-numbered lines, verbatim, from each declared
+    FILE#heading: the `## ` section whose heading contains that text. A
+    declared source (confine) is read only when it resolves inside the project."""
+    out = []
+    for rel, heading in P.safety_sources(safety_rules):
+        path = project / rel
+        if not path.is_file() or (confine and not P.inside(project, rel)):
             continue
-        s = line.strip()
-        # "1. **Never ...**" (template) and "**1. Never ...**" (engine), or a bullet.
-        if inside and (re.match(r"^(\*\*)?\d+\.\s*\S", s) or re.match(r"^[-*]\s+\S", s)):
-            out.append(s)
+        needle, inside = heading.lower(), False
+        for line in path.read_text(errors="replace").splitlines():
+            if line.startswith("## "):
+                # "## Prohibitions, verbatim" in the template; "## Two prohibitions.
+                # Verbatim, non-negotiable." in the PhotoVault engine, whose card
+                # said "none found" until this matched the word, not the prefix.
+                # "## Hard safety rules" in the PhotoVault app's CLAUDE.md (D9).
+                inside = needle in line[3:].lower()
+                continue
+            s = line.strip()
+            # "1. **Never ...**" (template) and "**1. Never ...**" (engine), or a bullet.
+            if inside and (re.match(r"^(\*\*)?\d+\.\s*\S", s) or re.match(r"^[-*]\s+\S", s)):
+                out.append(s)
     return out[:6]
+
+
+def safety_heading_problems(project: Path, safety_rules, confine: bool) -> list[str]:
+    """A declared FILE#heading whose file exists but the `## ` heading itself
+    is not in it (proposal 20, V-02, deferred from V-00's finding 7): a named
+    problem, so --check fails on it instead of the card just saying "none
+    found in <file>" with nothing verifiable to fix. A missing file or one
+    confine already excluded is P.problems()'s to name, not named twice here."""
+    out = []
+    for rel, heading in P.safety_sources(safety_rules):
+        if confine and not P.inside(project, rel):
+            continue
+        path = project / rel
+        if not path.is_file():
+            continue
+        needle = heading.lower()
+        found = any(line.startswith("## ") and needle in line[3:].lower()
+                    for line in path.read_text(errors="replace").splitlines())
+        if not found:
+            out.append(f"{rel}: declared safety_rules heading {heading!r} not found -- "
+                       f"the card shows \"none found\" until this is fixed")
+    return out
+
+
+# Bidi controls and invisible characters; see shown().
+_REORDER_OR_HIDE = frozenset([0x061C, 0x200B, 0x200E, 0x200F, *range(0x202A, 0x202F),
+                              *range(0x2060, 0x2065), *range(0x2066, 0x206A), 0xFEFF])
+
+
+def shown(value) -> str:
+    """A ledger or declaration value, safe to print on one line (proposal 20,
+    V-02 round 2, HIGH: switches by/at, requests from/to, ids, routing keys
+    and values and session all reach the card unescaped; a title of
+    "safe\\nwarmup --check: ready" forges a status line, the class
+    .common-rules.json was already hardened against in V-00). C0, DEL and C1
+    control characters become visible escapes ("\\n", "\\x1b", ...); a lone
+    surrogate -- valid inside a Python str, unprintable as UTF-8 -- becomes
+    U+FFFD. None becomes "". The result never contains a real control
+    character, so it is always exactly one line, however many are fed in."""
+    if value is None:
+        return ""
+    out = []
+    for ch in str(value):
+        cp = ord(ch)
+        if 0xD800 <= cp <= 0xDFFF:
+            out.append("�")
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\t":
+            out.append("\\t")
+        elif cp < 0x20 or cp == 0x7F or 0x80 <= cp <= 0x9F:
+            out.append(f"\\x{cp:02x}")
+        elif cp in _REORDER_OR_HIDE:
+            # Proposal 20, V-09: a bidi control (U+202E) reorders what a
+            # terminal shows and an invisible character (U+200B) hides text.
+            # Escaped as \uXXXX, neither reaches the card raw. Other format
+            # characters -- ZWJ and ZWNJ (emoji, Persian, Devanagari), the soft
+            # hyphen, flag tag sequences -- cannot, and stay as written.
+            out.append(f"\\u{cp:04x}")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _session_problem(value, source: str) -> tuple[str | None, str | None]:
+    """(the clean session name, or None) · (None, the problem naming `source`).
+    Validated with tools/project.py's own one-line and UTF-8 checks, imported
+    rather than re-implemented -- the same rule a declared gate or read_order
+    entry already follows. An invalid session is never used for a request's
+    arrow direction (proposal 20, V-02 round 2)."""
+    if not isinstance(value, str) or not value.strip():
+        return None, f"{source}: session must be a non-empty string"
+    if not P._utf8(value):
+        return None, f"{source}: session is not valid UTF-8"
+    if not P._one_line(value):
+        return None, f"{source}: session must be one line"
+    return value.strip(), None
+
+
+def session_from_declaration(project: Path) -> tuple[str | None, str | None]:
+    """The project's own session name, when .common-rules.json names one
+    (proposal 20, V-02). Read directly: the declaration's schema (tools/
+    project.py) does not carry this key yet, and a project may name itself
+    without adopting anything else there."""
+    path = project / P.FILE
+    if not path.is_file():
+        return None, None
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None, None  # P.problems() already names a broken declaration
+    if not isinstance(data, dict) or "session" not in data:
+        return None, None
+    return _session_problem(data["session"], P.FILE)
+
+
+def routing_table(data: dict) -> tuple[str, list[tuple[str, str]], int] | None:
+    """(label, [(key, model), ...], skipped) from the ledger's own `tiers`
+    (C1-C4) or, failing that, an app's `model_routing` keyed by complexity
+    words -- printed exactly as declared, through shown() at the card, never
+    translated between the two (D2). "TBD" and "claude sonnet 5" are honest
+    values, not malformed ones, so nothing is filtered on shape or length.
+    Skipped: a `note` key (an annotation, not a route -- never counted) and
+    any non-string, non-{model: str} value (counted, so the line can say how
+    many, round 2 finding 3)."""
+    def extract(table: dict) -> tuple[list[tuple[str, str]], int]:
+        rows, skipped = [], 0
+        for key, value in table.items():
+            if key == "note":
+                continue
+            if isinstance(value, str):
+                rows.append((key, value))
+            elif isinstance(value, dict) and isinstance(value.get("model"), str):
+                rows.append((key, value["model"]))
+            else:
+                skipped += 1
+        return rows, skipped
+
+    tiers = data.get("tiers")
+    if isinstance(tiers, dict):
+        rows, skipped = extract({cx: tiers[cx] for cx in L.CLASSES if cx in tiers})
+        if rows:
+            return "tiers", rows, skipped
+    routing = data.get("model_routing")
+    if isinstance(routing, dict):
+        rows, skipped = extract(routing)
+        if rows:
+            return "model_routing", rows, skipped
+    return None
 
 
 def page_state(ledger_path: Path) -> tuple[str, Path]:
@@ -131,6 +283,42 @@ def page_state(ledger_path: Path) -> tuple[str, Path]:
         return "missing", page
     m = re.search(r'<meta name="ledger-digest" content="([0-9a-f]{64})">', page.read_text(errors="replace"))
     return ("ok" if m and m.group(1) == R.digest(ledger_path) else "stale"), page
+
+
+def publish_state(project: Path, ledger_path: Path, data: dict, page: Path) -> tuple[dict | None, str | None]:
+    """(the ledger's last recorded publish, or None) · (a named problem, or None).
+
+    Proposal 20, V-09 (D1). Only a session's Artifact tool can publish, so
+    `tracker published` records the URL and the page's digest in a sidecar,
+    and this compares that digest with the page on disk. None -- and no card
+    line -- when there is no sidecar (a project that never publishes) or the
+    ledger switches publishing off. A sidecar that cannot be read or does not
+    hold a valid record is a problem, named without echoing its contents.
+    `changed` is a to-do, never a problem: --check does not fail on it. A
+    missing page is already a problem of its own, so it is not also "changed"."""
+    if not L.switch_on(data, "publish"):
+        return None, None
+    sidecar = R.published_path(ledger_path)
+    if not sidecar.is_file():
+        return None, None
+    srel, lrel = shown(sidecar.relative_to(project)), shown(ledger_path.relative_to(project))
+    fix = f"republish the page and run: tracker published {lrel} --url <artifact url>"
+    try:
+        record = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError, RecursionError) as exc:
+        # RecursionError: json.loads on "[" * 100000 (round 2, finding 3).
+        return None, f"{srel} is malformed ({type(exc).__name__}) -- {fix}"
+    bad = R.published_problems(record)
+    if bad:
+        return None, f"{srel} is malformed: {'; '.join(bad)} -- {fix}"
+    current = R.digest(page) if page.is_file() else None
+    return {"stem": ledger_path.stem, "url": record["url"], "digest": record["digest"],
+            "at": record["at"], "by": record["by"], "page_digest": current,
+            "changed": current is not None and current != record["digest"]}, None
+
+
+def publish_line(pub: dict) -> str:
+    return f"  page changed since last publish: {shown(pub['stem'])} → {shown(pub['url'])}"
 
 
 def checkpoint_state(project: Path) -> tuple[str, Path | None]:
@@ -156,23 +344,47 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
         raise SystemExit(2)
     project = Path(top)
     gitdir, common = git(project, "rev-parse", "--git-dir"), git(project, "rev-parse", "--git-common-dir")
+    decl, own = P.load(project), P.declared(project)
     state: dict = {
         "project": str(project), "name": project.name,
         "branch": git(project, "rev-parse", "--abbrev-ref", "HEAD") or "?",
         "head": git(project, "rev-parse", "--short", "HEAD") or "no commits",
         "checkout": "worktree" if gitdir and common and Path(project, gitdir).resolve() != Path(project, common).resolve()
                     else "main checkout",
-        "prohibitions": prohibitions(project / "HANDOFF.md"),
+        "prohibitions": prohibitions(project, decl["safety_rules"], confine="safety_rules" in own),
+        "prohibitions_from": list(dict.fromkeys(rel for rel, _ in P.safety_sources(decl["safety_rules"]))),
+        "prose": list(decl["read_order"]),
         "problems": [], "chain": [], "ledgers": {}, "files": {},
-        "test_command": test_command(project), "rules": rules_status(project), "ruflo": ruflo_cli(),
+        "test_command": test_command(project), "quick_gate": decl["gates"].get("quick"),
+        "merge_gate_declared": bool(own.get("gates", {}).get("merge")),
+        "rules": rules_status(project), "ruflo": ruflo_cli(),
+        "session": None,  # proposal 20, V-02: named by a ledger's or the declaration's own `session`
     }
     read: list[Path] = []
 
-    for rel in PROSE:
+    if (project / P.FILE).is_file():
+        declared_problems = P.problems(project)
+        state["problems"].extend(declared_problems)
+        if declared_problems:
+            state["chain"].append(("✗", f"{P.FILE} · {len(declared_problems)} problem(s)"))
+        else:
+            state["chain"].append(("✓", f"{P.FILE} · declares {', '.join(own) or 'nothing'}"))
+        if "safety_rules" in own:
+            state["problems"].extend(safety_heading_problems(project, decl["safety_rules"], confine=True))
+
+    for rel in state["prose"]:
         p = project / rel
+        if "read_order" in own and not P.inside(project, rel):
+            # P.problems() has named it. Never read, never hashed.
+            state["chain"].append(("✗", f"{rel} · outside the project (declared in {P.FILE} read_order) -- not read"))
+            continue
         if not p.is_file():
-            state["problems"].append(f"{rel} is missing -- derecord seeds it; fill it in")
-            state["chain"].append(("✗", f"{rel} · missing"))
+            if "read_order" in own:
+                # P.problems() has already named it; the chain still shows it.
+                state["chain"].append(("✗", f"{rel} · missing (declared in {P.FILE} read_order)"))
+            else:
+                state["problems"].append(f"{rel} is missing -- derecord seeds it; fill it in")
+                state["chain"].append(("✗", f"{rel} · missing"))
             continue
         read.append(p)
         state["files"][rel] = sha256(p)
@@ -212,7 +424,18 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
         else:
             state["problems"].append(f"page {prel} is {ps} -- run: tracker render {rel}")
             state["chain"].append(("✗", f"page {prel} · {ps}"))
+        published, problem = publish_state(project, lp, data, page)
+        if problem:
+            state["problems"].append(problem)
+            state["chain"].append(("✗", f"{shown(R.published_path(lp).relative_to(project))} · malformed"))
         unblocked = {i["id"] for i in L.unblocked(data)}
+        switches_off = []
+        for name in L.SWITCHES:
+            if not L.switch_on(data, name):
+                sw = (data.get("switches") or {}).get(name) or {}
+                switches_off.append({"name": name, "by": sw.get("by"), "at": sw.get("at")})
+        requests = [{"id": r.get("id"), "from": r.get("from"), "to": r.get("to"), "state": r.get("state")}
+                    for r in L.open_requests(data)]
         state["ledgers"][rel] = {
             "proposal": data.get("proposal"), "title": data.get("title", ""),
             "status_line": L.status_line(data),
@@ -220,7 +443,32 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
                                 "next": i["id"] in unblocked} for i in L.items(data) if "id" in i},
             "asks": {a["id"]: {"state": a.get("state"), "kind": a.get("kind"), "quote": a.get("quote", "")}
                      for a in (data.get("asks") or []) if "id" in a},
+            # Proposal 20, V-02 (D8, D4, D5, D7, D2): each present only when
+            # the ledger declares the data it needs, so a ledger with none of
+            # this prints exactly as it did before this row was built.
+            "readiness": L.readiness(data),
+            "merged_waiting": L.merged_waiting(data),
+            "yours": L.waiting_on(data, "sponsor"),
+            "switches_off": switches_off,
+            "requests": requests,
+            "routing": routing_table(data),
+            # Proposal 20, V-09 (D1): the page's last recorded publish, or
+            # None with no sidecar or with switches.publish off.
+            "published": published,
         }
+        if "session" in data:
+            clean, problem = _session_problem(data["session"], rel)
+            if problem:
+                state["problems"].append(problem)
+            elif state.get("session") is None:
+                state["session"] = clean
+
+    if state.get("session") is None:
+        clean, problem = session_from_declaration(project)
+        if problem:
+            state["problems"].append(problem)
+        elif clean:
+            state["session"] = clean
 
     cs, cpath = checkpoint_state(project)
     if cpath is not None:
@@ -246,6 +494,9 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
     rules_file = project / "docs" / "OPERATING-RULES.md"
     state["superseded"] = re.findall(r"^### (\d{4}-\d{2}-\d{2} · superseded by .+)$",
                                      rules_file.read_text(errors="replace"), re.M) if rules_file.is_file() else []
+    # A declared read order may name a ledger or the checkpoint; each is read once, where it first appears.
+    seen: set[Path] = set()
+    read = [p for p in read if not (p.resolve() in seen or seen.add(p.resolve()))]
     state["read_order"] = [str(p.relative_to(project)) if p.is_relative_to(project) else str(p) for p in read]
     state["read_bytes"] = sum(p.stat().st_size for p in read if p.is_file())
 
@@ -266,37 +517,103 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
     return state
 
 
+def _joined(items: list[str], sep: str = ", ", cap: int = 6) -> str:
+    if len(items) <= cap:
+        return sep.join(items)
+    return sep.join(items[:cap]) + f"{sep}+{len(items) - cap} more"
+
+
+def _num(x) -> str:
+    """Always one decimal (round 2 finding 2): 23.3, 0.0 -- never a bare 0
+    that reads as though the part earned nothing was never measured."""
+    return f"{float(x):.1f}"
+
+
+def ledger_v2_lines(led: dict, session: str | None) -> list[str]:
+    """The proposal 20, V-02 additions for one ledger: readiness, merged-
+    awaiting-evidence, the sponsor's "yours" line, switches that are off,
+    requests both ways, and the project's routing table -- each only when the
+    ledger has the data. Kept as one function, one line-kind at a time, so
+    V-09's "page changed since last publish" line is one more entry here.
+    Every value that came from the ledger is routed through shown() here, at
+    the last moment before it is printed -- ids, owners, by/at, from/to,
+    routing keys and values -- so a forged newline or escape sequence in the
+    ledger can never reach the card as a real control character (round 2,
+    HIGH). This runs even when the ledger failed validate(): the card is
+    printed for an invalid ledger too, so the escaping cannot be conditional
+    on the ledger being well-formed."""
+    lines: list[str] = []
+    r = led.get("readiness")
+    if r is not None:
+        lines.append(f"  readiness    {r['readiness']}% (work {_num(r['work'])} · gates {_num(r['gates'])} · "
+                     f"floors {_num(r['floors'])} · receipts {_num(r['receipts'])})")
+    if led.get("merged_waiting"):
+        lines.append(f"  merged, awaiting evidence: {_joined([shown(i) for i in led['merged_waiting']])}")
+    if led.get("yours"):
+        lines.append(f"  {'yours':<13}{_joined([shown(i) for i in led['yours']])}")
+    for sw in led.get("switches_off") or []:
+        lines.append(f"  {shown(sw['name'])} off (by {shown(sw['by'])}, {shown(sw['at'])})")
+    if led.get("requests"):
+        parts = []
+        for r in led["requests"]:
+            rid, frm, to, state = shown(r["id"]), shown(r["from"]), shown(r["to"]), shown(r["state"])
+            if session and r["from"] == session:
+                parts.append(f"{rid} → {to} ({state})")
+            elif session and r["to"] == session:
+                parts.append(f"{rid} ← {frm} ({state})")
+            else:
+                parts.append(f"{rid} {frm} → {to} ({state})")
+        lines.append("  requests: " + _joined(parts, sep=" · "))
+    if led.get("routing"):
+        label, table, skipped = led["routing"]
+        line = f"  {label}  " + "  ".join(f"{shown(k)}→{shown(v)}" for k, v in table)
+        if skipped:
+            line += f" (+{skipped} not shown)"
+        lines.append(line)
+    pub = led.get("published")
+    if pub and pub.get("changed"):
+        lines.append(publish_line(pub))
+    return lines
+
+
 def card(s: dict) -> str:
     out = [f"WARM · {s['name']} · {s['branch']} @ {s['head']} · {s['checkout']}"]
+    where = ", ".join(s.get("prohibitions_from") or ["HANDOFF.md"])
     if s["prohibitions"]:
-        out.append("Prohibitions (HANDOFF.md, verbatim):")
+        out.append(f"Prohibitions ({where}, verbatim):")
         out += [f"  {p}" for p in s["prohibitions"]]
     else:
-        out.append("Prohibitions: none found in HANDOFF.md -- write them before any work")
+        out.append(f"Prohibitions: none found in {where} -- write them before any work")
     for rel, led in s["ledgers"].items():
-        out.append(f"Proposal {led['proposal']} · {led['title']}: {led['status_line']}")
+        out.append(f"Proposal {shown(led['proposal'])} · {shown(led['title'])}: {led['status_line']}")
         for iid, it in led["items"].items():
             if it["status"] == "in progress":
-                out.append(f"  in progress  {iid} {it['tag']} {it['title']}")
+                out.append(f"  in progress  {shown(iid)} {shown(it['tag'])} {shown(it['title'])}")
             elif it["status"] == "blocked":
-                out.append(f"  blocked      {iid} {it['tag']} {it['title']}")
+                out.append(f"  blocked      {shown(iid)} {shown(it['tag'])} {shown(it['title'])}")
         for iid, it in led["items"].items():
             if it["next"]:
-                out.append(f"  next         {iid} {it['tag']} {it['title']}")
+                out.append(f"  next         {shown(iid)} {shown(it['tag'])} {shown(it['title'])}")
         for aid, a in led["asks"].items():
             if a["state"] == "open":
-                out.append(f"  open ask     {aid} ({a['kind']}) “{a['quote']}”")
+                out.append(f"  open ask     {shown(aid)} ({shown(a['kind'])}) “{shown(a['quote'])}”")
+        out += ledger_v2_lines(led, s.get("session"))
     out.append("Chain:")
     out += [f"  {mark} {text}" for mark, text in s["chain"]]
     if s.get("superseded"):
         out.append("Superseded (docs/OPERATING-RULES.md) -- if you catch yourself following one of these, stop:")
         out += [f"  {line}" for line in s["superseded"]]
     out.append("Tools:")
-    out.append(f"  test command  {s['test_command'] or 'none found -- land will land on the gate alone'}")
+    if s.get("quick_gate"):
+        out.append(f"  quick gate    {s['quick_gate']}")
+    if s.get("merge_gate_declared"):
+        out.append(f"  merge gate    {s['test_command']} -- what land runs")
+    else:
+        out.append(f"  test command  {s['test_command'] or 'none found -- land will land on the gate alone'}")
     out.append(f"  rules         {s['rules']}")
     out.append(f"  ruflo         {'CLI at ' + s['ruflo'] + ' -- not run by warm-up; the loop runs per item, stop the daemon you start' if s['ruflo'] else 'CLI NOT FOUND -- Ruflo is mandatory: stop and report'}")
     for r in s["recall"]:
-        out.append(f"Recall for {r['item']} ({' '.join(r['words'])}): {len(r['hits'])} hit(s)")
+        out.append(f"Recall for {shown(r['item'])} ({' '.join(r['words'])}): {len(r['hits'])} hit(s)")
         out += [f"  {h}" for h in r["hits"]]
     out.append("Read in order: " + " → ".join(s["read_order"]))
     if s["problems"]:
@@ -306,9 +623,9 @@ def card(s: dict) -> str:
 
 
 def check_report(s: dict) -> str:
-    lines = [f"  {mark} {text}" for mark, text in s["chain"]]
+    lines = [f"  {mark} {shown(text)}" for mark, text in s["chain"]]
     lines.append(f"warmup --check: {'ready' if not s['problems'] else str(len(s['problems'])) + ' problem(s)'}")
-    lines += [f"  ✗ {p}" for p in s["problems"]]
+    lines += [f"  ✗ {shown(p)}" for p in s["problems"]]
     return "\n".join(lines)
 
 
@@ -339,8 +656,14 @@ def delta(old: dict, new: dict) -> str:
                 lines.append(f"  {aid} new ask ({a['kind']}) “{a['quote']}” · {a['state']}")
             elif was["state"] != a["state"]:
                 lines.append(f"  {aid} {was['state']} → {a['state']}")
+        # V-09: named again only when it is news -- newly changed, or the page
+        # (or the URL) moved again since the state being compared with.
+        pub, old_pub = led.get("published"), before.get("published") or {}
+        if pub and pub.get("changed") and not (old_pub.get("changed") and old_pub.get("url") == pub["url"]
+                                                and old_pub.get("page_digest") == pub["page_digest"]):
+            lines.append(publish_line(pub))
         out += lines
-    for rel in PROSE:
+    for rel in new.get("prose", PROSE):
         if old.get("files", {}).get(rel) and new["files"].get(rel) and old["files"][rel] != new["files"][rel]:
             out.append(f"{rel} changed since the last warm-up -- re-read it")
     if old.get("checkpoint") != new.get("checkpoint"):
