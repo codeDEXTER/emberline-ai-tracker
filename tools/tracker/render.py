@@ -101,21 +101,25 @@ def last_log(item: dict) -> str:
     return cell
 
 
-def item_row(item: dict, repo) -> str:
+def item_row(item: dict, repo, merged_waiting_ids=frozenset()) -> str:
     status = item.get("status", "")
     deps = L.as_list(item.get("depends"))
     dep = f'<div class="dep">after {e(" ".join(deps))}</div>' if deps else ""
     found = f'<div class="dep">from {e(item["discovered_from"])}</div>' if item.get("discovered_from") else ""
+    owner = (f'<div class="dep">owner: {e(item.get("owner"))}</div>'
+             if status == "blocked" and item.get("owner") else "")
+    merged = ('<div class="dep">merged, awaiting evidence</div>'
+              if item.get("id") in merged_waiting_ids else "")
     return (f'<tr class="item" data-id="{e(item.get("id"))}" data-status="{e(status)}">'
             f'<td class="id">{e(item.get("id"))}</td>'
-            f'<td>{e(item.get("title"))}{dep}{found}</td>'
+            f'<td>{e(item.get("title"))}{dep}{found}{owner}{merged}</td>'
             f'<td class="tag">{e(item.get("tag") or item.get("cx"))}</td>'
             f'<td><span class="pill {slug(status)}">{e(status)}</span></td>'
             f'<td class="issue">{issue_cell(item.get("issue"), repo)}</td>'
             f'<td class="last">{last_log(item)}</td></tr>')
 
 
-def phase_section(phase: dict, its_items: list, repo) -> str:
+def phase_section(phase: dict, its_items: list, repo, merged_waiting_ids=frozenset()) -> str:
     counts = {s: 0 for s in STATUS_ORDER}
     for i in its_items:
         if i.get("status") in counts:
@@ -125,7 +129,7 @@ def phase_section(phase: dict, its_items: list, repo) -> str:
             f'<span class="count">{counts["done"]}/{len(its_items)}</span></h2>')
     goal = f'<p class="goal">{e(phase.get("goal"))}</p>' if phase.get("goal") else ""
     exit_ = f'<p class="goal"><b>Exit:</b> {e(phase.get("exit"))}</p>' if phase.get("exit") else ""
-    rows = "".join(item_row(i, repo) for i in its_items)
+    rows = "".join(item_row(i, repo, merged_waiting_ids) for i in its_items)
     table = ('<div class="scroll"><table class="items"><thead><tr><th>ID</th><th>Item</th><th>Tag</th>'
              f'<th>Status</th><th>Issue</th><th>Last</th></tr></thead><tbody>{rows}</tbody></table></div>'
              if its_items else '<p class="empty">No items in this phase.</p>')
@@ -135,16 +139,107 @@ def phase_section(phase: dict, its_items: list, repo) -> str:
 def asks_section(asks: list) -> str:
     if not asks:
         return ""
-    rows = "".join(
-        f'<tr class="ask" data-id="{e(a.get("id"))}" data-state="{e(a.get("state"))}">'
-        f'<td class="id">{e(a.get("id"))}</td><td>{e(a.get("kind"))}</td>'
-        f'<td>“{e(a.get("quote"))}”</td><td>{e(a.get("became") or "—")}</td>'
-        f'<td><span class="pill a-{e(str(a.get("state", "")).replace(" ", "-"))}">{e(a.get("state"))}</span></td></tr>'
-        for a in asks)
+    rows = []
+    for a in asks:
+        owner = (f'<div class="dep">owner: {e(a.get("owner"))}</div>'
+                 if a.get("state") == "open" and a.get("owner") else "")
+        rows.append(
+            f'<tr class="ask" data-id="{e(a.get("id"))}" data-state="{e(a.get("state"))}">'
+            f'<td class="id">{e(a.get("id"))}</td><td>{e(a.get("kind"))}</td>'
+            f'<td>“{e(a.get("quote"))}”</td><td>{e(a.get("became") or "—")}</td>'
+            f'<td><span class="pill a-{e(str(a.get("state", "")).replace(" ", "-"))}">{e(a.get("state"))}</span>'
+            f'{owner}</td></tr>')
     open_n = sum(1 for a in asks if a.get("state") == "open")
     return (f'<section class="asks"><h2>Asks <span class="count">{open_n} open</span></h2>'
             '<div class="scroll"><table class="items"><thead><tr><th>ID</th><th>Kind</th><th>In his words</th>'
-            f'<th>Became</th><th>State</th></tr></thead><tbody>{rows}</tbody></table></div></section>')
+            f'<th>Became</th><th>State</th></tr></thead><tbody>{"".join(rows)}</tbody></table></div></section>')
+
+
+def readiness_section(r: dict | None) -> str:
+    """The readiness line (D8): work/gates/floors/receipts, and the total --
+    only when the ledger declares readiness_weights (L.readiness returns None
+    otherwise). Never recomputed: r is exactly what L.readiness(ledger) gave."""
+    if r is None:
+        return ""
+    return (f'<section class="readiness"><h2>Readiness <span class="count">{e(r["readiness"])}%</span></h2>'
+            f'<p class="line">work {e(r["work"])} · gates {e(r["gates"])} · floors {e(r["floors"])} '
+            f'· receipts {e(r["receipts"])}</p></section>')
+
+
+def gates_section(gates: list) -> str:
+    if not gates:
+        return ""
+    rows = "".join(
+        f'<tr><td class="id">{e(g.get("id"))}</td><td>{e(g.get("title") or g.get("name"))}</td>'
+        f'<td><span class="pill {"s-done" if g.get("passed") else "s-not-started"}">'
+        f'{"passed" if g.get("passed") else "not passed"}</span></td></tr>'
+        for g in gates if isinstance(g, dict))
+    return ('<section class="gates"><h2>Gates</h2><div class="scroll"><table class="items"><thead><tr>'
+            '<th>ID</th><th>Gate</th><th>Passed</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></section>')
+
+
+def floors_section(floors: list) -> str:
+    if not floors:
+        return ""
+    rows = "".join(
+        f'<tr><td>{e(f.get("title"))}</td><td><span class="pill {"s-done" if f.get("met") else "s-not-started"}">'
+        f'{"met" if f.get("met") else "not met"}</span></td></tr>'
+        for f in floors if isinstance(f, dict))
+    return ('<section class="floors"><h2>Quality floors</h2><div class="scroll"><table class="items"><thead><tr>'
+            '<th>Floor</th><th>Met</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></section>')
+
+
+def requests_section(requests: list) -> str:
+    """Open requests, both directions (D7) -- exactly L.open_requests(ledger),
+    which already keeps only the open/in-progress ones."""
+    if not requests:
+        return ""
+    rows = "".join(
+        f'<tr class="request" data-id="{e(r.get("id"))}" data-state="{e(r.get("state"))}">'
+        f'<td class="id">{e(r.get("id"))}</td><td>{e(r.get("from"))}</td><td>{e(r.get("to"))}</td>'
+        f'<td><span class="pill">{e(r.get("state"))}</span></td>'
+        f'<td>{e(" ".join(r.get("unblocks") or []))}</td></tr>'
+        for r in requests)
+    return ('<section class="requests"><h2>Open requests</h2><div class="scroll"><table class="items"><thead><tr>'
+            '<th>ID</th><th>From</th><th>To</th><th>State</th><th>Unblocks</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></section>')
+
+
+def waiting_section(ledger: dict) -> str:
+    """Who is blocking whom (D4): every owner named on a blocked row or an
+    open ask, with what L.waiting_on(ledger, owner) says they are waiting on."""
+    owners = sorted({i.get("owner") for i in L.items(ledger)
+                      if i.get("status") == "blocked" and i.get("owner")} |
+                     {a.get("owner") for a in (ledger.get("asks") or [])
+                      if a.get("state") == "open" and a.get("owner")})
+    if not owners:
+        return ""
+    rows = "".join(
+        f'<tr><td class="id">{e(owner)}</td><td>{e(", ".join(L.waiting_on(ledger, owner)))}</td></tr>'
+        for owner in owners)
+    return ('<section class="waiting"><h2>Waiting on</h2><div class="scroll"><table class="items"><thead><tr>'
+            '<th>Owner</th><th>Items and asks</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></section>')
+
+
+def switches_section(ledger: dict) -> str:
+    """Switches the ledger records off (D5) -- on is the default and not
+    worth a row; L.switch_on(ledger, name) decides off, never re-derived."""
+    switches = ledger.get("switches")
+    if not isinstance(switches, dict):
+        return ""
+    off = [name for name in L.SWITCHES if name in switches and not L.switch_on(ledger, name)]
+    if not off:
+        return ""
+    rows = "".join(
+        f'<tr><td class="id">{e(name)}</td><td>{e(switches[name].get("by"))}</td>'
+        f'<td>{e(str(switches[name].get("at", ""))[:16].replace("T", " "))}</td></tr>'
+        for name in off)
+    return ('<section class="switches"><h2>Switches off</h2><div class="scroll"><table class="items"><thead><tr>'
+            '<th>Switch</th><th>By</th><th>At</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div></section>')
 
 
 def changes_section(changes: list) -> str:
@@ -232,10 +327,11 @@ def render(data: dict, source: Path, repo: str | None) -> str:
     loose = [i for i in L.items(data) if i.get("phase") not in known]
     if loose:
         phases.append({"id": "", "name": "Unphased"})
+    merged_waiting_ids = set(L.merged_waiting(data))
     sections = []
     for p in phases:
         its = [i for i in L.items(data) if (i.get("phase") == p.get("id")) or (p.get("id") == "" and i in loose)]
-        sections.append(phase_section(p, its, repo))
+        sections.append(phase_section(p, its, repo, merged_waiting_ids))
     n, status, title = data.get("proposal"), data.get("status", ""), data.get("title", "")
     return (
         f"<!-- generated by bin/tracker render from {e(source.name)} -- edit the ledger, not this page -->\n"
@@ -249,11 +345,17 @@ def render(data: dict, source: Path, repo: str | None) -> str:
         f'<section class="status" data-done="{counts["done"]}" data-in-progress="{counts["in progress"]}" '
         f'data-blocked="{counts["blocked"]}" data-not-started="{counts["not started"]}">'
         f'<p class="line">{e(L.status_line(data))}</p>{bar(counts, "overall")}</section>'
+        + readiness_section(L.readiness(data))
         + "".join(sections)
         + asks_section(data.get("asks") or [])
+        + gates_section(data.get("gates") or [])
+        + floors_section(data.get("quality_floors") or [])
+        + requests_section(L.open_requests(data))
+        + waiting_section(data)
         + priority_section(data.get("priority") or {})
         + changes_section(data.get("proposed_changes") or [])
         + tiers_section(data.get("tiers") or {})
+        + switches_section(data)
         + "</main>\n"
     )
 

@@ -1,4 +1,4 @@
-"""`tracker render` turns a ledger into its page (proposal 19, W-02).
+"""`tracker render` turns a ledger into its page (proposal 19, W-02, V-03).
 
 What the page is for: the sponsor reads the plan without reading JSON, and a
 new session sees the same numbers the ledger holds. So the tests pin the
@@ -14,11 +14,18 @@ properties that make the page trustworthy rather than its look:
     three checkers that glob docs/proposals/*.html (proposalcheck's one-number-
     one-document rule, the engine's index builder and its style checker), and
     it never overwrites the hand-authored proposal page.
+  * V-03: readiness, gates, quality floors, open requests, owner markers,
+    "merged, awaiting evidence" markers and switches-off only ever appear
+    when the ledger declares that data -- a ledger with none of it renders
+    byte for byte as it did before this file existed, and every one of these
+    numbers comes from tools/tracker/ledger.py's own functions, never
+    recomputed here.
 
 Run:  python3 -m unittest discover -s tests -q
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import subprocess
@@ -32,6 +39,12 @@ sys.path.insert(0, str(ROOT))
 
 TRACKER = ROOT / "bin" / "tracker"
 ENGINE_71 = Path("/Users/aashish/apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json")
+APP_70 = Path("/Users/aashish/apps/PhotoVault/app/docs/proposals/70-r9-delivery-plan.json")
+
+# The commit V-01 landed the ledger contract v2 on, and the exact base V-03
+# branched from -- pinned so this test does not drift if origin/p20 moves
+# while this branch is out for review.
+V01_COMMIT = "db0ad0cb702ab1383d6169100cf07130d7b98eb5"
 
 
 def sample():
@@ -86,6 +99,34 @@ class Project:
 
     def close(self):
         self.tmp.cleanup()
+
+
+def render_html(data: dict) -> str:
+    """Render an arbitrary ledger dict and return the page text (one-shot,
+    for tests that need a variant of sample() rather than the fixed one
+    RenderCase carries)."""
+    p = Project(data)
+    try:
+        r = p.run(str(p.ledger))
+        assert r.returncode == 0, r.stdout + r.stderr
+        return p.page.read_text()
+    finally:
+        p.close()
+
+
+def _load_render_module(ref: str, name: str):
+    """The render.py blob at `ref`, imported under `name` so it can be called
+    side by side with the current module without clobbering it."""
+    content = subprocess.run(["git", "show", f"{ref}:tools/tracker/render.py"], cwd=ROOT,
+                             capture_output=True, text=True, check=True).stdout
+    tmp = tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w")
+    tmp.write(content)
+    tmp.close()
+    spec = importlib.util.spec_from_file_location(name, tmp.name)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
 
 
 class RenderCase(unittest.TestCase):
@@ -215,6 +256,188 @@ class TestCheck(RenderCase):
         self.assertEqual(2, self.p.run(str(self.p.ledger)).returncode)
 
 
+class TestReadiness(unittest.TestCase):
+
+    def test_readiness_line_has_its_four_parts(self):
+        d = sample()
+        d["readiness_weights"] = {"work": 60, "gates": 20, "floors": 10, "receipts": 10}
+        d["gates"] = [{"id": "G0", "title": "Foundation", "passed": True},
+                      {"id": "G1", "title": "Shell", "passed": False}]
+        d["quality_floors"] = [{"title": "Tests green", "met": True},
+                               {"title": "Coverage", "met": False}]
+        html = render_html(d)
+        self.assertIn('<section class="readiness">', html)
+        self.assertIn("work 15.0", html)
+        self.assertIn("gates 10.0", html)
+        self.assertIn("floors 5.0", html)
+        self.assertIn("receipts 0.0", html)
+        self.assertIn("30%", html)
+
+    def test_no_readiness_weights_means_no_readiness_line(self):
+        html = render_html(sample())
+        self.assertNotIn('class="readiness"', html)
+
+
+class TestGatesAndFloors(unittest.TestCase):
+
+    def test_gates_table_shows_id_title_and_passed(self):
+        d = sample()
+        d["gates"] = [{"id": "G0", "title": "Foundation", "passed": True},
+                      {"id": "G1", "title": "Shell", "passed": False}]
+        html = render_html(d)
+        section = re.search(r'<section class="gates">.*?</section>', html, re.S).group(0)
+        self.assertIn("G0", section)
+        self.assertIn("Foundation", section)
+        self.assertIn("G1", section)
+        self.assertIn("Shell", section)
+        self.assertIn("passed", section)
+        self.assertIn("not passed", section)
+
+    def test_quality_floors_table_shows_met(self):
+        d = sample()
+        d["quality_floors"] = [{"title": "Tests green", "met": True},
+                               {"title": "Coverage", "met": False}]
+        html = render_html(d)
+        section = re.search(r'<section class="floors">.*?</section>', html, re.S).group(0)
+        self.assertIn("Tests green", section)
+        self.assertIn("Coverage", section)
+        self.assertIn("met", section)
+        self.assertIn("not met", section)
+
+    def test_no_gates_or_floors_means_no_section(self):
+        html = render_html(sample())
+        self.assertNotIn('class="gates"', html)
+        self.assertNotIn('class="floors"', html)
+
+
+class TestOpenRequests(unittest.TestCase):
+
+    def test_open_requests_render_both_directions_and_hide_closed_ones(self):
+        d = sample()
+        d["requests"] = [
+            {"id": "RQ-01", "from": "lead", "to": "sponsor", "state": "open", "unblocks": ["W-02"]},
+            {"id": "RQ-02", "from": "sponsor", "to": "lead", "state": "in progress", "unblocks": []},
+            {"id": "RQ-03", "from": "lead", "to": "sponsor", "state": "declined", "unblocks": []},
+        ]
+        html = render_html(d)
+        self.assertRegex(html, r'<tr class="request" data-id="RQ-01" data-state="open">')
+        self.assertRegex(html, r'<tr class="request" data-id="RQ-02" data-state="in progress">')
+        self.assertNotIn('data-id="RQ-03"', html)
+        row = re.search(r'<tr class="request" data-id="RQ-01".*?</tr>', html, re.S).group(0)
+        self.assertIn("lead", row)
+        self.assertIn("sponsor", row)
+        self.assertIn("W-02", row)
+
+    def test_no_requests_means_no_section(self):
+        html = render_html(sample())
+        self.assertNotIn('class="requests"', html)
+        self.assertNotIn('class="request"', html)
+
+
+class TestOwnerMarkers(unittest.TestCase):
+
+    def test_blocked_row_shows_its_owner(self):
+        d = sample()
+        d["items"][2]["owner"] = "sponsor"  # W-03, blocked
+        html = render_html(d)
+        row = re.search(r'<tr class="item" data-id="W-03".*?</tr>', html, re.S).group(0)
+        self.assertIn("sponsor", row)
+
+    def test_open_ask_shows_its_owner(self):
+        d = sample()
+        d["asks"][1]["owner"] = "lead"  # A-02, open
+        html = render_html(d)
+        row = re.search(r'<tr class="ask" data-id="A-02".*?</tr>', html, re.S).group(0)
+        self.assertIn("lead", row)
+
+    def test_answered_ask_does_not_show_an_owner_marker(self):
+        d = sample()
+        d["asks"][0]["owner"] = "sponsor"  # A-01, became-item, not open
+        html = render_html(d)
+        row = re.search(r'<tr class="ask" data-id="A-01".*?</tr>', html, re.S).group(0)
+        self.assertNotIn("sponsor", row)
+
+    def test_no_owner_means_no_marker(self):
+        html = render_html(sample())
+        row = re.search(r'<tr class="item" data-id="W-03".*?</tr>', html, re.S).group(0)
+        self.assertNotIn("owner", row)
+
+
+class TestMergedAwaitingEvidence(unittest.TestCase):
+
+    def test_merged_but_not_done_row_is_marked(self):
+        d = sample()
+        d["items"][1]["merged"] = "abc1234"  # W-02, in progress
+        html = render_html(d)
+        row = re.search(r'<tr class="item" data-id="W-02".*?</tr>', html, re.S).group(0)
+        self.assertIn("merged, awaiting evidence", row)
+
+    def test_merged_and_done_row_is_not_marked(self):
+        d = sample()
+        d["items"][0]["merged"] = "abc1234"  # W-01, already done
+        html = render_html(d)
+        row = re.search(r'<tr class="item" data-id="W-01".*?</tr>', html, re.S).group(0)
+        self.assertNotIn("merged, awaiting evidence", row)
+
+    def test_no_merged_field_means_no_marker_anywhere(self):
+        html = render_html(sample())
+        self.assertNotIn("awaiting evidence", html)
+
+
+class TestSwitches(unittest.TestCase):
+
+    def test_off_switch_shows_by_and_at(self):
+        d = sample()
+        d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00"}}
+        html = render_html(d)
+        section = re.search(r'<section class="switches">.*?</section>', html, re.S).group(0)
+        self.assertIn("publish", section)
+        self.assertIn("sponsor", section)
+        self.assertIn("2026-09-14 10:00", section)
+
+    def test_on_switch_is_not_listed(self):
+        d = sample()
+        d["switches"] = {"issues": {"on": True}}
+        html = render_html(d)
+        self.assertNotIn('class="switches"', html)
+
+    def test_no_switches_means_no_section(self):
+        html = render_html(sample())
+        self.assertNotIn('class="switches"', html)
+
+
+class TestWaitingOn(unittest.TestCase):
+
+    def test_owners_are_grouped_with_what_blocks_them(self):
+        d = sample()
+        d["items"][2]["owner"] = "sponsor"  # W-03, blocked
+        d["asks"][1]["owner"] = "lead"      # A-02, open
+        html = render_html(d)
+        section = re.search(r'<section class="waiting">.*?</section>', html, re.S).group(0)
+        self.assertIn("sponsor", section)
+        self.assertIn("W-03", section)
+        self.assertIn("lead", section)
+        self.assertIn("A-02", section)
+
+    def test_no_owners_means_no_waiting_section(self):
+        html = render_html(sample())
+        self.assertNotIn('class="waiting"', html)
+
+
+class TestBackwardCompatibility(unittest.TestCase):
+
+    def test_a_ledger_without_the_new_keys_renders_byte_for_byte_as_before(self):
+        baseline = _load_render_module(V01_COMMIT, "tracker_render_v01_baseline")
+        from tools.tracker import render as current
+        data = sample()
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_path = Path(tmp) / "19-proposal-warmup.json"
+            ledger_path.write_text(json.dumps(data, indent=2))
+            old_html = baseline.render(data, ledger_path, None)
+            new_html = current.render(data, ledger_path, None)
+        self.assertEqual(old_html, new_html)
+
+
 class TestTheRealLedger(unittest.TestCase):
 
     @unittest.skipUnless(ENGINE_71.exists(), f"{ENGINE_71} is not on this machine")
@@ -231,6 +454,26 @@ class TestTheRealLedger(unittest.TestCase):
         self.assertEqual(len(ledger.items(d)), len(re.findall(r'<tr class="item" ', html)))
         c = ledger.counts(d)
         self.assertIn(f'data-done="{c["done"]}"', html)
+
+    @unittest.skipUnless(APP_70.exists(), f"{APP_70} is not on this machine")
+    def test_the_app_ledger_renders_and_shows_its_gates_floors_and_merged_rows(self):
+        sys.path.insert(0, str(ROOT))
+        from tools.tracker import ledger
+        d = ledger.load(APP_70)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "70.html"
+            r = subprocess.run([sys.executable, str(TRACKER), "render", str(APP_70), "--out", str(out)],
+                               capture_output=True, text=True, check=False)
+            self.assertEqual(0, r.returncode, r.stderr)
+            html = out.read_text()
+        self.assertEqual(len(ledger.items(d)), len(re.findall(r'<tr class="item" ', html)))
+        c = ledger.counts(d)
+        self.assertIn(f'data-done="{c["done"]}"', html)
+        # This ledger declares gates and quality floors, and has rows merged
+        # but not yet done -- all three sections/markers should appear.
+        self.assertIn('<section class="gates">', html)
+        self.assertIn('<section class="floors">', html)
+        self.assertIn("merged, awaiting evidence", html)
 
 
 if __name__ == "__main__":
