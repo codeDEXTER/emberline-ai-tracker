@@ -8,6 +8,7 @@ OWNS
 
 MUST
 {{MUST_1}}
+Reach {{VERIFY_LEVEL}} from the project's verification ladder ({{VERIFY_TOOL}}).
 
 MUST NOT
 {{MUST_NOT_1}}
