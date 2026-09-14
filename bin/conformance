@@ -397,15 +397,19 @@ def check_rules(ctx: Context) -> Result:
 
 def stamp_committed(ctx: Context) -> bool:
     """The stamp is tracked, and the file on disk is what HEAD holds. Compared
-    by content, not `git diff`, which reads stale stat data as a change."""
+    by content, not `git diff`, which reads stale stat data as a change -- and
+    as bytes: text-mode output turns \\r\\n into \\n, so a stamp committed as
+    it is on disk read "not committed" (S-04 final review)."""
     if ctx.git_out("ls-files", "--error-unmatch", "--", STAMP) is None:
         return False
-    at_head = ctx.git_out("show", "--no-textconv", f"HEAD:{STAMP}")
     try:
-        on_disk = (ctx.root / STAMP).read_bytes().decode("utf-8", errors="replace")
-    except OSError:
+        r = subprocess.run(["git", "-C", str(ctx.root), "-c", "core.fsmonitor=false", "cat-file", "blob",
+                            f"HEAD:{STAMP}"], capture_output=True, check=False, timeout=TIMEOUT, env=_env(),
+                           stdin=subprocess.DEVNULL)
+        on_disk = (ctx.root / STAMP).read_bytes()
+    except (OSError, subprocess.TimeoutExpired):
         return False
-    return at_head is not None and at_head == on_disk
+    return r.returncode == 0 and r.stdout == on_disk
 
 
 # --- 2 -----------------------------------------------------------------------
