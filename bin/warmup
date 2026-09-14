@@ -62,7 +62,6 @@ import json
 import re
 import subprocess
 import sys
-import unicodedata
 from pathlib import Path
 
 RULES_DIR = Path(__file__).resolve().parent.parent
@@ -169,6 +168,11 @@ def safety_heading_problems(project: Path, safety_rules, confine: bool) -> list[
     return out
 
 
+# Bidi controls and invisible characters; see shown().
+_REORDER_OR_HIDE = frozenset([0x061C, 0x200B, 0x200E, 0x200F, *range(0x202A, 0x202F),
+                              *range(0x2060, 0x2065), *range(0x2066, 0x206A), 0xFEFF])
+
+
 def shown(value) -> str:
     """A ledger or declaration value, safe to print on one line (proposal 20,
     V-02 round 2, HIGH: switches by/at, requests from/to, ids, routing keys
@@ -194,11 +198,13 @@ def shown(value) -> str:
             out.append("\\t")
         elif cp < 0x20 or cp == 0x7F or 0x80 <= cp <= 0x9F:
             out.append(f"\\x{cp:02x}")
-        elif unicodedata.category(ch) == "Cf":
-            # Proposal 20, V-09 round 2: a format character (a U+202E bidi
-            # override, a zero-width space) reorders or hides what a terminal
-            # shows. Escaped as \uXXXX, it can never reach the card raw.
-            out.append(f"\\u{cp:04x}" if cp <= 0xFFFF else f"\\U{cp:08x}")
+        elif cp in _REORDER_OR_HIDE:
+            # Proposal 20, V-09: a bidi control (U+202E) reorders what a
+            # terminal shows and an invisible character (U+200B) hides text.
+            # Escaped as \uXXXX, neither reaches the card raw. Other format
+            # characters -- ZWJ and ZWNJ (emoji, Persian, Devanagari), the soft
+            # hyphen, flag tag sequences -- cannot, and stay as written.
+            out.append(f"\\u{cp:04x}")
         else:
             out.append(ch)
     return "".join(out)

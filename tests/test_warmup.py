@@ -942,10 +942,32 @@ class TestFormatCharactersOnTheCard(Case):
             with self.subTest(mode=args or "card"):
                 out = self.p.warmup(*args).stdout
                 for ch in out:
-                    self.assertNotEqual("Cf", __import__("unicodedata").category(ch), repr(ch))
+                    self.assertFalse(0x202A <= ord(ch) <= 0x202E or 0x2066 <= ord(ch) <= 0x2069
+                                     or ch in "\u061c\u200b\u200e\u200f\u2060\u2061\u2062\u2063\u2064\ufeff", repr(ch))
         card = self.p.warmup().stdout
         self.assertIn("safe\\u202eevil", card)
         self.assertIn("zero\\u200bwidth", card)
+
+
+class TestJoinersAndTagsStayReadable(Case):
+    """V-09 final review: escaping every Cf character mangled a family emoji
+    (ZWJ), Persian (ZWNJ), a soft hyphen and flag tag sequences -- none of which
+    can forge a line or reorder text. Only bidi controls and invisible
+    characters are escaped; these reach the card as written."""
+
+    def test_zwj_zwnj_soft_hyphen_and_flag_tags_are_not_escaped(self):
+        family = "\U0001F468\u200d\U0001F469\u200d\U0001F467"
+        persian = "\u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u0645"
+        england = "\U0001F3F4\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F"
+        d = ledger_data()
+        d["items"][1]["title"] = f"family {family} {persian} co\u00adordinate {england}"
+        self.p.set_ledger(d)
+        self.p.commit("joiners")
+        card = self.p.warmup().stdout
+        self.assertIn(family, card)
+        self.assertIn(persian, card)
+        self.assertIn("co\u00adordinate", card)
+        self.assertIn(england, card)
 
 
 class TestSafetyHeadingNotFound(Case):
