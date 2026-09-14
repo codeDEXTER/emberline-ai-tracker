@@ -419,6 +419,160 @@ class TestTheTestCommandIsLands(unittest.TestCase):
             p.close()
 
 
+class TestCardV2Lines(Case):
+    """Proposal 20, V-02: readiness, merged-awaiting-evidence, the sponsor's
+    "yours" line, switches that are off, requests both ways and the project's
+    routing -- each only when the ledger declares the data, so a ledger
+    without any of it (the base fixture) prints today's card, unchanged."""
+
+    def test_base_fixture_shows_none_of_the_new_lines(self):
+        out = self.p.warmup().stdout
+        self.assertNotIn("readiness", out)
+        self.assertNotIn("merged, awaiting evidence", out)
+        self.assertNotIn("yours", out)
+        self.assertNotIn(" off (by ", out)
+        self.assertNotIn("requests:", out)
+        self.assertNotIn("tiers", out)
+        self.assertNotIn("model_routing", out)
+
+    def test_readiness_is_computed_from_declared_weights(self):
+        d = ledger_data()
+        d["readiness_weights"] = {"work": 70, "gates": 15, "floors": 10, "receipts": 5}
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.commit("readiness weights")
+        out = self.p.warmup().stdout
+        self.assertIn("readiness", out)
+        self.assertIn("23%", out)
+        self.assertIn("work 23.3", out)
+        self.assertIn("gates 0", out)
+        self.assertIn("floors 0", out)
+        self.assertIn("receipts 0", out)
+
+    def test_merged_waiting_evidence_is_listed(self):
+        d = ledger_data()
+        d["items"][1]["merged"] = True  # W-02, still "in progress"
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.commit("merged, not done")
+        out = self.p.warmup().stdout
+        self.assertIn("merged, awaiting evidence: W-02", out)
+
+    def test_yours_line_lists_only_sponsor_owned_rows_and_asks(self):
+        d = ledger_data()
+        d["items"][1]["status"] = "blocked"; d["items"][1]["owner"] = "session:Other"  # W-02, not sponsor
+        d["items"][2]["status"] = "blocked"; d["items"][2]["owner"] = "sponsor"        # W-03
+        d["asks"][0]["owner"] = "sponsor"                                             # A-01
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.commit("owners")
+        out = self.p.warmup().stdout
+        self.assertIn("yours", out)
+        line = next(l for l in out.splitlines() if "yours" in l)
+        self.assertIn("W-03", line)
+        self.assertIn("A-01", line)
+        self.assertNotIn("W-02", line)
+
+    def test_switches_off_are_shown_with_who_and_when(self):
+        d = ledger_data()
+        d["switches"] = {"issues": {"on": False, "by": "sponsor", "at": "2026-09-13T16:03",
+                                     "quote": "skip GitHub issues for now"}}
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.commit("issues off")
+        out = self.p.warmup().stdout
+        self.assertIn("issues off (by sponsor, 2026-09-13T16:03)", out)
+
+    def test_requests_direction_is_relative_to_the_declared_session(self):
+        d = ledger_data()
+        d["requests"] = [
+            {"id": "RQ-01", "at": "2026-09-14", "from": "session:App", "to": "session:Engine",
+             "what": "x", "state": "open"},
+            {"id": "RQ-02", "at": "2026-09-14", "from": "session:Engine", "to": "session:App",
+             "what": "y", "state": "in progress"},
+        ]
+        self.p.set_ledger(d)
+        self.p.write(".common-rules.json", json.dumps({"session": "session:Engine"}))
+        self.p.render()
+        self.p.commit("requests, session declared")
+        out = self.p.warmup().stdout
+        line = next(l for l in out.splitlines() if l.strip().startswith("requests:"))
+        self.assertIn("RQ-01 ← session:App (open)", line)
+        self.assertIn("RQ-02 → session:App (in progress)", line)
+
+    def test_requests_fall_back_to_from_arrow_to_with_no_session_named(self):
+        d = ledger_data()
+        d["requests"] = [{"id": "RQ-01", "at": "2026-09-14", "from": "session:App", "to": "session:Engine",
+                          "what": "x", "state": "open"}]
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.commit("requests, no session declared")
+        out = self.p.warmup().stdout
+        line = next(l for l in out.splitlines() if l.strip().startswith("requests:"))
+        self.assertIn("RQ-01 session:App → session:Engine (open)", line)
+
+    def test_tiers_routing_is_printed_as_declared(self):
+        d = ledger_data()
+        d["tiers"] = {"C1": {"model": "haiku"}, "C2": {"model": "sonnet"},
+                      "C3": {"model": "sonnet"}, "C4": {"model": "opus"}}
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.commit("tiers")
+        out = self.p.warmup().stdout
+        line = next(l for l in out.splitlines() if "tiers" in l)
+        self.assertIn("C1→haiku", line)
+        self.assertIn("C4→opus", line)
+
+    def test_model_routing_is_printed_verbatim_not_translated_to_classes(self):
+        d = ledger_data()
+        d["model_routing"] = {"Trivial": "haiku", "Low": "sonnet", "Medium": "sonnet", "High": "opus"}
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.commit("model_routing")
+        out = self.p.warmup().stdout
+        line = next(l for l in out.splitlines() if "model_routing" in l)
+        self.assertIn("Trivial→haiku", line)
+        self.assertIn("High→opus", line)
+        self.assertNotIn("C1", line)
+
+    def test_a_prose_note_beside_model_routing_is_not_printed_as_a_row(self):
+        """Found running warm-up read-only on the PhotoVault app, 14 Sep: its
+        model_routing carries a `note` key (a sentence) beside Trivial/Low/
+        Medium/High/Very high, and the first draft printed it as a fifth
+        routing row, several lines long."""
+        d = ledger_data()
+        d["model_routing"] = {"Trivial": "haiku", "High": "opus",
+                              "note": "Trivial = bookkeeping only. Never UI code."}
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.commit("model_routing with a note")
+        out = self.p.warmup().stdout
+        line = next(l for l in out.splitlines() if "model_routing" in l)
+        self.assertIn("Trivial→haiku", line)
+        self.assertNotIn("note", line)
+        self.assertNotIn("bookkeeping", line)
+
+
+class TestSafetyHeadingNotFound(Case):
+    """Deferred from V-00: a declared safety_rules heading that is not in its
+    file is a named problem, and --check fails on it -- today the card just
+    said "none found in <file>" with nothing verifiable to fix."""
+
+    def test_a_missing_declared_heading_fails_check(self):
+        self.p.write(".common-rules.json", json.dumps({"safety_rules": "HANDOFF.md#Not There"}))
+        self.p.commit("declare a heading that is not in HANDOFF.md")
+        r = self.p.warmup("--check")
+        self.assertEqual(1, r.returncode)
+        self.assertIn("Not There", r.stdout)
+        self.assertIn("not found", r.stdout)
+
+    def test_a_found_declared_heading_still_passes(self):
+        self.p.write(".common-rules.json", json.dumps({"safety_rules": "HANDOFF.md#Prohibitions"}))
+        self.p.commit("declare a heading that is in HANDOFF.md")
+        r = self.p.warmup("--check")
+        self.assertEqual(0, r.returncode, r.stdout)
+
+
 class TestSince(Case):
 
     def test_nothing_moved_says_so(self):
