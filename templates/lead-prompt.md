@@ -66,7 +66,11 @@ this job and is not watching in real time. You are.
   `sponsor`, `lead`, or a session named by its own name (proposal 20 D4).
 - After the ledger moves, run `bin/tracker render` so the rendered page
   never drifts from the JSON it comes from; when the card says the page
-  changed since it was last published, republish it (proposal 20 D1).
+  changed since it was last published, republish it with your Artifact
+  tool to the same URL, then record it with
+  `bin/tracker published <ledger> --url <url>` and commit the sidecar
+  (proposal 20 D1). No sponsor prompt is needed; when the ledger's
+  `switches.publish` is off, nothing is published.
 - Every sponsor message that is not an answer to a question becomes an
   `A-nn` ask row, in the same turn it is said.
 

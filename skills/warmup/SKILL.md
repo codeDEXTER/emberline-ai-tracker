@@ -46,6 +46,24 @@ ask), never from the summary.
   `daemon stop` for the daemon your calls started. Never kill it by name.
 - **`RULES/bin/recall <words>`** searches every project's memory, LESSONS and
   operating rules. Put the hits for an item under CONTEXT in its brief.
+- **`page changed since last publish: <stem> → <url>`** means the rendered
+  page (`docs/proposals/tracker/<stem>.html`) no longer matches what was last
+  published to that URL. Republish it yourself, in the same turn:
+  1. If the card also shows the page as stale, run `tracker render` first.
+  2. Publish that page file with your Artifact tool **to the same URL** the
+     line names — update the existing artifact in place, never create a new
+     one.
+  3. Record it: `RULES/bin/tracker published docs/proposals/<stem>.json --url <url>`
+     (add `--by <your session's name>`), then commit
+     `docs/proposals/tracker/<stem>.published.json`.
+
+  A republish needs no sponsor prompt: when the ledger's `switches.publish`
+  is on (the default), republishing a changed page is part of keeping the
+  ledger current, like rendering it. When `switches.publish` is switched off,
+  nothing is published — the card prints no such line and `tracker published`
+  refuses to record. The line never fails `warmup --check`; it is a to-do,
+  not a broken standard. Only a session's Artifact tool can publish; no hook
+  or script does it for you.
 
 ## 4. The first message to the sponsor
 

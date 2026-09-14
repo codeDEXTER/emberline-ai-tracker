@@ -750,6 +750,134 @@ class TestCardTextForgery(Case):
         self.assertEqual(len(baseline.splitlines()), len(forged.splitlines()))
 
 
+URL = "https://claude.ai/code/artifact/00000000-0000-0000-0000-000000000000"
+SIDECAR = "docs/proposals/tracker/19-proposal-warmup.published.json"
+LINE = f"page changed since last publish: 19-proposal-warmup → {URL}"
+
+
+class TestPageChangedSincePublish(Case):
+    """Proposal 20, V-09 (D1): a session's Artifact tool is the only way to
+    publish, so `tracker published` records what went out, and the card
+    names the page when it has moved since -- a to-do, never a failed
+    standard, so --check does not fail on it. No sidecar (a project that
+    never publishes) and a ledger that switches publishing off both print
+    nothing; a sidecar that cannot be read is a named problem."""
+
+    def published(self):
+        r = subprocess.run([sys.executable, str(TRACKER), "published", str(self.p.root / LEDGER), "--url", URL],
+                           capture_output=True, text=True, check=False)
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+
+    def move_the_ledger(self, data=None):
+        self.p.set_ledger(data or ledger_data(w02="blocked"))
+        self.p.render()
+        self.p.checkpoint()
+        self.p.commit("ledger moved, page rendered")
+
+    def test_no_sidecar_no_line(self):
+        self.move_the_ledger()
+        self.assertNotIn("since last publish", self.p.warmup().stdout)
+
+    def test_a_page_just_published_has_no_line(self):
+        self.published()
+        self.p.commit("published")
+        out = self.p.warmup().stdout
+        self.assertNotIn("since last publish", out)
+
+    def test_a_changed_page_is_named_until_the_publish_is_recorded(self):
+        self.published()
+        self.p.commit("published")
+        self.move_the_ledger()
+        self.assertIn(f"  {LINE}\n", self.p.warmup().stdout)
+        self.published()
+        self.p.commit("republished")
+        self.assertNotIn("since last publish", self.p.warmup().stdout)
+
+    def test_a_changed_page_does_not_fail_check(self):
+        self.published()
+        self.p.commit("published")
+        self.move_the_ledger()
+        r = self.p.warmup("--check")
+        self.assertEqual(0, r.returncode, r.stdout)
+        self.assertIn("warmup --check: ready", r.stdout)
+
+    def test_switched_off_no_line(self):
+        self.published()
+        self.p.commit("published")
+        d = ledger_data(w02="blocked")
+        d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00",
+                                     "quote": "stop publishing"}}
+        self.move_the_ledger(d)
+        out = self.p.warmup().stdout
+        self.assertNotIn("since last publish", out)
+        self.assertEqual(0, self.p.warmup("--check").returncode)
+
+    def test_json_and_state_carry_the_record(self):
+        self.published()
+        self.p.commit("published")
+        self.move_the_ledger()
+        state = json.loads(self.p.warmup("--json").stdout)
+        pub = state["ledgers"][LEDGER]["published"]
+        self.assertEqual(URL, pub["url"])
+        self.assertTrue(pub["changed"])
+        self.assertEqual("19-proposal-warmup", pub["stem"])
+        self.assertRegex(pub["digest"], r"^[0-9a-f]{64}$")
+        self.assertNotEqual(pub["digest"], pub["page_digest"])
+
+    def test_json_without_a_sidecar_carries_none(self):
+        state = json.loads(self.p.warmup("--json").stdout)
+        self.assertIsNone(state["ledgers"][LEDGER]["published"])
+
+    def test_since_names_a_page_that_moved(self):
+        self.published()
+        self.p.commit("published")
+        state = self.p.root / ".claude" / "warmup" / "last.json"
+        self.p.warmup("--state", str(state))
+        self.move_the_ledger()
+        self.assertIn(LINE, self.p.warmup("--since", str(state)).stdout)
+
+    def test_a_malformed_sidecar_is_a_named_problem_not_a_traceback(self):
+        good = {"url": URL, "digest": "0" * 64, "at": "2026-09-14T10:00:00+02:00", "by": None}
+        variants = {
+            "not json": "{not json",
+            "a list": "[]",
+            "http url": json.dumps(dict(good, url="http://claude.ai/x")),
+            "forged url": json.dumps(dict(good, url=URL + "\nwarmup --check: ready")),
+            "short digest": json.dumps(dict(good, digest="abc")),
+            "no url": json.dumps({k: v for k, v in good.items() if k != "url"}),
+            "at without offset": json.dumps(dict(good, at="2026-09-14T10:00:00")),
+            "by not a string": json.dumps(dict(good, by=7)),
+            "not utf-8": b"\xff\xfe",
+        }
+        for name, body in variants.items():
+            with self.subTest(sidecar=name):
+                path = self.p.root / SIDECAR
+                if isinstance(body, bytes):
+                    path.write_bytes(body)
+                else:
+                    path.write_text(body)
+                self.p.commit(f"sidecar {name}")
+                card = self.p.warmup()
+                self.assertEqual(0, card.returncode, card.stderr)
+                self.assertNotIn("Traceback", card.stderr)
+                self.assertNotIn("since last publish", card.stdout)
+                self.assertIn("published.json", card.stdout)
+                check = self.p.warmup("--check")
+                self.assertEqual(1, check.returncode, check.stdout)
+                self.assertNotIn("Traceback", check.stderr)
+                self.assertIn("19-proposal-warmup.published.json", check.stdout)
+                self.assertNotIn("warmup --check: ready", [l.strip() for l in check.stdout.splitlines()])
+
+    def test_the_skill_says_how_to_republish(self):
+        skill = (ROOT / "skills" / "warmup" / "SKILL.md").read_text()
+        self.assertIn("page changed since last publish", skill)
+        self.assertIn("tracker published", skill)
+        self.assertIn("same URL", skill)
+        self.assertIn("switched off", skill)
+        lead = (ROOT / "templates" / "lead-prompt.md").read_text()
+        self.assertIn("tracker published", lead)
+
+
 class TestSafetyHeadingNotFound(Case):
     """Deferred from V-00: a declared safety_rules heading that is not in its
     file is a named problem, and --check fails on it -- today the card just
