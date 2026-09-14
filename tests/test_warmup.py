@@ -1137,6 +1137,24 @@ class TestDeclaredPlanPageSincePublish(Case):
         self.assertIn(f"{SIDECAR} · outside the project", card)
         self.assertEqual(0, self.p.warmup("--json").returncode)
 
+    def test_a_sidecar_symlinked_inside_the_project_is_a_problem_and_never_read(self):
+        """V-11 final review: a sidecar symlinked to a record-shaped decoy inside the
+        project was read, and the card reported the decoy's url with no problem."""
+        self.published()
+        path = self.p.root / SIDECAR
+        record = json.loads(path.read_text())
+        record["url"] = "https://claude.ai/code/artifact/11111111-1111-1111-1111-111111111111"
+        (self.p.root / "docs" / "decoy.json").write_text(json.dumps(record))
+        path.unlink()
+        path.symlink_to("../../decoy.json")
+        self.p.commit("sidecar symlinked to a decoy")
+        check = self.p.warmup("--check")
+        self.assertEqual(1, check.returncode, check.stdout)
+        self.assertIn("is a symlink", check.stdout)
+        card = self.p.warmup().stdout
+        self.assertNotIn("11111111-1111", card)
+        self.assertIn(f"{SIDECAR} · is a symlink", card)
+
     def test_page_unchanged_is_carried_and_checked(self):
         self.published()
         r = subprocess.run([sys.executable, str(TRACKER), "published", str(self.p.root / LEDGER), "--url", URL,
