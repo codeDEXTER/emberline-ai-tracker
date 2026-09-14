@@ -7,6 +7,8 @@
   tracker sync     ...                 mirror items to GitHub issues, one way      (W-04)
   tracker checkpoint ...               write docs/handovers/<date>-checkpoint.md   (W-07)
   tracker import   ...                 an existing plan -> a ledger                (W-09)
+  tracker published LEDGER.json --url URL [--by NAME]
+                                       record the page a session just published    (P20 V-09)
 
 Each command is a module in tools/tracker/ with a `main(argv) -> int`, so
 commands built in parallel never edit the same file.
@@ -20,7 +22,7 @@ from pathlib import Path
 RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
-COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import")
+COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import", "published")
 
 
 def validate(argv):
@@ -56,6 +58,10 @@ def main(argv):
         return 2
     if cmd == "validate":
         return validate(rest)
+    if cmd == "published":
+        # Lives beside render, whose page digest it records (proposal 20, V-09).
+        from tools.tracker import render
+        return render.published_main(rest)
     module = "import_" if cmd == "import" else cmd
     try:
         mod = importlib.import_module(f"tools.tracker.{module}")
