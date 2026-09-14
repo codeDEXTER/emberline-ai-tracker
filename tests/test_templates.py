@@ -354,6 +354,39 @@ class TestLeadPromptStandard(SectionOrder):
                 f"lead-prompt.md: 'Proposals, requests and owners' section missing {phrase!r}",
             )
 
+    def test_owner_names_the_accepted_forms(self):
+        """Round 2 ruling: the exact accepted owner forms, `session:<name>`
+        (not 'a session named by its own name'), named both in the new
+        section and at the pre-existing owner line in §4."""
+        text = read("lead-prompt.md")
+        self.assertIn(
+            "session:<name>", text,
+            "lead-prompt.md: does not name the exact accepted owner form session:<name>",
+        )
+        self.assertNotIn(
+            "a session named by its own name", text,
+            "lead-prompt.md: still uses the loose 'a session named by its own name' form",
+        )
+        section_4 = text.split("## 4 Keep the ledger current", 1)[1].split("## 5 Do not stop", 1)[0]
+        self.assertIn(
+            "session:<name>", section_4,
+            "lead-prompt.md: §4's owner line does not name session:<name>",
+        )
+
+    def test_no_undefined_rules_alias(self):
+        """Round 2 ruling: lead-prompt.md never uses a bare `RULES` alias --
+        it is undefined in this template. Bare command names and
+        "common-rules' CHANGELOG.md" instead."""
+        text = read("lead-prompt.md")
+        self.assertNotIn(
+            "RULES/", text,
+            "lead-prompt.md: uses the undefined RULES/ alias",
+        )
+        self.assertIn(
+            "common-rules' `CHANGELOG.md`", text,
+            "lead-prompt.md: does not reference common-rules' CHANGELOG.md by name",
+        )
+
 
 class TestWorkflowStandardSection(unittest.TestCase):
     """Proposal 21, S-06: CLAUDE-workflow.md names the mandatory standard."""
@@ -394,6 +427,22 @@ class TestWorkflowStandardSection(unittest.TestCase):
             f"CLAUDE-workflow.md: standard section is {line_count} non-blank lines, expected at most ~25",
         )
 
+    def test_conformance_is_hedged_not_asserted(self):
+        """Round 2 ruling: bin/conformance is S-04, not merged yet. The
+        section must not describe it as already working -- same hedge as
+        SKILL.md ("once it lands" / "waiting on common-rules")."""
+        text = self.read_workflow()
+        section = text.split("## The warm-up standard is mandatory", 1)[1]
+        section = section.split("\n## ", 1)[0]
+        self.assertIn(
+            "once it lands", section,
+            "CLAUDE-workflow.md: bin/conformance is not hedged as not-yet-merged",
+        )
+        self.assertIn(
+            "waiting on common-rules", section,
+            "CLAUDE-workflow.md: no mention of the 'waiting on common-rules' fallback",
+        )
+
 
 class TestReadmeAdoption(unittest.TestCase):
     """Proposal 21, S-06: README's 'How a project adopts this' names /standard."""
@@ -406,6 +455,21 @@ class TestReadmeAdoption(unittest.TestCase):
         self.assertIn(
             "/standard", section,
             "README.md: 'How a project adopts this' does not mention /standard",
+        )
+
+    def test_does_not_promise_a_phantom_second_step(self):
+        """Round 2 ruling: the section only describes one step below (the
+        CLAUDE.md pointer) -- it must not claim there are two."""
+        path = ROOT / "README.md"
+        text = path.read_text()
+        section = text.split("## How a project adopts this", 1)[1].split("\n## ", 1)[0]
+        self.assertNotIn(
+            "the two steps below", section,
+            "README.md: still claims 'the two steps below', but only one is described",
+        )
+        self.assertIn(
+            "bin/derecord", section,
+            "README.md: does not name bin/derecord as what installs the enforced rules",
         )
 
 

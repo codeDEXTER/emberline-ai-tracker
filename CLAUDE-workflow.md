@@ -33,8 +33,11 @@ only the pointer.
 - **The sponsor's `/standard`** is what adopts this for a project — typed
   by him, in that session, with his own authority there. A session does
   not wait to be told twice.
-- **`bin/conformance --project <dir>`** measures the 12-item checklist and
-  reports each item as holding, not holding, or waiting on common-rules.
+- **`bin/conformance --project <dir>`** will measure the 12-item checklist
+  and report each item as holding, not holding, or waiting on
+  common-rules, once it lands. Until then, `/standard` marks an item whose
+  tool isn't in common-rules yet as "waiting on common-rules", never a
+  substitute — re-checked at the next `/warmup`.
 - **A later change to the standard is mandatory too.** A `CHANGELOG.md`
   entry here beginning `**Standard change (mandatory):**` is implemented
   before the next `rulecheck --align` — never the reverse.

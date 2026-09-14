@@ -76,9 +76,8 @@ happened, the changelog records what it was for.
 
 **The sponsor runs `/standard`** in the project's session (see
 `skills/standard/SKILL.md`). That single command does the rest itself, via
-its own 12-item checklist — including what the two steps below describe:
-the `CLAUDE.md` pointer, and running `bin/derecord` to install the
-enforced rules.
+its own 12-item checklist — including the `CLAUDE.md` pointer below, and
+running `bin/derecord`, which installs the enforced rules.
 
 Add a short pointer near the top of the project's own `CLAUDE.md`:
 
