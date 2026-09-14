@@ -30,7 +30,8 @@ module does not know is ignored, because later proposals add keys.
 
 EVERY VALUE IS UNTRUSTED. A path is relative to the project root: an absolute
 path, a `..` part, or a path that resolves (through a symlink) outside the
-project is a problem, and nothing outside the project is read or hashed. Every
+project is a problem, and no declared path outside the project is read or hashed
+(the default HANDOFF.md, ledgers and checkpoint are read as before). Every
 path and command is one line -- no control character -- because a command is
 eval'd by land and every value can be printed on the card, where a line break
 would run a second command or forge a line. And every string must be valid
