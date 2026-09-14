@@ -1413,6 +1413,62 @@ class TestMandatoryStandardChanges(Case):
                 self.assertIn("evil\\x1b[31m\\x0bforged\\x0c\\u202eend\\x85", r.stdout)
                 self.assertEqual(sum("evil" in l for l in r.stdout.splitlines()), 1)
 
+    # --- round 2 (reviewer fix-first on a040c1e) ---------------------------
+
+    UNRESOLVED = "rules stamp cannot be resolved -- rulecheck --align after implementing every mandatory Standard change"
+
+    def test_an_unresolvable_stamp_fails_check(self):
+        """Item 1: `3-deadbee` (gone after a force-push) and `7-NOTASHA` used to
+        read "could not check" and pass."""
+        self.rules.add("2026-09-14 · First", "do one")
+        for bad in ("3-deadbee", "7-NOTASHA"):
+            with self.subTest(stamp=bad):
+                self.stamp(bad)
+                r = self.warm("--check")
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn(self.UNRESOLVED, r.stdout)
+                block = self.rules_block(self.warm().stdout)
+                self.assertEqual(block[0].split(None, 1)[1],
+                                 f"stamp {bad} cannot be resolved · 1 mandatory Standard change(s) "
+                                 f"to implement first:")
+                self.assertEqual([l.strip() for l in block[1:]], ["2026-09-14 · First"])
+
+    def test_an_unresolvable_stamp_fails_check_with_no_mandatory_entry(self):
+        self.stamp("3-deadbee")
+        r = self.warm("--check")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn(self.UNRESOLVED, r.stdout)
+
+    def test_a_full_sha_stamp_reads_aligned(self):
+        """Item 5."""
+        self.rules.add("2026-09-14 · Reheat", "do it")
+        count = self.rules.version().split("-", 1)[0]
+        self.stamp(f"{count}-{self.rules.full_sha()}")
+        r = self.warm("--check")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.rules_block(self.warm().stdout), ["  rules         aligned"])
+
+    def test_a_stamp_ahead_of_the_rules_checkout_is_named_and_never_fails(self):
+        """Item 5."""
+        self.rules.add("2026-09-14 · Here", "already here")
+        self.stamp(self.rules.ahead("2026-09-15 · Future", "not here yet"))
+        r = self.warm("--check")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("warmup --check: ready", r.stdout)
+        self.assertEqual(self.rules_block(self.warm().stdout),
+                         ["  rules         ahead of this rules checkout -- update common-rules"])
+
+    def test_a_moved_entry_does_not_fail_check(self):
+        """Item 4, end to end."""
+        long_body = "".join(f"line {i} of a long informational entry.\n" for i in range(30))
+        self.rules.add("2026-09-14 · Mandatory", "do it")
+        self.rules.add("2026-09-15 · Long", body=long_body)
+        self.stamp(self.rules.version())
+        self.rules.blocks.reverse()
+        self.rules.rewrite()
+        r = self.warm("--check")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
     def test_no_stamp_keeps_not_adopted_plus_a_count_and_never_fails(self):
         self.rules.add("2026-09-14 · First", "do one")
         self.rules.add("2026-09-15 · Second", "do two")
