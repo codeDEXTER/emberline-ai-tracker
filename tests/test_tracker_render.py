@@ -117,8 +117,11 @@ def render_html(data: dict) -> str:
 def _load_render_module(ref: str, name: str):
     """The render.py blob at `ref`, imported under `name` so it can be called
     side by side with the current module without clobbering it."""
-    content = subprocess.run(["git", "show", f"{ref}:tools/tracker/render.py"], cwd=ROOT,
-                             capture_output=True, text=True, check=True).stdout
+    shown = subprocess.run(["git", "show", f"{ref}:tools/tracker/render.py"], cwd=ROOT,
+                           capture_output=True, text=True)
+    if shown.returncode != 0:
+        raise unittest.SkipTest(f"{ref} is not in this checkout's history (no .git, or a shallow clone)")
+    content = shown.stdout
     tmp = tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w")
     tmp.write(content)
     tmp.close()
