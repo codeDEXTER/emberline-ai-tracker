@@ -158,7 +158,12 @@ def rules_status(project: Path) -> tuple[str, list[str]]:
     card() is exact; the state keeps its key set (tests/test_project_declaration.py
     pins it). Behind only on informational entries stays STALE, shown and never
     failed. No stamp stays "not adopted", with a count of the mandatory entries
-    in the whole CHANGELOG, and never fails."""
+    in the whole CHANGELOG, and never fails.
+
+    Round 2: a stamp that cannot be resolved (not a sha, or a commit the rules
+    repo does not have) fails --check -- it used to read "could not check" and
+    pass -- and the card lists every mandatory entry in the CHANGELOG. A stamp
+    ahead of the rules checkout is named, and never fails."""
     if not (project / ".common-rules-version").is_file():
         whole = RC.mandatory_in_changelog()
         count = "" if whole is None else f" · {len(whole)} mandatory Standard change(s) in the rules CHANGELOG"
@@ -166,6 +171,17 @@ def rules_status(project: Path) -> tuple[str, list[str]]:
     p = RC.mandatory_pending(project)
     if p.state == "aligned":
         return "aligned", []
+    if p.state == "ahead":
+        return "ahead of this rules checkout -- update common-rules", []
+    if p.state == "unresolvable":
+        stamp = "(unreadable)" if p.stamp is None else shown(p.stamp)
+        problem = ["rules stamp cannot be resolved -- rulecheck --align after implementing every "
+                   "mandatory Standard change"]
+        if not p.entries:
+            return f"stamp {stamp} cannot be resolved · the rules CHANGELOG carries no mandatory Standard change", problem
+        lines = [f"stamp {stamp} cannot be resolved · {len(p.entries)} mandatory Standard change(s) "
+                 f"to implement first:"]
+        return "\n".join(lines + [shown(e.heading) for e in p.entries]), problem
     if p.state == "behind" and p.entries:
         lines = [f"behind · {len(p.entries)} mandatory Standard change(s) to implement first:"]
         lines += [shown(e.heading) for e in p.entries]

@@ -403,10 +403,29 @@ class FakeRules:
         self.commit()
         return self.version()
 
+    def rewrite(self) -> str:
+        """Commit self.blocks (and self.seed) as edited in place by a test."""
+        self._write()
+        self.commit()
+        return self.version()
+
     def version(self) -> str:
         count = self.git("rev-list", "--count", "HEAD").stdout.strip()
         sha = self.git("rev-parse", "--short", "HEAD").stdout.strip()
         return f"{count}-{sha}"
+
+    def full_sha(self) -> str:
+        return self.git("rev-parse", "HEAD").stdout.strip()
+
+    def ahead(self, heading: str, mandatory: str | None = None) -> str:
+        """A version on a branch the rules checkout has not got: commit an entry
+        on `future`, then return to main as it was."""
+        saved = list(self.blocks)
+        self.git("checkout", "-q", "-b", "future")
+        version = self.add(heading, mandatory)
+        self.git("checkout", "-q", "main")
+        self.blocks = saved
+        return version
 
 
 def load_rulecheck():
@@ -553,13 +572,15 @@ class MandatoryStandardChanges(unittest.TestCase):
             r = self.mandatory()
             self.assertNotIn("Traceback", r.stderr, r.stderr)
             self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
-        for bad in ("", "garbage", "1-", "1-zzzzzzz", "1-" + "a" * 41, "-\x1b[2J"):
-            with self.subTest(stamp=bad):
-                self.stamp(bad)
-                r = self.mandatory()
-                self.assertNotIn("Traceback", r.stderr, r.stderr)
-                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
-                self.assertEqual(raw_controls(r.stdout + r.stderr), [])
+        # A stamp that cannot be resolved is no longer "could not check" (P21
+        # S-09 round 2): see test_an_unresolvable_stamp_counts_every_mandatory_entry.
+        # Exit 2 is kept for the rules repo or its CHANGELOG being unreadable,
+        # which is this case: the CHANGELOG is gone, whatever the stamp says.
+        with self.subTest(case="CHANGELOG deleted, unresolvable stamp"):
+            self.stamp("3-deadbee")
+            r = self.mandatory()
+            self.assertNotIn("Traceback", r.stderr, r.stderr)
+            self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
 
     def test_a_heading_with_control_characters_is_escaped(self):
         self.stamp(self.rules.version())
@@ -608,7 +629,8 @@ class MandatoryStandardChanges(unittest.TestCase):
         for args in ((), ("--mandatory",)):
             with self.subTest(args=args):
                 r = run(self.proj, *args, rules_dir=self.rules.root)
-                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                # 1, not 2: an unresolvable stamp gets no pass (round 2, item 1).
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
                 self.assertEqual(sorted(p.name for p in self.tmp.iterdir() if p.name.startswith("pwned")), [])
 
     def test_align_still_just_records_the_version(self):
@@ -628,6 +650,177 @@ class MandatoryStandardChanges(unittest.TestCase):
         self.assertIn("2 mandatory Standard change(s)", r.stdout)
         pending = load_rulecheck().mandatory_pending(self.proj, rules=self.rules.root)
         self.assertEqual((pending.state, len(pending.entries)), ("no stamp", 2))
+
+    # --- round 2 (reviewer fix-first on a040c1e) ---------------------------
+
+    def test_an_uppercase_sha_stamp_resolves(self):
+        """Item 1: `2-1B412F1` is the same commit as `2-1b412f1`."""
+        self.rules.add("2026-09-13 · Old", "already done")
+        count, sha = self.rules.version().split("-", 1)
+        self.stamp(f"{count}-{sha.upper()}")
+        self.rules.add("2026-09-14 · New", "do the new thing")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("1 mandatory Standard change(s)", r.stdout)
+        self.assertIn("2026-09-14 · New", r.stdout)
+        self.assertNotIn("2026-09-13 · Old", r.stdout)
+        self.assertNotIn("cannot be resolved", r.stdout)
+
+    def test_an_unresolvable_stamp_counts_every_mandatory_entry(self):
+        """Item 1: a stamp that names no commit here -- bad form, or a commit a
+        force-push removed -- got a project past the gate as "could not check".
+        Now it counts every mandatory entry in the CHANGELOG, and exits 1."""
+        self.rules.add("2026-09-13 · Old", "do the old thing")
+        self.rules.add("2026-09-13 · Informational")
+        # A real commit, then gone: reset away, reflog expired, pruned.
+        gone = self.rules.add("2026-09-14 · Doomed")
+        self.rules.git("reset", "-q", "--hard", "HEAD~1")
+        self.rules.blocks.pop(0)
+        self.rules.git("reflog", "expire", "--expire=now", "--all")
+        self.rules.git("gc", "-q", "--prune=now")
+        self.rules.add("2026-09-14 · New", "do the new thing")
+        rc = load_rulecheck()
+        for bad in (gone, "3-deadbee", "7-NOTASHA", "", "garbage", "1-", "1-zzzzzzz",
+                    "1-" + "a" * 41, "-\x1b[2J"):
+            with self.subTest(stamp=bad):
+                self.stamp(bad)
+                r = self.mandatory()
+                self.assertNotIn("Traceback", r.stderr, r.stderr)
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn(f"stamp {rc.shown(bad)} cannot be resolved -- every mandatory "
+                              f"Standard change counts", r.stdout)
+                self.assertIn("2 mandatory Standard change(s)", r.stdout)
+                self.assertIn("2026-09-13 · Old", r.stdout)
+                self.assertIn("2026-09-14 · New", r.stdout)
+                self.assertEqual(raw_controls(r.stdout + r.stderr), [])
+                pending = rc.mandatory_pending(self.proj, rules=self.rules.root)
+                self.assertEqual((pending.state, len(pending.entries)), ("unresolvable", 2))
+
+    def test_an_unresolvable_stamp_fails_even_with_no_mandatory_entry(self):
+        self.stamp("3-deadbee")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("stamp 3-deadbee cannot be resolved", r.stdout)
+
+    def test_rewording_what_a_standard_change_asks_is_pending(self):
+        """Item 2: an added line anywhere in the requirement paragraph -- the
+        marker line to the next blank line or heading -- counts."""
+        self.rules.add("2026-09-14 · Reheat", "run derecord --reheat\nin every project, weekly.")
+        self.stamp(self.rules.version())
+        self.rules.blocks[0] = self.rules.blocks[0].replace("in every project, weekly.",
+                                                            "in every project, daily.")
+        self.rules.rewrite()
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("2026-09-14 · Reheat", r.stdout)
+        self.assertIn("run derecord --reheat in every project, daily.", r.stdout)
+
+    def test_an_edit_outside_the_requirement_paragraph_is_not_pending(self):
+        self.rules.add("2026-09-14 · Reheat", "run derecord --reheat",
+                       body="Why it changed.\n")
+        self.stamp(self.rules.version())
+        self.rules.blocks[0] = self.rules.blocks[0].replace("Why it changed.", "Why it changed, reworded.")
+        self.rules.blocks[0] += "A note added after the requirement.\n\n"
+        self.rules.rewrite()
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_a_marker_inside_a_fenced_code_block_is_not_a_standard_change(self):
+        """Item 3: an informational entry showing the format is not one."""
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · The format, backticks",
+                       body=f"Write it like this:\n\n```markdown\n{MARKER} what each project must do\n```\n")
+        self.rules.add("2026-09-14 · The format, tildes",
+                       body=f"~~~~\n{MARKER} inside a tilde fence\n~~~~\n")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        rc = load_rulecheck()
+        self.assertEqual(rc.mandatory_in_changelog(self.rules.root), ())
+
+    def test_a_heading_inside_a_fence_is_not_a_heading_and_quoting_stops_at_a_fence(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · Real", body="```\n## Fake heading\n```\n")
+        self.rules.blocks[0] += f"{MARKER} the real requirement\n```\ncode, not requirement\n```\n\n"
+        self.rules.rewrite()
+        pending = load_rulecheck().mandatory_pending(self.proj, rules=self.rules.root)
+        self.assertEqual([(e.heading, e.line) for e in pending.entries],
+                         [("2026-09-14 · Real", f"{MARKER} the real requirement")])
+
+    def test_an_unclosed_fence_does_not_hide_a_later_standard_change(self):
+        """A fence that never closes is malformed, and fails closed: it opens
+        nothing, so a real marker after it still counts."""
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · Broken", body="```\nnever closed\n")
+        self.rules.add("2026-09-15 · Real", "do it")
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("2026-09-15 · Real", r.stdout)
+
+    def test_a_moved_entry_is_not_pending(self):
+        """Item 4: moving an entry above or below another, otherwise unchanged,
+        is not a new requirement. The informational entry is long so that git
+        shows the short mandatory entry as the one that moved."""
+        long_body = "".join(f"line {i} of a long informational entry.\n" for i in range(30))
+        for direction in ("above", "below"):
+            with self.subTest(direction=direction):
+                self.setUp()
+                if direction == "above":
+                    self.rules.add("2026-09-14 · Mandatory", "do it")
+                    self.rules.add("2026-09-15 · Long", body=long_body)
+                else:
+                    self.rules.add("2026-09-15 · Long", body=long_body)
+                    self.rules.add("2026-09-14 · Mandatory", "do it")
+                self.stamp(self.rules.version())
+                self.rules.blocks.reverse()
+                self.rules.rewrite()
+                diff = self.rules.git("diff", "-U0", "HEAD~1..HEAD", "--", "CHANGELOG.md").stdout
+                self.assertIn(f"+{MARKER} do it", diff, "precondition: git must show the mandatory entry moving")
+                r = self.mandatory()
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_a_moved_and_reworded_entry_is_pending(self):
+        long_body = "".join(f"line {i} of a long informational entry.\n" for i in range(30))
+        self.rules.add("2026-09-14 · Mandatory", "do it")
+        self.rules.add("2026-09-15 · Long", body=long_body)
+        self.stamp(self.rules.version())
+        self.rules.blocks.reverse()
+        self.rules.blocks[0] = self.rules.blocks[0].replace("do it", "do it twice")
+        self.rules.rewrite()
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+
+    def test_a_full_sha_or_longer_prefix_stamp_is_aligned(self):
+        """Item 5: the sha identifies the version; a longer form of it is the same one."""
+        self.rules.add("2026-09-14 · Reheat", "do it")
+        count, short = self.rules.version().split("-", 1)
+        full = self.rules.full_sha()
+        for sha in (full, full[:len(short) + 3], full.upper()):
+            with self.subTest(sha=sha):
+                self.stamp(f"{count}-{sha}")
+                r = self.mandatory()
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertIn("is aligned", r.stdout)
+                plain = run(self.proj, rules_dir=self.rules.root)
+                self.assertEqual(plain.returncode, 0, plain.stdout + plain.stderr)
+                self.assertIn("is aligned", plain.stdout)
+
+    def test_a_prefix_shorter_than_the_short_sha_is_not_aligned(self):
+        self.rules.add("2026-09-14 · Reheat", "do it")
+        count, short = self.rules.version().split("-", 1)
+        self.stamp(f"{count}-{short[:4]}")
+        plain = run(self.proj, rules_dir=self.rules.root)
+        self.assertNotIn("is aligned", plain.stdout)
+
+    def test_a_stamp_ahead_of_the_rules_checkout_is_not_behind(self):
+        """Item 5: the project aligned with rules this checkout has not pulled."""
+        self.rules.add("2026-09-14 · Here", "already here")
+        self.stamp(self.rules.ahead("2026-09-15 · Future", "not here yet"))
+        r = self.mandatory()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("ahead of this rules checkout -- update common-rules", r.stdout)
+        self.assertNotIn("behind", r.stdout)
+        pending = load_rulecheck().mandatory_pending(self.proj, rules=self.rules.root)
+        self.assertEqual((pending.state, pending.entries), ("ahead", ()))
 
     def test_a_non_adopting_project_could_not_check(self):
         (self.proj / "CLAUDE.md").write_text("Deliberately separate.\n")
