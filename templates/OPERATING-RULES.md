@@ -35,9 +35,9 @@ entry shape, shown once here so every later entry can just use it:
 - **One writer per worktree; explicit file ownership per agent.** An agent
   that needs a change in a file it does not own describes it in its report
   rather than making it.
-- **Fast-forward first.** Every agent worktree confirms
-  `git merge --ff-only` against the integration tip before starting, and
-  the lead confirms it again before merging back.
+- **Fast-forward first.** Branch from the integration branch the lead
+  names — `origin/main` when there is none — and fast-forward to it
+  before the first edit; the lead confirms it again before merging back.
 - **Never `git stash`.** The stash is shared across worktrees; two agents
   can swap work through it without either noticing. Set work aside with a
   WIP commit, or show red-first with a saved diff and `git apply -R`.
