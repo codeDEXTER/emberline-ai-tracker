@@ -19,9 +19,12 @@
 #   - the project is not aligned with the current common-rules (see below)
 #   - the branch changes code and touches no test (see below)
 #
-# The test suite it runs is the one the project declares in .common-rules-test
-# (first non-blank, non-comment line), else a guess: tests/*.py -> unittest,
-# package.json -> npm test.
+# The test suite it runs is the one the project declares, in this order:
+# gates.merge in .common-rules.json (tools/project.py documents the file),
+# then .common-rules-test (first non-blank, non-comment line), then a guess:
+# tests/*.py -> unittest, package.json -> npm test. A .common-rules.json that
+# is not valid JSON, or declares a gate that is not a non-empty string,
+# refuses -- it never falls back to the next source.
 #   - a proposal asked numbered decisions or claims partial completion and
 #     recorded neither (see below)
 #   - a commit names a ledger item whose row did not move (see below)
@@ -78,17 +81,75 @@ say() { printf '%s\n' "$*"; }
 refuse() { say "  not landing: $*"; return 1; }
 
 test_cmd() {
-    # A declared gate wins. `.common-rules-test` at the project root, beside
-    # `.common-rules-version`: the first line that is neither blank nor a
-    # comment is the command. Guessing from the tree ran the wrong gate for the
+    # A declared gate wins, in this order:
+    #   1. `.common-rules.json` gates.merge (proposal 20, D9; tools/project.py
+    #      documents the file);
+    #   2. `.common-rules-test` at the project root, beside
+    #      `.common-rules-version`: the first line that is neither blank nor a
+    #      comment is the command;
+    # then a guess from the tree. Guessing ran the wrong gate for the
     # PhotoVault engine, whose tests are pytest with markers -- found in
     # proposal 19's pilot, 13 Sep, and named as a gap in proposal 18 B.
-    # bin/warmup reads the same line; tests/test_warmup.py pins them equal.
+    # tools/project.py's test_command() is this function's twin, and bin/warmup
+    # reports it; tests/test_warmup.py pins them equal.
+    #
+    # A `.common-rules.json` that cannot be read refuses the landing, and so
+    # does a declared gate land cannot use -- "gates" that is not an object,
+    # or a "merge" or "quick" that is not a non-empty string (lead ruling on
+    # V-00, 14 Sep), is not valid UTF-8, or is not one line (review round 2:
+    # "false\ntrue" was eval'd as two commands and read green). Falling back
+    # to .common-rules-test or the guess would silently run a gate nobody
+    # declared. It is read by python's json, run as `python3 -I` so a
+    # project's own json.py cannot shadow the standard library, and the shell
+    # never parses a declared value; the command itself is the project's own,
+    # and runs as written. Every declared command is printed with printf,
+    # never echo, which would swallow a command such as `-n`.
+    #
+    # Tests extract this function with sed up to the first line that starts
+    # with a closing brace, so no line inside it may start with one.
+    if [ -f .common-rules.json ]; then
+        local fromjson
+        if ! fromjson="$(python3 -I -c '
+import json, sys
+def refuse(why):
+    print("false  # .common-rules.json " + why)
+    sys.exit(0)
+try:
+    d = json.loads(open(".common-rules.json", "rb").read())
+except (OSError, ValueError):
+    refuse("is not valid JSON")
+if not isinstance(d, dict):
+    refuse("is not a JSON object")
+g = d.get("gates", {})
+if not isinstance(g, dict):
+    refuse("gates is not an object")
+for name in ("merge", "quick"):
+    if name not in g:
+        continue
+    v = g[name]
+    if not (isinstance(v, str) and v.strip()):
+        refuse("gates." + name + " is not a string")
+    try:
+        v.encode("utf-8")
+    except UnicodeEncodeError:
+        refuse("gates." + name + " is not valid UTF-8")
+    if any(ord(c) < 32 or 127 <= ord(c) < 160 for c in v.strip()):
+        refuse("gates." + name + " must be one line")
+if "merge" in g:
+    print(g["merge"].strip())
+' 2>/dev/null)"; then
+            fromjson="false  # python3 could not read .common-rules.json"
+        fi
+        if [ -n "$fromjson" ]; then
+            printf '%s\n' "$fromjson"
+            return
+        fi
+    fi
     if [ -f .common-rules-test ]; then
         local declared
         declared="$(grep -v '^[[:space:]]*#' .common-rules-test | grep -v '^[[:space:]]*$' | head -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || true)"
         if [ -n "$declared" ]; then
-            echo "$declared"
+            printf '%s\n' "$declared"
             return
         fi
     fi

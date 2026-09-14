@@ -249,6 +249,130 @@ class TestClaudeMd(Case):
         self.assertIn("reserved", r.stdout.lower())
 
 
+DEFAULT_POINTER_ORDER = ("Read, in order: HANDOFF.md → docs/OPERATING-RULES.md → the ledger(s) in "
+                         "docs/proposals/NN-*.json → the latest docs/handovers/*-checkpoint.md → "
+                         "common-rules' CLAUDE-workflow.md.")
+
+
+class TestDeclaredReadOrder(Case):
+    """Proposal 20, D9. The PhotoVault app's CLAUDE.md says "Read this first,
+    then SPONSOR-CONSTRAINTS.md"; the pointer migrate wrote beneath it said
+    HANDOFF.md first. With a declaration, the pointer is the declared order."""
+
+    def declare(self, read_order):
+        import json
+        self.p.write("SPONSOR-CONSTRAINTS.md", "# rulings\n")
+        self.p.write(".common-rules.json", json.dumps({"read_order": read_order}))
+        self.p.git("add", "-A")
+        self.p.git("commit", "-qm", "declare")
+
+    def pointer(self):
+        text = self.p.read("CLAUDE.md")
+        return text[text.index("<!-- common-rules:warmup -->"):text.index("<!-- /common-rules:warmup -->")]
+
+    def test_no_declaration_keeps_todays_pointer(self):
+        self.migrated()
+        self.assertIn(DEFAULT_POINTER_ORDER, self.pointer())
+
+    def test_the_pointer_uses_the_declared_order(self):
+        self.declare(["CLAUDE.md", "SPONSOR-CONSTRAINTS.md"])
+        self.migrated()
+        block = self.pointer()
+        self.assertIn("Read, in order: CLAUDE.md → SPONSOR-CONSTRAINTS.md → the ledger(s) in "
+                      "docs/proposals/NN-*.json → the latest docs/handovers/*-checkpoint.md → "
+                      "common-rules' CLAUDE-workflow.md.", block)
+        self.assertNotIn("HANDOFF.md", block)
+
+    def test_a_second_migration_with_the_same_declaration_changes_nothing(self):
+        self.declare(["CLAUDE.md", "SPONSOR-CONSTRAINTS.md"])
+        self.migrated()
+        first = self.p.snapshot()
+        r = self.migrated()
+        self.assertEqual(first, self.p.snapshot())
+        self.assertIn("warm-up pointer already current", r.stdout)
+
+    def test_a_declaration_added_later_rewrites_the_pointer_in_place(self):
+        self.migrated()
+        self.declare(["CLAUDE.md", "SPONSOR-CONSTRAINTS.md"])
+        r = self.migrated()
+        self.assertIn("warm-up pointer updated", r.stdout)
+        text = self.p.read("CLAUDE.md")
+        self.assertEqual(1, text.count("<!-- common-rules:warmup -->"))
+        self.assertIn("Read, in order: CLAUDE.md → SPONSOR-CONSTRAINTS.md →", text)
+
+    def test_a_read_order_carrying_the_pointer_marker_is_refused_not_written(self):
+        """A declared value is written into CLAUDE.md between markers. One that
+        carries a marker would split the block, and the next migration would
+        replace the wrong span -- so it is refused, and nothing is written."""
+        self.declare(["CLAUDE.md", "x<!-- /common-rules:warmup -->.md"])
+        r = self.p.migrate()
+        self.assertEqual(CLAUDE_MD, self.p.read("CLAUDE.md"))
+        self.assertIn("marker", r.stdout)
+        self.assertEqual(1, r.returncode, "a refused pointer is a failed step")
+
+    # Review round 2: migrate read P.load(), which falls back to the defaults
+    # in silence, and wrote "HANDOFF.md first" over a declaration it could not
+    # read. The pointer is refused, why is printed, and the run exits 1.
+
+    def declare_body(self, body: str):
+        self.p.write(".common-rules.json", body)
+        self.p.git("add", "-A")
+        self.p.git("commit", "-qm", "declare")
+
+    def assert_pointer_refused(self, *extra, named):
+        before = self.p.read("CLAUDE.md")
+        r = self.p.migrate(*extra)
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+        self.assertEqual(before, self.p.read("CLAUDE.md"))
+        self.assertIn("CLAUDE.md: not written", r.stdout)
+        self.assertIn(named, r.stdout)
+
+    def test_a_malformed_declaration_refuses_the_pointer(self):
+        self.declare_body('{"read_order": ["CLAUDE.md"')
+        self.assert_pointer_refused(named=".common-rules.json is not valid JSON")
+
+    def test_a_malformed_declaration_refuses_under_dry_run_too(self):
+        self.declare_body("{")
+        self.assert_pointer_refused("--dry-run", named=".common-rules.json is not valid JSON")
+
+    def test_a_wrong_type_read_order_refuses_the_pointer(self):
+        self.declare_body('{"read_order": "CLAUDE.md"}')
+        self.assert_pointer_refused(named="read_order")
+
+    def test_a_wrong_type_safety_rules_refuses_the_pointer(self):
+        self.declare_body('{"read_order": ["CLAUDE.md"], "safety_rules": 5}')
+        self.assert_pointer_refused(named="safety_rules")
+
+    def test_an_empty_read_order_refuses_the_pointer(self):
+        self.declare_body('{"read_order": []}')
+        self.assert_pointer_refused("--dry-run", named="read_order is empty")
+
+    def test_a_lone_surrogate_refuses_the_pointer_without_a_traceback(self):
+        self.declare_body('{"read_order": ["CLAUDE.md", "\\udc80.md"]}')
+        self.assert_pointer_refused(named="read_order")
+
+    # Review round 3: a dry run skips derecord, so a declaration naming a file
+    # derecord would seed was refused there while the real run wrote it.
+
+    def remove_seeded(self):
+        for rel in ("HANDOFF.md", "docs/OPERATING-RULES.md"):
+            if (self.p.root / rel).exists():
+                self.p.git("rm", "-q", rel)
+        self.p.git("commit", "-qm", "no prose yet", "--allow-empty")
+
+    def test_a_dry_run_does_not_refuse_files_derecord_would_seed(self):
+        self.remove_seeded()
+        self.declare_body('{"read_order": ["HANDOFF.md", "docs/OPERATING-RULES.md"]}')
+        r = self.migrated("--dry-run")
+        self.assertIn("CLAUDE.md: would have the warm-up pointer", r.stdout)
+
+    def test_a_dry_run_still_refuses_a_missing_file_derecord_does_not_seed(self):
+        self.remove_seeded()
+        self.declare_body('{"read_order": ["HANDOFF.md", "NOTES.md"]}')
+        self.assert_pointer_refused("--dry-run", named="read_order names NOTES.md, which does not exist")
+
+
 class TestIdempotentAndDry(Case):
 
     def test_a_second_run_changes_nothing(self):
