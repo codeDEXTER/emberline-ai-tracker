@@ -61,6 +61,19 @@ ask), never from the summary.
      `docs/proposals/tracker/<stem>.published.json`, with nothing else in
      that commit.
 
+  **When `.common-rules.json` declares `plan_page`**, the page of record is
+  the file that project's generator writes, not the tracker page, and the
+  line names that file: `page changed since last publish: <page> → <url>`.
+  It speaks when the ledger moves, not when only a generated date does. Same
+  order, with the page swapped in:
+  1. Commit ledger edits first, then regenerate the page with the project's
+     own generator (the `plan_page` command) and commit it.
+  2. With your Artifact tool, publish that file in place to the same URL.
+  3. Record it: `RULES/bin/tracker published docs/proposals/<stem>.json --url <url> --page <path>`,
+     `<path>` being the committed file the generator wrote, relative to the
+     project root; then commit the sidecar on its own. Without `--page`,
+     `tracker published` refuses on such a project.
+
   A republish is not logged as a ledger event. The sidecar's `at` and `by`,
   in git, are the record. This is the one exception to "every state change
   gets a log entry": a log entry would itself move the page, and the line
