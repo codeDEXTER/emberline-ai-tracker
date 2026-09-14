@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 00:29
+# Checkpoint — 2026-09-15 00:52
 
-Reason: manual · branch: p22 · HEAD: cb5186d
+Reason: manual · branch: p22 · HEAD: 557efe1
 
-<!-- ledger-digest: e8af4dde20b6cb0d202e4c2100f89980705c75fb7a9d26f72ce69c7f2e350b8d -->
+<!-- ledger-digest: 4c9516e723c41e20706b75768222a30a86724aef4380ff7423335dc73f39287a -->
 
 ## Proposal 19 · Warm-up
 
@@ -47,11 +47,10 @@ Reason: manual · branch: p22 · HEAD: cb5186d
 
 ## Proposal 22 · One tracker per project
 
-2 done / 2 in progress / 0 blocked / 1 not started
+3 done / 1 in progress / 0 blocked / 1 not started
 
 ### In progress
 
-- T-03 · [ruflo · high · opus] · Publishing the project page · lead fix
 - T-04 · [ruflo · lead · lead model] · common-rules on one tracker · started, wording only
 
 ### Blocked, and why
