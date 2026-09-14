@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-14 21:44
+# Checkpoint — 2026-09-14 22:10
 
-Reason: manual · branch: p22 · HEAD: 5a49d0b
+Reason: manual · branch: p22 · HEAD: b74cd8c
 
-<!-- ledger-digest: b24f548ef31a8136e8b7868b20c9405127c8b8f06be394f39a669710818414fa -->
+<!-- ledger-digest: f22a9ca4c013c1b87b842ab726c1461ac120f8780abbe0a789543df8a7629b65 -->
 
 ## Proposal 19 · Warm-up
 
@@ -51,7 +51,7 @@ Reason: manual · branch: p22 · HEAD: 5a49d0b
 
 ### In progress
 
-- T-02 · [ruflo · high · opus] · The chain reads the project page, not one page per proposal · committed, review started
+- T-02 · [ruflo · high · opus] · The chain reads the project page, not one page per proposal · rulings
 
 ### Blocked, and why
 
