@@ -1,14 +1,29 @@
 #!/usr/bin/env python3
-"""SessionStart hook (proposal 19, D8 / W-07). After a compaction, points the
-session back at the ledger rather than the summary it just lost context to
-(proposal 19, section K, "after the cut"); at an ordinary start, nudges
-toward `/warmup` when there is an open ledger to read.
+"""SessionStart hook (proposal 19, D8 / W-07; proposal 21, S-05). After a
+compaction, points the session back at the ledger rather than the summary it
+just lost context to (proposal 19, section K, "after the cut"); at an
+ordinary start, nudges toward `/warmup` when there is an open ledger to read.
+
+When the start folder has no open ledger of its own -- a session started in
+a parent folder that holds several projects, like PhotoVault/ holding app/
+and engine/ -- it looks one level down instead (S-05): any direct child
+directory that is itself a project (its own `.common-rules.json`, or an open
+ledger under its own docs/proposals/) gets one line naming it and its status,
+plus the `/warmup --project` command to warm it up. A start folder with its
+own open ledger behaves exactly as before; this only fires when it has none.
+Capped at MAX_CHILDREN, sorted by name, with a `+N more` line rather than one
+pair per project on the machine. A child this session cannot read (a
+permission error, a race) is left off the list rather than hiding every
+other child's line.
 
 Reads the hook's JSON on stdin (fields including `cwd`, `source` -- both
 optional, per Claude Code's SessionStart contract; `source` is one of
 startup | resume | clear | compact). Anything printed to stdout here is
-added to the session's context. Never fails the session: every exception is
-swallowed and the exit code is always 0.
+added to the session's context. Read-only throughout: no writes, no network,
+no git command that writes, and only one level down -- no recursion into a
+child's own subdirectories beyond what ledger.find already reads (its own
+docs/proposals/). Never fails the session: every exception is swallowed and
+the exit code is always 0.
 """
 from __future__ import annotations
 
@@ -19,6 +34,27 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
+
+
+def _printable(text) -> str:
+    """Control characters as visible escapes, lone surrogates as U+FFFD --
+    every value printed here can come from a directory name or a ledger this
+    session does not control (S-05), so nothing untrusted reaches stdout
+    without going through this first."""
+    out = []
+    for ch in str(text):
+        cp = ord(ch)
+        if ch == "\n":
+            out.append("\\n")
+        elif ch == "\t":
+            out.append("\\t")
+        elif cp < 0x20 or 0x7f <= cp <= 0x9f:
+            out.append(f"\\x{cp:02x}")
+        elif 0xD800 <= cp <= 0xDFFF:
+            out.append("�")
+        else:
+            out.append(ch)
+    return "".join(out)
 
 
 def _read_payload() -> dict:
@@ -35,21 +71,108 @@ def _read_payload() -> dict:
     return data if isinstance(data, dict) else {}
 
 
+MAX_CHILDREN = 10  # a card, not a directory listing -- round 2, item 3.
+
+
+def _safe_open_ledgers(child: Path) -> list:
+    """checkpoint.open_ledgers(child), or [] when the child cannot be read.
+    A sibling this session has no permission on (a stray chmod 000 directory,
+    a race with something else touching the tree) must not hide every OTHER
+    child's line -- round 2, item 1: only main()'s outer `except Exception`
+    caught this before, which discarded the whole card, not just that one
+    child."""
+    from tools.tracker import checkpoint
+    try:
+        return checkpoint.open_ledgers(child)
+    except OSError:
+        return []
+
+
+def _is_child_project(child: Path) -> bool:
+    """A direct child directory counts as a project when it declares itself
+    (its own `.common-rules.json`) or has an open ledger of its own -- the
+    same two markers S-05 was asked to check for. Each check is its own
+    try/except: a child that cannot be stat'd or read is simply not a
+    project, not a reason to stop looking at its siblings."""
+    try:
+        if (child / ".common-rules.json").is_file():
+            return True
+    except OSError:
+        return False
+    return bool(_safe_open_ledgers(child))
+
+
+def _child_projects(parent: Path) -> list[Path]:
+    """Direct child directories that are projects, one level down only, in
+    name order. Read-only, and never raises: a parent folder that cannot be
+    listed (permissions, a race) simply has no children to report."""
+    try:
+        candidates = [p for p in parent.iterdir() if p.is_dir() and not p.name.startswith(".")]
+    except OSError:
+        return []
+    candidates.sort(key=lambda p: p.name)
+    return [c for c in candidates if _is_child_project(c)]
+
+
+def _child_block(child: Path) -> list[str]:
+    """The two lines S-05 asks for: the name with its open-ledger count and
+    done/in progress/blocked/not started counts, then the /warmup command."""
+    from tools.tracker import ledger
+    open_ledgers = _safe_open_ledgers(child)
+    totals = {"done": 0, "in progress": 0, "blocked": 0, "not started": 0}
+    for _, d in open_ledgers:
+        c = ledger.counts(d)
+        for k in totals:
+            totals[k] += c[k]
+    n = len(open_ledgers)
+    ledger_word = "ledger" if n == 1 else "ledgers"
+    counts_str = (f'{totals["done"]} done / {totals["in progress"]} in progress / '
+                  f'{totals["blocked"]} blocked / {totals["not started"]} not started')
+    return [
+        _printable(f"{child.name}: {n} open {ledger_word} · {counts_str}"),
+        _printable(f"/warmup --project {child}"),
+    ]
+
+
+def _parent_card(project: Path, source) -> None:
+    """When `project` itself has no open ledger, the card for a folder that
+    holds several projects one level down (S-05). Capped at MAX_CHILDREN
+    (round 2, item 3): a folder with dozens of projects below it -- every
+    project on the machine, in the worst case -- must not print a line pair
+    for each one."""
+    children = _child_projects(project)
+    if not children:
+        return
+    if source == "compact":
+        print("Context was compacted. The summary above is a paraphrase; the ledger is the record.")
+        print("Re-read that project's ledger and checkpoint, not the summary above.")
+    noun = "project" if len(children) == 1 else "projects"
+    print(f"This folder holds {len(children)} {noun} on the common-rules standard; "
+          f"warm up the one you work on.")
+    shown, rest = children[:MAX_CHILDREN], children[MAX_CHILDREN:]
+    for child in shown:
+        for line in _child_block(child):
+            print(line)
+    if rest:
+        print(f"+{len(rest)} more -- /warmup --project <dir> for yours")
+
+
 def main() -> int:
     try:
         payload = _read_payload()
-        project = payload.get("cwd") or os.getcwd()
+        project = Path(payload.get("cwd") or os.getcwd())
         source = payload.get("source")
 
         from tools.tracker import checkpoint, ledger
 
-        open_ledgers = checkpoint.open_ledgers(Path(project))
+        open_ledgers = checkpoint.open_ledgers(project)
         if not open_ledgers:
+            _parent_card(project, source)
             return 0
 
         if source == "compact":
             ledger_paths = ", ".join(str(p) for p, _ in open_ledgers)
-            latest = checkpoint.latest_checkpoint(Path(project))
+            latest = checkpoint.latest_checkpoint(project)
             latest_str = str(latest) if latest else "no checkpoint yet"
             statuses = "; ".join(
                 f"Proposal {d.get('proposal')}: {ledger.status_line(d)}"
