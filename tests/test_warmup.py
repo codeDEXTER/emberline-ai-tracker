@@ -1084,17 +1084,78 @@ class TestDeclaredPlanPageSincePublish(Case):
                 j = self.p.warmup("--json")
                 self.assertEqual(0, j.returncode, j.stderr[-400:])
 
+    def record_page(self, page, **extra):
+        return dict({"url": URL, "digest": "0" * 64, "at": "2026-09-14T10:00:00+02:00", "by": None,
+                     "page": page, "ledger_digest": "0" * 64}, **extra)
+
     def test_a_page_resolving_outside_the_project_is_a_problem_and_never_read(self):
         outside = Path(self.p.tmp.name) / "outside.html"
         outside.write_text("<p>not the project's</p>")
         (self.p.root / "docs/proposals/linked.html").symlink_to(outside)
-        record = {"url": URL, "digest": "0" * 64, "at": "2026-09-14T10:00:00+02:00", "by": None,
-                  "page": "docs/proposals/linked.html", "ledger_digest": "0" * 64}
-        self.write_sidecar(record)
+        self.write_sidecar(self.record_page("docs/proposals/linked.html"))
         check = self.p.warmup("--check")
         self.assertEqual(1, check.returncode, check.stdout)
         self.assertTrue(any("linked.html" in l and "outside" in l for l in check.stdout.splitlines()), check.stdout)
+        card = self.p.warmup().stdout
+        self.assertNotIn("since last publish", card)
+        # Round 2, finding 5: the chain says what it is, not "malformed".
+        self.assertIn(f"{SIDECAR} · outside the project", card)
+        self.assertNotIn(f"{SIDECAR} · malformed", card)
+
+    def test_a_recorded_page_that_is_a_directory_is_not_a_regular_file(self):
+        self.write_sidecar(self.record_page("docs/proposals"))
+        check = self.p.warmup("--check")
+        self.assertEqual(1, check.returncode, check.stdout)
+        self.assertTrue(any("docs/proposals" in l and "is not a regular file" in l
+                            for l in check.stdout.splitlines() if "✗" in l and "published.json" in l), check.stdout)
+        card = self.p.warmup().stdout
+        self.assertIn(f"{SIDECAR} · is not a regular file", card)
+        self.assertNotIn("since last publish", card)
+
+    def test_a_recorded_page_that_is_a_symlink_is_a_problem(self):
+        """The same rule as recording: a published page is a regular file."""
+        (self.p.root / "docs/proposals/alias.html").symlink_to("19-proposal-warmup.html")
+        self.write_sidecar(self.record_page("docs/proposals/alias.html"))
+        check = self.p.warmup("--check")
+        self.assertEqual(1, check.returncode, check.stdout)
+        self.assertTrue(any("alias.html" in l and "symlink" in l for l in check.stdout.splitlines()), check.stdout)
         self.assertNotIn("since last publish", self.p.warmup().stdout)
+
+    def test_a_sidecar_resolving_outside_the_project_is_a_problem_and_never_read(self):
+        """Round 2, finding 4: a symlinked sidecar (or tracker dir) is named, not read."""
+        outside = Path(self.p.tmp.name) / "outside.published.json"
+        outside.write_text("{not json")                 # read, it would say "malformed"
+        path = self.p.root / SIDECAR
+        path.symlink_to(outside)
+        self.p.commit("sidecar symlinked out")
+        check = self.p.warmup("--check")
+        self.assertEqual(1, check.returncode, check.stdout)
+        self.assertTrue(any("published.json" in l and "outside the project" in l
+                            for l in check.stdout.splitlines()), check.stdout)
+        self.assertNotIn("malformed", check.stdout)
+        card = self.p.warmup().stdout
+        self.assertIn(f"{SIDECAR} · outside the project", card)
+        self.assertEqual(0, self.p.warmup("--json").returncode)
+
+    def test_page_unchanged_is_carried_and_checked(self):
+        self.published()
+        r = subprocess.run([sys.executable, str(TRACKER), "published", str(self.p.root / LEDGER), "--url", URL,
+                            "--page", PAGE, "--page-unchanged"], capture_output=True, text=True, check=False)
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        self.p.commit("published, page unchanged")
+        pub = json.loads(self.p.warmup("--json").stdout)["ledgers"][LEDGER]["published"]
+        self.assertIs(True, pub["page_unchanged"])
+        self.assertEqual(0, self.p.warmup("--check").returncode)
+        for name, record in (("not true", self.record_page(PAGE, page_unchanged="yes")),
+                             ("false", self.record_page(PAGE, page_unchanged=False)),
+                             ("without page", {"url": URL, "digest": "0" * 64, "at": "2026-09-14T10:00:00+02:00",
+                                               "by": None, "ledger_digest": "0" * 64, "page_unchanged": True})):
+            with self.subTest(sidecar=name):
+                self.write_sidecar(record)
+                check = self.p.warmup("--check")
+                self.assertEqual(1, check.returncode, check.stdout)
+                self.assertTrue(any("page_unchanged" in l for l in check.stdout.splitlines()), check.stdout)
+                self.assertNotIn("Traceback", check.stderr)
 
     def test_the_skill_and_lead_prompt_say_how_to_publish_a_declared_page(self):
         skill = " ".join((ROOT / "skills" / "warmup" / "SKILL.md").read_text().split())
@@ -1107,6 +1168,14 @@ class TestDeclaredPlanPageSincePublish(Case):
                 self.assertIn("--url <url> --page <path>", text)
                 self.assertIn("commit the sidecar on its own", text)
                 self.assertIn("not logged as a ledger event", text)
+                # Round 2, finding 6: the first-record paragraph -- the app's
+                # exact case -- names the --page form.
+                first = text.index("published for the first time")
+                paragraph = text[first:first + 700]
+                self.assertIn("declares `plan_page`", paragraph)
+                self.assertIn("--page <path>", paragraph)
+                # Round 2, finding 1: the override is documented where the order is.
+                self.assertIn("--page-unchanged", text)
 
 
 class TestFormatCharactersOnTheCard(Case):

@@ -399,6 +399,7 @@ def freshness(ledger_path: Path, page: Path) -> str:
 #    "digest": "<sha256 of the page file as published>",
 #    "ledger_digest": "<sha256 of the ledger file's bytes>",      (V-11)
 #    "page": "<path relative to the project root>",               (V-11, --page only)
+#    "page_unchanged": true,                  (V-11 round 2, --page-unchanged only)
 #    "url": "https://..."}
 #
 # Two modes. Without a declared plan_page the page is the tracker page, and
@@ -518,6 +519,11 @@ def published_problems(record) -> list[str]:
             out.append(problem)
         if "ledger_digest" not in record:
             out.append("a record with 'page' must carry 'ledger_digest'")
+    if "page_unchanged" in record:
+        if record["page_unchanged"] is not True:
+            out.append("page_unchanged must be true when present")
+        if "page" not in record:
+            out.append("page_unchanged belongs only to a record with 'page'")
     if "at" in record:
         import datetime
         at = record["at"]
@@ -535,35 +541,76 @@ def published_problems(record) -> list[str]:
 
 
 def _git(root: Path, *args: str) -> subprocess.CompletedProcess | None:
-    """git with every pathspec taken literally: a --page of "*.html" names that
-    file, never a glob matching some other tracked one."""
+    """git run in the project root, with every path relative to it and every
+    pathspec taken literally: a --page of "*.html" names that file, never a
+    glob matching some other tracked one."""
     try:
-        return subprocess.run(["git", "--literal-pathspecs", "-C", str(root), *args],
+        return subprocess.run(["git", "--literal-pathspecs", *args], cwd=str(root),
                               capture_output=True, text=True, check=False, timeout=30)
     except (subprocess.SubprocessError, OSError):
         return None
 
 
 def project_root(ledger_path: Path) -> tuple[Path, bool]:
-    """(the project root, whether it is a git top). The git top of the ledger;
-    outside git -- a scratch ledger, as V-09's tests use -- the directory that
-    holds docs/proposals, which published_main has already required."""
-    r = _git(ledger_path.resolve().parent, "rev-parse", "--show-toplevel")
-    if r is not None and r.returncode == 0 and r.stdout.strip():
-        return Path(r.stdout.strip()).resolve(), True
-    return ledger_path.resolve().parent.parent.parent, False
+    """(the project root, whether it is inside a git work tree).
+
+    Round 2 ruling (E6): the root is the folder that holds docs/proposals,
+    which published_main has already required -- not the git top, which for an
+    app kept in a subdirectory of its repository is the wrong folder and reads
+    the wrong .common-rules.json. git only answers questions about files."""
+    root = ledger_path.resolve().parent.parent.parent
+    r = _git(root, "rev-parse", "--is-inside-work-tree")
+    return root, r is not None and r.returncode == 0 and r.stdout.strip() == "true"
 
 
-def declared_page_problems(root: Path) -> list[str]:
-    """(V-11) Why the declaration cannot say whether a plan_page exists: any of
-    tools/project.py's problems. A broken file drops a malformed plan_page back
-    to its default of None, and recording the tracker page then is the very
-    false record V-11 exists to stop."""
+def declared_plan_page(root: Path) -> tuple[str | None, list[str]]:
+    """(the declared plan_page command, or None) · (problems that block recording).
+
+    Round 2 ruling: only a declaration that cannot be read (not valid JSON, not
+    an object) or a plan_page key that is present and fails validation blocks
+    -- either would drop plan_page to its default of None, and recording the
+    tracker page then is the very false record V-11 exists to stop. A missing
+    read_order or safety_rules file, or a bad gate, is warmup --check's to name."""
     from tools import project as P
-    return P.problems(root) if (root / P.FILE).is_file() else []
+    data, why = P._raw(root)
+    if why:
+        return None, P.problems(root)
+    if data is None or "plan_page" not in data:
+        return None, []
+    command, problem = P._command("plan_page", data["plan_page"])
+    return command, ([problem] if problem else [])
 
 
-def page_problem(root: Path, in_git: bool, raw: str) -> tuple[str | None, str | None]:
+def _inside(root: Path, path: Path) -> bool:
+    try:
+        return Path(path).resolve().is_relative_to(root)
+    except (OSError, ValueError, RuntimeError):
+        return False
+
+
+def _tracked(root: Path, rel: str) -> bool:
+    # -z: a non-ASCII name is printed as-is, not C-quoted, so it compares equal.
+    listed = _git(root, "ls-files", "-z", "--error-unmatch", "--", rel)
+    return listed is not None and listed.returncode == 0 and listed.stdout == rel + "\0"
+
+
+def _clean(root: Path, rel: str) -> bool:
+    diff = _git(root, "diff", "--quiet", "HEAD", "--", rel)
+    return diff is not None and diff.returncode == 0
+
+
+def _page_after_ledger(root: Path, ledger_rel: str, page_rel: str) -> bool:
+    """The ledger's last commit is the page's last commit or an ancestor of it:
+    the page was committed with, or after, the ledger it shows (round 2, D1)."""
+    last = [_git(root, "log", "-1", "--format=%H", "--", rel) for rel in (ledger_rel, page_rel)]
+    if any(r is None or r.returncode != 0 or not r.stdout.strip() for r in last):
+        return False
+    ledger_commit, page_commit = (r.stdout.strip() for r in last)
+    r = _git(root, "merge-base", "--is-ancestor", ledger_commit, page_commit)
+    return r is not None and r.returncode == 0
+
+
+def page_problem(root: Path, raw: str) -> tuple[str | None, str | None]:
     """(the page's plain relative path, None) or (None, what is wrong with --page).
     Each message names the value through _printable (V-11, rule 3)."""
     import stat
@@ -578,11 +625,7 @@ def page_problem(root: Path, in_git: bool, raw: str) -> tuple[str | None, str | 
         return None, f"--{problem} (got {shown_})"
     rel = str(PurePosixPath(raw))
     target = root / rel
-    try:
-        outside = not target.resolve().is_relative_to(root)
-    except (OSError, ValueError, RuntimeError):
-        outside = True
-    if outside:
+    if not _inside(root, target):
         return None, f"--page {shown_} resolves outside the project {_printable(root)} -- it is not read"
     try:
         mode = target.lstat().st_mode
@@ -592,15 +635,9 @@ def page_problem(root: Path, in_git: bool, raw: str) -> tuple[str | None, str | 
         return None, f"--page {shown_} could not be read ({type(exc).__name__})"
     if not stat.S_ISREG(mode):
         return None, f"--page {shown_} is not a regular file (a directory or a symlink is not a published page)"
-    if not in_git:
-        return None, f"--page {shown_}: {_printable(root)} is not inside a git repository -- a page is recorded " \
-                     "only when it is committed"
-    # -z: a non-ASCII name is printed as-is, not C-quoted, so it compares equal.
-    listed = _git(root, "ls-files", "-z", "--error-unmatch", "--", rel)
-    if listed is None or listed.returncode != 0 or listed.stdout != rel + "\0":
+    if not _tracked(root, rel):
         return None, f"--page {shown_} is not tracked by git -- commit the generated page, publish it, then record it"
-    clean = _git(root, "diff", "--quiet", "HEAD", "--", rel)
-    if clean is None or clean.returncode != 0:
+    if not _clean(root, rel):
         return None, f"--page {shown_} has uncommitted changes -- commit the regenerated page, publish that " \
                      "committed file, then record it"
     return rel, None
@@ -614,6 +651,9 @@ def published_main(argv) -> int:
     ap.add_argument("--by", help="who published it (default: recorded as null)")
     ap.add_argument("--page", help="the declared plan_page's output, relative to the project root "
                                    "(required when .common-rules.json declares plan_page; refused otherwise)")
+    ap.add_argument("--page-unchanged", action="store_true",
+                    help="with --page: record a page last committed before the ledger's last change, for a "
+                         "ledger change that leaves the page's bytes identical; the sidecar records it")
     args = ap.parse_args(argv)
     say = "tracker published:"
 
@@ -656,31 +696,61 @@ def published_main(argv) -> int:
     # its own generator writes, not the tracker page. The PhotoVault app's
     # record claimed the tracker page's digest for a publish that never
     # happened; so a declaration without --page refuses, naming the command.
+    #
+    # Round 2: a record must be true when it is made. The ledger it names is
+    # committed (both modes); a declared page was committed with or after the
+    # ledger's last change, unless --page-unchanged says, on the record, that
+    # the change left the page's bytes identical.
     from tools import project as P
+    if args.page_unchanged and args.page is None:
+        print(f"{say} --page-unchanged is an override for --page, a declared plan_page's record -- nothing recorded",
+              file=sys.stderr)
+        return 1
     root, in_git = project_root(args.ledger)
-    broken = declared_page_problems(root)
+    command, broken = declared_plan_page(root)
     if broken:
-        print(f"{say} {_printable(root / P.FILE)} is broken, so whether this project declares plan_page cannot be "
-              "known -- nothing recorded:", file=sys.stderr)
+        print(f"{say} {_printable(root / P.FILE)} cannot say whether this project declares plan_page "
+              "-- nothing recorded:", file=sys.stderr)
         for problem in broken:
             print(f"  {_printable(problem)}", file=sys.stderr)
         return 1
-    command = P.declared(root).get("plan_page")
     if command and args.page is None:
-        print(f"{say} this project declares plan_page ({_printable(command)}); pass --page <the file it writes>",
-              file=sys.stderr)
+        print(f"{say} this project declares plan_page ({_printable(command)}); pass --page <the file it writes> "
+              "-- nothing recorded", file=sys.stderr)
         return 1
     if not command and args.page is not None:
-        print(f"{say} no plan_page is declared; the tracker page is recorded by default", file=sys.stderr)
+        print(f"{say} no plan_page is declared; the tracker page is recorded by default -- nothing recorded",
+              file=sys.stderr)
+        return 1
+    if not _inside(root, published_path(args.ledger)):
+        # Round 2 (from V-09): a symlinked docs/proposals/tracker, or sidecar,
+        # would have the record written outside the project.
+        print(f"{say} {_printable(published_path(args.ledger))} resolves outside the project {_printable(root)} "
+              "(a symlinked tracker directory or sidecar) -- nothing recorded", file=sys.stderr)
+        return 1
+    if not in_git:
+        print(f"{say} {_printable(root)} is not inside a git repository -- a record is made only of a committed "
+              "ledger -- nothing recorded", file=sys.stderr)
+        return 1
+    ledger_rel = args.ledger.resolve().relative_to(root).as_posix()
+    if not (_tracked(root, ledger_rel) and _clean(root, ledger_rel)):
+        print(f"{say} {_printable(ledger_rel)}: the ledger has uncommitted changes -- commit it first "
+              "-- nothing recorded", file=sys.stderr)
         return 1
 
     import datetime
     if args.page is not None:
-        rel, problem = page_problem(root, in_git, args.page)
+        rel, problem = page_problem(root, args.page)
         if problem:
             print(f"{say} {problem} -- nothing recorded", file=sys.stderr)
             return 1
+        if not args.page_unchanged and not _page_after_ledger(root, ledger_rel, rel):
+            print(f"{say} {_printable(rel)} was last committed before the ledger changed -- regenerate and commit "
+                  "it first -- nothing recorded", file=sys.stderr)
+            return 1
         record = {"url": args.url, "digest": digest(root / rel), "page": rel}
+        if args.page_unchanged:
+            record["page_unchanged"] = True
     else:
         page = default_out(args.ledger)
         fresh = freshness(args.ledger, page)
