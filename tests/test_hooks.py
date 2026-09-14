@@ -225,6 +225,97 @@ class TestSessionStartHook(ScratchProject):
         self.assertEqual(0, r.returncode, r.stderr)
 
 
+class TestSessionStartParentFolder(unittest.TestCase):
+    """A session started above its projects (PhotoVault/ holds app/ and
+    engine/) still gets a card: hooks/sessionstart looks one level down when
+    the start folder itself has no open ledger of its own (proposal 21, S-05).
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.parent = Path(self.tmp.name) / "PhotoVault"
+        self.parent.mkdir()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def make_child(self, name: str, ledger_data: dict | None) -> Path:
+        child = self.parent / name
+        (child / "docs" / "proposals").mkdir(parents=True)
+        if ledger_data is not None:
+            (child / "docs" / "proposals" / "19-x.json").write_text(json.dumps(ledger_data))
+        return child
+
+    def run_at(self, payload: dict) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, str(SESSIONSTART)], input=json.dumps(payload),
+                              capture_output=True, text=True, cwd=str(self.parent), timeout=15, check=False)
+
+    def test_two_children_print_both_lines_and_commands(self):
+        self.make_child("app", minimal())
+        self.make_child("engine", minimal())
+        r = self.run_at({"cwd": str(self.parent), "source": "startup"})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn(
+            "This folder holds 2 projects on the common-rules standard; warm up the one you work on.",
+            r.stdout)
+        self.assertIn(f"/warmup --project {self.parent / 'app'}", r.stdout)
+        self.assertIn(f"/warmup --project {self.parent / 'engine'}", r.stdout)
+        self.assertIn("app: 1 open ledger ·", r.stdout)
+        self.assertIn("engine: 1 open ledger ·", r.stdout)
+        self.assertIn("1 done / 1 in progress / 1 blocked / 1 not started", r.stdout)
+
+    def test_compact_source_uses_the_compact_wording(self):
+        self.make_child("app", minimal())
+        r = self.run_at({"cwd": str(self.parent), "source": "compact"})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("Context was compacted. The summary above is a paraphrase; the ledger is the record.",
+                       r.stdout)
+        self.assertIn("re-read", r.stdout.lower())
+        self.assertIn("checkpoint", r.stdout.lower())
+        self.assertIn("This folder holds 1 project ", r.stdout)
+        self.assertIn("app: 1 open ledger ·", r.stdout)
+
+    def test_a_parent_with_no_child_projects_prints_nothing(self):
+        (self.parent / "notes").mkdir()  # a plain directory, not a project
+        r = self.run_at({"cwd": str(self.parent), "source": "startup"})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertEqual("", r.stdout.strip())
+
+    def test_a_folder_with_its_own_ledger_is_unchanged(self):
+        (self.parent / "docs" / "proposals").mkdir(parents=True)
+        (self.parent / "docs" / "proposals" / "19-x.json").write_text(json.dumps(minimal()))
+        self.make_child("app", minimal())
+        r = self.run_at({"cwd": str(self.parent), "source": "startup"})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("Proposal 19:", r.stdout)
+        self.assertIn("run /warmup", r.stdout)
+        self.assertNotIn("This folder holds", r.stdout)
+
+    def test_control_characters_in_a_child_name_are_escaped(self):
+        bad_name = "app\x07bad"
+        self.make_child(bad_name, minimal())
+        r = self.run_at({"cwd": str(self.parent), "source": "startup"})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertNotIn("\x07", r.stdout)
+        self.assertIn("\\x07", r.stdout)
+
+    def test_a_declared_project_with_no_open_ledger_is_still_listed(self):
+        child = self.make_child("done-project", None)
+        (child / ".common-rules.json").write_text("{}")
+        r = self.run_at({"cwd": str(self.parent), "source": "startup"})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("done-project: 0 open ledgers ·", r.stdout)
+        self.assertIn(f"/warmup --project {child}", r.stdout)
+
+    def test_malformed_stdin_and_missing_cwd_exit_zero(self):
+        r = self.run_hook_raw(raw_stdin="not json{{{")
+        self.assertEqual(0, r.returncode, r.stderr)
+
+    def run_hook_raw(self, raw_stdin: str):
+        return subprocess.run([sys.executable, str(SESSIONSTART)], input=raw_stdin,
+                              capture_output=True, text=True, cwd=str(self.parent), timeout=15, check=False)
+
+
 class TestPostToolUseAgentHook(ScratchProject):
     """PostToolUse hook for the Agent/Task tool (proposal 20, V-05 / PC-01).
     Leads kept spawning agents whose briefs dropped the tier and model scope;
