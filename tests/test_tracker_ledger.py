@@ -379,3 +379,35 @@ class TestReadinessMatchesTheAppsOwnScore(unittest.TestCase):
         self.assertEqual((want["work"], want["gate_pts"], want["floor_pts"], float(want["native_pts"]), want["readiness"]),
                          (got["work"], got["gates"], got["floors"], got["receipts"], got["readiness"]))
 
+
+
+class TestDeclaredNumbersAndShapes(unittest.TestCase):
+    """A hand-typed weight that is not a number is a named problem, never a traceback."""
+
+    def weighted(self, **extra):
+        return minimal(**{"readiness_weights": {"work": 70, "gates": 15, "floors": 10, "receipts": 5}, **extra})
+
+    def test_non_numeric_weights_are_problems_and_readiness_is_none(self):
+        cases = [
+            (self.weighted(readiness_weights={"work": "seventy", "gates": 15, "floors": 10, "receipts": 5}),
+             "readiness_weights.work: 'seventy' is not a number"),
+            (self.weighted(size_weights={"S": "one"}), "size_weights.S: 'one' is not a number"),
+            (self.weighted(readiness_weights={"work": True, "gates": 15, "floors": 10, "receipts": 5}),
+             "readiness_weights.work: True is not a number"),
+        ]
+        for d, problem in cases:
+            with self.subTest(problem=problem):
+                self.assertIn(problem, "\n".join(ledger.validate(d)))
+                self.assertIsNone(ledger.readiness(d))
+        d = self.weighted()
+        d["items"][0]["weight"] = "not-a-number"
+        self.assertIn("W-01: weight 'not-a-number' is not a number", "\n".join(ledger.validate(d)))
+        self.assertIsNone(ledger.readiness(d))
+
+    def test_gates_floors_requests_must_be_lists_and_receipts_an_object(self):
+        d = minimal(gates={"G0": {"title": "x", "passed": True}}, quality_floors="all", requests={},
+                    native_receipts=["library"])
+        text = "\n".join(ledger.validate(d))
+        for problem in ("gates: must be a list", "quality_floors: must be a list",
+                        "requests: must be a list", "native_receipts: must be an object"):
+            self.assertIn(problem, text)
