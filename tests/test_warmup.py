@@ -1302,3 +1302,123 @@ class TestCheckReportCannotBeForged(Case):
         after = lines[[i for i, l in enumerate(lines) if l.startswith("warmup --check:")][0] + 1:]
         for l in after:
             self.assertTrue(l.startswith("  ✗ "), f"a problem split across lines: {l!r}")
+
+
+class TestMandatoryStandardChanges(Case):
+    """Proposal 21, S-09. A CHANGELOG entry carrying `**Standard change
+    (mandatory):**` added since the project's stamp is work to do first (the
+    sponsor, A-03): the card lists it under the rules line and --check fails
+    naming it. A stamp behind only on informational entries stays "STALE",
+    shown and never failed. No stamp keeps "not adopted", plus a count."""
+
+    def setUp(self):
+        super().setUp()
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from test_rulecheck import FakeRules, raw_controls
+        self.rules = FakeRules(Path(self.p.tmp.name))
+        self.raw_controls = raw_controls
+
+    def stamp(self, version):
+        self.p.write(".common-rules-version", version + "\n")
+
+    def warm(self, *args):
+        import os
+        env = {**os.environ, "COMMON_RULES_DIR": str(self.rules.root)}
+        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.p.root), "--no-recall", *args],
+                              capture_output=True, text=True, check=False, env=env)
+
+    def rules_block(self, card: str) -> list[str]:
+        lines = card.splitlines()
+        i = next(n for n, l in enumerate(lines) if l.startswith("  rules "))
+        block = [lines[i]]
+        for l in lines[i + 1:]:
+            if not l.startswith("    "):
+                break
+            block.append(l)
+        return block
+
+    def test_a_stamp_before_a_mandatory_entry_fails_check_and_names_it(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
+        r = self.warm("--check")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("warmup --check: 1 problem(s)", r.stdout)
+        self.assertIn("2026-09-14 · Reheat is mandatory", r.stdout)
+        card = self.warm()
+        self.assertEqual(card.returncode, 0, card.stderr)
+        block = self.rules_block(card.stdout)
+        self.assertEqual(block[0].split(None, 1)[1],
+                         "behind · 1 mandatory Standard change(s) to implement first:")
+        self.assertEqual([l.strip() for l in block[1:]], ["2026-09-14 · Reheat is mandatory"])
+
+    def test_a_stamp_behind_only_informational_entries_never_fails_check(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · A wording fix")
+        r = self.warm("--check")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("warmup --check: ready", r.stdout)
+        self.assertIn("STALE", self.rules_block(self.warm().stdout)[0])
+
+    def test_aligned_past_the_entry_reads_ready(self):
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
+        self.stamp(self.rules.version())
+        r = self.warm("--check")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("warmup --check: ready", r.stdout)
+        self.assertEqual(self.rules_block(self.warm().stdout), ["  rules         aligned"])
+
+    def test_two_mandatory_entries_give_count_two(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · First", "do one")
+        self.rules.add("2026-09-14 · Informational")
+        self.rules.add("2026-09-15 · Second", "do two")
+        r = self.warm("--check")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("warmup --check: 2 problem(s)", r.stdout)
+        block = self.rules_block(self.warm().stdout)
+        self.assertIn("behind · 2 mandatory Standard change(s) to implement first:", block[0])
+        self.assertEqual([l.strip() for l in block[1:]], ["2026-09-15 · Second", "2026-09-14 · First"])
+
+    def test_a_malformed_changelog_never_tracebacks(self):
+        for name, raw in {"not utf-8": b"\xff\xfe\x00## \xc3(\n**Standard change (mandatory):** x\n",
+                          "empty": b""}.items():
+            with self.subTest(case=name):
+                self.stamp(self.rules.version())
+                self.rules.write_raw(raw)
+                for args in ((), ("--check",), ("--json",)):
+                    r = self.warm(*args)
+                    self.assertNotIn("Traceback", r.stderr, f"{name} {args}: {r.stderr}")
+                    self.assertIn(r.returncode, (0, 1))
+        with self.subTest(case="CHANGELOG deleted"):
+            self.stamp(self.rules.version())
+            self.rules.git("rm", "-q", "CHANGELOG.md")
+            self.rules.commit()
+            for args in ((), ("--check",)):
+                r = self.warm(*args)
+                self.assertNotIn("Traceback", r.stderr, r.stderr)
+            self.assertEqual(self.rules_block(self.warm().stdout), ["  rules         could not check"])
+        with self.subTest(case="a stamp that is not a version"):
+            self.stamp("1---output=" + str(Path(self.p.tmp.name) / "pwned"))
+            r = self.warm("--check")
+            self.assertNotIn("Traceback", r.stderr, r.stderr)
+            self.assertFalse(any(p.name.startswith("pwned") for p in Path(self.p.tmp.name).iterdir()))
+
+    def test_a_heading_with_control_characters_is_escaped(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · evil\x1b[31m\x0bforged\x0c\u202eend\x85", "x")
+        for args in ((), ("--check",)):
+            with self.subTest(args=args):
+                r = self.warm(*args)
+                self.assertEqual(self.raw_controls(r.stdout), [], repr(r.stdout))
+                self.assertIn("evil\\x1b[31m\\x0bforged\\x0c\\u202eend\\x85", r.stdout)
+                self.assertEqual(sum("evil" in l for l in r.stdout.splitlines()), 1)
+
+    def test_no_stamp_keeps_not_adopted_plus_a_count_and_never_fails(self):
+        self.rules.add("2026-09-14 · First", "do one")
+        self.rules.add("2026-09-15 · Second", "do two")
+        self.assertEqual(self.rules_block(self.warm().stdout),
+                         ["  rules         not adopted (.common-rules-version absent) · "
+                          "2 mandatory Standard change(s) in the rules CHANGELOG"])
+        r = self.warm("--check")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("warmup --check: ready", r.stdout)
