@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21 · accepted · The standard is mandatory</title>
+<meta name="proposal-id" content="21">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-14">
+<meta name="common-rules-template" content="proposal/21">
+<!--
+  Written by common-rules bin/new-proposal --page-for from templates/proposal.html
+  (proposal 21, S-02), then filled in by the lead under S-10. The status
+  appears in four places that must agree: the proposal-status meta above,
+  the <title>, the <h1>, and the "Proposal 21 · accepted" line under it.
+-->
+<style>
+  :root {
+    --ground: #F1F2F4; --surface: #FFFFFF; --ink: #16191D; --dim: #5E6873;
+    --border: #D3D8DE; --accent: #C2521F; --accent-soft: #F7E3D8;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #111417; --surface: #1A1F24; --ink: #E5E8EB; --dim: #939DA7;
+      --border: #2F3841; --accent: #EE7A45; --accent-soft: #3A2419;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 90px; }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.01em; margin: 0; }
+  h1 .num, h1 .status { color: var(--accent); }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 40px 0 10px; }
+  .sub { color: var(--dim); margin: 10px 0 0; max-width: 72ch; }
+  .card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; margin-top: 12px; }
+  blockquote { margin: 12px 0 0; padding: 14px 20px; background: var(--surface); border-left: 3px solid var(--accent); font-size: 17px; }
+  blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--dim); }
+  .opt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .opt .card h3 { margin: 0 0 6px; font-size: 16px; }
+  ol.decisions { background: var(--surface); border: 1px solid var(--border); margin: 12px 0 0; padding: 14px 20px 14px 44px; }
+  ol.decisions li + li { margin-top: 6px; }
+  #decided { background: var(--surface); border: 1px solid var(--border); padding: 14px 20px; margin-top: 12px; }
+  #decided li + li { margin-top: 8px; }
+  .m { font-family: var(--mono); font-size: .9em; }
+  .src { font-size: 13px; color: var(--dim); margin-top: 36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="num">21</span> · <span class="status">accepted</span> · The standard is mandatory</h1>
+<p class="sub">Proposal 21 · accepted 2026-09-14. The sponsor asked why the PhotoVault app and engine sessions were not following the warm-up standard, and ruled that it is mandatory for every project, including common-rules and every future change to it. This page records what was found and what was decided; the ledger beside it records what was built.</p>
+
+<h2>The ask</h2>
+<blockquote>
+  Yes. This is mandatory. It's not optional. I want them to follow the same structure, and they should refactor once they reach the... they should tell me, okay, at what stage when the current tasks are finished, they will refactor it. And I want every... both of those sessions to speak the common language and handle things in the same way. It's mandatory. It's not optional.
+  <cite>The sponsor, 2026-09-14, recorded as ask A-01 in docs/proposals/21-standard-is-mandatory.json.</cite>
+</blockquote>
+<blockquote>
+  And I want this to be a standard way of proceeding ahead for other projects as well whenever I create a session at a user level. I want the... once I use the command, I want the sessions to accept it and do whatever needs to be done to follow the standard way.
+  <cite>The sponsor, 2026-09-14, ask A-02.</cite>
+</blockquote>
+<blockquote>
+  and make it in such a way if I improve something in the common rules in the future regarding warm up or reheat. Then the project should prioritize that and implement it. It's not optional. It needs to be implemented always, mandatory.
+  <cite>The sponsor, 2026-09-14, ask A-03.</cite>
+</blockquote>
+<blockquote>
+  Common rules also works with the same workflow. So I would like you to maintain the same processes what we are implementing in other projects.
+  <cite>The sponsor, 2026-09-14, ask A-04.</cite>
+</blockquote>
+
+<h2>What was found</h2>
+<div class="card">
+  <ul>
+    <li>There was no proposal template and no command to create one; the checked shape lived only inside proposals 19 and 20. The newest hand-written proposals (app 72, 75, 76; engine 77) carried none of it, and <span class="m">proposalcheck</span> passed them because it only inspected pages that carried a status.</li>
+    <li>Both lead prompts predated proposal 20, and derecord never overwrites an existing prompt.</li>
+    <li>Both sessions start in <span class="m">/Users/the-sponsor/apps/PhotoVault</span>, above <span class="m">app/</span> and <span class="m">engine/</span>; hooks load from the start folder, so the installed hooks never fired.</li>
+    <li>Both CLAUDE.md warm-up pointers were uncommitted; proposal 20's owners and requests were unused (the app's 11 blocked rows had no owner).</li>
+    <li>A session's rules reject a ruling relayed by another session, so the ruling had to reach each session in the sponsor's own words.</li>
+    <li>Not verified at the time: how many other projects under /Users/the-sponsor/apps would need the same refactor; they are measured by <span class="m">bin/conformance</span> when each is given <span class="m">/standard</span>.</li>
+  </ul>
+</div>
+
+<h2>Options</h2>
+<div class="opt">
+  <div class="card">
+    <h3>A · ask each session</h3>
+    <p>Message each session with the rules and trust it to comply. Cheap, but a relayed ruling is not authority in those sessions, and nothing measures whether they followed it.</p>
+  </div>
+  <div class="card">
+    <h3>B · one command and the tools it needs</h3>
+    <p>A user-level <span class="m">/standard</span> the sponsor types himself, a fixed 12-item checklist, and the tools that make every item mechanical: a proposal template, the status rule, the parent-folder card, conformance, and a check that fails on unimplemented Standard changes.</p>
+  </div>
+</div>
+<p><b>Recommended:</b> B — the sponsor's own words in each session are authority, and a tool, not a session's say-so, measures the result.</p>
+
+<h2>Decisions</h2>
+<p class="sub">Each numbered line is one thing the sponsor answered. The numbers are stable: ledger items cite them.</p>
+<ol class="decisions">
+  <li><b>D1.</b> Is the common-rules standard mandatory for the PhotoVault app and engine, with one structure, a common language, and each session stating the stage at which it will refactor?</li>
+  <li><b>D2.</b> Does one user-level command put any project's session on the standard, accepted by that session as the sponsor's own ruling?</li>
+  <li><b>D3.</b> Is every later improvement to the standard mandatory, implemented first, before a project aligns?</li>
+  <li><b>D4.</b> Does common-rules itself follow the same standard and processes?</li>
+</ol>
+
+<h2>Decided</h2>
+<section id="decided">
+  <p>All four accepted by the sponsor on 2026-09-14, in his own words above (asks A-01 to A-04 in the ledger).</p>
+  <ol>
+    <li><b>D1 accepted</b> (A-01). Built as S-01 (<span class="m">/standard</span>, whose first reply names the refactor stage) and measured by S-04 (<span class="m">bin/conformance</span>); the PhotoVault refactors are S-07 and S-08.</li>
+    <li><b>D2 accepted</b> (A-02). <span class="m">skills/standard</span> linked at user level, plus a block in the sponsor's user-level CLAUDE.md, so every new session knows the standard is mandatory.</li>
+    <li><b>D3 accepted</b> (A-03). A CHANGELOG entry carrying <span class="m">**Standard change (mandatory):**</span> is queued first and implemented before <span class="m">rulecheck --align</span>; S-09 makes <span class="m">warmup --check</span> fail while one is pending.</li>
+    <li><b>D4 accepted</b> (A-04). S-10 puts common-rules on its own standard: declaration, derecord's hooks, its own HANDOFF, operating rules and lead prompt, this page, and conformance.</li>
+  </ol>
+</section>
+
+<p class="src">Sources: the sponsor's words as recorded in docs/proposals/21-standard-is-mandatory.json asks A-01 to A-04; the findings as logged there on 2026-09-14 (read-only checks of PhotoVault/app and PhotoVault/engine: git log of docs/proposals, proposalcheck, .claude/settings.json, CLAUDE.md pointers); every build step, review round and lead fix in that ledger's item logs; CHANGELOG.md entries for S-01 to S-09.</p>
+
+</div>
+</body>
+</html>
