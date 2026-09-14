@@ -61,6 +61,25 @@ ask), never from the summary.
      `docs/proposals/tracker/<stem>.published.json`, with nothing else in
      that commit.
 
+  **When `.common-rules.json` declares `plan_page`**, the page of record is
+  the file that project's generator writes, not the tracker page, and the
+  line names that file: `page changed since last publish: <page> → <url>`.
+  It speaks when the ledger moves, not when only a generated date does. Same
+  order, with the page swapped in:
+  1. Commit ledger edits first, then regenerate the page with the project's
+     own generator (the `plan_page` command) and commit it.
+  2. With your Artifact tool, publish that file in place to the same URL.
+  3. Record it: `RULES/bin/tracker published docs/proposals/<stem>.json --url <url> --page <path>`,
+     `<path>` being the committed file the generator wrote, relative to the
+     project root; then commit the sidecar on its own. Without `--page`,
+     `tracker published` refuses on such a project.
+
+  `tracker published` refuses while the ledger has uncommitted changes, and,
+  with `--page`, when the page was last committed before the ledger changed
+  — an old page recorded as current would keep the card silent for good.
+  Only when a committed ledger change leaves the page's bytes identical, pass
+  `--page-unchanged`; the sidecar records that you did.
+
   A republish is not logged as a ledger event. The sidecar's `at` and `by`,
   in git, are the record. This is the one exception to "every state change
   gets a log entry": a log entry would itself move the page, and the line
@@ -77,7 +96,9 @@ ask), never from the summary.
   published for the first time, or you find one already published (a URL in
   the handover, lead prompt or log) with no `<stem>.published.json`, record
   it at once with `tracker published`; from then on the card tells you when
-  it moves. The card gives no hint for a missing sidecar, because a project
+  it moves. When the project declares `plan_page`, the page is the committed
+  file its generator writes: record it with
+  `RULES/bin/tracker published docs/proposals/<stem>.json --url <url> --page <path>`. The card gives no hint for a missing sidecar, because a project
   that never publishes must see nothing.
 
 ## 4. The first message to the sponsor
