@@ -892,8 +892,14 @@ class TestPublishedDeclaredPage(unittest.TestCase):
         self.p.sidecar.symlink_to("../70-r9-delivery-plan.json")
         self.p.commit("sidecar symlinked to the ledger")
         before = self.p.ledger.read_bytes()
-        self.assert_refused(self.p.published("--page", APP_PAGE), "symlink")
+        r = self.p.published("--page", APP_PAGE)
+        # Not assert_refused: that helper asserts no sidecar exists, and this test planted one.
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn("symlink", r.stderr)
+        self.assertIn("nothing recorded", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
         self.assertEqual(before, self.p.ledger.read_bytes())
+        self.assertTrue(self.p.sidecar.is_symlink())
 
     def test_a_tracker_dir_symlinked_inside_the_project_is_refused(self):
         """V-11 final review (S4): tracker -> . recorded into docs/proposals."""
