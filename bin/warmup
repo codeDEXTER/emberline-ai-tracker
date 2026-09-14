@@ -17,11 +17,13 @@ and asks nothing.
 
 WHAT --check FAILS ON, and what it only shows. It fails on what can be
 verified: a missing standard file, an invalid ledger, a rendered page or a
-checkpoint whose digest no longer matches its ledger, and a HANDOFF.md or
-OPERATING-RULES.md still carrying {{PLACEHOLDERS}} a seed left for the lead.
-It shows, and never fails on, how many commits the prose files are behind
-HEAD: prose cannot be digest-checked, and failing on a count of commits
-punishes the busiest projects rather than the neglected ones.
+checkpoint whose digest no longer matches its ledger, a file in the declared
+read order (HANDOFF.md and docs/OPERATING-RULES.md, by default) still
+carrying {{PLACEHOLDERS}} a seed left for the lead, and a declared
+safety_rules heading that is not in its file (proposal 20, V-02). It shows,
+and never fails on, how many commits the prose files are behind HEAD: prose
+cannot be digest-checked, and failing on a count of commits punishes the
+busiest projects rather than the neglected ones.
 
 A PROJECT'S OWN ENTRY POINTS (proposal 20, D9). A project that declares them
 in .common-rules.json (see tools/project.py) gets them: the prose checks run
@@ -134,6 +136,77 @@ def prohibitions(project: Path, safety_rules=P.DEFAULTS["safety_rules"], confine
     return out[:6]
 
 
+def safety_heading_problems(project: Path, safety_rules, confine: bool) -> list[str]:
+    """A declared FILE#heading whose file exists but the `## ` heading itself
+    is not in it (proposal 20, V-02, deferred from V-00's finding 7): a named
+    problem, so --check fails on it instead of the card just saying "none
+    found in <file>" with nothing verifiable to fix. A missing file or one
+    confine already excluded is P.problems()'s to name, not named twice here."""
+    out = []
+    for rel, heading in P.safety_sources(safety_rules):
+        if confine and not P.inside(project, rel):
+            continue
+        path = project / rel
+        if not path.is_file():
+            continue
+        needle = heading.lower()
+        found = any(line.startswith("## ") and needle in line[3:].lower()
+                    for line in path.read_text(errors="replace").splitlines())
+        if not found:
+            out.append(f"{rel}: declared safety_rules heading {heading!r} not found -- "
+                       f"the card shows \"none found\" until this is fixed")
+    return out
+
+
+def declared_session(project: Path) -> str | None:
+    """The project's own session name, when .common-rules.json names one
+    (proposal 20, V-02). Read directly: the declaration's schema (tools/
+    project.py) does not carry this key yet, and a project may name itself
+    without adopting anything else there."""
+    path = project / P.FILE
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    if isinstance(data, dict) and isinstance(data.get("session"), str) and data["session"].strip():
+        return data["session"].strip()
+    return None
+
+
+def _is_model_name(value) -> bool:
+    """A routing target reads as one word (haiku, sonnet, gpt-4-mini): the
+    PhotoVault app's own model_routing carries a `note` key alongside the
+    words it routes -- a sentence, with spaces -- and that is not a fourth
+    row of the table, never mind a fifth model. Only what looks like a model
+    name is printed; the card stays one line, not a paragraph."""
+    return isinstance(value, str) and bool(value.strip()) and not re.search(r"\s", value.strip())
+
+
+def routing_table(data: dict) -> tuple[str, list[tuple[str, str]]] | None:
+    """(label, [(key, model), ...]) from the ledger's own `tiers` (C1-C4) or,
+    failing that, an app's `model_routing` keyed by complexity words -- printed
+    as declared, never translated between the two (proposal 20, D2 and V-02)."""
+    tiers = data.get("tiers")
+    if isinstance(tiers, dict):
+        table = [(cx, tiers[cx]["model"]) for cx in L.CLASSES
+                 if isinstance(tiers.get(cx), dict) and _is_model_name(tiers[cx].get("model"))]
+        if table:
+            return "tiers", table
+    routing = data.get("model_routing")
+    if isinstance(routing, dict):
+        table = []
+        for key, value in routing.items():
+            if _is_model_name(value):
+                table.append((key, value))
+            elif isinstance(value, dict) and _is_model_name(value.get("model")):
+                table.append((key, value["model"]))
+        if table:
+            return "model_routing", table
+    return None
+
+
 def page_state(ledger_path: Path) -> tuple[str, Path]:
     page = R.default_out(ledger_path)
     if not page.exists():
@@ -179,6 +252,7 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
         "test_command": test_command(project), "quick_gate": decl["gates"].get("quick"),
         "merge_gate_declared": bool(own.get("gates", {}).get("merge")),
         "rules": rules_status(project), "ruflo": ruflo_cli(),
+        "session": None,  # proposal 20, V-02: named by a ledger's or the declaration's own `session`
     }
     read: list[Path] = []
 
@@ -189,6 +263,8 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             state["chain"].append(("✗", f"{P.FILE} · {len(declared_problems)} problem(s)"))
         else:
             state["chain"].append(("✓", f"{P.FILE} · declares {', '.join(own) or 'nothing'}"))
+        if "safety_rules" in own:
+            state["problems"].extend(safety_heading_problems(project, decl["safety_rules"], confine=True))
 
     for rel in state["prose"]:
         p = project / rel
@@ -243,6 +319,13 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             state["problems"].append(f"page {prel} is {ps} -- run: tracker render {rel}")
             state["chain"].append(("✗", f"page {prel} · {ps}"))
         unblocked = {i["id"] for i in L.unblocked(data)}
+        switches_off = []
+        for name in L.SWITCHES:
+            if not L.switch_on(data, name):
+                sw = (data.get("switches") or {}).get(name) or {}
+                switches_off.append({"name": name, "by": sw.get("by"), "at": sw.get("at")})
+        requests = [{"id": r.get("id"), "from": r.get("from"), "to": r.get("to"), "state": r.get("state")}
+                    for r in L.open_requests(data)]
         state["ledgers"][rel] = {
             "proposal": data.get("proposal"), "title": data.get("title", ""),
             "status_line": L.status_line(data),
@@ -250,7 +333,20 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
                                 "next": i["id"] in unblocked} for i in L.items(data) if "id" in i},
             "asks": {a["id"]: {"state": a.get("state"), "kind": a.get("kind"), "quote": a.get("quote", "")}
                      for a in (data.get("asks") or []) if "id" in a},
+            # Proposal 20, V-02 (D8, D4, D5, D7, D2): each present only when
+            # the ledger declares the data it needs, so a ledger with none of
+            # this prints exactly as it did before this row was built.
+            "readiness": L.readiness(data),
+            "merged_waiting": L.merged_waiting(data),
+            "yours": L.waiting_on(data, "sponsor"),
+            "switches_off": switches_off,
+            "requests": requests,
+            "routing": routing_table(data),
         }
+        if state.get("session") is None and isinstance(data.get("session"), str) and data["session"].strip():
+            state["session"] = data["session"].strip()
+
+    state["session"] = state.get("session") or declared_session(project)
 
     cs, cpath = checkpoint_state(project)
     if cpath is not None:
@@ -299,6 +395,49 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
     return state
 
 
+def _joined(items: list[str], sep: str = ", ", cap: int = 6) -> str:
+    if len(items) <= cap:
+        return sep.join(items)
+    return sep.join(items[:cap]) + f"{sep}+{len(items) - cap} more"
+
+
+def _num(x) -> str:
+    return f"{x:g}"
+
+
+def ledger_v2_lines(led: dict, session: str | None) -> list[str]:
+    """The proposal 20, V-02 additions for one ledger: readiness, merged-
+    awaiting-evidence, the sponsor's "yours" line, switches that are off,
+    requests both ways, and the project's routing table -- each only when the
+    ledger has the data. Kept as one function, one line-kind at a time, so
+    V-09's "page changed since last publish" line is one more entry here."""
+    lines: list[str] = []
+    r = led.get("readiness")
+    if r is not None:
+        lines.append(f"  readiness    {r['readiness']}% (work {_num(r['work'])} · gates {_num(r['gates'])} · "
+                     f"floors {_num(r['floors'])} · receipts {_num(r['receipts'])})")
+    if led.get("merged_waiting"):
+        lines.append(f"  merged, awaiting evidence: {_joined(led['merged_waiting'])}")
+    if led.get("yours"):
+        lines.append(f"  {'yours':<13}{_joined(led['yours'])}")
+    for sw in led.get("switches_off") or []:
+        lines.append(f"  {sw['name']} off (by {sw['by']}, {sw['at']})")
+    if led.get("requests"):
+        parts = []
+        for r in led["requests"]:
+            if session and r["from"] == session:
+                parts.append(f"{r['id']} → {r['to']} ({r['state']})")
+            elif session and r["to"] == session:
+                parts.append(f"{r['id']} ← {r['from']} ({r['state']})")
+            else:
+                parts.append(f"{r['id']} {r['from']} → {r['to']} ({r['state']})")
+        lines.append("  requests: " + _joined(parts, sep=" · "))
+    if led.get("routing"):
+        label, table = led["routing"]
+        lines.append(f"  {label}  " + "  ".join(f"{k}→{v}" for k, v in table))
+    return lines
+
+
 def card(s: dict) -> str:
     out = [f"WARM · {s['name']} · {s['branch']} @ {s['head']} · {s['checkout']}"]
     where = ", ".join(s.get("prohibitions_from") or ["HANDOFF.md"])
@@ -320,6 +459,7 @@ def card(s: dict) -> str:
         for aid, a in led["asks"].items():
             if a["state"] == "open":
                 out.append(f"  open ask     {aid} ({a['kind']}) “{a['quote']}”")
+        out += ledger_v2_lines(led, s.get("session"))
     out.append("Chain:")
     out += [f"  {mark} {text}" for mark, text in s["chain"]]
     if s.get("superseded"):
