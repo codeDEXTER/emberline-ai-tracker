@@ -1,5 +1,38 @@
 # Changelog — common-rules
 
+## 2026-09-14 · A declared plan page is the page that gets published (V-11)
+
+The PhotoVault app recorded its first publish the day proposal 20 shipped.
+`tracker published` recorded the common-rules tracker page. The app's sponsor
+publishes a different file: the page its own generator writes, which
+`.common-rules.json` declares as `plan_page`. So the record claimed a publish
+that never happened, and the card would have compared against the wrong file.
+The app caught it and removed the record. D9 had already decided that a
+declared page stays authoritative; V-09 had not built that part.
+
+When a project declares `plan_page`, `tracker published` now requires
+`--page <path>`. The page must be inside the project, a regular file,
+tracked, and committed. The sidecar records that file's digest and the
+ledger's digest. For such a page the card compares the ledger, not the file:
+the app's generator stamps today's date into its page, so comparing the file
+would ask for a republish every day.
+
+A record also has to be true when it is made. `tracker published` refuses
+when the ledger has uncommitted changes. With `--page`, it also refuses when
+the page was last committed before the ledger changed, because an old page
+recorded as current would leave the card silent for good. `--page-unchanged`
+is the explicit override for a ledger change that leaves the page's bytes
+identical, and the sidecar records it. Only an unreadable declaration or a bad
+`plan_page` blocks recording; other declaration problems are left to
+`warmup --check`.
+
+**Behaviour change:**
+- For a project that declares `plan_page`, `tracker published` without
+  `--page` refuses.
+- For every project, `tracker published` refuses while the ledger has
+  uncommitted changes. Commit the ledger first, the order V-09 already gave.
+- Existing sidecars keep working; new ones also carry `ledger_digest`.
+
 ## 2026-09-14 · Proposal 20 built: a project declares itself, the ledger carries the rest
 
 The build of proposal 20 (`20-proposal-warmup-from-the-app.json`, V-00 to
