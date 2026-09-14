@@ -273,6 +273,86 @@ class TestFailureModes(unittest.TestCase):
             self.assertEqual(original_text, path.read_text(), "a failed write-back must not touch the file")
 
 
+class TestSwitchesIssuesOff(unittest.TestCase):
+    """Proposal 20, D5: a recorded sponsor switch turns off the GitHub mirror
+    entirely -- no gh call of any kind, not even a read, and no ledger write."""
+
+    def test_issues_off_makes_no_gh_call_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data = make_ledger(switches={
+                "issues": {"on": False, "by": "sponsor", "at": "2026-09-14T09:00:00+02:00"},
+            })
+            path = write_ledger(tmp, data)
+            original_text = path.read_text()
+            fake = FakeGh()
+            with mock.patch.object(sync, "run_gh", fake):
+                with mock.patch("builtins.print") as mock_print:
+                    rc = sync.main([str(path)])
+            self.assertEqual(0, rc)
+            self.assertEqual([], fake.calls, "issues off must make zero gh calls, not even a read")
+            self.assertEqual(original_text, path.read_text(), "issues off must write nothing back")
+            printed = [str(c.args[0]) for c in mock_print.call_args_list if c.args]
+            self.assertEqual(
+                [f"sync {path}: issues switched off by sponsor at 2026-09-14T09:00:00+02:00 — nothing synced"],
+                printed,
+            )
+
+    def test_issues_off_appends_quote_when_present(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data = make_ledger(switches={
+                "issues": {"on": False, "by": "sponsor", "at": "2026-09-14T09:00:00+02:00",
+                           "quote": "we don't want GitHub issues for this app"},
+            })
+            path = write_ledger(tmp, data)
+            fake = FakeGh()
+            with mock.patch.object(sync, "run_gh", fake):
+                with mock.patch("builtins.print") as mock_print:
+                    rc = sync.main([str(path)])
+            self.assertEqual(0, rc)
+            self.assertEqual([], fake.calls)
+            printed = [str(c.args[0]) for c in mock_print.call_args_list if c.args]
+            self.assertEqual(
+                [f'sync {path}: issues switched off by sponsor at 2026-09-14T09:00:00+02:00 '
+                 f'— nothing synced "we don\'t want GitHub issues for this app"'],
+                printed,
+            )
+
+    def test_issues_off_short_circuits_even_in_dry_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data = make_ledger(switches={
+                "issues": {"on": False, "by": "lead", "at": "2026-09-14T09:00:00+02:00"},
+            })
+            path = write_ledger(tmp, data)
+            fake = FakeGh()
+            with mock.patch.object(sync, "run_gh", fake):
+                rc = sync.main([str(path), "--dry-run"])
+            self.assertEqual(0, rc)
+            self.assertEqual([], fake.calls)
+
+    def test_issues_explicitly_on_behaves_as_today(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data = make_ledger(switches={"issues": {"on": True}})
+            path = write_ledger(tmp, data)
+            fake = FakeGh()
+            with mock.patch.object(sync, "run_gh", fake):
+                rc = sync.main([str(path)])
+            self.assertEqual(1, rc, "drift is still reported, same as with no switches declared")
+            self.assertEqual(1, len(fake.calls_matching("issue", "create")))
+            self.assertEqual(1, len(fake.calls_matching("issue", "close")))
+
+    def test_other_switch_off_does_not_affect_issues_sync(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data = make_ledger(switches={
+                "publish": {"on": False, "by": "sponsor", "at": "2026-09-14T09:00:00+02:00"},
+            })
+            path = write_ledger(tmp, data)
+            fake = FakeGh()
+            with mock.patch.object(sync, "run_gh", fake):
+                rc = sync.main([str(path)])
+            self.assertEqual(1, rc)
+            self.assertTrue(fake.calls, "a switch on a different name must not silence gh calls")
+
+
 class TestCLIExitCodeIsSyncedWhenNothingToDo(unittest.TestCase):
 
     def test_fully_in_sync_ledger_exits_0(self):
