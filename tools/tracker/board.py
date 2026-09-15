@@ -41,9 +41,11 @@ from tools.tracker import render as R
 
 OUT_NAME = "index.html"
 PUBLISHED_NAME = "index.published.json"
-# Attention order: what is moving, what is stuck, what is next, what is done.
-COLUMNS = ("in progress", "blocked", "not started", "done")
-LABEL = {"in progress": "In progress", "blocked": "Blocked", "not started": "Not started", "done": "Done"}
+# Attention order: what is moving, what is elsewhere waiting (C-06), what is
+# stuck, what is next, what is done.
+COLUMNS = ("in progress", "in review", "in testing", "blocked", "not started", "done")
+LABEL = {"in progress": "In progress", "in review": "In review", "in testing": "In testing",
+         "blocked": "Blocked", "not started": "Not started", "done": "Done"}
 
 
 def e(value) -> str:
@@ -144,7 +146,7 @@ def mini_bar(counts: dict) -> str:
     if not total:
         return '<span class="bar"><span class="seg s-empty" style="width:100%"></span></span>'
     segs = "".join(f'<span class="seg {slug(s)}" style="width:{counts[s] * 100 / total:.2f}%"></span>'
-                   for s in ("done", "in progress", "blocked", "not started") if counts[s])
+                   for s in ("done", "in progress", "in review", "in testing", "blocked", "not started") if counts[s])
     return f'<span class="bar">{segs}</span>'
 
 
@@ -285,6 +287,9 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo) -> str:
     total = sum(totals.values())
     updated = max((str(d.get("updated") or "") for _, d in ledgers), default="")
     status_line = " / ".join(f"{totals[s]} {s}" for s in ("done", "in progress", "blocked", "not started"))
+    extra_line = [f"{totals[s]} {s}" for s in ("in review", "in testing") if totals[s]]
+    if extra_line:
+        status_line += " / " + " / ".join(extra_line)
 
     blocks = "".join(
         f'<button class="proposal" type="button" data-proposal="{e(n)}" aria-pressed="false">'
@@ -349,7 +354,8 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo) -> str:
         f'{"proposal" if len(ledgers) == 1 else "proposals"} · {total} items · updated {e(updated)}</p>'
         f'<h1>Tracker</h1>'
         f'<section class="totals" data-done="{totals["done"]}" data-in-progress="{totals["in progress"]}" '
-        f'data-blocked="{totals["blocked"]}" data-not-started="{totals["not started"]}">'
+        f'data-blocked="{totals["blocked"]}" data-not-started="{totals["not started"]}" '
+        f'data-in-review="{totals["in review"]}" data-in-testing="{totals["in testing"]}">'
         f'<p class="line">{e(status_line)}</p>{mini_bar(totals)}</section></header>'
         f'<nav class="proposals" aria-label="Proposals">{blocks}</nav>'
         '<div class="filters" role="search">'
@@ -377,15 +383,15 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo) -> str:
 CSS = """
 :root{--ground:#ECEFF3;--surface:#FAFBFC;--raise:#FFFFFF;--ink:#14181D;--dim:#5F6A76;--rule:#D3D9E0;
 --accent:#2E5BA8;--accent-soft:#E1E9F6;
---done:#2F855A;--prog:#C9531D;--block:#B23A48;--todo:#8A96A3;--block-soft:#F8E6E8;
+--done:#2F855A;--prog:#C9531D;--block:#B23A48;--todo:#8A96A3;--block-soft:#F8E6E8;--review:#6B4FBB;--test:#1D7A96;
 --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
 --mono:"IBM Plex Mono","SF Mono",ui-monospace,Menlo,monospace;color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ground:#101418;--surface:#171D23;--raise:#1C232A;
 --ink:#E4E8EC;--dim:#94A0AB;--rule:#2A333C;--accent:#86A9E6;--accent-soft:#1D2A3D;
---done:#5FB58A;--prog:#EE7A45;--block:#DB7480;--todo:#6F7B87;--block-soft:#2E1C20;color-scheme:dark}}
+--done:#5FB58A;--prog:#EE7A45;--block:#DB7480;--todo:#6F7B87;--block-soft:#2E1C20;--review:#A992E8;--test:#5FC2DE;color-scheme:dark}}
 :root[data-theme="dark"]{--ground:#101418;--surface:#171D23;--raise:#1C232A;
 --ink:#E4E8EC;--dim:#94A0AB;--rule:#2A333C;--accent:#86A9E6;--accent-soft:#1D2A3D;
---done:#5FB58A;--prog:#EE7A45;--block:#DB7480;--todo:#6F7B87;--block-soft:#2E1C20;color-scheme:dark}
+--done:#5FB58A;--prog:#EE7A45;--block:#DB7480;--todo:#6F7B87;--block-soft:#2E1C20;--review:#A992E8;--test:#5FC2DE;color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 .card h3,.card .why,.card .meta,.log p,.ask q,td,.proposal .pt{unicode-bidi:isolate}
@@ -403,6 +409,7 @@ h1{font:600 34px/1.1 var(--sans);letter-spacing:-.015em;margin:4px 0 0;text-wrap
 .seg{display:block;height:100%}
 .seg.s-done,.dot.s-done{background:var(--done)}.seg.s-in-progress,.dot.s-in-progress{background:var(--prog)}
 .seg.s-blocked,.dot.s-blocked{background:var(--block)}.seg.s-not-started,.dot.s-not-started{background:var(--todo)}
+.seg.s-in-review,.dot.s-in-review{background:var(--review)}.seg.s-in-testing,.dot.s-in-testing{background:var(--test)}
 .seg.s-empty{background:var(--rule)}
 .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;flex:none}
 .proposals{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
@@ -442,7 +449,8 @@ h2{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;margi
 .ask .kind{font:12px var(--mono);color:var(--dim)}
 .id{font:600 13px var(--mono);font-variant-numeric:tabular-nums}
 .pnum{font:500 11.5px var(--mono);color:var(--dim);border:1px solid var(--rule);border-radius:3px;padding:0 4px}
-.board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
+.board{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px;align-items:start}
+@media (max-width:1400px){.board{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:1100px){.board{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){.board{grid-template-columns:1fr}.shown{margin-left:0}}
 .col h2{padding:4px 2px 10px}
@@ -478,6 +486,7 @@ td.pnum{border-radius:0;border-left:0;border-right:0;border-bottom:0}
 td.mono a{color:var(--accent)}
 .pill{display:inline-block;font:500 11.5px var(--mono);padding:1px 7px;border-radius:9px;border:1px solid currentColor;white-space:nowrap}
 .pill.s-done{color:var(--done)}.pill.s-in-progress{color:var(--prog)}.pill.s-blocked{color:var(--block)}.pill.s-not-started{color:var(--dim)}
+.pill.s-in-review{color:var(--review)}.pill.s-in-testing{color:var(--test)}
 .none{margin:0;padding:18px;text-align:center;color:var(--dim);background:var(--surface);border:1px dashed var(--rule);border-radius:6px}
 .none button{border:0;background:none;color:var(--accent);cursor:pointer;padding:0}
 .answered summary{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);padding:6px 0}
@@ -639,5 +648,9 @@ def main(argv) -> int:
     for _, data in ledgers:
         for s, n in L.counts(data).items():
             totals[s] += n
-    print(f"rendered {out} · " + " / ".join(f"{totals[s]} {s}" for s in ("done", "in progress", "blocked", "not started")))
+    line = " / ".join(f"{totals[s]} {s}" for s in ("done", "in progress", "blocked", "not started"))
+    extra = [f"{totals[s]} {s}" for s in ("in review", "in testing") if totals[s]]
+    if extra:
+        line += " / " + " / ".join(extra)
+    print(f"rendered {out} · " + line)
     return 0

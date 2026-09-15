@@ -193,6 +193,30 @@ class TestTheNumbersAreTheLedgers(RenderCase):
         self.assertIn("split the page", html)
 
 
+class TestInReviewAndInTesting(unittest.TestCase):
+    """C-06: two more statuses, in review and in testing, purely additive."""
+
+    def test_items_in_the_new_statuses_get_their_own_pill_and_colour(self):
+        d = sample()
+        d["items"][1]["status"] = "in review"
+        d["items"][2]["status"] = "in testing"
+        html = render_html(d)
+        self.assertIn('<span class="pill s-in-review">in review</span>', html)
+        self.assertIn('<span class="pill s-in-testing">in testing</span>', html)
+        self.assertIn(".pill.s-in-review{color:var(--review)}", html)
+        self.assertIn(".pill.s-in-testing{color:var(--test)}", html)
+        self.assertNotIn("s-blocked\">in review", html)
+        self.assertNotIn("s-in-progress\">in review", html)
+
+    def test_status_block_carries_the_new_counts_too(self):
+        d = sample()
+        d["items"][1]["status"] = "in review"
+        html = render_html(d)
+        m = re.search(r'class="status"[^>]*data-in-review="(\d+)"[^>]*data-in-testing="(\d+)"', html)
+        self.assertIsNotNone(m, "no in-review/in-testing counts on the status block")
+        self.assertEqual(("1", "0"), m.groups())
+
+
 class TestItIsSafeAndStable(RenderCase):
 
     def test_free_text_is_escaped(self):
