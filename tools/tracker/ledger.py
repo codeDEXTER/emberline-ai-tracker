@@ -32,7 +32,11 @@ import math
 import re
 from pathlib import Path
 
-STATUSES = ("not started", "in progress", "blocked", "done")
+# Proposal 26 (C-06): "in review" and "in testing" sit between "in progress"
+# and "done" -- the code is written and it is now elsewhere, waiting on a
+# reviewer or a red-first test to go green. Purely additive: a ledger using
+# only the original four statuses stays valid and unaffected.
+STATUSES = ("not started", "in progress", "in review", "in testing", "blocked", "done")
 ASK_KINDS = ("research", "feature", "defect", "decision", "question")
 ASK_STATES = ("open", "answered", "became-item", "declined")
 CLASSES = ("C1", "C2", "C3", "C4")
@@ -89,10 +93,13 @@ def by_id(ledger: dict) -> dict[str, dict]:
 
 
 def counts(ledger: dict) -> dict[str, int]:
-    """done / in progress / blocked / not started, always all four keys, in
-    that order -- the one status vocabulary the card, the checkpoint and the
-    render share (D7)."""
-    c = {"done": 0, "in progress": 0, "blocked": 0, "not started": 0}
+    """done / in progress / in review / in testing / blocked / not started,
+    always all six keys, in that order -- the one status vocabulary the card,
+    the checkpoint and the render share (D7, extended by C-06). The two C-06
+    buckets sit beside the original four so a caller that only ever knew the
+    original four keys (`c["done"]`, `c["in progress"]`, ...) still gets
+    exactly what it always got."""
+    c = {"done": 0, "in progress": 0, "in review": 0, "in testing": 0, "blocked": 0, "not started": 0}
     for i in items(ledger):
         s = i.get("status")
         if s in c:
@@ -101,8 +108,15 @@ def counts(ledger: dict) -> dict[str, int]:
 
 
 def status_line(ledger: dict) -> str:
+    """The original four, exactly as before -- a ledger using only them reads
+    exactly as it always did (C-06's regression: renders exactly as before).
+    `in review` and `in testing` are appended, in that order, only when
+    something is actually in one: a bucket nobody uses does not clutter a
+    line every reader has learned to scan."""
     c = counts(ledger)
-    return f'{c["done"]} done / {c["in progress"]} in progress / {c["blocked"]} blocked / {c["not started"]} not started'
+    line = f'{c["done"]} done / {c["in progress"]} in progress / {c["blocked"]} blocked / {c["not started"]} not started'
+    extra = [f'{c[s]} {s}' for s in ("in review", "in testing") if c[s]]
+    return line + (" / " + " / ".join(extra) if extra else "")
 
 
 def unblocked(ledger: dict) -> list[dict]:
