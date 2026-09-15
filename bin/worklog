@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 """worklog -- time and tokens per task, in one place (common-rules proposal 27).
 
-    worklog collect [--projects DIR] [--out DIR] [--state FILE]
+    worklog collect [--projects DIR] [--out DIR] [--state FILE] [--rebuild]
         Read every transcript's new lines since the last run (lead and
         subagents alike), dedupe by message.id, and merge input, cache-read,
         cache-write and output tokens plus active time into
         <out>/<YYYY-MM-DD>.jsonl, one line per (day, project, session, agent,
         model, item). Incremental and idempotent -- see tools/worklog.py.
+        Refuses (exit 2, writes nothing) if .state.json is corrupt, or
+        missing while day files already exist in --out -- starting from
+        empty state in either case would double everything already
+        recorded. --rebuild discards the state on purpose, re-reads every
+        transcript from the start, and rewrites the affected day files
+        from scratch. A model id this run cannot price (unknown to
+        tools/worklog.py's PRICES table) is reported once on stderr and
+        recorded unpriced (cost_usd null, priced false) rather than
+        guessed at another tier's rate.
 
     worklog day [--date D] [--out DIR] [--html FILE]
         Render one day's page as a self-contained HTML file (default
@@ -46,13 +55,23 @@ def cmd_collect(argv):
     p.add_argument("--projects", default=None)
     p.add_argument("--out", default=None)
     p.add_argument("--state", default=None)
+    p.add_argument("--rebuild", action="store_true",
+                    help="ignore existing state, recompute from every "
+                         "transcript, rewrite affected day files from "
+                         "scratch")
     args = p.parse_args(argv)
 
     projects = os.path.expanduser(args.projects) if args.projects else None
     out = os.path.expanduser(args.out) if args.out else None
     state = os.path.expanduser(args.state) if args.state else None
 
-    result = worklog.collect(projects=projects, out=out, state_file=state)
+    try:
+        result = worklog.collect(projects=projects, out=out, state_file=state,
+                                  rebuild=args.rebuild)
+    except worklog.StateTrustError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
     out_dir = out or worklog.DEFAULT_OUT
     if result["days"]:
         print(f"worklog collect: {result['lines']} line(s) across "
@@ -61,6 +80,10 @@ def cmd_collect(argv):
     else:
         print(f"worklog collect: nothing new ({result['transcripts']} "
               f"transcript(s) scanned, no new complete records)")
+    if result["unpriced_models"]:
+        print("worklog collect: unpriced model id(s) this run -- add to "
+              f"tools/worklog.py PRICES to price them: "
+              f"{', '.join(result['unpriced_models'])}", file=sys.stderr)
     return 0
 
 

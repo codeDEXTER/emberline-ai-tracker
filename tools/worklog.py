@@ -44,15 +44,23 @@ PRICES = {
 
 
 def price_family(model):
-    """Which row of PRICES a model string falls under. Unknown models are
-    priced as sonnet -- the mid-tier -- rather than raising, since a model
-    name can change shape before this table is updated."""
+    """Which row of PRICES a model string falls under, or None if it
+    matches none of them.
+
+    Guessing a tier for an unrecognised model id (treating it as Sonnet,
+    say) produces a cost figure that looks as trustworthy as every other
+    row on the page but is not -- a real transcript carrying
+    `claude-fable-5-1` was priced as Sonnet with no signal that anything
+    was wrong. Refusing to price it, instead, is the caller's job to
+    surface (see `list_price`, `collect`'s `unpriced_models`)."""
     m = (model or "").lower()
     if "opus" in m:
         return "opus"
     if "haiku" in m:
         return "haiku"
-    return "sonnet"
+    if "sonnet" in m:
+        return "sonnet"
+    return None
 
 
 def list_transcripts(projects=None):
@@ -123,8 +131,13 @@ def usage_tokens(usage):
 
 
 def list_price(model, inp, cache_write, cache_read, out):
-    """List price in USD for one message's usage. See PRICES above."""
-    p = PRICES[price_family(model)]
+    """List price in USD for one message's usage, or None if `model` matches
+    no known family. See PRICES and `price_family` above -- never guess a
+    tier for an unrecognised model id."""
+    family = price_family(model)
+    if family is None:
+        return None
+    p = PRICES[family]
     return (inp * p["in"] + cache_write * p["cache_write"]
             + cache_read * p["cache_read"] + out * p["out"]) / 1_000_000
 
@@ -210,19 +223,66 @@ def _default_state_path(out_dir):
     return os.path.join(out_dir, ".state.json")
 
 
+class StateTrustError(RuntimeError):
+    """`collect` refuses to run: `.state.json` cannot be trusted, and
+    proceeding from empty state would layer freshly recomputed totals on
+    top of day files that already hold them -- silently doubling every
+    figure already recorded. `--rebuild` is the only supported way past
+    this; it discards the state on purpose and recomputes everything."""
+
+
+def _day_files_exist(out_dir):
+    return bool(glob.glob(os.path.join(out_dir, "*.jsonl")))
+
+
+def _fresh_state():
+    return {"transcripts": {}, "messages": {}, "groups": {}}
+
+
 def load_state(state_path):
-    if os.path.exists(state_path):
-        try:
-            with open(state_path) as fh:
-                state = json.load(fh)
-        except (OSError, ValueError):
-            state = {}
-    else:
-        state = {}
+    """Load `.state.json`. Returns (state, status), status one of "ok",
+    "missing", "corrupt". Never guesses: a corrupt file yields (None,
+    "corrupt"), not a silently empty state."""
+    if not os.path.exists(state_path):
+        return None, "missing"
+    try:
+        with open(state_path) as fh:
+            state = json.load(fh)
+    except (OSError, ValueError):
+        return None, "corrupt"
+    if not isinstance(state, dict):
+        return None, "corrupt"
     state.setdefault("transcripts", {})
     state.setdefault("messages", {})
     state.setdefault("groups", {})
-    return state
+    return state, "ok"
+
+
+def _load_trusted_state(state_path, out_dir, rebuild):
+    """The state `collect` is allowed to start from.
+
+    `--rebuild` always starts fresh, on purpose. Otherwise: a well-formed
+    state file is used as-is; a missing state file is only safe to treat
+    as "nothing collected yet" when there is nothing on disk it could
+    contradict -- day files already present in `out_dir` mean some earlier
+    run *did* write something, so a vanished state file is a loss of trust,
+    not a fresh start. A corrupt state file is never trusted, day files or
+    not. Both raise `StateTrustError`; the caller writes nothing.
+    """
+    if rebuild:
+        return _fresh_state()
+    state, status = load_state(state_path)
+    if status == "ok":
+        return state
+    if status == "missing" and not _day_files_exist(out_dir):
+        return _fresh_state()
+    reason = ("is corrupt" if status == "corrupt"
+              else "is missing, but day files already exist in "
+                   f"{out_dir}")
+    raise StateTrustError(
+        f"worklog: state file {state_path} {reason} -- refusing to guess; "
+        f"run `bin/worklog collect --rebuild` to recompute from the "
+        f"transcripts.")
 
 
 def save_state(state_path, state):
@@ -268,14 +328,16 @@ def _write_day_file(path, rows):
             out_row["cache_read_tokens"] = row["cache_read_tokens"]
             out_row["output_tokens"] = row["output_tokens"]
             out_row["active_seconds"] = row["active_seconds"]
-            out_row["cost_usd"] = round(list_price(
+            cost = list_price(
                 row["model"], row["input_tokens"], row["cache_write_tokens"],
-                row["cache_read_tokens"], row["output_tokens"]), 6)
+                row["cache_read_tokens"], row["output_tokens"])
+            out_row["cost_usd"] = round(cost, 6) if cost is not None else None
+            out_row["priced"] = cost is not None
             fh.write(json.dumps(out_row, sort_keys=True) + "\n")
     os.replace(tmp, path)
 
 
-def collect(projects=None, out=None, state_file=None):
+def collect(projects=None, out=None, state_file=None, rebuild=False):
     """Read every transcript's new lines since the last run, and merge their
     token usage and active time into `<out>/<day>.jsonl`.
 
@@ -286,18 +348,25 @@ def collect(projects=None, out=None, state_file=None):
     the *delta* the second time, so a re-run never double-counts. Re-running
     with no new bytes anywhere changes nothing on disk.
 
-    Returns {"days": [...], "lines": n, "transcripts": n} -- never any
-    transcript text.
+    Raises `StateTrustError`, writing nothing, if `.state.json` is corrupt
+    or missing while day files already exist -- see `_load_trusted_state`.
+    `rebuild=True` (`bin/worklog collect --rebuild`) discards any existing
+    state on purpose, re-reads every transcript from byte 0, and rewrites
+    every day file it touches from scratch rather than adding onto it.
+
+    Returns {"days": [...], "lines": n, "transcripts": n,
+    "unpriced_models": [...]} -- never any transcript text.
     """
     projects_dir = projects or PROJECTS
     out_dir = out or DEFAULT_OUT
     state_path = state_file or _default_state_path(out_dir)
-    state = load_state(state_path)
+    state = _load_trusted_state(state_path, out_dir, rebuild)
     tstate, mstate, gstate = state["transcripts"], state["messages"], state["groups"]
 
     day_deltas = {}   # day -> gkey -> {"group": (...), "input":.., ...}
     touched_days = set()
     transcripts_seen = 0
+    unpriced_models = set()
 
     for project, session, path in list_transcripts(projects_dir):
         kind = "subagent" if (os.sep + "subagents" + os.sep) in path else "main"
@@ -363,6 +432,8 @@ def collect(projects=None, out=None, state_file=None):
             model = msg.get("model") or model_hint or "unknown"
             model_hint = model_hint or model
             i, cw, cr, o = usage_tokens(usage)
+            if price_family(model) is None:
+                unpriced_models.add(model)
             ts = rec.get("timestamp") or ""
             day = ts[:10] if ts else "unknown"
             group = (day, project, session, agent_final, model, item)
@@ -405,7 +476,11 @@ def collect(projects=None, out=None, state_file=None):
     lines_written = 0
     for day in sorted(touched_days):
         day_file = os.path.join(out_dir, f"{day}.jsonl")
-        existing = _load_day_file(day_file)
+        # A rebuild recomputes every group's totals from byte 0 (mstate was
+        # emptied above), so starting from the old file and adding onto it
+        # would double everything it already held. Starting empty here is
+        # what makes "rewrite from scratch, not +=" true.
+        existing = {} if rebuild else _load_day_file(day_file)
         for gkey, delta in day_deltas[day].items():
             group = delta["group"]
             row = existing.get(gkey)
@@ -425,7 +500,8 @@ def collect(projects=None, out=None, state_file=None):
 
     save_state(state_path, state)
     return {"days": sorted(touched_days), "lines": lines_written,
-            "transcripts": transcripts_seen}
+            "transcripts": transcripts_seen,
+            "unpriced_models": sorted(unpriced_models)}
 
 
 # ---------------------------------------------------------------------------
@@ -456,23 +532,30 @@ def day_summary(rows):
                    + r["cache_read_tokens"] + r["output_tokens"] for r in rs)
     lead_rows = [r for r in rows if r.get("agent") == "lead"]
     agent_rows = [r for r in rows if r.get("agent") != "lead"]
+    priced_rows = [r for r in rows if r.get("priced", True)]
+    unpriced_rows = [r for r in rows if not r.get("priced", True)]
     return {
         "tokens": total(rows),
-        "cost": sum(r.get("cost_usd", 0) for r in rows),
+        "cost": sum(r.get("cost_usd") or 0 for r in priced_rows),
         "active_seconds": sum(r.get("active_seconds", 0) for r in rows),
         "tasks": sorted({r["item"] for r in rows}),
         "sessions": sorted({r["session"] for r in rows}),
         "projects": sorted({r["project"] for r in rows}),
         "lead_tokens": total(lead_rows),
         "agent_tokens": total(agent_rows),
+        "unpriced_count": len(unpriced_rows),
+        "unpriced_models": sorted({r["model"] for r in unpriced_rows}),
     }
 
 
 def format_yesterday_line(rows):
     s = day_summary(rows)
     hours = s["active_seconds"] / 3600
-    return (f"yesterday: {s['tokens']:,} tokens · ${s['cost']:.2f} · "
+    line = (f"yesterday: {s['tokens']:,} tokens · ${s['cost']:.2f} · "
             f"{hours:.1f}h active · {len(s['tasks'])} tasks")
+    if s["unpriced_count"]:
+        line += f" · {s['unpriced_count']} unpriced"
+    return line
 
 
 def format_day_text(date, rows):
@@ -487,6 +570,10 @@ def format_day_text(date, rows):
         f"  projects: {len(s['projects'])}  sessions: {len(s['sessions'])}  "
         f"tasks: {len(s['tasks'])}",
     ]
+    if s["unpriced_count"]:
+        lines.append(f"  unpriced: {s['unpriced_count']} row(s), model(s) "
+                     f"{', '.join(s['unpriced_models'])} -- add to "
+                     f"tools/worklog.py PRICES to price them")
     return "\n".join(lines)
 
 
@@ -514,16 +601,20 @@ def render_day_html(date, rows):
         rs = by_task[item]
         tokens = sum(r["input_tokens"] + r["cache_write_tokens"]
                      + r["cache_read_tokens"] + r["output_tokens"] for r in rs)
-        cost = sum(r.get("cost_usd", 0) for r in rs)
+        cost = sum(r.get("cost_usd") or 0 for r in rs if r.get("priced", True))
+        any_unpriced = any(not r.get("priced", True) for r in rs)
+        cost_cell = f"${cost:.2f}" + (" +unpriced" if any_unpriced else "")
         active = sum(r.get("active_seconds", 0) for r in rs) / 3600
         sessions = {r["session"] for r in rs}
         task_rows.append(
             f"<tr><td>{esc(item)}</td><td>{esc(rs[0]['project'])}</td>"
             f"<td>{len(sessions)}</td><td>{tokens:,}</td>"
-            f"<td>${cost:.2f}</td><td>{active:.1f}h</td></tr>")
+            f"<td>{esc(cost_cell)}</td><td>{active:.1f}h</td></tr>")
 
     row_rows = []
     for r in sorted(rows, key=lambda r: (r["project"], r["session"], r["agent"], r["item"])):
+        cost_cell = ("unpriced" if not r.get("priced", True)
+                     else f"${r.get('cost_usd') or 0:.2f}")
         row_rows.append(
             "<tr>"
             f"<td>{esc(r['project'])}</td><td>{esc(r['session'])}</td>"
@@ -531,7 +622,7 @@ def render_day_html(date, rows):
             f"<td>{esc(r['item'])}</td>"
             f"<td>{r['input_tokens']:,}</td><td>{r['cache_read_tokens']:,}</td>"
             f"<td>{r['cache_write_tokens']:,}</td><td>{r['output_tokens']:,}</td>"
-            f"<td>${r.get('cost_usd', 0):.2f}</td>"
+            f"<td>{esc(cost_cell)}</td>"
             f"<td>{r.get('active_seconds', 0) / 3600:.2f}h</td>"
             "</tr>")
 
@@ -557,6 +648,7 @@ h1 {{ margin-bottom: 0.2em; }}
 &middot; {hours:.1f}h active
 &middot; {len(s['projects'])} project(s), {len(s['sessions'])} session(s),
 {len(s['tasks'])} task(s)
+{f"&middot; {s['unpriced_count']} unpriced (model(s) {esc(', '.join(s['unpriced_models']))})" if s['unpriced_count'] else ""}
 </p>
 <h2>by task</h2>
 <table>

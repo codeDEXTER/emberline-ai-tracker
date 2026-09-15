@@ -231,6 +231,95 @@ class TestIdempotentCollect(WorklogHarness):
         self.assertEqual(first, second)
 
 
+class TestStateTrust(WorklogHarness):
+    """Bundle B review, 15 Sep 2026 (HIGH): a corrupt or deleted
+    worklog/.state.json fell back to empty state, so the next `collect`
+    re-added every message's full usage onto day files that already held
+    it. Starting from empty state must never be silent -- it must either
+    be provably safe (nothing on disk yet to contradict) or refused."""
+
+    def test_corrupt_state_file_refuses_rather_than_doubling(self):
+        session = "sess-corrupt"
+        main = self.projects / "-proj" / f"{session}.jsonl"
+        write_jsonl(main, [
+            user_rec("first turn", "2026-09-15T11:00:00Z", branch="claude/c"),
+            assistant_rec("2026-09-15T11:00:01Z", "m1",
+                          {"input_tokens": 100, "output_tokens": 50,
+                           "cache_read_input_tokens": 0,
+                           "cache_creation_input_tokens": 0}),
+        ])
+        self.collect()
+        rows = worklog.load_day(str(self.out), "2026-09-15")
+        self.assertEqual(rows[0]["input_tokens"], 100)
+        self.assertEqual(rows[0]["output_tokens"], 50)
+
+        state_path = self.out / ".state.json"
+        state_path.write_text("not valid json {{{")
+
+        with self.assertRaises(worklog.StateTrustError):
+            self.collect()
+
+        # Refusing means writing nothing -- the day file must be untouched,
+        # not doubled to input 200 / output 100 as the reported bug did.
+        rows_after = worklog.load_day(str(self.out), "2026-09-15")
+        self.assertEqual(rows_after[0]["input_tokens"], 100)
+        self.assertEqual(rows_after[0]["output_tokens"], 50)
+
+    def test_missing_state_with_existing_day_files_refuses(self):
+        session = "sess-missing"
+        main = self.projects / "-proj" / f"{session}.jsonl"
+        write_jsonl(main, [
+            user_rec("first turn", "2026-09-15T11:00:00Z", branch="claude/m"),
+            assistant_rec("2026-09-15T11:00:01Z", "m1",
+                          {"input_tokens": 10, "output_tokens": 5,
+                           "cache_read_input_tokens": 0,
+                           "cache_creation_input_tokens": 0}),
+        ])
+        self.collect()
+        (self.out / ".state.json").unlink()
+
+        with self.assertRaises(worklog.StateTrustError):
+            self.collect()
+        rows = worklog.load_day(str(self.out), "2026-09-15")
+        self.assertEqual(rows[0]["input_tokens"], 10, "untouched, not doubled")
+
+    def test_rebuild_recomputes_single_run_totals(self):
+        session = "sess-rebuild"
+        main = self.projects / "-proj" / f"{session}.jsonl"
+        write_jsonl(main, [
+            user_rec("first turn", "2026-09-15T11:00:00Z", branch="claude/r"),
+            assistant_rec("2026-09-15T11:00:01Z", "m1",
+                          {"input_tokens": 40, "output_tokens": 20,
+                           "cache_read_input_tokens": 0,
+                           "cache_creation_input_tokens": 0}),
+        ])
+        self.collect()
+        (self.out / ".state.json").write_text("not valid json {{{")
+
+        result = worklog.collect(projects=str(self.projects),
+                                  out=str(self.out), rebuild=True)
+        self.assertIn("2026-09-15", result["days"])
+        rows = worklog.load_day(str(self.out), "2026-09-15")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["input_tokens"], 40, "not doubled to 80")
+        self.assertEqual(rows[0]["output_tokens"], 20, "not doubled to 40")
+
+    def test_first_run_with_no_day_files_and_no_state_works(self):
+        session = "sess-first"
+        main = self.projects / "-proj" / f"{session}.jsonl"
+        write_jsonl(main, [
+            user_rec("first turn", "2026-09-15T11:00:00Z", branch="claude/f"),
+            assistant_rec("2026-09-15T11:00:01Z", "m1",
+                          {"input_tokens": 7, "output_tokens": 3,
+                           "cache_read_input_tokens": 0,
+                           "cache_creation_input_tokens": 0}),
+        ])
+        result = self.collect()
+        self.assertEqual(result["days"], ["2026-09-15"])
+        rows = worklog.load_day(str(self.out), "2026-09-15")
+        self.assertEqual(rows[0]["input_tokens"], 7)
+
+
 class TestNoTranscriptText(WorklogHarness):
 
     def test_day_file_and_html_never_carry_prompt_text(self):
@@ -256,7 +345,7 @@ class TestNoTranscriptText(WorklogHarness):
         self.assertEqual(set(rows[0]), set(worklog.GROUP_FIELDS) |
                           {"input_tokens", "cache_write_tokens",
                            "cache_read_tokens", "output_tokens",
-                           "active_seconds", "cost_usd"})
+                           "active_seconds", "cost_usd", "priced"})
 
         page = worklog.render_day_html("2026-09-15", rows)
         self.assertNotIn(secret, page)
@@ -296,6 +385,55 @@ class TestSummaryFormatting(WorklogHarness):
         self.assertIn("1.0h active", line)
         self.assertIn("1 tasks", line)
         self.assertIn("$0.01", line)
+
+
+class TestUnpricedModel(WorklogHarness):
+    """Bundle B review, 15 Sep 2026 (MEDIUM): price_family() priced any
+    unmatched model id as Sonnet with no signal. A real transcript carries
+    `claude-fable-5-1` -- not a known family, and Sonnet's price for it is a
+    guess dressed up as a measurement."""
+
+    def test_price_family_refuses_to_guess_an_unknown_model(self):
+        self.assertIsNone(worklog.price_family("claude-fable-5-1"))
+        self.assertEqual(worklog.price_family("claude-sonnet-5"), "sonnet")
+        self.assertEqual(worklog.price_family("claude-opus-4-1"), "opus")
+        self.assertEqual(worklog.price_family("claude-haiku-4-5"), "haiku")
+
+    def test_list_price_is_none_for_an_unknown_model(self):
+        self.assertIsNone(worklog.list_price("claude-fable-5-1", 100, 0, 0, 50))
+
+    def test_collected_row_for_an_unknown_model_is_unpriced_not_guessed(self):
+        session = "sess-fable"
+        main = self.projects / "-proj" / f"{session}.jsonl"
+        write_jsonl(main, [
+            user_rec("hi", "2026-09-15T15:00:00Z", branch="claude/fable"),
+            assistant_rec("2026-09-15T15:00:01Z", "m1",
+                          {"input_tokens": 100, "output_tokens": 50,
+                           "cache_read_input_tokens": 0,
+                           "cache_creation_input_tokens": 0},
+                          model="claude-fable-5-1"),
+        ])
+        result = self.collect()
+        self.assertIn("claude-fable-5-1", result["unpriced_models"])
+        rows = worklog.load_day(str(self.out), "2026-09-15")
+        self.assertEqual(len(rows), 1)
+        self.assertIsNone(rows[0]["cost_usd"])
+        self.assertFalse(rows[0]["priced"])
+
+    def test_day_page_and_yesterday_line_show_unpriced(self):
+        rows = [{
+            "day": "2026-09-15", "project": "-proj", "session": "s1",
+            "agent": "lead", "model": "claude-fable-5-1", "item": "W-99",
+            "input_tokens": 100, "cache_write_tokens": 0,
+            "cache_read_tokens": 0, "output_tokens": 50,
+            "active_seconds": 60, "cost_usd": None, "priced": False,
+        }]
+        line = worklog.format_yesterday_line(rows)
+        self.assertIn("unpriced", line)
+        text = worklog.format_day_text("2026-09-15", rows)
+        self.assertIn("unpriced", text)
+        page = worklog.render_day_html("2026-09-15", rows)
+        self.assertIn("unpriced", page)
 
 
 if __name__ == "__main__":
