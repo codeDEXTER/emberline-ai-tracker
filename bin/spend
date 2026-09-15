@@ -6,6 +6,10 @@
     spend agentlog [--write]  regenerate AGENT-LOG.md from the transcripts
     spend today               everything spent today, across all projects
     spend log <task>          append one AGENT-LOG entry (legacy, see below)
+    spend calibrate [--force] [--project DIR] [--out DIR]
+                               after every 20 closed ledger items, flag any
+                               one costing over 2x its points class's median
+                               (proposal 25, Z-05; see tools/calibrate.py)
 
 The numbers come from the session transcripts under ~/.agent-data/projects, which
 record token usage per request. Output tokens are the effort proxy throughout:
@@ -38,6 +42,7 @@ from pathlib import Path
 RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 from tools import worklog  # noqa: E402  (needs sys.path set first)
+from tools import calibrate as _calibrate  # noqa: E402
 
 PROJECTS = os.path.expanduser("~/.agent-data/projects")
 LOG = "AGENT-LOG.md"
@@ -434,6 +439,46 @@ def cmd_today():
     print(f"  {'TOTAL':28} {total:>9,}")
 
 
+def _flag_value(rest, flag):
+    """The value following `flag` in `rest` (a plain `argv`-style list), or
+    None if `flag` is absent or has nothing after it."""
+    if flag in rest:
+        i = rest.index(flag)
+        if i + 1 < len(rest):
+            return rest[i + 1]
+    return None
+
+
+def cmd_calibrate(rest):
+    project = _flag_value(rest, "--project") or os.getcwd()
+    out = _flag_value(rest, "--out")
+    out = os.path.expanduser(out) if out else None
+    result = _calibrate.calibrate(project=project, out=out, force="--force" in rest)
+
+    if not result["ran"]:
+        remaining = _calibrate.CALIBRATE_EVERY - (result["closed"] % _calibrate.CALIBRATE_EVERY)
+        print(f"spend calibrate: {result['closed']} closed item(s), "
+              f"last calibrated at {result['last_calibrated_at']} -- "
+              f"{remaining} more until the next calibration")
+        return 0
+
+    print(f"spend calibrate: {result['closed']} closed item(s) calibrated "
+          f"across {len(result['medians'])} points class(es)")
+    if result["flagged"]:
+        print(f"  {len(result['flagged'])} outlier(s) flagged:")
+        for f in result["flagged"]:
+            print(f"    {f['item']} ({f['ledger']}): {f['tokens']:,} tokens, "
+                  f"{f['multiple']}x the {f['points']}-point class median "
+                  f"({f['class_median']:,.0f})")
+    else:
+        print("  no outliers over 2x their class median")
+    if result["skipped_no_data"]:
+        print(f"  {len(result['skipped_no_data'])} closed item(s) skipped "
+              f"(no points, or no worklog data yet): "
+              f"{', '.join(result['skipped_no_data'])}", file=sys.stderr)
+    return 0
+
+
 def main(argv):
     if not argv or argv[0] in ("-h", "--help"):
         print(__doc__)
@@ -450,6 +495,8 @@ def main(argv):
         cmd_agentlog(write="--write" in rest)
     elif cmd == "today":
         cmd_today()
+    elif cmd == "calibrate":
+        return cmd_calibrate(rest)
     else:
         print(f"unknown command: {cmd}", file=sys.stderr)
         return 2

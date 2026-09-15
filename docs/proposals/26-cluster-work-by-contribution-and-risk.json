@@ -151,13 +151,26 @@
       "tests": [],
       "done": "ruflo-item test with three ids runs the gate once; template text changed with a Standard change line.",
       "depends": [],
-      "status": "not started",
-      "owner": "lead",
+      "status": "done",
+      "owner": "session:bundle-k",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T19:44:44+02:00",
+          "event": "dispatched, bundle K",
+          "by": "lead",
+          "evidence": ""
+        },
+        {
+          "at": "2026-09-15T21:25:57+02:00",
+          "event": "done: bin/ruflo-item done accepts several item ids and runs the merge gate once, not once per item; templates/lead-prompt.md §2 and templates/brief.md now say one full suite and at most one review per bundle or batch, restricted items never batched. Also carried docs/workflow.html's mandatory stamp bump (579->589) and regenerated docs/workflow.png, required by M-08's CLAUDE-workflow.md edit. Full suite: quiet: OK · 1457 tests · 862.9s.",
+          "by": "session:bundle-k",
+          "evidence": "commit bbe3647 on branch bundle-k-m08-c03-r04"
+        }
+      ]
     },
     {
       "id": "C-04",
@@ -171,13 +184,26 @@
       "depends": [
         "C-02"
       ],
-      "status": "not started",
-      "owner": "lead",
+      "status": "done",
+      "owner": "session:bundle-m",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T19:44:45+02:00",
+          "event": "dispatched, bundle M",
+          "by": "lead",
+          "evidence": ""
+        },
+        {
+          "at": "2026-09-15T20:15:59+02:00",
+          "event": "14-day next_check for tail-lane items, board lanes with cut line, overdue on card, built and verified",
+          "by": "session:bundle-m",
+          "evidence": "tools/tracker/rescore.py (assign/overdue/overdue_items, direct-write like tools/tracker/findings.py); tools/tracker/ledger.py next_check validation (_validate_sizing pattern); tools/tracker/board.py 'Lanes' section (Now/Daily/Weekly/When touched, 80% cut line marked, overdue flagged); bin/warmup overdue_tail card line; bin/tracker rescore subcommand added to COMMANDS; tests/test_tracker_rescore.py (15) + tests/test_tracker_board_lanes.py (5) + test_warmup.py TestOverdueTailOnTheCard (3); full suite green after commit 8a6fd20; branch worktree-agent-ac1bad8b278b2dcc2"
+        }
+      ]
     },
     {
       "id": "C-06",

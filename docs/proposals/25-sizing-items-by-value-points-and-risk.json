@@ -192,13 +192,26 @@
       "depends": [
         "Z-01"
       ],
-      "status": "not started",
-      "owner": "lead",
+      "status": "done",
+      "owner": "session:bundle-l",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T19:44:44+02:00",
+          "event": "dispatched, bundle L",
+          "by": "lead",
+          "evidence": ""
+        },
+        {
+          "at": "2026-09-15T20:11:50+02:00",
+          "event": "bin/spend calibrate: every 20 closed items, groups cost by points class, flags >2x class median",
+          "by": "session:bundle-l",
+          "evidence": "tools/calibrate.py, tests/test_calibrate.py (12 tests); PR bundle-l, commit 425a1ae"
+        }
+      ]
     },
     {
       "id": "Z-06",
@@ -212,13 +225,26 @@
       "depends": [
         "Z-01"
       ],
-      "status": "not started",
-      "owner": "lead",
+      "status": "done",
+      "owner": "session:bundle-m",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T19:44:45+02:00",
+          "event": "dispatched, bundle M",
+          "by": "lead",
+          "evidence": ""
+        },
+        {
+          "at": "2026-09-15T20:15:53+02:00",
+          "event": "Tracker board clustered issue catalogue built and verified",
+          "by": "session:bundle-m",
+          "evidence": "tools/tracker/cluster.py (not_taken_rows, file_overlap_clusters: union-find over exact file-path equality, same-folder pitfall handled); tools/tracker/board.py new 'Not taken, clustered by files touched' section (render()'s now-optional project arg); tests/test_tracker_cluster.py (8) + tests/test_tracker_board_clusters.py (4); full suite green after commit 360061d; branch worktree-agent-ac1bad8b278b2dcc2"
+        }
+      ]
     }
   ],
   "asks": [

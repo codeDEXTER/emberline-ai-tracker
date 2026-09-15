@@ -105,7 +105,7 @@
 
 <div class="brand">
   <span>common-rules · reference</span>
-  <span>derived from CLAUDE-workflow.md · rules version 579 · 2026-09-15</span>
+  <span>derived from CLAUDE-workflow.md · rules version 589 · 2026-09-15</span>
 </div>
 
 <h1>The whole workflow, on one page</h1>
@@ -384,8 +384,8 @@ answer would change a look, or the decision is reserved for you.</p>
     <div class="who">quality-manager<b>the gate · risky work</b></div>
     <div>
       <h3>Pre-merge, report-only — for risky work</h3>
-      <p>Runs only for money, real user data, auth and secrets, release and packaging,
-      cross-cutting changes, and every change to common-rules; everything else goes build → gate →
+      <p>Runs only when <code>tracker route</code> says <code>restricted</code> or
+      elevated/high-value work; everything else goes build → gate →
       land with no reviewer. Cheap preconditions first (commit state, merge-base), then outcome-not-surface
       verification. Fixes nothing, approves nothing — its verdict is a recommendation. Behaviour
       changed means re-gate; a docstring or changelog line does not.</p>

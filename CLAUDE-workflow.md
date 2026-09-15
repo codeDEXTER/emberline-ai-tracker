@@ -469,11 +469,18 @@ default, and never applies to every issue.
 
 Everything else goes: issue → `code-engineer` → gate → `land`.
 
-**A separate reviewer runs only for risky work:** money or financial data;
-real user data stores (photo libraries, document vaults); authentication,
-credentials or secrets; release, install or packaging; cross-cutting changes
-to shared modules; and any change to common-rules itself. Everything else
-goes build → gate → land, no reviewer. This replaces reviewing every item —
+**A separate reviewer runs only for risky work — decided by `tracker route`
+(`bin/tracker route LEDGER ITEM_ID`, proposal 25 Z-02, proposal 26 C-02),
+never a fixed category list here.** `route` reads the item's own `risk`, or
+classifies its files against the project's declared `risk_paths` /
+`risk_always` (`tools/tracker/risk.py`) — money, user data, secrets,
+releases and any common-rules change are what a project's own
+`.common-rules.json` names `restricted`; common-rules itself declares
+`risk_always: restricted`, so every item in this repo always routes that
+way. `restricted` gets a separate reviewer whose result the sponsor sees,
+never bundled; `elevated`, or `value high` with `points >= 5`, gets a
+separate reviewer on its own branch; everything else goes
+build → gate → land, no reviewer. This replaces reviewing every item —
 the project's own receipt-reading and UI-verification rules are unchanged.
 
 **This is measured, not preference.** Five arms built one frozen spec under five
