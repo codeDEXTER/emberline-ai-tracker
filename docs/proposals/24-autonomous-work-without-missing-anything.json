@@ -18,7 +18,7 @@
     },
     "C3": {
       "tier": "high",
-      "model": "opus",
+      "model": "sonnet",
       "effort": "high",
       "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
     },
@@ -65,7 +65,7 @@
     {
       "id": "H-02",
       "phase": "H",
-      "cx": "C4",
+      "cx": "C2",
       "title": "Thin dispatcher and short item leads",
       "what": "A dispatcher session holds only the queue: ledgers, asks, which bundle runs where. It never reads diffs, logs or images. Each bundle gets a short item lead that builds, merges, passes H-01 and ends. The lead prompt template gains a dispatcher form and an item-lead form.",
       "files": [],
@@ -76,16 +76,23 @@
       ],
       "status": "not started",
       "owner": "lead",
-      "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T12:11:02+02:00",
+          "event": "re-tiered",
+          "by": "lead",
+          "evidence": "C4/lead model -> C2/sonnet: dispatcher and item-lead forms of the lead prompt, with tests; bounded build with tests: a Sonnet builder, briefed with a Haiku scout's context pack; the lead only reviews and merges. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        }
+      ]
     },
     {
       "id": "H-03",
       "phase": "H",
-      "cx": "C4",
+      "cx": "C2",
       "title": "The dispatcher starts the next lead without asking",
       "what": "Find and prove the mechanism by which a session starts a new item-lead session with no sponsor click (desktop session tools, scheduled task, or CLI). Stop list unchanged (D4): destructive or irreversible work, work outside the plan, a decision the plan records as the sponsor's.",
       "files": [],
@@ -96,11 +103,18 @@
       ],
       "status": "not started",
       "owner": "lead",
-      "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T12:11:02+02:00",
+          "event": "re-tiered",
+          "by": "lead",
+          "evidence": "C4/lead model -> C2/sonnet: spike: prove how one session starts another, recorded; bounded build with tests: a Sonnet builder, briefed with a Haiku scout's context pack; the lead only reviews and merges. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        }
+      ]
     }
   ],
   "asks": [

@@ -18,7 +18,7 @@
     },
     "C3": {
       "tier": "high",
-      "model": "opus",
+      "model": "sonnet",
       "effort": "high",
       "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
     },
@@ -92,7 +92,7 @@
     {
       "id": "K-03",
       "phase": "K",
-      "cx": "C4",
+      "cx": "C1",
       "title": "PhotoVault app and engine on one tracker (P22 T-05)",
       "what": "A requests entry to each PhotoVault session to move to one tracker page, after K-02 lands.",
       "files": [],
@@ -103,16 +103,23 @@
       ],
       "status": "not started",
       "owner": "lead",
-      "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "tier": "low",
+      "model": "haiku",
+      "tag": "[ruflo · low · haiku]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T12:11:03+02:00",
+          "event": "re-tiered",
+          "by": "lead",
+          "evidence": "C4/lead model -> C1/haiku: draft the requests to the two PhotoVault sessions; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        }
+      ]
     },
     {
       "id": "K-04",
       "phase": "K",
-      "cx": "C4",
+      "cx": "C1",
       "title": "PhotoVault app and engine on the standard (P21 S-07, S-08)",
       "what": "Owners are session:PhotoVault App and session:PhotoVault Engine. The engine's ledger (proposal 71 Q-02) records standard 12 of 12 at 4863eec; the app is unchecked. Measure both with bin/conformance, then close S-07 and S-08 with the numbers, or send requests for what does not hold.",
       "files": [],
@@ -121,16 +128,23 @@
       "depends": [],
       "status": "not started",
       "owner": "lead",
-      "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "tier": "low",
+      "model": "haiku",
+      "tag": "[ruflo · low · haiku]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T12:11:03+02:00",
+          "event": "re-tiered",
+          "by": "lead",
+          "evidence": "C4/lead model -> C1/haiku: run bin/conformance on both PhotoVault projects and record it; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        }
+      ]
     },
     {
       "id": "K-05",
       "phase": "K",
-      "cx": "C4",
+      "cx": "C1",
       "title": "Proposal 19 pilot exit conditions (W-10)",
       "what": "W-10's last log says both PhotoVault projects are migrated and their cards read ready; what remains is measuring proposal 19's exit conditions on the engine. Measure them read-only and close W-10, or record what is missing.",
       "files": [],
@@ -139,16 +153,23 @@
       "depends": [],
       "status": "not started",
       "owner": "lead",
-      "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "tier": "low",
+      "model": "haiku",
+      "tag": "[ruflo · low · haiku]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T12:11:03+02:00",
+          "event": "re-tiered",
+          "by": "lead",
+          "evidence": "C4/lead model -> C1/haiku: measure proposal 19's exit conditions read-only; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        }
+      ]
     },
     {
       "id": "K-06",
       "phase": "K",
-      "cx": "C2",
+      "cx": "C1",
       "title": "Check the two worktrees with uncommitted work, then clean up",
       "what": "agent-acf3f21931e1d70f8 (base 257d87d, 18 hours old): 10 staged files; CLAUDE-workflow.md, tests/test_templates.py and docs/workflow.html match p22, README.md matches main; CHANGELOG.md, ledger 21, lead-prompt.md and docs/workflow.png differ, plus a tmp/ folder. agent-a6cbd5b0dfbe31b3e: an untracked LESSONS.md with one bug note on hooks/sessionstart dropping the whole parent-folder card when one child is unreadable; its base commit 28e2784 is titled 'unreadable siblings', so it may already be fixed. Compare each difference with main after K-01; carry anything still true into docs/OPERATING-RULES.md or a test. Removing worktrees deletes local work, so it waits for the sponsor's yes.",
       "files": [],
@@ -159,11 +180,18 @@
       ],
       "status": "not started",
       "owner": "lead",
-      "tier": "medium",
-      "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tier": "low",
+      "model": "haiku",
+      "tag": "[ruflo · low · haiku]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T12:11:03+02:00",
+          "event": "re-tiered",
+          "by": "lead",
+          "evidence": "C2/sonnet -> C1/haiku: compare each uncommitted file with main and report; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        }
+      ]
     },
     {
       "id": "K-07",
@@ -218,6 +246,17 @@
       "became": "K-02",
       "state": "became-item",
       "source": "Common Rules rework session transcript (said directly in this session)"
+    },
+    {
+      "id": "A-04",
+      "at": "2026-09-15T12:11:02+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "Also in the board, refactor to utilize lower agents as much as possible.",
+      "became": null,
+      "state": "open",
+      "source": "Common Rules rework session transcript",
+      "note": "Applied to every open item on the board: proposals 23-29 in this branch, 19-22 on p22-land (K-01). Tier table C3 moves from opus to sonnet (standing Sonnet ceiling)."
     }
   ],
   "proposed_changes": [],

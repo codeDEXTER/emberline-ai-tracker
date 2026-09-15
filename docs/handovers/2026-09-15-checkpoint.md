@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 12:09
+# Checkpoint — 2026-09-15 12:17
 
-Reason: manual · branch: p29-takeover · HEAD: 560e1bd
+Reason: manual · branch: p29-takeover · HEAD: 6997402
 
-<!-- ledger-digest: d4ba34b28e91000c48f5e16bb7d781c402b581e90d660c8cb9e46354e2867c83 -->
+<!-- ledger-digest: 801e705770c1a007445946a3bbdc1cc10ed3adc5f84c6fda4c6ecb8328d0df1c -->
 
 ## Proposal 19 · Warm-up
 
@@ -123,7 +123,7 @@ Reason: manual · branch: p29-takeover · HEAD: 560e1bd
 
 ### Next unblocked
 
-- C-01 · [ruflo · medium · sonnet] · Impact and likelihood on items
+- C-01 · [ruflo · low · haiku] · Impact and likelihood on items
 - C-03 · [ruflo · medium · sonnet] · One gate and review per bundle or batch
 
 ## Proposal 27 · Time and tokens per task, in one place
@@ -146,6 +146,27 @@ Reason: manual · branch: p29-takeover · HEAD: 560e1bd
 
 - W-01 · [ruflo · medium · sonnet] · Fix bin/spend: subagents, once per response, all token kinds
 
+## Proposal 28 · Two commands: warmup and reheat
+
+0 done / 0 in progress / 0 blocked / 5 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- R-01 · [ruflo · medium · sonnet] · bin/warmup runs the standard every time, in both modes
+- R-05 · [ruflo · medium · sonnet] · Fast-forward the shared common-rules checkout when behind
+
 ## Proposal 29 · Taking over the Common Rules chat v1 work
 
 0 done / 1 in progress / 0 blocked / 6 not started
@@ -160,12 +181,12 @@ Reason: manual · branch: p29-takeover · HEAD: 560e1bd
 
 ### Open asks
 
-- none
+- A-04 · "Also in the board, refactor to utilize lower agents as much as possible."
 
 ### Next unblocked
 
-- K-04 · [ruflo · lead · lead model] · PhotoVault app and engine on the standard (P21 S-07, S-08)
-- K-05 · [ruflo · lead · lead model] · Proposal 19 pilot exit conditions (W-10)
+- K-04 · [ruflo · low · haiku] · PhotoVault app and engine on the standard (P21 S-07, S-08)
+- K-05 · [ruflo · low · haiku] · Proposal 19 pilot exit conditions (W-10)
 
 ## Exact next action
 
