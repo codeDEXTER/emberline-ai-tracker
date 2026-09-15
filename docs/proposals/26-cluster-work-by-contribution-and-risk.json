@@ -189,12 +189,20 @@
       "tests": [],
       "done": "STATUSES, counts(), status_line(), render.py's pill and colour all updated; a ledger with only the four original statuses validates and renders exactly as before (regression test); tracker set --status in_review / --status in_testing works end to end on a fixture; the board shows both counts.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
-      "issue": null
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T17:22:08+02:00",
+          "event": "STATUSES gains in review and in testing, purely additive; counts()/status_line()/render.py pill/board.py columns all updated; full suite 1358 tests OK",
+          "by": "session:bundle-h",
+          "evidence": "commit 0a32f90 on worktree-agent-abab12fdf4ec367ae; tests/test_tracker_ledger.py, tests/test_tracker_render.py, tests/test_tracker_board.py cover the regression and the new buckets"
+        }
+      ]
     }
   ],
   "asks": [
