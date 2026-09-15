@@ -24,6 +24,25 @@ second time. `--queue` writes to the project's first ledger under
 `docs/proposals`; a project with several ledgers keeps everything else about
 them untouched.
 
+## 2026-09-15 · /standard folds into /warmup; /reheat is new (P28 R-02)
+
+Proposal 28, R-02 (decided, option A). New `skills/reheat/SKILL.md` for a
+session already running (`bin/warmup --reheat --queue`); `skills/warmup/
+SKILL.md` rewritten for a fresh one, both `--queue`d by default and both
+accepting `--context TEXT` for one free-text line the sponsor gave that
+would otherwise have nowhere to go. `skills/standard/SKILL.md` is now a
+short shortcut pointing at `/warmup` -- `/standard` used to walk a lead
+through "queue every pending mandatory Standard change by hand"; `warmup
+--queue` (R-01) now does that on every run, so there is nothing left for
+`/standard` to do. It says it will be removed next release.
+`bin/derecord` installs both `/warmup` and `/reheat` alongside each other
+(previously only `/warmup`).
+
+**Behaviour change:** a project already on the standard gets a second
+installed skill (`.claude/skills/reheat/SKILL.md`) the next time `derecord`
+runs, and `/standard`, if a session still types it, now only points at
+`/warmup` instead of walking the old twelve-item checklist inline.
+
 ## 2026-09-15 · warmup fast-forwards the shared rules checkout when it is safe (P28 R-05)
 
 Proposal 28, R-05 (decided, option A). `bin/warmup`'s plain card now checks the
