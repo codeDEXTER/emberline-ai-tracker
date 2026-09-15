@@ -32,6 +32,15 @@
                                        change without touching the ledger      (P23 M-04)
   tracker apply-staged LEDGER         the dispatcher applies every staged change,
                                        one at a time, deleting each as it lands (P23 M-04)
+  tracker findings add|decide|defer|decline LEDGER ...
+                                       findings-as-ledger-rows: catalogue,
+                                       decide, defer or decline one         (P26 C-05)
+  tracker findings lanes LEDGER... [--project DIR] [--json]
+                                       items and findings in one shared
+                                       share/risk queue                     (P26 C-05)
+  tracker findings triage LEDGER --batch ID [ID ...] [--json]
+                                       group a batch of decided-small
+                                       findings by shared root cause        (P26 C-05)
 
 Each command is a module in tools/tracker/ with a `main(argv) -> int`, so
 commands built in parallel never edit the same file.
@@ -46,7 +55,7 @@ RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
 COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import", "published", "board", "set", "ask",
-            "route", "lanes", "stage", "apply-staged")
+            "route", "lanes", "stage", "apply-staged", "findings")
 
 
 def validate(argv):
