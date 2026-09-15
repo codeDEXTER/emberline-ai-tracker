@@ -54,10 +54,39 @@ class TestShape(unittest.TestCase):
         self.assertEqual([], ledger.as_list(""))
         self.assertEqual([], ledger.as_list(None))
 
-    def test_counts_always_carry_all_four_states_in_order(self):
+    def test_counts_always_carry_all_six_states_in_order(self):
+        # C-06: two more buckets, purely additive -- a ledger using only the
+        # original four statuses still counts and reads exactly as before.
         c = ledger.counts(minimal())
-        self.assertEqual(["done", "in progress", "blocked", "not started"], list(c))
+        self.assertEqual(["done", "in progress", "in review", "in testing", "blocked", "not started"], list(c))
+        self.assertEqual(0, c["in review"])
+        self.assertEqual(0, c["in testing"])
         self.assertEqual("1 done / 0 in progress / 0 blocked / 2 not started", ledger.status_line(minimal()))
+
+    def test_in_review_and_in_testing_are_valid_statuses(self):
+        # C-06: purely additive -- an item may now sit "in review" (with a
+        # reviewer) or "in testing" (with a red-first test not yet green)
+        # between "in progress" and "done", and validate() accepts both.
+        d = minimal()
+        d["items"][1]["status"] = "in review"
+        d["items"][2]["status"] = "in testing"
+        self.assertEqual([], ledger.validate(d))
+
+    def test_counts_and_status_line_report_the_new_buckets(self):
+        d = minimal()
+        d["items"][1]["status"] = "in review"
+        d["items"][2]["status"] = "in testing"
+        c = ledger.counts(d)
+        self.assertEqual(1, c["in review"])
+        self.assertEqual(1, c["in testing"])
+        self.assertEqual("1 done / 0 in progress / 0 blocked / 0 not started / 1 in review / 1 in testing",
+                          ledger.status_line(d))
+
+    def test_the_original_four_statuses_still_validate_and_are_unrenamed(self):
+        # Nothing renamed or removed: "not started", "in progress", "blocked"
+        # and "done" are still exactly in ledger.STATUSES.
+        for s in ("not started", "in progress", "blocked", "done"):
+            self.assertIn(s, ledger.STATUSES)
 
     def test_unblocked_means_every_dependency_is_done(self):
         self.assertEqual(["W-02"], [i["id"] for i in ledger.unblocked(minimal())])
