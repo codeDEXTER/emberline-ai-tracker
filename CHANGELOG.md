@@ -1,5 +1,49 @@
 # Changelog — common-rules
 
+## 2026-09-15 · Token budget: the eight levers in the standard (P23 L-01 to L-07)
+
+The sponsor directed: "Implement the eight levers of uh, token spending. to
+optimize token utilization. In the standards". Proposal 23 recorded his picks
+after a transcript measurement of three sessions: leads carried about 500k
+tokens into every call (56–67% of lead spend above 500k), cache re-reads were
+68–79% of lead spend, and items needing more than one agent carried 79–98% of
+subagent spend.
+
+What changed:
+- **Fresh leads (L-01).** A lead ends at a milestone, at the end of a day, or
+  past about 150k tokens of context, and hands over through the ledger,
+  `tracker checkpoint` and `/warmup`. Lead prompt section 9.
+- **Review only risky work (L-02).** A separate reviewer runs for money, real
+  user data, auth and secrets, release and packaging, cross-cutting changes,
+  and every change to common-rules. Everything else: build, gate, land. The
+  gate in "the four things that actually work", the roles table and lead
+  prompt section 3 now say the same.
+- **Quiet gates (L-03).** New `bin/quiet -- CMD`: full output to a log file,
+  one verdict line, the command's exit code.
+- **One-line ledger updates (L-04).** New `tracker set` and `tracker ask`:
+  validate, write, re-render, print one line.
+- **Bundles by surface (L-05).** Small issues on one surface go to one agent,
+  one commit per issue, one gate, one PR.
+- **Scout (L-06).** New `templates/scout-brief.md`: a read-only Haiku scout
+  writes the CONTEXT pack before a builder starts.
+- **Existing tools, not inline copies (L-07).** Briefs name the Read tool,
+  `bin/quiet`, `tracker set` and `tracker ask` in place of `cat`/`sed -n`, raw
+  runners and hand-edited ledger JSON.
+
+Kept as they are, by the sponsor's pick: the lead reads receipt images itself
+(L7), and model routing (L8, pending proposal 25).
+
+**Behaviour change:** yes, for every session on the standard: when a lead
+stops, who reviews, how gates and ledger updates are run, and what a brief
+carries.
+
+**Standard change (mandatory):** each project regenerates section 9 "Token
+budget" of its lead prompt from `templates/lead-prompt.md`, briefs its agents
+from the new `templates/brief.md` (and `templates/scout-brief.md` for scouts),
+runs its gates through `bin/quiet`, records ledger changes with `tracker set`
+and sponsor messages with `tracker ask`, and applies the risky-work review list
+from `CLAUDE-workflow.md`. Then `rulecheck --align`.
+
 ## 2026-09-15 · Proposals 23, 24 and 25 accepted: token spend, autonomy, sizing
 
 The sponsor asked why building simple features costs so many tokens: "analyze

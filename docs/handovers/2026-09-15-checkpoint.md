@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 08:32
+# Checkpoint — 2026-09-15 08:48
 
-Reason: manual · branch: p23-levers · HEAD: 944877d
+Reason: manual · branch: p23-levers · HEAD: bd0d4eb
 
-<!-- ledger-digest: 02f55754397c5b6a400975995e45b79c38bb6af775db1f13b2ee8ab1abfb68f4 -->
+<!-- ledger-digest: a9a6f1c4244726c46e366ad29046219dcc1274379477e9d061562e6e17186c56 -->
 
 ## Proposal 19 · Warm-up
 
@@ -71,13 +71,13 @@ Reason: manual · branch: p23-levers · HEAD: 944877d
 
 ### In progress
 
-- L-01 · [ruflo · lead · lead model] · Fresh lead per milestone or day · started
-- L-02 · [ruflo · lead · lead model] · Review only risky work · started
+- L-01 · [ruflo · lead · lead model] · Fresh lead per milestone or day · merged into integration
+- L-02 · [ruflo · lead · lead model] · Review only risky work · merged into integration
 - L-03 · [ruflo · medium · sonnet] · Quiet builds: log to file, read the summary line · merged into integration
-- L-04 · [ruflo · medium · sonnet] · One-line tracker commands for ledger updates · started
-- L-05 · [ruflo · medium · sonnet] · Bundle small issues by surface · started
-- L-06 · [ruflo · medium · sonnet] · Haiku scout writes the context pack · started
-- L-07 · [ruflo · medium · sonnet] · Use the existing tool, not an inline copy · started
+- L-04 · [ruflo · medium · sonnet] · One-line tracker commands for ledger updates · merged into integration
+- L-05 · [ruflo · medium · sonnet] · Bundle small issues by surface · merged into integration
+- L-06 · [ruflo · medium · sonnet] · Haiku scout writes the context pack · merged into integration
+- L-07 · [ruflo · medium · sonnet] · Use the existing tool, not an inline copy · merged into integration
 
 ### Blocked, and why
 
