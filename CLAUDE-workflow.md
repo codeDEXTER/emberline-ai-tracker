@@ -475,6 +475,17 @@ it 2.4×–22.7× cheaper than the rest, and the heaviest arm was the slowest of
 Argue for more process against that, not against a taste.
 (`experiments/pockets-core/RESULTS.md`, branch `experiment/results`.)
 
+**The light path (proposal 23, M-05).** An item small enough (points 1, risk
+`standard`) skips more than just the separate reviewer above — it skips the
+scout and the per-item ledger ceremony too: one commit, one gate run, one log
+line, nothing else. Routing (proposal 25, Z-02) is what decides an item
+qualifies; `templates/brief.md` carries the short form once it does. A finding
+triaged and decided small the same way (proposal 26, C-05) takes this same
+named path, batched with others from its cluster. **Common-rules items are
+never light** — every change here is already `restricted` under the risky-work
+list above, so the light path never applies inside this repository, only to
+the projects that follow this standard.
+
 The chain, when it does run:
 
 1. A proposal, delivered as an HTML artifact, then a decision (below).
