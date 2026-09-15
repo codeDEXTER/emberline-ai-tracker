@@ -1,0 +1,10 @@
+{
+  "item_id": "M-07",
+  "status": "done",
+  "owner": null,
+  "fields": [],
+  "event": "done",
+  "evidence": "gates.quick/gates.merge split named as the one sanctioned exception to one-command-everywhere. tests/test_one_command_exception.py pins it. Commit a3cbf2e.",
+  "by": "session:bundle-g",
+  "at": "2026-09-15T17:25:29+02:00"
+}

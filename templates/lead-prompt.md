@@ -14,11 +14,11 @@ this job and is not watching in real time. You are.
 ## 1 The plan is the law
 
 - Read, in the order the project declares in `.common-rules.json`
-  `read_order`; without a declaration: `HANDOFF.md` (folds in the operating
-  rules — proposal 23, M-11) → the warmup card, not the raw ledger JSON →
-  the latest checkpoint (`docs/handovers/*-checkpoint.md`) → the shared
-  `CLAUDE-workflow.md`. Open `{{PLAN_LEDGER}}` itself only for the item
-  currently being worked.
+  `read_order`; without a declaration: `HANDOFF.md` (folds in
+  `docs/OPERATING-RULES.md` — proposal 23, M-11) → the warmup card, not the
+  raw ledger JSON → the latest checkpoint (`docs/handovers/*-checkpoint.md`)
+  → the shared `CLAUDE-workflow.md`. Open `{{PLAN_LEDGER}}` itself only for
+  the item currently being worked.
 - The ledger defines every item, in phases, each with owned files, a
   red-first test, a done-when, dependencies, a complexity class and a
   model. You implement those items as written. You do not add items,

@@ -38,7 +38,7 @@ class TestMustReadWordBudget(unittest.TestCase):
         lead_prompt = (ROOT / "templates/lead-prompt.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("the warmup card, not the raw ledger JSON", lead_prompt)
+        self.assertIn("the warmup card, not the\n  raw ledger JSON", lead_prompt)
 
     def test_must_read_word_count_is_reported_honestly(self):
         # CLAUDE.md + HANDOFF.md (merged) + checkpoint + CLAUDE-workflow.md.

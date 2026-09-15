@@ -1,0 +1,10 @@
+{
+  "item_id": "M-10",
+  "status": "done",
+  "owner": null,
+  "fields": [],
+  "event": "done",
+  "evidence": "Autopilot/Talking-to-user dated rationale moved to CHANGELOG.md, table shapes kept, sample rows removed. tests/test_workflow_trim.py pins it. Commit dcf4fde.",
+  "by": "session:bundle-g",
+  "at": "2026-09-15T17:25:26+02:00"
+}
