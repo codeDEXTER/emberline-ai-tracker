@@ -158,3 +158,16 @@ Start now: read the documents in the declared order, confirm Ruflo, and
 spawn every unblocked item with disjoint owned files -- C3 included -- in one
 message, each with its report-only reviewer, while you merge, reconcile and
 decide.
+
+## 9 Token budget
+
+- A lead session ends at a milestone, at the end of a day, or when its
+  context passes about 150k tokens, whichever comes first. Hand over through
+  the ledger, `tracker checkpoint` and `/warmup` -- never through a
+  compaction summary.
+- Before ending: the ledger is current, `docs/handovers/<date>-checkpoint.md`
+  is written, `warmup --check` is ready to pass, and every running agent is
+  recorded in the ledger with its worktree and branch.
+- Proposal 24's thin dispatcher, short item leads and `bin/handover --check`
+  will replace this manual handover list when it lands -- do not build it
+  here.
