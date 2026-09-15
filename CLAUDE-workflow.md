@@ -45,6 +45,10 @@ only the pointer.
   by hand.
 - **Anything needed from another project's session** is a `requests`
   entry in the ledger, never prose; every blocked row carries an `owner`.
+- **A lead ends at a boundary** — a milestone, the end of a day, or about
+  150k tokens of context, whichever comes first — and hands over through
+  the ledger, `tracker checkpoint` and `/warmup`, never a compaction
+  summary; detail in `templates/lead-prompt.md` §9.
 
 ---
 
@@ -347,6 +351,12 @@ sessions, one capability, guaranteed conflict, and the user left as referee.
 One issue in flight per **surface**, not per issue. Two issues that touch the
 same file are one issue, or one queue.
 
+**Small issues on the same surface are one bundle.** One agent, one worktree,
+one commit per issue naming its id, one gate run, one PR closing all of them.
+Parallel agents only for surfaces that do not touch. A fix that cannot stand
+alone is still not finished — bundling does not relax that. Proposal 25's
+catalogue supplies the clusters to bundle from.
+
 Record dependencies when issues are created, not when they collide.
 
 ### Working with GitHub
@@ -456,6 +466,13 @@ on work the **user has flagged as a feature they care about**. It is not the
 default, and never applies to every issue.
 
 Everything else goes: issue → `code-engineer` → gate → `land`.
+
+**A separate reviewer runs only for risky work:** money or financial data;
+real user data stores (photo libraries, document vaults); authentication,
+credentials or secrets; release, install or packaging; cross-cutting changes
+to shared modules; and any change to common-rules itself. Everything else
+goes build → gate → land, no reviewer. This replaces reviewing every item —
+the project's own receipt-reading and UI-verification rules are unchanged.
 
 **This is measured, not preference.** Five arms built one frozen spec under five
 process weights. All five scored 22/22; the arm running exactly this default did
