@@ -93,13 +93,20 @@
       "depends": [
         "K-01"
       ],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T13:01:48+02:00",
+          "event": "reported and merged into branch",
+          "by": "lead",
+          "evidence": "origin/k-02-one-tracker = d39d66a (from git), based on 32cd0b9: CLAUDE-workflow.md +4/-4 (folded into the lead-boundary bullet; section stays within its 25-line test cap), skills/standard and skills/warmup, templates/lead-prompt.md, docs/workflow.html stamp 484 plus a bullet, tests/test_one_tracker_rule.py (3 of 4 failed before the edits). Agent suite: quiet: OK · 1225 tests. Merged into p29-k02 as a92d487; docs/workflow.png regenerated. Review (restricted: common-rules) and merge next."
+        }
+      ]
     },
     {
       "id": "K-03",
@@ -138,7 +145,7 @@
       "tests": [],
       "done": "conformance output recorded for both; S-07 and S-08 done or blocked with owners.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "low",
       "model": "haiku",
@@ -150,6 +157,12 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C4/lead model -> C1/haiku: run bin/conformance on both PhotoVault projects and record it; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T12:46:37+02:00",
+          "event": "measured",
+          "by": "lead",
+          "evidence": "Haiku agent, bin/conformance and rulecheck --mandatory from origin/main 32cd0b9: PhotoVault app 6 of 12 (not holding 1, 2, 4, 6 row Q-16 untagged, 10, 12); engine 7 of 12 (1, 2, 4, 10, 12). Both behind two Standard changes: P22 T-02/T-03 one tracker, P23 L-01 to L-07 token budget. Lead re-ran warmup --check read-only: both fail on the P23 entry; working trees unchanged (app M CLAUDE.md from 14 Sep 19:18, engine ?? .agents/ from 14 Sep 16:54, both predate the check). Next step is the PhotoVault sessions' own /warmup after the shared rules checkout is pulled."
         }
       ]
     },
@@ -163,7 +176,7 @@
       "tests": [],
       "done": "W-10 done with the measurements, or blocked with the reason and an owner.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "low",
       "model": "haiku",
@@ -175,6 +188,12 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C4/lead model -> C1/haiku: measure proposal 19's exit conditions read-only; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T12:46:37+02:00",
+          "event": "measured",
+          "by": "lead",
+          "evidence": "Proposal 19 'What completes this', re-measured by the lead read-only on 15 Sep: (1) warmup passes in all four focus projects: not met today, both PhotoVault projects fail --check on the P23 Standard change; (2) render engine 71 and pockets' first ledger: engine 71 page matches its JSON, pockets not migrated; (3) land refuses an unmoved ledger row: met, tests/test_tracker_check.py on main and bin/land runs tracker check; (4) and (5) pilot-week transcript measures: due after the pilot week (W-10 started 13 Sep 21:55). W-10 stays in progress with these results."
         }
       ]
     },
@@ -190,8 +209,8 @@
       "depends": [
         "K-01"
       ],
-      "status": "not started",
-      "owner": "lead",
+      "status": "blocked",
+      "owner": "sponsor",
       "tier": "low",
       "model": "haiku",
       "tag": "[ruflo · low · haiku]",
@@ -202,6 +221,12 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C2/sonnet -> C1/haiku: compare each uncommitted file with main and report; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T12:46:37+02:00",
+          "event": "compared",
+          "by": "lead",
+          "evidence": "Haiku agent compared both worktrees with origin/main; lead verified: agent-acf3f21931e1d70f8 has no CHANGELOG heading or line absent from main, its other staged files match main or are superseded, tmp/ is scratch; agent-a6cbd5b0dfbe31b3e's LESSONS.md bug (parent-folder card) is fixed on main in hooks/sessionstart _safe_open_ledgers and _is_child_project (lines 77-91). Nothing unique would be lost. Removing them deletes local files, so it waits for the sponsor's yes."
         }
       ]
     },

@@ -796,6 +796,12 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C4/lead model -> C1/haiku: measure proposal 19's exit conditions read-only on the PhotoVault engine; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T12:46:37+02:00",
+          "event": "exit conditions re-measured",
+          "by": "lead",
+          "evidence": "15 Sep (P29 K-05): 1 not met today (PhotoVault warmup --check fails on the new P23 Standard change); 2 half met (engine 71 renders; pockets not migrated); 3 met (test_tracker_check, land runs tracker check); 4 and 5 to measure from transcripts once the pilot week ends, about 20 Sep."
         }
       ]
     }
