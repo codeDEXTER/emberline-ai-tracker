@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>27 · proposed · Time and tokens per task, in one place</title>
+<meta name="proposal-id" content="27">
+<meta name="proposal-status" content="proposed">
+<meta name="common-rules-template" content="proposal/21">
+<!--
+  Written by common-rules bin/new-proposal from templates/proposal.html
+  (proposal 21, S-02). Replace every highlighted passage; delete none of
+  the sections. The status appears in four places that must agree: the
+  proposal-status meta above, the <title>, the <h1>, and the
+  "Proposal NN · proposed DATE" line under the heading. The Decided
+  section below says exactly what to change when the sponsor answers.
+-->
+<style>
+  :root {
+    --ground: #F1F2F4; --surface: #FFFFFF; --ink: #16191D; --dim: #5E6873;
+    --border: #D3D8DE; --accent: #C2521F; --accent-soft: #F7E3D8;
+    --fill: #FFF3BF; --fill-ink: #5C4400;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #111417; --surface: #1A1F24; --ink: #E5E8EB; --dim: #939DA7;
+      --border: #2F3841; --accent: #EE7A45; --accent-soft: #3A2419;
+      --fill: #3B3313; --fill-ink: #F2DC8C;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 90px; }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.01em; margin: 0; }
+  h1 .num, h1 .status { color: var(--accent); }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 40px 0 10px; }
+  .sub { color: var(--dim); margin: 10px 0 0; max-width: 72ch; }
+  .card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; margin-top: 12px; }
+  blockquote { margin: 0; padding: 14px 20px; background: var(--surface); border-left: 3px solid var(--accent); font-size: 17px; }
+  blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--dim); }
+  .opt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .opt .card h3 { margin: 0 0 6px; font-size: 16px; }
+  ol.decisions { background: var(--surface); border: 1px solid var(--border); margin: 12px 0 0; padding: 14px 20px 14px 44px; }
+  ol.decisions li + li { margin-top: 6px; }
+  .slot { border: 1px dashed var(--border); padding: 14px 20px; margin-top: 12px; color: var(--dim); }
+  .slot li + li { margin-top: 8px; }
+  .m { font-family: var(--mono); font-size: .9em; }
+  pre.m { background: var(--surface); color: var(--ink); border: 1px solid var(--border); padding: 8px 12px; margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .fill { background: var(--fill); color: var(--fill-ink); padding: 0 3px; }
+  .src { font-size: 13px; color: var(--dim); margin-top: 36px; }
+  .opt .card p { margin: 0 0 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--dim); font-weight: 600; font-size: 13px; }
+  .tbl { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="num">27</span> · <span class="status">proposed</span> · Time and tokens per task, in one place</h1>
+<p class="sub">Proposal 27 · proposed 2026-09-15. Every session's transcripts already record tokens and timestamps. This proposal collects them, without anyone typing anything, into one database for all projects, tied to ledger items, and shows an end-of-day review of time and tokens per task, session and project.</p>
+
+<h2>The ask</h2>
+<blockquote>
+  Second thing, uh, it needs to be a low effort uh, thing that all the tasks and everything should be tracked, time and tokens. So at the end of the day, we can, you know, continuously review these things across different sessions. There could be a central database maintained for all sessions and everything, and we updated their regularly.
+  <cite>The sponsor, 15 September 2026, in the Common Rules rework session; proposal 27 ask A-01.</cite>
+</blockquote>
+
+<h2>What was found</h2>
+<div class="card">
+  <ul>
+    <li>Partly implemented. <span class="m">bin/spend</span> reads the transcripts and reports output tokens per task (<span class="m">report</span>) and per day across projects (<span class="m">today</span>). It keeps no database and recomputes on every run.</li>
+    <li>It misses all subagent spend: it reads <span class="m">~/.agent-data/projects/*/*.jsonl</span> only, while agents write to <span class="m">&lt;session&gt;/subagents/*.jsonl</span>. On 15 September it reported 100% management and 0 worktree tokens.</li>
+    <li>It overcounts: it adds the usage of every streamed record, and a response is written about 3.6 times (4,818 records for 1,322 messages in the PhotoVault App lead). It counts output tokens only, so cache reads, 68–79% of lead spend, are invisible.</li>
+    <li>It cannot say which item work was for: a task is a worktree name, and agent worktrees are named agent-&lt;id&gt;. It records no time.</li>
+    <li><span class="m">bin/tower</span> shows cost by week and notes that 96.8% of tokens sit in the (main checkout) and (management) pseudo-tasks.</li>
+    <li>Not verified: how long a first full collection of every transcript takes (tower measured 26.8 s for its cost pass).</li>
+  </ul>
+</div>
+
+<h2>Options</h2>
+<div class="opt">
+  <div class="card">
+    <h3>A · Collector into one SQLite database</h3>
+    <p><span class="m">bin/worklog collect</span> reads new transcript lines since its last run (lead and subagents), counts each response once, and stores per request: project, session, agent, model, item id, all four token kinds, list-price cost and timestamps. A Stop hook runs it after each session turn; a nightly run catches the rest. <span class="m">bin/worklog day</span> writes the evening review page. The database lives outside every repository.</p>
+  </div>
+  <div class="card">
+    <h3>B · Daily JSON files</h3>
+    <p>The same collector writes one JSON-lines file per day instead of a database. Costs: less machinery. Rules out: fast queries across weeks and sessions.</p>
+  </div>
+  <div class="card">
+    <h3>C · Fix bin/spend only</h3>
+    <p>Add subagents, count each response once, add all token kinds and time; keep recomputing each run. Costs: least. Rules out: history that survives transcript clean-up, and a central record.</p>
+  </div>
+</div>
+<p><b>Recommended:</b> A. It is the only option that keeps a central record, needs no typing, and can join tokens and time to ledger items across every session.</p>
+<div class="card">
+  <b>What each task gets under option A</b>
+  <div class="tbl"><table>
+    <tr><th>Recorded</th><th>From</th></tr>
+    <tr><td>item id</td><td>the brief's tag line (<span class="m">[ruflo · tier · model] L-04 …</span>), else the branch name, else the session</td></tr>
+    <tr><td>tokens</td><td>input, cache read, cache write, output, once per response, lead and subagents</td></tr>
+    <tr><td>cost</td><td>current list price per model, labelled as an API equivalent</td></tr>
+    <tr><td>active time</td><td>time between requests, leaving out gaps over 5 minutes</td></tr>
+    <tr><td>outcome</td><td>the ledger's done, blocked or merged events for that item</td></tr>
+  </table></div>
+</div>
+<h2>Decisions</h2>
+<p class="sub">Each numbered line is one thing the sponsor answers. Keep the numbers stable once shown: answers and ledger items cite them.</p>
+<ol class="decisions">
+  <li><b>D1.</b> Storage: A (one SQLite database), B (daily JSON files) or C (fix bin/spend only)?</li>
+  <li><b>D2.</b> When it updates: after each session turn plus nightly, nightly only, or only when asked?</li>
+  <li><b>D3.</b> How work is tied to a task: brief tag, then branch, then session; or worktree name only?</li>
+  <li><b>D4.</b> Time: active time (gaps over 5 minutes left out) or first-to-last wall clock?</li>
+  <li><b>D5.</b> The daily review: an evening page and a line on the /warmup card, the page only, or the card line only?</li>
+  <li><b>D6.</b> Fix bin/spend's subagent and double-counting gaps first, or replace bin/spend with the collector?</li>
+</ol>
+
+<h2>Decided</h2>
+<section class="slot">
+  <p>Not decided yet. When the sponsor answers, change this page in this order.</p>
+  <ol>
+    <li><b>The date, first.</b> Copy this line into the head, directly under the status meta, and put the real date in place of YYYY-MM-DD:
+      <pre class="m">&lt;meta name="proposal-decided" content="YYYY-MM-DD"&gt;</pre>
+      Without it, bin/proposalcheck treats the page as decided before its rules existed and checks nothing.</li>
+    <li><b>Then the status.</b> Replace the proposed status meta with this line:
+      <pre class="m">&lt;meta name="proposal-status" content="accepted"&gt;</pre>
+      and change "proposed" to "accepted" in the title, the heading, and the "Proposal NN · proposed DATE" line under it.</li>
+    <li>Write both lines exactly as shown. Do not self-close them with <span class="m">/&gt;</span>: bin/proposalcheck does not read that form, and the page would read as undecided.</li>
+    <li>Give this section the id <span class="m">decided</span>, and replace this text with the sponsor's answer quoted from disk, the date, and what each of D1, D2 ... was decided as.</li>
+    <li>Add the items to the ledger beside this page (same number, <span class="m">.json</span>).</li>
+  </ol>
+  <p>The id is added by hand, on purpose. A page that shipped with an empty answers block would pass bin/proposalcheck while recording nothing.</p>
+  <p><b>Completed in part.</b> A proposal closed as <span class="m">completed in part</span> also needs a block with the id exceptions beside the <span class="m">&lt;ol class="decisions"&gt;</span> list, naming what was not built and why. The same rule applies: add it when it is true, never in advance.</p>
+</section>
+
+<p class="src">Sources: the sponsor's message (proposal 27 ask A-01); bin/spend source (_sessions globs */*.jsonl; _read sums output_tokens on every record) and its 15 September output; bin/tower cost section (issue #76 note); common-rules proposal 23's transcript re-check (3.64 records per response). Not verified: first-collection time across all transcripts.</p>
+
+</div>
+</body>
+</html>
