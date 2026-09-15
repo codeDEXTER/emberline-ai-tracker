@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 09:15
+# Checkpoint — 2026-09-15 09:59
 
-Reason: manual · branch: p23-levers · HEAD: f13cec9
+Reason: manual · branch: p26-cluster-by-risk · HEAD: 4f1de4c
 
-<!-- ledger-digest: a2a1aee5068954b96b65ab5c707d69fffd3c47315a1ae1799cefb978d7d40649 -->
+<!-- ledger-digest: 0aff387a00b90cda7fca7eac3a301443a84610be78ad7c90a7b122be0619ad58 -->
 
 ## Proposal 19 · Warm-up
 
@@ -104,6 +104,47 @@ Reason: manual · branch: p23-levers · HEAD: f13cec9
 ### Next unblocked
 
 - Z-01 · [ruflo · medium · sonnet] · Ledger fields: value, points, risk, cluster
+
+## Proposal 26 · Cluster work by contribution and risk
+
+0 done / 0 in progress / 0 blocked / 4 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- C-01 · [ruflo · medium · sonnet] · Impact and likelihood on items
+- C-03 · [ruflo · medium · sonnet] · One gate and review per bundle or batch
+
+## Proposal 27 · Time and tokens per task, in one place
+
+0 done / 0 in progress / 0 blocked / 4 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- W-01 · [ruflo · medium · sonnet] · Fix bin/spend: subagents, once per response, all token kinds
 
 ## Exact next action
 
