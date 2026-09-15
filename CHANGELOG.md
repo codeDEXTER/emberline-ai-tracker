@@ -1,5 +1,70 @@
 # Changelog — common-rules
 
+## 2026-09-15 · `bin/worklog collect` and `bin/worklog day`: a central token/time record (P27 W-02, W-04)
+
+Proposal 27, decided 15 September 2026 (D1-D6): a folder revisioned under
+common-rules, one JSON-lines file per day, updated incrementally, task named
+from the brief tag then the branch then the session, active time with gaps
+over five minutes left out.
+
+`bin/worklog collect [--projects DIR] [--out DIR] [--state FILE]` reads every
+transcript's new lines since its last run — lead and subagent alike — and
+merges input, cache-read, cache-write and output tokens, list-price cost and
+active time into `worklog/<YYYY-MM-DD>.jsonl`, one line per (day, project,
+session, agent, model, item). It is incremental by byte offset per
+transcript and, within a transcript, by `message.id`: a message that grows
+across two collector runs (still streaming when `collect` last ran)
+contributes only the delta the second time, so a re-run never double-counts
+and a day file rewrites byte-identical when nothing changed. Nothing it
+writes ever carries transcript prose — every field is drawn from a fixed
+whitelist, and the only text ever inspected (the first user prompt, to look
+for a leading item tag) is discarded with the record it came from.
+
+`bin/worklog day [--date D] [--html FILE]` renders that day as a
+self-contained HTML page (tasks, sessions, projects, lead vs. agent split,
+the four token kinds, cost, active time) and a plain-text summary on
+stdout; every value it writes is `html.escape`d, since a git branch name or
+a brief tag reaching that markup is as untrusted as any other input.
+`bin/worklog yesterday-line` prints a one-line summary for a future
+`/warmup` card to shell out to (that wiring, and the nightly/Stop-hook
+collection cadence, are W-03/the card change — not built here).
+
+`tools/worklog.py` holds the shared primitives (`list_transcripts`,
+`dedupe_messages`, now also `collect`, `derive_item_id`, `render_day_html`)
+so `bin/spend` and `bin/worklog` read the same transcript shape once.
+`tests/test_worklog.py` covers task naming, active-time gaps, idempotent
+re-run after a transcript grows, and that no output ever carries transcript
+text.
+
+**Behaviour change:** none for existing tools — this adds `bin/worklog` and
+`worklog/` (gitignored state file only) without touching `bin/spend`'s own
+behaviour further. A project adopting the daily collection needs to run
+`bin/worklog collect` itself for now; automatic scheduling is W-03.
+
+## 2026-09-15 · W-01: `spend` read subagent transcripts and deduped streamed usage (P27)
+
+`bin/spend` undercounted and overcounted the same session in opposite
+directions: `_sessions()` globbed `<project>/*.jsonl` only, so every
+subagent transcript at `<project>/<session>/subagents/*.jsonl` was never
+read at all, and `_read()` summed `usage.output_tokens` across every record
+in a transcript, though a streamed response writes the same `message.id`
+several times as usage grows (about 3.6 records per message, measured
+2026-08-07) -- so the fraction that *was* read was overstated by roughly
+that factor.
+
+`tools/worklog.py` is now the one place that knows the transcript shape
+(`list_transcripts`, `iter_records`, `dedupe_messages` -- last record per
+`message.id` wins) so `bin/worklog` (W-02/W-04, following) shares it rather
+than duplicating. `bin/spend` reads through it. `report` and `today` gained
+input, cache-read and cache-write columns alongside the existing output
+column; `agentlog` and `log` are unchanged in shape.
+
+**Behaviour change:** `spend report`/`today`/`agentlog` totals now include
+subagent transcripts and are deduped by `message.id` — existing figures for
+any project will move (down, for the dedupe fix; up, for subagents).
+`tests/test_spend.py` adds `TestSubagentsAndDedupe` and updates the
+zero-total regression guard for the new columns.
+
 ## 2026-09-15 · One tracker per project, written where sessions read it (P22 T-04)
 
 The sponsor, 15 September 2026: "Please maintain a single tracker for common

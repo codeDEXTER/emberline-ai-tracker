@@ -45,3 +45,9 @@ ruvector.db
 .claude-flow/data
 .claude-flow/logs
 .claude-flow/sessions
+
+# bin/worklog's incremental-read bookmark (proposal 27, W-02): per-transcript
+# byte offsets and in-progress message state, so a re-run knows what it
+# already collected. Machine-local and regenerable from the transcripts --
+# worklog/<date>.jsonl itself is the record and stays committable.
+worklog/.state.json
