@@ -1,0 +1,55 @@
+{
+  "proposal": 27,
+  "title": "Time and tokens per task, in one place",
+  "status": "proposed",
+  "updated": "2026-09-15",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "opus",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "lead model",
+      "effort": "-",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "X",
+      "name": "Research",
+      "goal": "Questions that need reading, not writing, before they become items, a proposal, or a decline.",
+      "exit": "Every X row is done only when it becomes items, a numbered proposal, or a recorded decline with the reason -- never a report nobody acted on."
+    }
+  ],
+  "items": [],
+  "asks": [
+    {
+      "id": "A-01",
+      "at": "2026-09-15T09:10:43+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "Second thing, uh, it needs to be a low effort uh, thing that all the tasks and everything should be tracked, time and tokens. So at the end of the day, we can, you know, continuously review these things across different sessions. There could be a central database maintained for all sessions and everything, and we updated their regularly.",
+      "became": null,
+      "state": "open",
+      "source": "Common Rules rework session transcript"
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {}
+}

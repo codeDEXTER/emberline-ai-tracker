@@ -1,6 +1,6 @@
-# Checkpoint — 2026-09-15 08:48
+# Checkpoint — 2026-09-15 09:22
 
-Reason: manual · branch: p23-levers · HEAD: bd0d4eb
+Reason: manual · branch: p26-cluster-by-risk · HEAD: f13cec9
 
 <!-- ledger-digest: a9a6f1c4244726c46e366ad29046219dcc1274379477e9d061562e6e17186c56 -->
 
