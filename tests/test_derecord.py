@@ -234,6 +234,43 @@ class TestDerecordSkill(DerecordCase):
         self.assertEqual(sibling.read_text(), "unrelated skill, do not touch\n")
 
 
+class TestDerecordReheatSkill(DerecordCase):
+    """Step 6, proposal 28 R-02/R-03: derecord also installs the /reheat
+    skill, the running-lead counterpart of /warmup -- same match-not-add
+    rule, installed alongside it rather than replacing it."""
+
+    SKILL_SRC = ROOT / "skills" / "reheat" / "SKILL.md"
+    SKILL_REL = Path(".claude") / "skills" / "reheat" / "SKILL.md"
+
+    def test_missing_skill_is_installed_byte_identical(self):
+        r = self.run_derecord()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        dest = self.proj / self.SKILL_REL
+        self.assertTrue(dest.exists(), "skill was not installed")
+        self.assertEqual(dest.read_bytes(), self.SKILL_SRC.read_bytes())
+        self.assertIn(f"  {self.SKILL_REL}: installed", r.stdout)
+
+    def test_a_second_run_leaves_it_byte_identical_and_says_so(self):
+        self.run_derecord()
+        before = (self.proj / self.SKILL_REL).read_bytes()
+        second = self.run_derecord()
+        self.assertEqual(before, (self.proj / self.SKILL_REL).read_bytes())
+        self.assertIn(f"  {self.SKILL_REL}: already current", second.stdout)
+
+    def test_a_stale_copy_is_corrected_to_the_source(self):
+        dest = self.proj / self.SKILL_REL
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text("stale copy, not what common-rules has\n")
+        r = self.run_derecord()
+        self.assertEqual(dest.read_bytes(), self.SKILL_SRC.read_bytes())
+        self.assertIn(f"  {self.SKILL_REL}: corrected", r.stdout)
+
+    def test_warmup_skill_is_installed_in_the_same_run(self):
+        self.run_derecord()
+        self.assertTrue((self.proj / ".claude" / "skills" / "warmup" / "SKILL.md").exists())
+        self.assertTrue((self.proj / ".claude" / "skills" / "reheat" / "SKILL.md").exists())
+
+
 class TestDerecordHooks(DerecordCase):
     """Step 5: derecord installs the checkpoint hooks (proposal 19, D8 / W-08)."""
 

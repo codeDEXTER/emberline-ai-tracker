@@ -64,6 +64,96 @@ subagent transcripts and are deduped by `message.id` — existing figures for
 any project will move (down, for the dedupe fix; up, for subagents).
 `tests/test_spend.py` adds `TestSubagentsAndDedupe` and updates the
 zero-total regression guard for the new columns.
+## 2026-09-15 · warmup gains --reheat and --queue; both run the standard (P28 R-01)
+
+Proposal 28, R-01 (decided, option A). Two commands now cover the whole lead
+lifecycle: `warmup` for a fresh lead, `warmup --reheat` for one already
+running -- `--reheat` is `--since` against a state file warmup keeps for
+itself (default: inside the project's own git directory), with the
+standard's own status (conformance's twelve items, plus every pending
+mandatory Standard change) appended every time, not only when it changed.
+Both now run conformance and the mandatory-pending check on every call; with
+`--queue`, each item that does not hold becomes a ledger item -- owner
+`lead`, status `not started`, first in that ledger's own `items` list
+(`tools/tracker/queue.py`, new) -- idempotent, so a second `--queue` adds
+nothing for a source already queued.
+
+**Behaviour change:** a plain `warmup` (no flags) now also runs
+`bin/conformance`'s twelve checks and rulecheck's mandatory-pending check in
+process every time, which is measurably slower than the card alone
+(conformance item 12 itself spawns a nested `warmup --check`) -- gather()
+computes conformance only for the plain card and `--reheat`, never for
+`--check` itself, to avoid that nested call recursing into conformance a
+second time. `--queue` writes to the project's first ledger under
+`docs/proposals`; a project with several ledgers keeps everything else about
+them untouched.
+
+## 2026-09-15 · SessionStart and Stop hooks dispatch to warmup/reheat (P28 R-03)
+
+Proposal 28, R-03 (decided, option A). `hooks/sessionstart` now runs
+`bin/warmup` (plain card, no `--queue`: a hook never writes) on `startup`,
+and `bin/warmup --reheat` on `compact` or `resume` -- always with
+`--no-pull`, keeping this hook's own read-only, no-network contract even
+though warmup's plain card and `--reheat` otherwise fast-forward the rules
+checkout (R-05). `clear`, or no source at all, keeps the pre-R-03 one-line-
+per-ledger summary outright. Every dispatch is bounded by a hard timeout
+(`WARMUP_TIMEOUT`, default 8s, overridable only via
+`COMMON_RULES_HOOK_TIMEOUT` for tests) and falls back to that same one-line
+summary on any failure or timeout -- never to a failed session.
+`hooks/stop` now also compares the shared rules checkout's current HEAD
+(`git rev-parse`, never a fetch) against the `rules_head` warmup's own state
+file recorded, and prints `rules moved -- run /reheat` when they differ; the
+same timeout override applies to that check.
+
+Measured end to end (subprocess start to exit): common-rules' own checkout,
+startup/resume/compact ~2.0s each; a small fixture project, ~1.6s each;
+`hooks/stop`'s rules-moved check, ~0.4s. All well under the 8s default and
+the 10s ceiling this item asked for.
+
+**Behaviour change:** a SessionStart hook that used to print one line per
+open ledger on `startup` and `resume` now prints warmup's or reheat's full
+card/delta instead (more text, more subprocess and git work per session
+start) -- bounded by the timeout above, and unchanged for `clear` or a
+missing source.
+
+## 2026-09-15 · /standard folds into /warmup; /reheat is new (P28 R-02)
+
+Proposal 28, R-02 (decided, option A). New `skills/reheat/SKILL.md` for a
+session already running (`bin/warmup --reheat --queue`); `skills/warmup/
+SKILL.md` rewritten for a fresh one, both `--queue`d by default and both
+accepting `--context TEXT` for one free-text line the sponsor gave that
+would otherwise have nowhere to go. `skills/standard/SKILL.md` is now a
+short shortcut pointing at `/warmup` -- `/standard` used to walk a lead
+through "queue every pending mandatory Standard change by hand"; `warmup
+--queue` (R-01) now does that on every run, so there is nothing left for
+`/standard` to do. It says it will be removed next release.
+`bin/derecord` installs both `/warmup` and `/reheat` alongside each other
+(previously only `/warmup`).
+
+**Behaviour change:** a project already on the standard gets a second
+installed skill (`.claude/skills/reheat/SKILL.md`) the next time `derecord`
+runs, and `/standard`, if a session still types it, now only points at
+`/warmup` instead of walking the old twelve-item checklist inline.
+
+## 2026-09-15 · warmup fast-forwards the shared rules checkout when it is safe (P28 R-05)
+
+Proposal 28, R-05 (decided, option A). `bin/warmup`'s plain card now checks the
+shared rules checkout (wherever `bin/warmup` itself lives) and fast-forwards it
+with `git pull --ff-only` when it is on `main`, has no tracked changes, and
+`origin/main` is strictly ahead after a short `git fetch` -- never merge,
+rebase, stash or reset. Anything else (dirty, diverged, not on main, no
+`origin`, a fetch that times out or fails) is left alone and named on one card
+line instead. `--no-pull` skips the check entirely; `--check`, `--json`,
+`--since` and `--migrate` never trigger it, since those are queries, not the
+moment to move a checkout under whoever is reading it. New `tools/rules_pull.py`
+carries the pure check, testable against temp clones without ever touching a
+real checkout's git state.
+
+**Behaviour change:** a plain `warmup` (no flags) can now write to the rules
+checkout's ref (a fast-forward only) and reach the network (one `git fetch`,
+short timeout). Anything invoking `bin/warmup` from a context where a network
+call or a moving HEAD is unwanted -- CI, a read-only hook -- must pass
+`--no-pull`.
 
 ## 2026-09-15 · One tracker per project, written where sessions read it (P22 T-04)
 

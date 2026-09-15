@@ -131,7 +131,11 @@ class Project:
                        capture_output=True, check=True)
 
     def warmup(self, *args):
-        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.root), "--no-recall", *args],
+        # --no-pull always: bin/warmup's RULES_DIR is wherever bin/warmup
+        # itself lives, which in this test run is the real common-rules
+        # checkout -- R-05's fetch/pull must never run against it from a test.
+        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.root),
+                               "--no-recall", "--no-pull", *args],
                               capture_output=True, text=True, check=False)
 
     def close(self):
@@ -510,7 +514,7 @@ class TestTheTestCommandIsLands(unittest.TestCase):
     def test_no_declaration_has_no_quick_gate_on_the_card(self):
         p = Project(seeded=True)
         try:
-            r = subprocess.run([sys.executable, str(WARMUP), "--project", str(p.root), "--no-recall"],
+            r = subprocess.run([sys.executable, str(WARMUP), "--project", str(p.root), "--no-recall", "--no-pull"],
                                capture_output=True, text=True, check=False)
             self.assertNotIn("quick gate", r.stdout)
             self.assertNotIn("merge gate", r.stdout)
@@ -526,7 +530,12 @@ class TestCardV2Lines(Case):
     without any of it (the base fixture) prints today's card, unchanged."""
 
     def test_base_fixture_shows_none_of_the_new_lines(self):
-        out = self.p.warmup().stdout
+        # Scoped to warmup's own ledger rendering, above "standard:" --
+        # conformance item 6's own advice text (proposal 28, R-01) legitimately
+        # says "tiers or model_routing" regardless of what the ledger declares,
+        # which is a different thing than ledger_v2_lines() printing a routing
+        # table that was never declared.
+        out = self.p.warmup().stdout.split("\nstandard:", 1)[0]
         self.assertNotIn("readiness", out)
         self.assertNotIn("merged, awaiting evidence", out)
         self.assertNotIn("yours", out)
@@ -1462,7 +1471,11 @@ class TestMandatoryStandardChanges(Case):
     def warm(self, *args):
         import os
         env = {**os.environ, "COMMON_RULES_DIR": str(self.rules.root)}
-        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.p.root), "--no-recall", *args],
+        # --no-pull: bin/warmup's own RULES_DIR (unlike rulecheck's, which
+        # honours COMMON_RULES_DIR) is still the real common-rules checkout
+        # here -- R-05's fetch/pull must never touch it from a test.
+        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.p.root),
+                               "--no-recall", "--no-pull", *args],
                               capture_output=True, text=True, check=False, env=env)
 
     def rules_block(self, card: str) -> list[str]:
@@ -1544,12 +1557,21 @@ class TestMandatoryStandardChanges(Case):
     def test_a_heading_with_control_characters_is_escaped(self):
         self.stamp(self.rules.version())
         self.rules.add("2026-09-14 · evil\x1b[31m\x0bforged\x0c\u202eend\x85", "x")
-        for args in ((), ("--check",)):
-            with self.subTest(args=args):
-                r = self.warm(*args)
-                self.assertEqual(self.raw_controls(r.stdout), [], repr(r.stdout))
-                self.assertIn("evil\\x1b[31m\\x0bforged\\x0c\\u202eend\\x85", r.stdout)
-                self.assertEqual(sum("evil" in l for l in r.stdout.splitlines()), 1)
+        # --check never computes conformance (bin/warmup's own gather() would
+        # otherwise recurse into conformance item 12's own `warmup --check`
+        # subprocess), so it stays the one place this heading is guaranteed
+        # to appear exactly once.
+        r = self.warm("--check")
+        self.assertEqual(self.raw_controls(r.stdout), [], repr(r.stdout))
+        self.assertIn("evil\\x1b[31m\\x0bforged\\x0c\\u202eend\\x85", r.stdout)
+        self.assertEqual(sum("evil" in l for l in r.stdout.splitlines()), 1)
+        # The plain card (proposal 28, R-01) also runs conformance, which can
+        # legitimately quote the same heading again (its own item 1, and item
+        # 12's own "first: ..." line lifted from a nested `--check`) -- never
+        # unescaped, however many times it appears.
+        card = self.warm()
+        self.assertEqual(self.raw_controls(card.stdout), [], repr(card.stdout))
+        self.assertIn("evil\\x1b[31m\\x0bforged\\x0c\\u202eend\\x85", card.stdout)
 
     # --- round 2 (reviewer fix-first on a040c1e) ---------------------------
 
@@ -1768,8 +1790,12 @@ class TestTheProjectPageChangedSincePublish(Case):
 
     def test_a_leftover_per_ledger_sidecar_prints_nothing(self):
         """T-03: the per-ledger sidecar of a ledger without its own tracker is
-        not read at all -- not for a line, and not for a problem. bin/conformance
-        item 10 is where a leftover is named."""
+        not read at all by warmup's own publish-state logic -- not for a
+        line, and not for a problem. bin/conformance item 10 is where a
+        leftover is named -- and (proposal 28, R-01) the plain card now runs
+        conformance too, so the leftover legitimately appears there; the
+        assertion below is scoped to everything above that section, which is
+        warmup's own reading of the ledger and its sidecars."""
         self.published()
         self.p.commit("published")
         self.p.write(SIDECAR, json.dumps({"url": URL, "digest": "0" * 64,
@@ -1777,8 +1803,9 @@ class TestTheProjectPageChangedSincePublish(Case):
         self.p.commit("a leftover per-ledger sidecar")
         card = self.p.warmup()
         self.assertEqual(0, card.returncode, card.stderr)
-        self.assertNotIn("19-proposal-warmup.published.json", card.stdout)
-        self.assertNotIn("since last publish", card.stdout)
+        own_reading = card.stdout.split("\nstandard:", 1)[0]
+        self.assertNotIn("19-proposal-warmup.published.json", own_reading)
+        self.assertNotIn("since last publish", own_reading)
         check = self.p.warmup("--check")
         self.assertEqual(0, check.returncode, check.stdout)
         self.assertIsNone(json.loads(self.p.warmup("--json").stdout)["ledgers"][LEDGER]["published"])
@@ -1786,7 +1813,8 @@ class TestTheProjectPageChangedSincePublish(Case):
         self.p.write(SIDECAR, "{not json")
         self.p.commit("a malformed leftover")
         self.assertEqual(0, self.p.warmup("--check").returncode)
-        self.assertNotIn("19-proposal-warmup.published.json", self.p.warmup().stdout)
+        card2 = self.p.warmup().stdout.split("\nstandard:", 1)[0]
+        self.assertNotIn("19-proposal-warmup.published.json", card2)
 
     def test_a_missing_project_page_is_not_also_changed(self):
         self.published()
