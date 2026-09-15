@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 16:06
+# Checkpoint — 2026-09-15 16:08
 
-Reason: manual · branch: backlog · HEAD: d731c10
+Reason: manual · branch: backlog · HEAD: 071a446
 
-<!-- ledger-digest: 6d82ad1d9b46a94be7fc6996d0b0f61bb4954fb4eb6230b03a881db526342143 -->
+<!-- ledger-digest: 4faf24a158ddf78c07d85b8974191d1ef972810dd0ab78db9edb17d6d529a768 -->
 
 ## Proposal 19 · Warm-up
 
@@ -47,7 +47,7 @@ Reason: manual · branch: backlog · HEAD: d731c10
 
 ## Proposal 22 · One tracker per project
 
-4 done / 0 in progress / 0 blocked / 1 not started
+4 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
@@ -64,6 +64,7 @@ Reason: manual · branch: backlog · HEAD: d731c10
 ### Next unblocked
 
 - T-05 · [ruflo · low · haiku] · PhotoVault app and engine move to one tracker
+- T-06 · [ruflo · low · haiku] · A published page's name is set once and never changes -- tracker, board, cookbook, any of them
 
 ## Proposal 23 · Eight levers for token spend
 
