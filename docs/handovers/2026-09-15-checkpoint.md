@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 12:32
+# Checkpoint — 2026-09-15 12:46
 
-Reason: manual · branch: p22-land · HEAD: a202087
+Reason: manual · branch: p29-k02 · HEAD: 32cd0b9
 
-<!-- ledger-digest: 9d9635f02d79e8ed7904d2f475024ab7eccef25c6f174aef3b92e902e3d3606b -->
+<!-- ledger-digest: da6603e0145287884c8f3c8ebc7580c94386fc35d0feec005bd1cba890c0a872 -->
 
 ## Proposal 19 · Warm-up
 
@@ -169,11 +169,11 @@ Reason: manual · branch: p22-land · HEAD: a202087
 
 ## Proposal 29 · Taking over the Common Rules chat v1 work
 
-0 done / 1 in progress / 0 blocked / 6 not started
+1 done / 0 in progress / 0 blocked / 6 not started
 
 ### In progress
 
-- K-01 · [ruflo · lead · lead model] · Land p22 on main · review: fix-first
+- none
 
 ### Blocked, and why
 
@@ -185,8 +185,10 @@ Reason: manual · branch: p22-land · HEAD: a202087
 
 ### Next unblocked
 
+- K-02 · [ruflo · medium · sonnet] · One tracker per project until the sponsor asks for another (P22 T-04)
 - K-04 · [ruflo · low · haiku] · PhotoVault app and engine on the standard (P21 S-07, S-08)
 - K-05 · [ruflo · low · haiku] · Proposal 19 pilot exit conditions (W-10)
+- K-06 · [ruflo · low · haiku] · Check the two worktrees with uncommitted work, then clean up
 
 ## Exact next action
 

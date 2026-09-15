@@ -54,7 +54,7 @@
       "tests": [],
       "done": "p22 merged to main; ledger 22 shows T-01 to T-03 merged with the merge sha.",
       "depends": [],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "lead",
       "model": "lead model",
@@ -72,6 +72,12 @@
           "event": "review: fix-first",
           "by": "lead",
           "evidence": "quality-manager (sonnet) on a202087: 598 touched tests OK; merge kept every change from main; T-01 to T-03 behave as decided on a scratch copy. Findings: (1) no CHANGELOG entry with a Standard change line for T-02/T-03, promised by the T-01 entry - added; (2) main had moved (3fe6906) - merged again, only generated files conflicted, regenerated. Observation, not fixed here: tracker set and tracker ask re-render the proposal's page but not the project board, so board --check reads stale until tracker board runs; follow-up for C-04/K-02."
+        },
+        {
+          "at": "2026-09-15T12:37:09+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "PR 179 merged to main as 32cd0b9 (from gh). Suite on 7cf0f44: quiet: OK · 1221 tests. CI: only the known Linux test_a_long_branch_says_how_many_it_did_not_print. Review fix-first; both blocking findings fixed (CHANGELOG Standard change line; main merged again). Proposal 22 T-01 to T-03 on main."
         }
       ]
     },
