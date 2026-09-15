@@ -62,7 +62,7 @@
       "depends": [
         "X-03"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "lead",
       "model": "lead model",
@@ -86,6 +86,12 @@
           "event": "merged into integration",
           "by": "lead",
           "evidence": "Merged into p23-levers as bd0d4eb."
+        },
+        {
+          "at": "2026-09-15T09:08:07+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         }
       ]
     },
@@ -107,7 +113,7 @@
       "depends": [
         "X-01"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "lead",
       "model": "lead model",
@@ -131,6 +137,12 @@
           "event": "merged into integration",
           "by": "lead",
           "evidence": "Merged into p23-levers as bd0d4eb. Lead fix: CLAUDE-workflow.md 'four things' gate line and roles table, and lead-prompt.md section 3 and closing line, still required a reviewer on every item; reworded to risky work only."
+        },
+        {
+          "at": "2026-09-15T09:08:07+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         }
       ]
     },
@@ -148,7 +160,7 @@
       ],
       "done": "Helper in bin/ with tests, including a red run that proves a FAILED line is caught; brief template updated.",
       "depends": [],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -172,6 +184,12 @@
           "event": "merged into integration",
           "by": "lead",
           "evidence": "Merged into p23-levers as 944877d; full suite on the merged branch gates the push."
+        },
+        {
+          "at": "2026-09-15T09:08:07+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         }
       ]
     },
@@ -192,7 +210,7 @@
       ],
       "done": "Command with tests (red first); OPERATING-RULES names it; one lead session uses it for a full item.",
       "depends": [],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -216,6 +234,12 @@
           "event": "merged into integration",
           "by": "lead",
           "evidence": "Merged into p23-levers as 09e112f."
+        },
+        {
+          "at": "2026-09-15T09:08:07+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         }
       ]
     },
@@ -237,7 +261,7 @@
       "depends": [
         "X-02"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -261,6 +285,12 @@
           "event": "merged into integration",
           "by": "lead",
           "evidence": "Merged into p23-levers as bd0d4eb."
+        },
+        {
+          "at": "2026-09-15T09:08:07+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         }
       ]
     },
@@ -280,7 +310,7 @@
       ],
       "done": "A scout brief template and the CONTEXT pack format exist; one item run with a scout shows builder read and inspect spend lower than a comparable item without.",
       "depends": [],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -304,6 +334,12 @@
           "event": "merged into integration",
           "by": "lead",
           "evidence": "Merged into p23-levers as bd0d4eb."
+        },
+        {
+          "at": "2026-09-15T09:08:07+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         }
       ]
     },
@@ -405,7 +441,7 @@
       ],
       "done": "Brief template MUST lines added with a Standard change line; a rerun of the mining script shows each cluster down by half.",
       "depends": [],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -429,6 +465,12 @@
           "event": "merged into integration",
           "by": "lead",
           "evidence": "Merged into p23-levers as bd0d4eb."
+        },
+        {
+          "at": "2026-09-15T09:08:07+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         }
       ]
     }

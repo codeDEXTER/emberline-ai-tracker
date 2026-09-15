@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 09:31
+# Checkpoint — 2026-09-15 09:59
 
-Reason: manual · branch: p26-cluster-by-risk · HEAD: 0eb620f
+Reason: manual · branch: p26-cluster-by-risk · HEAD: 4f1de4c
 
-<!-- ledger-digest: 47bbe209ee8b7303edc07383686b889428fc86db59c3bfaae96e2da00a3c2c15 -->
+<!-- ledger-digest: 0aff387a00b90cda7fca7eac3a301443a84610be78ad7c90a7b122be0619ad58 -->
 
 ## Proposal 19 · Warm-up
 
@@ -64,32 +64,6 @@ Reason: manual · branch: p26-cluster-by-risk · HEAD: 0eb620f
 ### Next unblocked
 
 - T-02 · [ruflo · high · opus] · The chain reads the project page, not one page per proposal
-
-## Proposal 23 · Eight levers for token spend
-
-3 done / 7 in progress / 0 blocked / 0 not started
-
-### In progress
-
-- L-01 · [ruflo · lead · lead model] · Fresh lead per milestone or day · merged into integration
-- L-02 · [ruflo · lead · lead model] · Review only risky work · merged into integration
-- L-03 · [ruflo · medium · sonnet] · Quiet builds: log to file, read the summary line · merged into integration
-- L-04 · [ruflo · medium · sonnet] · One-line tracker commands for ledger updates · merged into integration
-- L-05 · [ruflo · medium · sonnet] · Bundle small issues by surface · merged into integration
-- L-06 · [ruflo · medium · sonnet] · Haiku scout writes the context pack · merged into integration
-- L-07 · [ruflo · medium · sonnet] · Use the existing tool, not an inline copy · merged into integration
-
-### Blocked, and why
-
-- none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- none
 
 ## Proposal 24 · Autonomous work without missing anything
 
