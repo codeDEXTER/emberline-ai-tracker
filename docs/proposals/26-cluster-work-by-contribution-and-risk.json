@@ -54,7 +54,7 @@
       "tests": [],
       "done": "Validator accepts and checks both; tests red first.",
       "depends": [],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "low",
       "model": "haiku",
@@ -66,6 +66,12 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C2/sonnet -> C1/haiku: two validator fields following Z-01's pattern; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T14:10:18+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle A (tools/tracker ledger fields, route and lanes): one Sonnet builder after a Haiku scout, one commit per item, branch bundle-a from origin/main af3dbc8, integration branch backlog; sponsor: implement the backlog. Tier stays haiku in the ledger; built inside the Sonnet bundle because it edits the same file as Z-01."
         }
       ]
     },
@@ -81,13 +87,20 @@
       "depends": [
         "C-01"
       ],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle A (tools/tracker ledger fields, route and lanes): one Sonnet builder after a Haiku scout, one commit per item, branch bundle-a from origin/main af3dbc8, integration branch backlog; sponsor: implement the backlog."
+        }
+      ]
     },
     {
       "id": "C-03",
@@ -198,6 +211,17 @@
       "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
       "state": "became-item",
       "became": "C-04"
+    },
+    {
+      "id": "A-08",
+      "at": "2026-09-15T14:10:17+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "implement the backlog",
+      "became": null,
+      "state": "answered",
+      "source": "Common Rules rework session transcript",
+      "note": "Applies to every accepted, not-built item in proposals 24-28; built in surface bundles on integration branch backlog."
     }
   ],
   "proposed_changes": [],

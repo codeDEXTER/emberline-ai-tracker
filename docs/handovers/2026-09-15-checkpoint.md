@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 13:31
+# Checkpoint — 2026-09-15 14:20
 
-Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
+Reason: manual · branch: backlog · HEAD: af3dbc8
 
-<!-- ledger-digest: 6bf2d7506edcb963fc09f039edbe9d81ee685699c9f260118af56aaf0f0a0c97 -->
+<!-- ledger-digest: 16e205542e244a1076301b678ba356523d8a5754b66543c54e3e82de1edc6295 -->
 
 ## Proposal 19 · Warm-up
 
@@ -67,11 +67,13 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ## Proposal 24 · Autonomous work without missing anything
 
-0 done / 0 in progress / 0 blocked / 3 not started
+0 done / 3 in progress / 0 blocked / 0 not started
 
 ### In progress
 
-- none
+- H-01 · [ruflo · medium · sonnet] · Closing check: bin/handover --check · started
+- H-02 · [ruflo · medium · sonnet] · Thin dispatcher and short item leads · started
+- H-03 · [ruflo · medium · sonnet] · The dispatcher starts the next lead without asking · started
 
 ### Blocked, and why
 
@@ -83,15 +85,18 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ### Next unblocked
 
-- H-01 · [ruflo · medium · sonnet] · Closing check: bin/handover --check
+- none
 
 ## Proposal 25 · Sizing items by value, points and risk
 
-0 done / 0 in progress / 0 blocked / 6 not started
+0 done / 4 in progress / 0 blocked / 2 not started
 
 ### In progress
 
-- none
+- Z-01 · [ruflo · medium · sonnet] · Ledger fields: value, points, risk, cluster · started
+- Z-02 · [ruflo · medium · sonnet] · Routing table from the four fields · started
+- Z-03 · [ruflo · low · haiku] · Value defaults per surface · started
+- Z-04 · [ruflo · medium · sonnet] · Risk class from paths; common-rules always restricted · started
 
 ### Blocked, and why
 
@@ -103,15 +108,16 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ### Next unblocked
 
-- Z-01 · [ruflo · medium · sonnet] · Ledger fields: value, points, risk, cluster
+- none
 
 ## Proposal 26 · Cluster work by contribution and risk
 
-0 done / 0 in progress / 0 blocked / 4 not started
+0 done / 2 in progress / 0 blocked / 2 not started
 
 ### In progress
 
-- none
+- C-01 · [ruflo · low · haiku] · Impact and likelihood on items · started
+- C-02 · [ruflo · medium · sonnet] · tracker lanes: share, risk, the 80% cut and each item's lane · started
 
 ### Blocked, and why
 
@@ -123,16 +129,17 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ### Next unblocked
 
-- C-01 · [ruflo · low · haiku] · Impact and likelihood on items
 - C-03 · [ruflo · medium · sonnet] · One gate and review per bundle or batch
 
 ## Proposal 27 · Time and tokens per task, in one place
 
-0 done / 0 in progress / 0 blocked / 4 not started
+0 done / 3 in progress / 0 blocked / 1 not started
 
 ### In progress
 
-- none
+- W-01 · [ruflo · medium · sonnet] · Fix bin/spend: subagents, once per response, all token kinds · started
+- W-02 · [ruflo · medium · sonnet] · bin/worklog collect into common-rules/worklog/<date>.jsonl · started
+- W-04 · [ruflo · medium · sonnet] · Evening page and the /warmup line · started
 
 ### Blocked, and why
 
@@ -144,15 +151,18 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ### Next unblocked
 
-- W-01 · [ruflo · medium · sonnet] · Fix bin/spend: subagents, once per response, all token kinds
+- none
 
 ## Proposal 28 · Two commands: warmup and reheat
 
-0 done / 0 in progress / 0 blocked / 5 not started
+0 done / 4 in progress / 0 blocked / 1 not started
 
 ### In progress
 
-- none
+- R-01 · [ruflo · medium · sonnet] · bin/warmup runs the standard every time, in both modes · started
+- R-02 · [ruflo · medium · sonnet] · /warmup and /reheat skills with context; /standard becomes a shortcut · started
+- R-03 · [ruflo · medium · sonnet] · Hooks run warmup and reheat by themselves · started
+- R-05 · [ruflo · medium · sonnet] · Fast-forward the shared common-rules checkout when behind · started
 
 ### Blocked, and why
 
@@ -164,8 +174,7 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ### Next unblocked
 
-- R-01 · [ruflo · medium · sonnet] · bin/warmup runs the standard every time, in both modes
-- R-05 · [ruflo · medium · sonnet] · Fast-forward the shared common-rules checkout when behind
+- none
 
 ## Proposal 29 · Taking over the Common Rules chat v1 work
 

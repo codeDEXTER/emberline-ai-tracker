@@ -54,13 +54,20 @@
       "tests": [],
       "done": "Validator tests, red first, for each field's bad value; tracker render shows the four fields.",
       "depends": [],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:18+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle A (tools/tracker ledger fields, route and lanes): one Sonnet builder after a Haiku scout, one commit per item, branch bundle-a from origin/main af3dbc8, integration branch backlog; sponsor: implement the backlog."
+        }
+      ]
     },
     {
       "id": "Z-02",
@@ -74,13 +81,20 @@
       "depends": [
         "Z-01"
       ],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle A (tools/tracker ledger fields, route and lanes): one Sonnet builder after a Haiku scout, one commit per item, branch bundle-a from origin/main af3dbc8, integration branch backlog; sponsor: implement the backlog."
+        }
+      ]
     },
     {
       "id": "Z-03",
@@ -94,7 +108,7 @@
       "depends": [
         "Z-01"
       ],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "low",
       "model": "haiku",
@@ -106,6 +120,12 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C2/sonnet -> C1/haiku: one config key and its reader with a test; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T14:10:18+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle A (tools/tracker ledger fields, route and lanes): one Sonnet builder after a Haiku scout, one commit per item, branch bundle-a from origin/main af3dbc8, integration branch backlog; sponsor: implement the backlog. Tier stays haiku; same reason."
         }
       ]
     },
@@ -121,13 +141,20 @@
       "depends": [
         "Z-01"
       ],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:18+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle A (tools/tracker ledger fields, route and lanes): one Sonnet builder after a Haiku scout, one commit per item, branch bundle-a from origin/main af3dbc8, integration branch backlog; sponsor: implement the backlog."
+        }
+      ]
     },
     {
       "id": "Z-05",
@@ -256,6 +283,17 @@
       "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D6: picked \"A · Cluster by files touched, on the tracker page\".",
       "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
       "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
+    },
+    {
+      "id": "A-09",
+      "at": "2026-09-15T14:10:17+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "implement the backlog",
+      "became": null,
+      "state": "answered",
+      "source": "Common Rules rework session transcript",
+      "note": "Applies to every accepted, not-built item in proposals 24-28; built in surface bundles on integration branch backlog."
     }
   ],
   "proposed_changes": [],
