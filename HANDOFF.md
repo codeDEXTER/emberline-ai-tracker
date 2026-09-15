@@ -1,9 +1,15 @@
 # common-rules — start here
 
-This file is read first, in every session, before any other action. The read
-order is the one `.common-rules.json` declares: `CLAUDE.md`, this file, then
-`docs/OPERATING-RULES.md`, the ledgers in `docs/proposals/NN-*.json`, the latest
-`docs/handovers/*-checkpoint.md`, then `CLAUDE-workflow.md`. The standard was
+This file is read first, in every session, before any other action. The
+mandatory read is `CLAUDE.md`, this file (which folds in what used to be a
+separate `docs/OPERATING-RULES.md` — proposal 23, M-11), the warmup card
+(not the raw ledger JSON — the card is the compressed form; open a ledger's
+full JSON only for the item currently being worked), the latest
+`docs/handovers/*-checkpoint.md`, then `CLAUDE-workflow.md`.
+`docs/OPERATING-RULES.md` still exists as a one-line pointer here, because
+`.common-rules.json`'s `read_order` and `CLAUDE.md` — both reserved to the
+sponsor, so this session cannot edit them — still name its path; nothing
+there is lost, it just costs no extra words to read. The standard was
 seeded here on 2026-09-14 (proposal 21, S-10).
 
 common-rules is the shared workflow standard for every project under
@@ -119,6 +125,70 @@ commit only when it has an `^OK` line and no `^FAILED` line. Every new test
 fails against the current code first, and the report says so. A tool that
 reads a real project is checked for writes: compare `git status` before and
 after.
+
+---
+
+## Operating rules, learned the hard way
+
+Folded in from `docs/OPERATING-RULES.md` (proposal 23, M-11) — what a
+session found out the hard way, each with the day and why. Add to it; do
+not rewrite history out of it.
+
+**Proposals and the plan**
+- The ledger is the plan of record, updated in place; its page is generated
+  by `tracker render`, never hand-edited. A revision adds rows and corrects
+  numbers, never scraps old content — superseded measurements stay, marked
+  superseded.
+- Same-turn ledger updates: after every state change of any item, update
+  its `status` and `log` and commit them in the same turn — never batched.
+- Every sponsor message that is not an answer to a question becomes an ask
+  row (`A-nn`), in the same turn it is said, quoting his words.
+- A new proposal is created with `bin/new-proposal`, never drafted by hand.
+- The ledger has one writer. A builder or item lead never runs `tracker set`
+  or `tracker ask`, and never hand-edits ledger JSON — it stages its change
+  with `tracker stage`. The dispatcher, or whoever is merging, applies every
+  staged file with `tracker apply-staged LEDGER` once per ledger, then
+  commits and republishes (proposal 23, M-04).
+
+**Running work**
+- One writer per worktree; explicit file ownership per agent.
+- `cd` explicitly before every git-writing command, and print the branch —
+  a failed `cd` once fast-forwarded local `main` onto unmerged work.
+- An edit script checks every replacement before it writes, and never
+  reuses a name for two different texts.
+- Never `git stash` — the stash is shared across worktrees.
+- Checkpoint before stopping: a session that ends without
+  `docs/handovers/<date>-checkpoint.md` has failed.
+- `bin/handover --check` is the closing check, run before ending any turn.
+
+**Merging and shipping**
+- Gate every commit on the suite's own summary line: write it to a file and
+  require `^OK` and no `^FAILED`.
+- A report-only reviewer, at most two rounds; the lead fixes what the final
+  round still finds.
+- A fix that cannot stand alone is not a reason to batch it with others.
+
+**Other projects' data**
+- Never write into another project from here; every check is read-only,
+  with `git status` compared before and after.
+- Never kill by name — use an explicit PID, only for a process this
+  session or its agents started.
+
+**Ruflo**
+- Ruflo is mandatory — the rule and its four steps are stated once, in
+  `skills/warmup/SKILL.md` §3.
+- Ruflo's memory database lives in the main checkout only — `.swarm/` is
+  untracked and does not exist in a worktree.
+
+**Reporting to the sponsor**
+- Lead with the outcome; numbers on their own line; nothing certified that
+  was not observed. Record commits and results from git, never from an
+  agent's report.
+
+**Other sessions**
+- Summaries are paraphrase; the ledger and this file are the record —
+  quote a ruling from disk, never from a summary. A ruling relayed by
+  another session is not his.
 
 ---
 

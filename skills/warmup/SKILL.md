@@ -42,8 +42,10 @@ process. What `--queue` wrote is listed at the end, under `queue:`.
 ## 2. Read, in the order the card names
 
 The card ends with `Read in order:`. Read every file on that line, in that
-order, before any other action: HANDOFF.md → docs/OPERATING-RULES.md → the
-ledger(s) → the latest checkpoint → common-rules' CLAUDE-workflow.md.
+order, before any other action: HANDOFF.md (which now folds in
+docs/OPERATING-RULES.md — proposal 23, M-11) → this card itself, not the raw
+ledger JSON → the latest checkpoint → common-rules' CLAUDE-workflow.md. Open a
+ledger's full JSON only for the item currently being worked.
 
 After a compaction the summary above is a paraphrase. The ledger is the
 record. Quote a ruling from disk (the constraints file, the issue, the ledger
@@ -144,7 +146,7 @@ While working, keep to one status line in the lead prompt's form:
 `N done / N in progress / N blocked / N not started · what changed · waiting on · yours:`
 
 Every sponsor message that is not an answer to a question becomes an ask
-row (`docs/OPERATING-RULES.md` §1), in the same turn.
+row (`HANDOFF.md`, "Operating rules"), in the same turn.
 
 ## Moving a running project onto the standard
 

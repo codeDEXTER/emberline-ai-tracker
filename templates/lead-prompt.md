@@ -14,9 +14,11 @@ this job and is not watching in real time. You are.
 ## 1 The plan is the law
 
 - Read, in the order the project declares in `.common-rules.json`
-  `read_order`; without a declaration: `HANDOFF.md` →
-  `docs/OPERATING-RULES.md` → `{{PLAN_LEDGER}}` → the latest checkpoint
-  (`docs/handovers/*-checkpoint.md`) → the shared `CLAUDE-workflow.md`.
+  `read_order`; without a declaration: `HANDOFF.md` (folds in the operating
+  rules — proposal 23, M-11) → the warmup card, not the raw ledger JSON →
+  the latest checkpoint (`docs/handovers/*-checkpoint.md`) → the shared
+  `CLAUDE-workflow.md`. Open `{{PLAN_LEDGER}}` itself only for the item
+  currently being worked.
 - The ledger defines every item, in phases, each with owned files, a
   red-first test, a done-when, dependencies, a complexity class and a
   model. You implement those items as written. You do not add items,
@@ -109,7 +111,7 @@ this job and is not watching in real time. You are.
   `plan_page`, the page is the committed file its generator writes: record
   it with `bin/tracker published <ledger> --url <url> --page <path>`.
 - Every sponsor message that is not an answer to a question becomes an
-  ask row (`docs/OPERATING-RULES.md` §1), in the same turn it is said.
+  ask row (`HANDOFF.md`, "Operating rules"), in the same turn it is said.
 
 ## 5 Do not stop
 
@@ -142,7 +144,7 @@ this job and is not watching in real time. You are.
 - **One status line, repeated, in this exact shape:**
   `N done / N in progress / N blocked / N not started · what just changed · what it is waiting for · what the sponsor owes it`.
   Never a paragraph.
-- **Checkpoint before stopping** (`docs/OPERATING-RULES.md` §2). Write
+- **Checkpoint before stopping** (`HANDOFF.md`, "Operating rules"). Write
   `docs/handovers/<date>-checkpoint.md` before you stop for any reason.
 
 ## 8 Proposals, requests and owners
@@ -200,11 +202,11 @@ merge, reconcile and decide.
 - It never edits a file an item lead owns. Reconciling shared files is the
   same lead role §3 already gives to whichever session is doing the
   merging, not the dispatcher.
-- It is the ledger's only writer (`docs/OPERATING-RULES.md` §1: the ledger
-  has one writer). After merging a branch in, the dispatcher (or whichever
-  session is doing the merging) runs `tracker apply-staged LEDGER` once per
-  ledger to land every staged change, one at a time, then commits and
-  republishes as `/warmup`'s card directs (proposal 23, M-04).
+- It is the ledger's only writer (`HANDOFF.md`, "Operating rules": the
+  ledger has one writer). After merging a branch in, the dispatcher (or
+  whichever session is doing the merging) runs `tracker apply-staged LEDGER`
+  once per ledger to land every staged change, one at a time, then commits
+  and republishes as `/warmup`'s card directs (proposal 23, M-04).
 
 ## Item-lead form
 

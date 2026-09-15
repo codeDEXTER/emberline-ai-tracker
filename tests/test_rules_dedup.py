@@ -1,7 +1,12 @@
 """M-09: five rules each written out in full in multiple files now have one
 canonical home each, with every other mention a one-line pointer naming that
 file. This pins the canonical location and checks no other owned file
-restates the rule's distinguishing text in full."""
+restates the rule's distinguishing text in full.
+
+M-11 subsequently folds docs/OPERATING-RULES.md into HANDOFF.md, so three of
+these five rules' canonical home moves from docs/OPERATING-RULES.md to
+HANDOFF.md along with the rest of that file's content -- this test reflects
+the post-M-11 layout, not the intermediate M-09-only one."""
 import unittest
 from pathlib import Path
 
@@ -35,16 +40,17 @@ class TestRulesDedup(unittest.TestCase):
         )
         hits = count_occurrences(needle, OWNED_FILES)
         self.assertEqual(hits, ["skills/warmup/SKILL.md"])
-        # every other owned file that mentions ruflo points at it
-        for rel in ("docs/OPERATING-RULES.md", "templates/lead-prompt.md"):
-            self.assertIn("skills/warmup/SKILL.md", read(rel))
+        # the other owned file that mentions ruflo's steps points at it
+        self.assertIn(
+            "skills/warmup/SKILL.md", read("templates/lead-prompt.md")
+        )
 
-    def test_ledger_has_one_writer_stated_once_in_operating_rules(self):
+    def test_ledger_has_one_writer_stated_once_in_handoff(self):
         needle = "The ledger has one writer."
         hits = count_occurrences(needle, OWNED_FILES)
-        self.assertEqual(hits, ["docs/OPERATING-RULES.md"])
+        self.assertEqual(hits, ["HANDOFF.md"])
         self.assertIn(
-            "OPERATING-RULES.md",
+            "HANDOFF.md",
             read("templates/lead-prompt.md"),
         )
 
@@ -64,21 +70,29 @@ class TestRulesDedup(unittest.TestCase):
         ):
             self.assertIn(item, handoff)
 
-    def test_checkpoint_before_stopping_stated_once_in_operating_rules(self):
-        needle = "A session that ends without"
+    def test_checkpoint_before_stopping_stated_once_in_handoff(self):
+        needle = "session that ends without"
         hits = count_occurrences(needle, OWNED_FILES)
-        self.assertEqual(hits, ["docs/OPERATING-RULES.md"])
+        self.assertEqual(hits, ["HANDOFF.md"])
         self.assertIn(
-            "OPERATING-RULES.md",
+            "HANDOFF.md",
             read("templates/lead-prompt.md"),
         )
 
-    def test_ask_row_rule_stated_once_in_operating_rules(self):
+    def test_ask_row_rule_stated_once_in_handoff(self):
         needle = "becomes an ask\n  row"
         hits = count_occurrences(needle, OWNED_FILES)
-        self.assertEqual(hits, ["docs/OPERATING-RULES.md"])
+        self.assertEqual(hits, ["HANDOFF.md"])
         for rel in ("templates/lead-prompt.md", "skills/warmup/SKILL.md"):
-            self.assertIn("OPERATING-RULES.md", read(rel))
+            self.assertIn("HANDOFF.md", read(rel))
+
+    def test_operating_rules_file_is_a_thin_pointer(self):
+        # M-11: content moved into HANDOFF.md; this file is now nearly
+        # empty, kept only because reserved-to-the-sponsor files still
+        # name its path.
+        words = len(read("docs/OPERATING-RULES.md").split())
+        self.assertLess(words, 120)
+        self.assertIn("HANDOFF.md", read("docs/OPERATING-RULES.md"))
 
     def test_no_duplicated_rule_text_survives_across_owned_files(self):
         # sanity: none of the five key phrases appear in more than one
@@ -87,7 +101,7 @@ class TestRulesDedup(unittest.TestCase):
             "ruflo mandatory steps": "memory search` and `hooks route` before, `hooks\n  post-task`",
             "ledger one writer": "The ledger has one writer.",
             "reserved to sponsor": "## Reserved to the sponsor, always",
-            "checkpoint before stopping": "A session that ends without",
+            "checkpoint before stopping": "session that ends without",
             "ask row rule": "becomes an ask\n  row",
         }
         for label, needle in checks.items():
