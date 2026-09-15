@@ -10,6 +10,7 @@ Run:  python3 -m unittest discover -s tests -p 'test_levers_in_templates.py' -v
 """
 from __future__ import annotations
 
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -159,11 +160,15 @@ class TestLeadPromptTokenBudget(unittest.TestCase):
             "lead-prompt.md: no '## 9 Token budget' section",
         )
 
-    def test_section_9_is_last(self):
+    def test_section_9_is_last_numbered_section(self):
+        """Proposal 24, H-02: the Dispatcher and Item-lead forms are
+        unnumbered appendices after §9, not numbered sections of their own,
+        so §9 stays the last *numbered* boundary this rule is pinned to."""
         headings = [l.rstrip() for l in self.text.splitlines() if l.startswith("## ")]
+        numbered = [h for h in headings if re.match(r"^## \d", h)]
         self.assertEqual(
-            headings[-1], "## 9 Token budget",
-            f"lead-prompt.md: '## 9 Token budget' is not the last section -- got {headings}",
+            numbered[-1], "## 9 Token budget",
+            f"lead-prompt.md: '## 9 Token budget' is not the last numbered section -- got {numbered}",
         )
 
     def test_boundary_rule_named(self):
