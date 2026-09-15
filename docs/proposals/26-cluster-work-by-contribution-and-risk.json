@@ -170,6 +170,23 @@
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
       "log": []
+    },
+    {
+      "id": "C-06",
+      "phase": "C",
+      "cx": "C2",
+      "title": "Two more statuses: in review, in testing",
+      "what": "`tools/tracker/ledger.py`'s STATUSES gains two values between `in progress` and `done`: `in review` (with a reviewer, quality-manager or a review agent per C-05) and `in testing` (with test-engineer, or a red-first test not yet green). Purely additive -- every existing ledger using only the original four statuses stays valid and unaffected; nothing is renamed or removed. `counts()`/`status_line()` report both new buckets; `bin/tracker set --status` accepts them; `render.py`'s pill gets a colour for each, distinct from `blocked` (a stopped item) and `in progress` (a builder actively editing) -- these two mean the code is written and it is now elsewhere, waiting. C-05's catalogued/decided/deferred/declined states are for *findings*; this is for *items*, and the two are shown together on the board so a glance says who has what.",
+      "files": [],
+      "tests": [],
+      "done": "STATUSES, counts(), status_line(), render.py's pill and colour all updated; a ledger with only the four original statuses validates and renders exactly as before (regression test); tracker set --status in_review / --status in_testing works end to end on a fixture; the board shows both counts.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null
     }
   ],
   "asks": [
@@ -282,6 +299,15 @@
       "became": null,
       "state": "answered",
       "note": "amends C-05: batches of decided-small findings are triaged for a shared root cause and duplicates before being worked"
+    },
+    {
+      "id": "A-12",
+      "at": "2026-09-15T16:20:16+02:00",
+      "by": "lead",
+      "kind": "feature",
+      "quote": "Can you also create in the tracker something like in review or in testing?",
+      "became": "C-06",
+      "state": "became-item"
     }
   ],
   "proposed_changes": [],
