@@ -135,6 +135,35 @@ class CheckAsksTests(unittest.TestCase):
         mark, detail = H.check_asks(self.root, t, datetime(2026, 1, 1, 9, tzinfo=timezone.utc))
         self.assertEqual(H.PASS, mark, detail)
 
+    def test_two_messages_three_minutes_apart_need_two_ask_rows(self):
+        """Regression (bundle-d review, MEDIUM-HIGH): matching used to be
+        many-to-one -- any ask within +/-10 minutes covered any message,
+        so two distinct sponsor messages three minutes apart both counted
+        as covered by the same single ask row. One ask can cover only one
+        message; the second, unrelated message here must still fail."""
+        write_ledger(self.root, "90-fixture.json", base_ledger(asks=[
+            {"id": "A-01", "at": "2026-01-01T10:00:00+00:00", "by": "sponsor", "kind": "instruction",
+             "quote": "an ask that matches neither message by text", "state": "open", "became": None},
+        ]))
+        t = self.write_transcript([
+            self.user_entry("first unrelated sponsor message", "2026-01-01T10:01:00+00:00"),
+            self.user_entry("second unrelated sponsor message", "2026-01-01T10:04:00+00:00"),
+        ])
+        mark, detail = H.check_asks(self.root, t, None)
+        self.assertEqual(H.FAIL, mark, detail)
+        self.assertIn("1 sponsor message", detail)
+
+    def test_quote_match_ignores_case_and_collapsed_whitespace(self):
+        write_ledger(self.root, "90-fixture.json", base_ledger(asks=[
+            {"id": "A-01", "at": "2026-01-01T10:00:00+00:00", "by": "sponsor", "kind": "instruction",
+             "quote": "Please   RENAME the\nwidget to gadget", "state": "open", "became": None},
+        ]))
+        t = self.write_transcript([
+            self.user_entry("please rename the widget to gadget", "2026-01-01T12:00:00+00:00"),
+        ])
+        mark, detail = H.check_asks(self.root, t, None)
+        self.assertEqual(H.PASS, mark, detail)
+
 
 class CheckWorktreesTests(unittest.TestCase):
     def setUp(self):
@@ -175,6 +204,26 @@ class CheckWorktreesTests(unittest.TestCase):
         self.add_active_worktree("p90-w01")
         mark, detail = H.check_worktrees(self.root)
         self.assertEqual(H.PASS, mark, detail)
+
+    def test_run_from_a_linked_worktree_still_sees_its_sibling(self):
+        """Regression (bundle-d review, HIGH): the reviewer found check 2
+        blind when `--project` is a linked worktree, not the main checkout
+        -- `git worktree list` reports every worktree's path relative to the
+        main checkout's `.claude/worktrees/`, and the old code only ever
+        looked under `--project` itself, so a lead running `bin/handover
+        --check` from its own worktree (the item-lead form's own
+        instruction) saw 0 candidates. Two linked worktrees here, ledger
+        names neither: --project set to worktree A must still report
+        worktree B (its unnamed sibling) as a failing candidate."""
+        write_ledger(self.root, "90-fixture.json", base_ledger())
+        git("add", "-A", cwd=self.root)
+        git("commit", "-q", "-m", "add ledger", cwd=self.root)
+        self.add_active_worktree("p90-a")
+        self.add_active_worktree("p90-b")
+        project_a = self.root / ".claude" / "worktrees" / "p90-a"
+        mark, detail = H.check_worktrees(project_a)
+        self.assertEqual(H.FAIL, mark, detail)
+        self.assertIn("p90-b", detail)
 
 
 class CheckCheckpointTests(unittest.TestCase):

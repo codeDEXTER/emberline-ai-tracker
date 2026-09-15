@@ -7,24 +7,31 @@
 Four checks, each printed with a mark and what is missing:
 
   1. every sponsor message since the session started has an ask row.
-     Read from `--transcript` -- a Claude Code transcript JSONL -- matching
-     each sponsor (user) message to some ledger's `asks` row by `at` (within
-     +/-10 minutes) or by quote substring, either direction. Tool results,
-     sidechain turns, and system/command/notification wrappers (a message
-     whose text starts with "<task-notification", "<system-reminder",
-     "<local-command" or "[SYSTEM NOTIFICATION") are never sponsor messages
-     and are skipped. Without `--transcript` this check cannot be run at
-     all -- it prints "not checked: no transcript" and is neither a pass
-     nor a failure: it does not block exit 0, because there is nothing on
-     disk that could answer it, and a hard fail here would make every lead
-     that forgets `--transcript` unable to ever close cleanly.
+     Read from `--transcript` -- a Claude Code transcript JSONL -- matched
+     one to one against some ledger's `asks` rows: first by quote
+     substring (either direction, case- and whitespace-insensitive), then,
+     on what is left, by `at` within +/-10 minutes -- one ask credits at
+     most one message, so two distinct messages near the same ask do not
+     both pass on its say-so. Tool results, sidechain turns, and
+     system/command/notification wrappers (a message whose text starts
+     with "<task-notification", "<system-reminder", "<local-command" or
+     "[SYSTEM NOTIFICATION") are never sponsor messages and are skipped.
+     Without `--transcript` this check cannot be run at all -- it prints
+     "not checked: no transcript" and is neither a pass nor a failure: it
+     does not block exit 0, because there is nothing on disk that could
+     answer it, and a hard fail here would make every lead that forgets
+     `--transcript` unable to ever close cleanly.
   2. every running agent worktree of the project (`git worktree list`,
-     paths under `.claude/worktrees/` or `.worktrees/`) that carries
-     commits not on `origin/main` (or, with no remote, `main`) is named --
-     by path basename or branch name -- in some ledger item's log (its
-     `by` or `evidence` field, where the agent evidence this project
-     already writes looks like `"by": "subagent sonnet, worktree"` or
-     `"evidence": "worktree .worktrees/p19-w05 from ..."`).
+     paths under the *main checkout's* `.claude/worktrees/` or
+     `.worktrees/` -- found from `--project` via `git rev-parse
+     --git-common-dir`, so this still works when `--project` is itself a
+     linked worktree, as the item-lead form runs it) that carries commits
+     not on `origin/main` (or, with no remote, `main`) is named -- by path
+     basename or branch name -- in some ledger item's log (its `by` or
+     `evidence` field, where the agent evidence this project already
+     writes looks like `"by": "subagent sonnet, worktree"` or `"evidence":
+     "worktree .worktrees/p19-w05 from ..."`). This includes the caller's
+     own worktree, when it is itself under that directory.
   3. the latest docs/handovers/*-checkpoint.md's `<!-- ledger-digest: ... -->`
      equals `tools.tracker.checkpoint.digest_of()` of the project's
      currently open ledgers -- the same comparison bin/warmup's card makes.
@@ -141,17 +148,47 @@ def all_asks(project: Path) -> list[dict]:
     return out
 
 
-def _covered(msg: dict, asks: list[dict]) -> bool:
-    text = msg["text"]
-    for a in asks:
-        quote = a.get("quote")
-        if isinstance(quote, str) and quote and (quote in text or text in quote):
-            return True
-        a_at = _parse_iso(a.get("at"))
-        if msg["at"] is not None and a_at is not None:
-            if abs((a_at - msg["at"]).total_seconds()) <= 600:
+def _normalized(text: str) -> str:
+    """Case- and whitespace-insensitive, for the quote-substring match: a
+    quote stored with a wrapped line or different casing should still match
+    the same words in a transcript message."""
+    return re.sub(r"\s+", " ", text.strip().lower())
+
+
+def _match_one_to_one(msgs: list[dict], asks: list[dict]) -> list[dict]:
+    """Every message paired with at most one ask, every ask used for at
+    most one message -- never many messages crediting the same row (bundle-
+    d review, MEDIUM-HIGH). Pass 1: quote substring, either direction,
+    case/whitespace-insensitive. Pass 2, on what pass 1 left unmatched:
+    nearest available ask within +/-10 minutes. Returns the messages still
+    left over after both passes -- the ones with no ask row of their own."""
+    unused = list(asks)
+
+    def take_by_quote(msg: dict) -> bool:
+        mn = _normalized(msg["text"])
+        if not mn:
+            return False
+        for i, a in enumerate(unused):
+            quote = a.get("quote")
+            if isinstance(quote, str) and quote.strip():
+                qn = _normalized(quote)
+                if qn and (qn in mn or mn in qn):
+                    unused.pop(i)
+                    return True
+        return False
+
+    def take_by_time(msg: dict) -> bool:
+        if msg["at"] is None:
+            return False
+        for i, a in enumerate(unused):
+            a_at = _parse_iso(a.get("at"))
+            if a_at is not None and abs((a_at - msg["at"]).total_seconds()) <= 600:
+                unused.pop(i)
                 return True
-    return False
+        return False
+
+    remaining = [m for m in msgs if not take_by_quote(m)]
+    return [m for m in remaining if not take_by_time(m)]
 
 
 def check_asks(project: Path, transcript: Path | None, since: datetime.datetime | None) -> tuple[str, str]:
@@ -161,7 +198,7 @@ def check_asks(project: Path, transcript: Path | None, since: datetime.datetime 
         return FAIL, f"transcript not found: {transcript}"
     asks = all_asks(project)
     msgs = sponsor_messages(transcript, since)
-    missing = [m for m in msgs if not _covered(m, asks)]
+    missing = _match_one_to_one(msgs, asks)
     if missing:
         shown = "; ".join(repr(m["text"][:80]) for m in missing[:5])
         more = f" (+{len(missing) - 5} more)" if len(missing) > 5 else ""
@@ -191,12 +228,30 @@ def worktrees(project: Path) -> list[dict]:
     return trees
 
 
-def _under_worktree_dir(path: Path, project: Path) -> bool:
+def _under_worktree_dir(path: Path, base: Path) -> bool:
     try:
-        rel = path.resolve().relative_to(project.resolve()).as_posix() + "/"
+        rel = path.resolve().relative_to(base.resolve()).as_posix() + "/"
     except ValueError:
         return False
     return any(rel.startswith(d) for d in WORKTREE_DIRS)
+
+
+def main_checkout_root(project: Path) -> Path | None:
+    """The main checkout's own root -- `.claude/worktrees/` and
+    `.worktrees/` always sit here, never inside a linked worktree, so a
+    lead running from its own worktree (the item-lead form's own
+    instruction) has to look here too, not under `--project`. `git
+    rev-parse --git-common-dir` names the one `.git` every worktree of a
+    repo shares; its parent is the main checkout. None outside a git repo,
+    or on any git failure."""
+    common = git(project, "rev-parse", "--git-common-dir")
+    if common is None:
+        return None
+    p = Path(common)
+    if not p.is_absolute():
+        p = project / p
+    p = p.resolve()
+    return p.parent if p.name == ".git" else p
 
 
 def _ahead_of_main(path: str) -> int | None:
@@ -226,7 +281,8 @@ def ledger_evidence_text(project: Path) -> str:
 
 def check_worktrees(project: Path) -> tuple[str, str]:
     trees = worktrees(project)
-    candidates = [t for t in trees if _under_worktree_dir(Path(t["path"]), project)]
+    base = main_checkout_root(project) or project
+    candidates = [t for t in trees if _under_worktree_dir(Path(t["path"]), base)]
     active = []
     for t in candidates:
         ahead = _ahead_of_main(t["path"])
