@@ -61,6 +61,14 @@ RISKS = ("standard", "elevated", "restricted")
 IMPACTS = (1, 2, 3, 4)
 LIKELIHOODS = (1, 2, 3)
 
+# Proposal 26 (C-05): findings -- a review's or a test's own rows, in the
+# ledger's own top-level `findings` array, not the `items` one. An id is
+# F-NN, distinct in shape from an item's PHASE-NN so the two never collide.
+FINDING_ID = re.compile(r"^F-\d{2,}\Z")
+FINDING_SOURCES = ("review", "test")
+FINDING_STATES = ("catalogued", "decided", "deferred", "declined")
+FINDING_SEVERITIES = ("low", "medium", "high", "critical")
+
 
 def load(path) -> dict:
     """Read a ledger. Raises ValueError naming the file when it is not JSON."""
@@ -86,6 +94,17 @@ def items(ledger: dict) -> list[dict]:
 
 def by_id(ledger: dict) -> dict[str, dict]:
     return {i["id"]: i for i in items(ledger) if "id" in i}
+
+
+def findings(ledger: dict) -> list[dict]:
+    """Proposal 26, C-05: the ledger's own findings -- from a review or from
+    testing -- as ledger rows, not prose. A separate array from `items`, so
+    an existing ledger with none stays exactly as it was."""
+    return list(ledger.get("findings") or [])
+
+
+def findings_by_id(ledger: dict) -> dict[str, dict]:
+    return {f["id"]: f for f in findings(ledger) if "id" in f}
 
 
 def counts(ledger: dict) -> dict[str, int]:
@@ -193,6 +212,7 @@ def validate(ledger: dict) -> list[str]:
     problems.extend(_validate_sizing(ledger))
     problems.extend(_validate_v2(ledger, ids, ask_ids))
     problems.extend(_validate_tracker(ledger))
+    problems.extend(_validate_findings(ledger))
     # A message can quote a malformed id; every problem is printed as one line
     # (V-02 final review: "Z-01\\nwarmup --check: ready" split a problem in two).
     return [_printable(p) for p in problems]
@@ -271,6 +291,74 @@ def _validate_sizing(ledger: dict) -> list[str]:
             problems.append(f"{name}: impact {i['impact']!r} is not 1-4 (4 stops everything, 1 back-end only)")
         if "likelihood" in i and not _int_in(i["likelihood"], LIKELIHOODS):
             problems.append(f"{name}: likelihood {i['likelihood']!r} is not 1-3")
+    return problems
+
+
+def _validate_findings(ledger: dict) -> list[str]:
+    """Proposal 26, C-05: a `findings` row is checked the same way an item's
+    sizing fields are -- each only when present, none required, because a
+    just-catalogued finding may carry only its source and location, not yet
+    a size. Shares VALUES/POINTS/RISKS/IMPACTS/LIKELIHOODS with items, so a
+    finding and an item are sized on the one vocabulary `tracker lanes` and
+    `tracker route` already know."""
+    problems: list[str] = []
+    if "findings" in ledger and not isinstance(ledger["findings"], list):
+        return ["findings: must be a list"]
+    rows = findings(ledger)
+    all_ids = {f.get("id") for f in rows if isinstance(f, dict)}
+    seen: set[str] = set()
+    for n, f in enumerate(rows):
+        name = f.get("id") if isinstance(f, dict) and f.get("id") else f"findings[{n}]"
+        if not isinstance(f, dict):
+            problems.append(f"{name}: a finding must be an object")
+            continue
+        fid = f.get("id")
+        if not fid or not FINDING_ID.match(fid):
+            problems.append(f"{name}: finding id is not F-NN (e.g. F-01)")
+        elif fid in seen:
+            problems.append(f"{fid}: finding id appears more than once")
+        else:
+            seen.add(fid)
+        if f.get("source") not in FINDING_SOURCES:
+            problems.append(f"{name}: source {f.get('source')!r} is not one of {', '.join(FINDING_SOURCES)}")
+        if not f.get("file") or not _one_line(f.get("file")):
+            problems.append(f"{name}: no `file` (one line, e.g. tools/tracker/lanes.py)")
+        if "line" in f and f["line"] is not None and not _int_in(f["line"], range(1, 10**9)):
+            problems.append(f"{name}: line {f['line']!r} is not a positive integer")
+        if f.get("severity") not in FINDING_SEVERITIES:
+            problems.append(f"{name}: severity {f.get('severity')!r} is not one of {', '.join(FINDING_SEVERITIES)}")
+        if f.get("state") not in FINDING_STATES:
+            problems.append(f"{name}: state {f.get('state')!r} is not one of {', '.join(FINDING_STATES)}")
+        if "value" in f and f["value"] not in VALUES:
+            problems.append(f"{name}: value {f['value']!r} is not one of {', '.join(VALUES)}")
+        if "points" in f and not _int_in(f["points"], POINTS):
+            problems.append(f"{name}: points {f['points']!r} is not one of {', '.join(map(str, POINTS))}")
+        if "risk" in f and f["risk"] not in RISKS:
+            problems.append(f"{name}: risk {f['risk']!r} is not one of {', '.join(RISKS)}")
+        if "impact" in f and not _int_in(f["impact"], IMPACTS):
+            problems.append(f"{name}: impact {f['impact']!r} is not 1-4 (4 stops everything, 1 back-end only)")
+        if "likelihood" in f and not _int_in(f["likelihood"], LIKELIHOODS):
+            problems.append(f"{name}: likelihood {f['likelihood']!r} is not 1-3")
+        if "cluster" in f and not (_one_line(f["cluster"]) and f["cluster"].strip()):
+            problems.append(f"{name}: cluster must be a surface name, one line of text")
+        if "cause" in f and f["cause"] is not None and not _one_line(f["cause"]):
+            problems.append(f"{name}: cause must be one line of text")
+        if "fix" in f and f["fix"] is not None and not _one_line(f["fix"]):
+            problems.append(f"{name}: fix must be one line of text")
+        dup = f.get("duplicate_of")
+        if dup is not None:
+            if dup == fid:
+                problems.append(f"{name}: duplicate_of names itself")
+            elif dup not in all_ids:
+                problems.append(f"{name}: duplicate_of {dup!r}, which is not a finding")
+            if f.get("state") != "declined":
+                problems.append(f"{name}: duplicate_of is set but state is not declined")
+        if "log" in f and not isinstance(f["log"], list):
+            problems.append(f"{name}: `log` must be a list of entries")
+        else:
+            for k, entry in enumerate(f.get("log") or []):
+                if not isinstance(entry, dict):
+                    problems.append(f"{name}: log[{k}] is not an object {{at, event, by, evidence}}")
     return problems
 
 

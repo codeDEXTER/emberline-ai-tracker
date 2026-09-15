@@ -159,6 +159,36 @@ above, not specially cased.
 that batched and defaulted logged six open questions, received no answers,
 and still finished; the control arm asked two and silently resolved nine,
 which it happened to get right.
+## 2026-09-15 · Findings are ledger rows too: `tracker findings` (P26 C-05)
+
+Proposal 26, C-05. A review's or a test's finding -- from quality-manager,
+any reviewer, test-engineer's bug reports, or a failing/red-first test not
+yet fixed -- is now a row in a ledger's own top-level `findings` array, not
+only prose in a report: id (`F-NN`, distinct in shape from an item's
+`PHASE-NN`), `source` (`review`|`test`), `file`[`:line`], `severity`, and
+`state` (`catalogued`|`decided`|`deferred`|`declined`). It shares proposal
+25/26's value, points, risk, cluster, impact and likelihood fields with
+items, checked the same way, all optional -- a ledger with no `findings`
+validates exactly as before.
+
+`bin/tracker findings add|decide|defer|decline LEDGER ...` catalogues a
+finding and moves it through its lifecycle, writing straight to the ledger
+like `tracker set`/`tracker ask` already do (an item lead still stages
+ledger changes through `tracker stage` per proposal 23's M-04 -- this is
+the write primitive for a new kind of row, the same way `set`/`ask` are for
+items and asks).
+
+`bin/tracker findings lanes LEDGER...` shapes every finding like an item
+row and hands the combined queue to `tools/tracker/lanes.py`'s `lanes()`
+unchanged, so items and findings sort into the one share/risk/80%-cut
+queue -- a catalogued finding gets a lane and stays visible, unworked,
+until the sponsor decides it. `bin/tracker findings triage LEDGER --batch
+ID...` groups a batch of decided-small findings by their shared `cause`
+before it is worked, one line per group; a duplicate is `declined` with
+`duplicate_of` naming the survivor and dropped from the count. A decided
+finding is light-path eligible (proposal 23 M-05, built in a parallel
+bundle) when it is not alone (restricted, or risk 9+) and 1-3 points --
+`light_eligible()`, reusing the one shared `lanes()` run.
 
 ## 2026-09-15 · `bin/handover --check`: the closing check before a lead's turn ends (P24 H-01, H-02, H-03)
 

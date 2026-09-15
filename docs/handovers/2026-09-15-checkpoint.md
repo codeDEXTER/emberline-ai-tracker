@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 17:18
+# Checkpoint — 2026-09-15 17:40
 
-Reason: manual · branch: backlog · HEAD: 6fc5bc8
+Reason: manual · branch: worktree-agent-a5bc11a707fd64d66 · HEAD: 37dca67
 
-<!-- ledger-digest: a55089a0c171b022e658b7e4ec9fb4a630ab9e81c846e9718c1023e906a26755 -->
+<!-- ledger-digest: 420e860b8ae4f4abc5815ef32102f1c8eba1953494e44c4f2cf5dbbd9ca20d1f -->
 
 ## Proposal 19 · Warm-up
 
@@ -117,7 +117,7 @@ Reason: manual · branch: backlog · HEAD: 6fc5bc8
 
 ## Proposal 26 · Cluster work by contribution and risk
 
-2 done / 0 in progress / 0 blocked / 4 not started
+3 done / 0 in progress / 0 blocked / 3 not started
 
 ### In progress
 
@@ -133,7 +133,6 @@ Reason: manual · branch: backlog · HEAD: 6fc5bc8
 
 ### Next unblocked
 
-- C-05 · [ruflo · medium · sonnet] · Findings are catalogued, lane-sorted, triaged into batches and light-pathed
 - C-03 · [ruflo · medium · sonnet] · One gate and review per bundle or batch
 - C-04 · [ruflo · medium · sonnet] · Board shows lanes and the 14-day re-score
 - C-06 · [ruflo · medium · sonnet] · Two more statuses: in review, in testing
