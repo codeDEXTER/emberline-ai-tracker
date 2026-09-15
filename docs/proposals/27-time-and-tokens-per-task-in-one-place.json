@@ -18,7 +18,7 @@
     },
     "C3": {
       "tier": "high",
-      "model": "opus",
+      "model": "sonnet",
       "effort": "high",
       "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
     },
