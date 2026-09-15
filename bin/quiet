@@ -2,7 +2,7 @@
 """quiet -- run a gate, keep its output in a file, print one verdict line
 (common-rules proposal 23, lever L3).
 
-  quiet [--log FILE] [--label NAME] -- CMD [ARGS...]
+  quiet [--log FILE] [--label NAME] [--jobs N] -- CMD [ARGS...]
 
 Runs CMD directly (no shell). All of its stdout and stderr go to FILE only
 -- never to this process's own stdout. Default FILE is
@@ -28,9 +28,28 @@ non-empty line of output, and OK/FAILED is then decided by exit code
 alone.
 
 Exit codes follow the rest of bin/: 0 fine, 1 a finding, 2 could not check.
+
+-- Parallel test suites (proposal 23, lever M-01) --------------------------
+
+`--jobs N` shards a plain `python3 -m unittest discover -s DIR [-p PATTERN]
+[-q]` CMD across N OS processes, one per test file matched by PATTERN
+(default "test*.py"), and writes one aggregated, unittest-shaped summary
+to the log ("Ran <total> tests in <secs>s" / "OK" or "FAILED (failures=N,
+errors=M)") -- so the verdict line above is produced exactly as it always
+is, from the same `_detect()` this file already used for the sequential
+run. Research: parallel unittest shards report 67-81% faster suites
+(Trail of Bits, May 2025).
+
+`--jobs` only changes anything when CMD parses as that exact discover
+shape; for any other CMD, or when CMD does not parse (a flag this parser
+does not know, e.g. `-t`), it is ignored and CMD runs exactly as before --
+sequential, unchanged. The project's own CI/`bin/land` command,
+`bin/quiet -- python3 -m unittest discover -s tests -q` (no `--jobs`), is
+therefore untouched by this feature: parallel running is opt-in.
 """
 from __future__ import annotations
 
+import concurrent.futures
 import os
 import re
 import subprocess
@@ -40,6 +59,10 @@ import time
 from pathlib import Path
 
 DETAIL_MAX = 160
+_NO_VALUE_DISCOVER_FLAGS = {
+    "-q", "--quiet", "-v", "--verbose", "-b", "--buffer", "-f", "--failfast",
+    "-c", "--catch", "--locals",
+}
 
 
 def _default_log_path(label: str | None, cmd: list[str]) -> Path:
@@ -122,9 +145,126 @@ def _detect(output: str):
     return _last_nonempty_line(output), None
 
 
+def _parse_discover_cmd(cmd: list[str]):
+    """If cmd is exactly `<python> -m unittest discover [OPTS...]`, return
+    (python, start_dir, pattern). Otherwise None -- callers must then run
+    cmd exactly as given, sequentially, never guess."""
+    if len(cmd) < 3 or cmd[1:3] != ["-m", "unittest"]:
+        return None
+    rest = cmd[3:]
+    if not rest or rest[0] != "discover":
+        return None
+    rest = rest[1:]
+    start_dir = "."
+    pattern = "test*.py"
+    i = 0
+    while i < len(rest):
+        a = rest[i]
+        if a in ("-s", "--start-directory"):
+            if i + 1 >= len(rest):
+                return None
+            start_dir = rest[i + 1]
+            i += 2
+            continue
+        if a.startswith("--start-directory="):
+            start_dir = a.split("=", 1)[1]
+            i += 1
+            continue
+        if a in ("-p", "--pattern"):
+            if i + 1 >= len(rest):
+                return None
+            pattern = rest[i + 1]
+            i += 2
+            continue
+        if a.startswith("--pattern="):
+            pattern = a.split("=", 1)[1]
+            i += 1
+            continue
+        if a in _NO_VALUE_DISCOVER_FLAGS:
+            i += 1
+            continue
+        # Any other flag (e.g. -t/--top-level-directory) or stray
+        # positional -- this parser does not know its shape, so it
+        # refuses to shard rather than guess.
+        return None
+    return cmd[0], start_dir, pattern
+
+
+_RAN_RE = re.compile(r"^Ran (\d+) tests? in [\d.]+s", re.MULTILINE)
+_FAILED_RE = re.compile(r"^FAILED \((.*)\)\s*$", re.MULTILINE)
+_COUNT_RE = re.compile(r"(failures|errors)=(\d+)")
+
+
+def _shard_files(start_dir: str, pattern: str) -> list[Path]:
+    base = Path(start_dir)
+    return sorted(p for p in base.glob(pattern) if p.is_file())
+
+
+def _run_one_shard(python: str, start_dir: str, filename: str):
+    proc = subprocess.run(
+        [python, "-m", "unittest", "discover", "-s", start_dir, "-p", filename, "-q"],
+        capture_output=True,
+        text=True,
+    )
+    return filename, proc.returncode, proc.stdout + proc.stderr
+
+
+def _run_parallel_discover(python: str, start_dir: str, pattern: str, jobs: int):
+    """Run one `unittest discover` shard per matched file, across up to
+    `jobs` OS processes at once, and return (combined_output, exit_code)
+    in the same unittest summary shape `_detect` already parses -- or
+    None if no files matched (caller then falls back to running CMD as
+    given)."""
+    files = _shard_files(start_dir, pattern)
+    if not files:
+        return None
+    jobs = max(1, min(jobs, len(files)))
+
+    shard_start = time.monotonic()
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as ex:
+        futures = [ex.submit(_run_one_shard, python, start_dir, f.name) for f in files]
+        for fut in futures:
+            results.append(fut.result())
+    shard_elapsed = time.monotonic() - shard_start
+
+    total_tests = 0
+    total_failures = 0
+    total_errors = 0
+    any_unrecognised_failure = False
+    parts = []
+    for filename, code, out in results:
+        parts.append(f"--- {filename} ---\n{out.rstrip(chr(10))}\n")
+        m = _RAN_RE.search(out)
+        if m:
+            total_tests += int(m.group(1))
+        fm = _FAILED_RE.search(out)
+        if fm:
+            for kind, n in _COUNT_RE.findall(fm.group(1)):
+                if kind == "failures":
+                    total_failures += int(n)
+                else:
+                    total_errors += int(n)
+        elif code != 0:
+            # Exited non-zero but printed nothing this parser recognises
+            # (e.g. a collection-time traceback) -- never read that as OK.
+            any_unrecognised_failure = True
+
+    failed = total_failures > 0 or total_errors > 0 or any_unrecognised_failure
+    if failed and total_failures == 0 and total_errors == 0:
+        total_errors = 1
+
+    summary = f"Ran {total_tests} tests in {shard_elapsed:.3f}s\n\n" + (
+        f"FAILED (failures={total_failures}, errors={total_errors})" if failed else "OK"
+    )
+    combined_output = "\n".join(parts) + "\n" + summary + "\n"
+    return combined_output, (1 if failed else 0)
+
+
 def _parse_args(argv):
     log = None
     label = None
+    jobs = None
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -148,37 +288,63 @@ def _parse_args(argv):
             label = argv[i + 1]
             i += 2
             continue
+        if a == "--jobs":
+            if i + 1 >= len(argv):
+                print("quiet: --jobs requires a value", file=sys.stderr)
+                raise SystemExit(2)
+            try:
+                jobs = int(argv[i + 1])
+            except ValueError:
+                print(f"quiet: --jobs wants an integer, got {argv[i + 1]!r}", file=sys.stderr)
+                raise SystemExit(2)
+            i += 2
+            continue
         print(f"quiet: unknown option {a!r} (expected -- before the command)", file=sys.stderr)
         raise SystemExit(2)
     cmd = argv[i:]
-    return log, label, cmd
+    return log, label, jobs, cmd
 
 
 def main(argv):
-    log, label, cmd = _parse_args(argv)
+    log, label, jobs, cmd = _parse_args(argv)
     if not cmd:
-        print("quiet: no command given -- usage: quiet [--log FILE] [--label NAME] -- CMD [ARGS...]",
+        print("quiet: no command given -- usage: quiet [--log FILE] [--label NAME] [--jobs N] -- CMD [ARGS...]",
               file=sys.stderr)
         return 2
 
     log_path = Path(log) if log else _default_log_path(label, cmd)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
+    parsed_discover = _parse_discover_cmd(cmd) if jobs and jobs > 1 else None
+
     start = time.monotonic()
-    try:
-        with open(log_path, "w") as fh:
-            proc = subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT)
-        exit_code = proc.returncode
-    except OSError as exc:
-        elapsed = time.monotonic() - start
+    if parsed_discover:
+        python, start_dir, pattern = parsed_discover
+        parallel_result = _run_parallel_discover(python, start_dir, pattern, jobs)
+    else:
+        parallel_result = None
+
+    if parallel_result is not None:
+        combined_output, exit_code = parallel_result
         try:
-            with open(log_path, "a") as fh:
-                fh.write(f"quiet: could not start {cmd[0]!r}: {exc}\n")
+            log_path.write_text(combined_output)
         except OSError:
             pass
-        detail = f"could not start: {cmd[0]}"[:DETAIL_MAX]
-        print(f"quiet: FAILED · {detail} · {elapsed:.1f}s · log {log_path}")
-        return 2
+    else:
+        try:
+            with open(log_path, "w") as fh:
+                proc = subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT)
+            exit_code = proc.returncode
+        except OSError as exc:
+            elapsed = time.monotonic() - start
+            try:
+                with open(log_path, "a") as fh:
+                    fh.write(f"quiet: could not start {cmd[0]!r}: {exc}\n")
+            except OSError:
+                pass
+            detail = f"could not start: {cmd[0]}"[:DETAIL_MAX]
+            print(f"quiet: FAILED · {detail} · {elapsed:.1f}s · log {log_path}")
+            return 2
 
     elapsed = time.monotonic() - start
     try:
