@@ -210,19 +210,66 @@ def _default_state_path(out_dir):
     return os.path.join(out_dir, ".state.json")
 
 
+class StateTrustError(RuntimeError):
+    """`collect` refuses to run: `.state.json` cannot be trusted, and
+    proceeding from empty state would layer freshly recomputed totals on
+    top of day files that already hold them -- silently doubling every
+    figure already recorded. `--rebuild` is the only supported way past
+    this; it discards the state on purpose and recomputes everything."""
+
+
+def _day_files_exist(out_dir):
+    return bool(glob.glob(os.path.join(out_dir, "*.jsonl")))
+
+
+def _fresh_state():
+    return {"transcripts": {}, "messages": {}, "groups": {}}
+
+
 def load_state(state_path):
-    if os.path.exists(state_path):
-        try:
-            with open(state_path) as fh:
-                state = json.load(fh)
-        except (OSError, ValueError):
-            state = {}
-    else:
-        state = {}
+    """Load `.state.json`. Returns (state, status), status one of "ok",
+    "missing", "corrupt". Never guesses: a corrupt file yields (None,
+    "corrupt"), not a silently empty state."""
+    if not os.path.exists(state_path):
+        return None, "missing"
+    try:
+        with open(state_path) as fh:
+            state = json.load(fh)
+    except (OSError, ValueError):
+        return None, "corrupt"
+    if not isinstance(state, dict):
+        return None, "corrupt"
     state.setdefault("transcripts", {})
     state.setdefault("messages", {})
     state.setdefault("groups", {})
-    return state
+    return state, "ok"
+
+
+def _load_trusted_state(state_path, out_dir, rebuild):
+    """The state `collect` is allowed to start from.
+
+    `--rebuild` always starts fresh, on purpose. Otherwise: a well-formed
+    state file is used as-is; a missing state file is only safe to treat
+    as "nothing collected yet" when there is nothing on disk it could
+    contradict -- day files already present in `out_dir` mean some earlier
+    run *did* write something, so a vanished state file is a loss of trust,
+    not a fresh start. A corrupt state file is never trusted, day files or
+    not. Both raise `StateTrustError`; the caller writes nothing.
+    """
+    if rebuild:
+        return _fresh_state()
+    state, status = load_state(state_path)
+    if status == "ok":
+        return state
+    if status == "missing" and not _day_files_exist(out_dir):
+        return _fresh_state()
+    reason = ("is corrupt" if status == "corrupt"
+              else "is missing, but day files already exist in "
+                   f"{out_dir}")
+    raise StateTrustError(
+        f"worklog: state file {state_path} {reason} -- refusing to guess; "
+        f"run `bin/worklog collect --rebuild` to recompute from the "
+        f"transcripts.")
 
 
 def save_state(state_path, state):
@@ -275,7 +322,7 @@ def _write_day_file(path, rows):
     os.replace(tmp, path)
 
 
-def collect(projects=None, out=None, state_file=None):
+def collect(projects=None, out=None, state_file=None, rebuild=False):
     """Read every transcript's new lines since the last run, and merge their
     token usage and active time into `<out>/<day>.jsonl`.
 
@@ -286,13 +333,19 @@ def collect(projects=None, out=None, state_file=None):
     the *delta* the second time, so a re-run never double-counts. Re-running
     with no new bytes anywhere changes nothing on disk.
 
+    Raises `StateTrustError`, writing nothing, if `.state.json` is corrupt
+    or missing while day files already exist -- see `_load_trusted_state`.
+    `rebuild=True` (`bin/worklog collect --rebuild`) discards any existing
+    state on purpose, re-reads every transcript from byte 0, and rewrites
+    every day file it touches from scratch rather than adding onto it.
+
     Returns {"days": [...], "lines": n, "transcripts": n} -- never any
     transcript text.
     """
     projects_dir = projects or PROJECTS
     out_dir = out or DEFAULT_OUT
     state_path = state_file or _default_state_path(out_dir)
-    state = load_state(state_path)
+    state = _load_trusted_state(state_path, out_dir, rebuild)
     tstate, mstate, gstate = state["transcripts"], state["messages"], state["groups"]
 
     day_deltas = {}   # day -> gkey -> {"group": (...), "input":.., ...}
@@ -405,7 +458,11 @@ def collect(projects=None, out=None, state_file=None):
     lines_written = 0
     for day in sorted(touched_days):
         day_file = os.path.join(out_dir, f"{day}.jsonl")
-        existing = _load_day_file(day_file)
+        # A rebuild recomputes every group's totals from byte 0 (mstate was
+        # emptied above), so starting from the old file and adding onto it
+        # would double everything it already held. Starting empty here is
+        # what makes "rewrite from scratch, not +=" true.
+        existing = {} if rebuild else _load_day_file(day_file)
         for gkey, delta in day_deltas[day].items():
             group = delta["group"]
             row = existing.get(gkey)

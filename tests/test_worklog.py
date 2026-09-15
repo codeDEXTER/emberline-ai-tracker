@@ -231,6 +231,95 @@ class TestIdempotentCollect(WorklogHarness):
         self.assertEqual(first, second)
 
 
+class TestStateTrust(WorklogHarness):
+    """Bundle B review, 15 Sep 2026 (HIGH): a corrupt or deleted
+    worklog/.state.json fell back to empty state, so the next `collect`
+    re-added every message's full usage onto day files that already held
+    it. Starting from empty state must never be silent -- it must either
+    be provably safe (nothing on disk yet to contradict) or refused."""
+
+    def test_corrupt_state_file_refuses_rather_than_doubling(self):
+        session = "sess-corrupt"
+        main = self.projects / "-proj" / f"{session}.jsonl"
+        write_jsonl(main, [
+            user_rec("first turn", "2026-09-15T11:00:00Z", branch="claude/c"),
+            assistant_rec("2026-09-15T11:00:01Z", "m1",
+                          {"input_tokens": 100, "output_tokens": 50,
+                           "cache_read_input_tokens": 0,
+                           "cache_creation_input_tokens": 0}),
+        ])
+        self.collect()
+        rows = worklog.load_day(str(self.out), "2026-09-15")
+        self.assertEqual(rows[0]["input_tokens"], 100)
+        self.assertEqual(rows[0]["output_tokens"], 50)
+
+        state_path = self.out / ".state.json"
+        state_path.write_text("not valid json {{{")
+
+        with self.assertRaises(worklog.StateTrustError):
+            self.collect()
+
+        # Refusing means writing nothing -- the day file must be untouched,
+        # not doubled to input 200 / output 100 as the reported bug did.
+        rows_after = worklog.load_day(str(self.out), "2026-09-15")
+        self.assertEqual(rows_after[0]["input_tokens"], 100)
+        self.assertEqual(rows_after[0]["output_tokens"], 50)
+
+    def test_missing_state_with_existing_day_files_refuses(self):
+        session = "sess-missing"
+        main = self.projects / "-proj" / f"{session}.jsonl"
+        write_jsonl(main, [
+            user_rec("first turn", "2026-09-15T11:00:00Z", branch="claude/m"),
+            assistant_rec("2026-09-15T11:00:01Z", "m1",
+                          {"input_tokens": 10, "output_tokens": 5,
+                           "cache_read_input_tokens": 0,
+                           "cache_creation_input_tokens": 0}),
+        ])
+        self.collect()
+        (self.out / ".state.json").unlink()
+
+        with self.assertRaises(worklog.StateTrustError):
+            self.collect()
+        rows = worklog.load_day(str(self.out), "2026-09-15")
+        self.assertEqual(rows[0]["input_tokens"], 10, "untouched, not doubled")
+
+    def test_rebuild_recomputes_single_run_totals(self):
+        session = "sess-rebuild"
+        main = self.projects / "-proj" / f"{session}.jsonl"
+        write_jsonl(main, [
+            user_rec("first turn", "2026-09-15T11:00:00Z", branch="claude/r"),
+            assistant_rec("2026-09-15T11:00:01Z", "m1",
+                          {"input_tokens": 40, "output_tokens": 20,
+                           "cache_read_input_tokens": 0,
+                           "cache_creation_input_tokens": 0}),
+        ])
+        self.collect()
+        (self.out / ".state.json").write_text("not valid json {{{")
+
+        result = worklog.collect(projects=str(self.projects),
+                                  out=str(self.out), rebuild=True)
+        self.assertIn("2026-09-15", result["days"])
+        rows = worklog.load_day(str(self.out), "2026-09-15")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["input_tokens"], 40, "not doubled to 80")
+        self.assertEqual(rows[0]["output_tokens"], 20, "not doubled to 40")
+
+    def test_first_run_with_no_day_files_and_no_state_works(self):
+        session = "sess-first"
+        main = self.projects / "-proj" / f"{session}.jsonl"
+        write_jsonl(main, [
+            user_rec("first turn", "2026-09-15T11:00:00Z", branch="claude/f"),
+            assistant_rec("2026-09-15T11:00:01Z", "m1",
+                          {"input_tokens": 7, "output_tokens": 3,
+                           "cache_read_input_tokens": 0,
+                           "cache_creation_input_tokens": 0}),
+        ])
+        result = self.collect()
+        self.assertEqual(result["days"], ["2026-09-15"])
+        rows = worklog.load_day(str(self.out), "2026-09-15")
+        self.assertEqual(rows[0]["input_tokens"], 7)
+
+
 class TestNoTranscriptText(WorklogHarness):
 
     def test_day_file_and_html_never_carry_prompt_text(self):
