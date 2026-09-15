@@ -1,5 +1,40 @@
 # Changelog — common-rules
 
+## 2026-09-15 · One tracker per project: the chain and publishing move onto it (P22 T-02, T-03)
+
+The sponsor, 15 September 2026: "Please maintain a single tracker for common
+rules. And also add that as a common rule to maintain a single tracker up until
+I have asked to create another tracker. Per project." Proposal 22's T-01 built
+the one page; this lands T-02 and T-03, built by the Common Rules chat v1
+session and taken over under proposal 29 (K-01).
+
+What changed:
+- **The chain reads the project page (T-02).** derecord's pre-commit hook
+  renders `docs/proposals/tracker/index.html` whenever a ledger is staged. A
+  per-proposal page is rendered only for a ledger that declares a tracker of its
+  own (the new `tracker` key: `own`, `by`, `at`, `quote`, for a proposal the
+  sponsor asked to track separately). The warm card, conformance item 2 and
+  `new-proposal` follow the same rule.
+- **Publishing records the project page (T-03).** `tracker published --project
+  [DIR] --url URL` records `docs/proposals/tracker/index.published.json`; the
+  card's "page changed since last publish" line and conformance item 10 read it.
+  `tracker published LEDGER.json` now refuses a ledger with no tracker of its
+  own. A project that declares `plan_page` keeps publishing that page.
+
+Not yet: the rule's wording in `CLAUDE-workflow.md`, the skills and the lead
+prompt (T-04, proposal 29 K-02), and PhotoVault's move (T-05, K-03).
+
+**Behaviour change:** yes, for every project on the standard: which page the
+pre-commit hook renders, what the card and conformance call stale, and which
+page is published and recorded.
+
+**Standard change (mandatory):** each project re-runs `bin/derecord` so its
+pre-commit hook renders the one project page, renders it with `bin/tracker
+board --project .` and commits it, publishes that one page to a single stable
+URL and records it with `bin/tracker published --project . --url <url>`, and
+stops publishing per-proposal tracker pages unless the sponsor asked for one
+(recorded as the ledger's `tracker` key). Then `rulecheck --align`.
+
 ## 2026-09-15 · Token budget: the eight levers in the standard (P23 L-01 to L-07)
 
 The sponsor directed: "Implement the eight levers of uh, token spending. to

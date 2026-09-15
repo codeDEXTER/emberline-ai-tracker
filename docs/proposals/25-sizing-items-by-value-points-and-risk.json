@@ -18,7 +18,7 @@
     },
     "C3": {
       "tier": "high",
-      "model": "opus",
+      "model": "sonnet",
       "effort": "high",
       "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
     },
@@ -85,7 +85,7 @@
     {
       "id": "Z-03",
       "phase": "Z",
-      "cx": "C2",
+      "cx": "C1",
       "title": "Value defaults per surface",
       "what": ".common-rules.json declares value defaults per surface; an item's own value overrides the default.",
       "files": [],
@@ -96,11 +96,18 @@
       ],
       "status": "not started",
       "owner": "lead",
-      "tier": "medium",
-      "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tier": "low",
+      "model": "haiku",
+      "tag": "[ruflo · low · haiku]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T12:11:02+02:00",
+          "event": "re-tiered",
+          "by": "lead",
+          "evidence": "C2/sonnet -> C1/haiku: one config key and its reader with a test; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        }
+      ]
     },
     {
       "id": "Z-04",
