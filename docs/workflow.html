@@ -105,7 +105,7 @@
 
 <div class="brand">
   <span>common-rules · reference</span>
-  <span>derived from CLAUDE-workflow.md · rules version 397 · 2026-09-14</span>
+  <span>derived from CLAUDE-workflow.md · rules version 444 · 2026-09-15</span>
 </div>
 
 <h1>The whole workflow, on one page</h1>
@@ -381,10 +381,12 @@ answer would change a look, or the decision is reserved for you.</p>
   </div>
 
   <div class="stage gate">
-    <div class="who">quality-manager<b>the gate</b></div>
+    <div class="who">quality-manager<b>the gate · risky work</b></div>
     <div>
-      <h3>Pre-merge, report-only</h3>
-      <p>Cheap preconditions first (commit state, merge-base), then outcome-not-surface
+      <h3>Pre-merge, report-only — for risky work</h3>
+      <p>Runs only for money, real user data, auth and secrets, release and packaging,
+      cross-cutting changes, and every change to common-rules; everything else goes build → gate →
+      land with no reviewer. Cheap preconditions first (commit state, merge-base), then outcome-not-surface
       verification. Fixes nothing, approves nothing — its verdict is a recommendation. Behaviour
       changed means re-gate; a docstring or changelog line does not.</p>
       <div class="out"><span class="pill">1 compatible with main</span><span class="pill">2 tests pass</span><span class="pill">3 built &amp; exercised</span><span class="pill">4 changelog</span></div>
@@ -567,7 +569,7 @@ answer would change a look, or the decision is reserved for you.</p>
   <tr><td class="k">proposal-auditor</td><td>Distance from the accepted proposal, classified</td><td>Writes or fixes either; approves</td><td class="k">Read Grep Glob</td></tr>
   <tr><td class="k">code-engineer</td><td>Implementation in its worktree</td><td>Certifies itself; expands scope</td><td class="k">Read Write Edit Bash Grep Glob</td></tr>
   <tr><td class="k">test-engineer</td><td>Validation; structured bug reports</td><td>Fixes anything it finds</td><td class="k">Read Grep Glob Bash</td></tr>
-  <tr><td class="k">quality-manager</td><td>The pre-merge gate; LESSONS curation</td><td>Fixes anything; approves the merge</td><td class="k">Read Grep Glob Bash</td></tr>
+  <tr><td class="k">quality-manager</td><td>The pre-merge review for risky work; LESSONS curation</td><td>Fixes anything; approves the merge</td><td class="k">Read Grep Glob Bash</td></tr>
 </table>
 </div>
 
@@ -681,6 +683,7 @@ honest remaining gap in both.</p>
   <li><b>The plan has a picture, and it is generated</b> — <code>bin/milestones</code> renders <code>docs/milestones.html</code> from the table: lanes, states, and a marker wherever something reaches the sponsor's hands. <code>bin/land</code> refuses a project whose page is missing or stale, on the same opt-in guard as the other gates. Generated, never written — a hand-maintained second copy of the plan is the drift this rule already warns about with extra steps, and the picture is the copy people look at. Staleness is checkable because the page carries a digest of the plan's content, so the question is "does this still show the plan" rather than a byte comparison a timestamp would defeat.</li>
   <li><b>The milestone plan is live</b> — kept current until the feature is done, because a plan that is not maintained asserts an order of work that has stopped being true. Three things move it: a state changes, a proof lands (recording what actually happened when it differs from the prediction), or a proof forces a reorder. Still never per task. The test: a session editing because it <em>did</em> something is writing a logbook and is wrong; editing because something is now <em>known</em> is maintaining the plan and is right.</li>
   <li><b>The warm-up standard is mandatory.</b> Every project under <code>apps/</code> follows proposals 19–21 — one ledger shape, one card, one proposal shape. <code>/warmup</code> opens every session and runs again after a compaction; the sponsor's <code>/standard</code> is what adopts it for a project. A <code>CHANGELOG.md</code> entry here beginning <b>Standard change (mandatory)</b> is implemented before the next <code>rulecheck --align</code> — never the reverse.</li>
+  <li><b>Token budget (proposal 23).</b> A lead ends at a milestone, at the end of a day or past about 150k tokens of context, and hands over through the ledger, <code>tracker checkpoint</code> and <code>/warmup</code>. Small issues on one surface are one bundle: one agent, one commit per issue, one gate, one PR. A read-only Haiku scout writes the builder's CONTEXT pack (<code>templates/scout-brief.md</code>). Gates run through <code>bin/quiet</code>; ledger changes go through <code>tracker set</code> and <code>tracker ask</code>; files are read with the Read tool, not <code>cat</code> or <code>sed -n</code>.</li>
   <li><b>Nothing about features, merges, promotions or these rules happens without you.</b></li>
 </ul>
 

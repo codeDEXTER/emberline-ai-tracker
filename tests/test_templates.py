@@ -234,6 +234,7 @@ class TestLeadPrompt(SectionOrder):
         "## 6 Hand-over to other sessions",
         "## 7 How you talk",
         "## 8 Proposals, requests and owners",
+        "## 9 Token budget",
     ]
 
     def test_sections_in_order(self):

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>25 · accepted · Sizing items by value, points and risk</title>
+<meta name="proposal-id" content="25">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-15">
+<meta name="common-rules-template" content="proposal/21">
+<!--
+  Written by common-rules bin/new-proposal from templates/proposal.html
+  (proposal 21, S-02), then filled in by the Common Rules rework session.
+-->
+<style>
+  :root {
+    --ground: #F1F2F4; --surface: #FFFFFF; --ink: #16191D; --dim: #5E6873;
+    --border: #D3D8DE; --accent: #C2521F; --accent-soft: #F7E3D8;
+    --fill: #FFF3BF; --fill-ink: #5C4400;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #111417; --surface: #1A1F24; --ink: #E5E8EB; --dim: #939DA7;
+      --border: #2F3841; --accent: #EE7A45; --accent-soft: #3A2419;
+      --fill: #3B3313; --fill-ink: #F2DC8C;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 90px; }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.01em; margin: 0; }
+  h1 .num, h1 .status { color: var(--accent); }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 40px 0 10px; }
+  .sub { color: var(--dim); margin: 10px 0 0; max-width: 72ch; }
+  .card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; margin-top: 12px; }
+  blockquote { margin: 0; padding: 14px 20px; background: var(--surface); border-left: 3px solid var(--accent); font-size: 17px; }
+  blockquote + blockquote { margin-top: 10px; }
+  blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--dim); }
+  .opt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .opt .card h3 { margin: 0 0 6px; font-size: 16px; }
+  .opt .card p { margin: 0 0 6px; }
+  ol.decisions { background: var(--surface); border: 1px solid var(--border); margin: 12px 0 0; padding: 14px 20px 14px 44px; }
+  ol.decisions li + li { margin-top: 6px; }
+  .slot { border: 1px dashed var(--border); padding: 14px 20px; margin-top: 12px; color: var(--dim); }
+  .slot li + li { margin-top: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--dim); font-weight: 600; font-size: 13px; }
+  .tbl { overflow-x: auto; }
+  .m { font-family: var(--mono); font-size: .9em; }
+  pre.m { background: var(--surface); color: var(--ink); border: 1px solid var(--border); padding: 8px 12px; margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .src { font-size: 13px; color: var(--dim); margin-top: 36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="num">25</span> · <span class="status">accepted</span> · Sizing items by value, points and risk</h1>
+<p class="sub">Proposal 25 · accepted 2026-09-15. Today an item's tier is chosen from complexity alone. The sponsor asked for value and story points to count too, and for issues to be catalogued and clustered for later. This proposal asks which scheme to use and who sets what, before any ledger field changes.</p>
+
+<h2>The ask</h2>
+<blockquote>
+  this needs to be rethaught. its not only the complexity of the task, but the importance and value of the feature. each feature or task should have a userstory point to understand complexitxy and effort. research how this could be implemented
+  <cite>The sponsor, 15 September 2026 at 00:00 CEST, note on lever L8 of the Eight Levers page (database collection picks, document L8); proposal 23 ask A-08, item X-01.</cite>
+</blockquote>
+<blockquote>
+  but the issues need to be catalauges and clustered together for later
+  <cite>The sponsor, 14 September 2026 at 23:52 CEST, note on lever L2 (the same words again on L5); proposal 23 ask A-09, item X-02.</cite>
+</blockquote>
+
+<h2>What was found</h2>
+<div class="card">
+  <ul>
+    <li>Established schemes keep value and effort apart. Story points measure effort only. WSJF divides value, time criticality and risk reduction by job size. RICE needs a user "reach" that internal items do not have. (Research report, 15 September 2026.)</li>
+    <li>AI-assigned story points are not reliable cold. Two 2026 studies (arXiv 2603.06276, 2604.03443) found zero-shot LLM estimates usable only relatively, with no significant gain from retrieval. The research agent could not confirm error sizes from the full texts.</li>
+    <li>Review depth by risk is the best-corroborated practice: change-advisory classes, risk-based testing, and an open review-tier proposal for agent workflows. This matches proposal 23, D2.</li>
+    <li>Clustering by file-path overlap is the cheapest signal and the same one used to class risk. Its known pitfall: unrelated items in one folder look alike.</li>
+    <li>When one agent both estimates and executes, points can drift toward whatever makes the work cheaper. Estimates must be checked against measured cost per item, and <span class="m">bin/spend</span> can already measure that from transcripts.</li>
+    <li>Not verified: no source shows value-and-complexity routing in a production AI coding workflow; the scheme below is reasoning built on the sources, not copied practice.</li>
+  </ul>
+</div>
+
+<h2>Options</h2>
+<div class="opt">
+  <div class="card">
+    <h3>A · Value, points and risk, with a routing table</h3>
+    <p>Each item carries <span class="m">value</span> (high, medium, low; yours), <span class="m">points</span> (1, 2, 3, 5, 8, 13; set by the lead or scout), <span class="m">risk</span> (standard, elevated, restricted; from paths) and <span class="m">cluster</span> (surface). A table turns them into review depth, effort and bundling. Models stay as they are (proposal 23, D8).</p>
+    <p>Costs: four ledger fields, a validator change, a routing table. Rules out: tiering by complexity alone.</p>
+  </div>
+  <div class="card">
+    <h3>B · WSJF ranking only</h3>
+    <p>One score, (value + urgency + risk reduction) ÷ points, orders the whole queue; the top quarter gets the deeper treatment.</p>
+    <p>Costs: least. Rules out: separating "do this first" from "check this carefully": a low-score item can still touch money.</p>
+  </div>
+  <div class="card">
+    <h3>C · Risk class only, no points</h3>
+    <p>Three risk classes decide review and checks; nobody estimates size.</p>
+    <p>Costs: least estimation. Rules out: seeing effort before work starts, and sizing bundles.</p>
+  </div>
+</div>
+<p><b>Recommended:</b> A. It is the only option that keeps your two concerns, value and effort, visible and apart, while risk alone decides who checks the work.</p>
+
+<div class="card">
+  <b>Routing table under option A</b>
+  <div class="tbl"><table>
+    <tr><th>When</th><th>Review</th><th>Effort</th><th>Bundling</th></tr>
+    <tr><td>risk restricted (money, the PhotoVault library, auth, releases, common-rules)</td><td>separate reviewer, and you see the result</td><td>high</td><td>never bundled</td></tr>
+    <tr><td>risk elevated, or value high with points 5 or more</td><td>separate reviewer</td><td>high</td><td>own branch</td></tr>
+    <tr><td>everything else</td><td>gate and tests only</td><td>medium; low for points 1–2</td><td>bundled by cluster when points 1–3</td></tr>
+  </table></div>
+</div>
+
+<h2>Decisions</h2>
+<p class="sub">Each numbered line is one thing the sponsor answers. Keep the numbers stable once shown: answers and ledger items cite them.</p>
+<ol class="decisions">
+  <li><b>D1.</b> Which scheme: A (value, points, risk, routing table), B (WSJF ranking only) or C (risk class only)?</li>
+  <li><b>D2.</b> Value: do you set a default per surface (for example the PhotoVault app high) and override single items, or set it on every item?</li>
+  <li><b>D3.</b> Points: should the agent that builds an item see its points, or are they set by the lead or scout and kept from the builder?</li>
+  <li><b>D4.</b> Is every common-rules change risk "restricted", or only changes that carry a Standard change line?</li>
+  <li><b>D5.</b> How often are points checked against measured cost per item: every 20 items, weekly, or monthly?</li>
+  <li><b>D6.</b> The catalogue: issues not taken now get a cluster by file-path overlap and appear on the project's tracker page; or GitHub labels only; or clustering by text similarity?</li>
+</ol>
+
+<h2>Decided</h2>
+<section class="slot" id="decided">
+  <p>Decided by the sponsor on 15 September 2026, 00:12–00:13 CEST, by tapping one answer per decision on the Autonomy &amp; Sizing Decisions page (database collection <span class="m">answers</span>, documents P25-D1 to P25-D6), copied into this proposal's ledger as asks A-03 to A-08. He added no notes.</p>
+  <ul>
+    <li><b>D1:</b> A · Value, points and risk, with the routing table. → Z-01, Z-02</li>
+    <li><b>D2:</b> A · Value defaults per surface, overridden per item when needed. → Z-03</li>
+    <li><b>D3:</b> A · Points are kept from the builder. → Z-02</li>
+    <li><b>D4:</b> A · Every common-rules change is risk restricted. → Z-04</li>
+    <li><b>D5:</b> A · Points checked against measured cost every 20 items. → Z-05</li>
+    <li><b>D6:</b> A · Catalogue clustered by files touched, on the tracker page. → Z-06</li>
+  </ul>
+</section>
+
+<p class="src">Sources: the sponsor's L2, L5 and L8 notes, Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip (collection picks); proposal 23 asks A-08, A-09 and items X-01, X-02. Research: a report-only research agent (Sonnet) in the Common Rules rework session, 15 September 2026, citing SAFe WSJF (framework.scaledagile.com/wsjf), Intercom RICE, arXiv 2603.06276 and 2604.03443 (LLM story-point estimation), shakacode/agent-workflows issue 482 (review tiers), and practitioner write-ups on velocity gaming. Not verified: the studies' error sizes, and any production use of value-and-complexity routing for AI agents.</p>
+
+</div>
+</body>
+</html>
