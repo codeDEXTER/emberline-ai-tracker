@@ -39,9 +39,12 @@ THE TWELVE RULES
      anything else                    does not hold, saying which
    Without mandatory_pending() in RULES the item waits on common-rules.
  2 Migrated. tools/tracker/ledger.find() finds at least one ledger. Every
-   ledger found parses and validate()s. Each ledger's tracker page is
-   fresh: tools/tracker/render.freshness(), which is exactly what
-   `tracker render --check` calls.
+   ledger found parses and validate()s. The project's one tracker page,
+   docs/proposals/tracker/index.html, is fresh: tools/tracker/board.
+   project_page_state(), the digests `tracker board --check` compares
+   (proposal 22, T-02). A ledger that records its own tracker (`tracker.own`)
+   has a fresh page of its own too: render.freshness(), what `tracker render
+   --check` calls. No other ledger's per-proposal page is read.
  3 Declared. `.common-rules.json` exists, tools/project.problems() is empty,
    and tools/project.declared() -- only what the file validly declares, no
    defaults and no `.common-rules-test` fallback -- has read_order,
@@ -116,11 +119,17 @@ THE TWELVE RULES
      a Ruflo step -- `ruflo-item`, `post-task` or `memory store`,
      case-insensitive. The bare word "ruflo" does not count.
 10 Publishing recorded. Every docs/proposals/tracker/*.published.json is
-   well-formed. One beside its ledger is read by bin/warmup's own
-   publish_state(), and a problem it names does not hold. One without a
-   ledger is read with tools/tracker/render.published_problems(), and never
-   through a symlink or outside DIR. "Page changed since publish" is a
-   to-do, not a failure. No sidecar holds.
+   well-formed. index.published.json, the project page's record (proposal 22,
+   T-03), is read by bin/warmup's own project_publish_state(). A per-ledger
+   record beside its ledger is read by bin/warmup's publish_state(), but only
+   for a ledger that records its own tracker (`tracker.own`) or where
+   .common-rules.json declares plan_page; a leftover per-ledger sidecar of any
+   other ledger does not hold -- nothing renders or publishes that page any
+   more -- and the fix is to `git rm` it and record the project page with
+   `tracker published --project`. A sidecar with no ledger at all is read with
+   tools/tracker/render.published_problems(). None is read through a symlink
+   or from outside DIR. "Page changed since publish" is a to-do, not a
+   failure. No sidecar holds.
 11 CLAUDE.md pointer. A CLAUDE.md that is a symlink, or resolves outside the
    project, is not read and does not hold -- the policy of items 5 and 10.
    CLAUDE.md contains the `<!-- common-rules:warmup -->`
@@ -175,6 +184,7 @@ sys.path.insert(0, str(RULES_DIR))
 
 from tools import migrate as M  # noqa: E402
 from tools import project as P  # noqa: E402
+from tools.tracker import board as B  # noqa: E402
 from tools.tracker import ledger as L  # noqa: E402
 from tools.tracker import render as R  # noqa: E402
 
@@ -420,7 +430,11 @@ def check_migrated(ctx: Context) -> Result:
     if not ledgers:
         return not_hold("no ledger under docs/proposals (docs/proposals/NN-*.json with an items list)",
                         f"run {migrate}; a plan that is not a ledger yet becomes one with tracker import")
-    bad = []
+    bad, own_pages = [], 0
+    # Proposal 22, T-02: the project's one page first, so it is always named.
+    board_state, board_page = B.project_page_state(ctx.root)
+    if board_state != "ok":
+        bad.append(f"page {ctx.rel(board_page)} is {board_state}")
     for path, data, err in ledgers:
         rel = ctx.rel(path)
         if err:
@@ -430,15 +444,21 @@ def check_migrated(ctx: Context) -> Result:
         if problems:
             bad.append(f"{rel}: {len(problems)} problem(s), first: {problems[0]}")
             continue
+        if not L.own_tracker(data):
+            continue
         page = R.default_out(path)
         fresh = R.freshness(path, page)
         if fresh != "ok":
             bad.append(f"page {ctx.rel(page)} is {fresh}")
+        else:
+            own_pages += 1
     if bad:
         return not_hold("; ".join(bad[:3]) + (f" (+{len(bad) - 3} more)" if len(bad) > 3 else ""),
                         f"fix what {RULES_DIR}/bin/tracker validate names, then run {RULES_DIR}/bin/tracker "
-                        f"render <ledger> (the pre-commit hook does it on commit)")
-    return holds(f"{len(ledgers)} ledger(s), each valid, each page matching")
+                        f"board --project {ctx.root}, and {RULES_DIR}/bin/tracker render <ledger> for a ledger "
+                        f"that records its own tracker (the pre-commit hook does both on commit)")
+    return holds(f"{len(ledgers)} ledger(s), each valid, the project page matching"
+                 + (f", {own_pages} own tracker page(s) matching" if own_pages else ""))
 
 
 # --- 3 -----------------------------------------------------------------------
@@ -802,8 +822,16 @@ def check_publishing(ctx: Context) -> Result:
     sidecars = sorted(tracker.glob("*.published.json")) if tracker.is_dir() else []
     if not sidecars:
         return holds("no published page recorded")
-    bad = []
+    plan_page = "plan_page" in ctx.declared()
+    bad, leftover = [], False
     for sidecar in sidecars:
+        if sidecar.name == B.PUBLISHED_NAME:
+            # Proposal 22, T-03: the project's one page, read as bin/warmup reads it.
+            _pub, problem, _label = W.project_publish_state(
+                ctx.root, B.default_out(ctx.root), [d for _p, d, err in ctx.ledgers() if not err])
+            if problem:
+                bad.append(problem)
+            continue
         stem = sidecar.name[:-len(".published.json")]
         ledger = ctx.root / "docs" / "proposals" / f"{stem}.json"
         data = None
@@ -813,6 +841,13 @@ def check_publishing(ctx: Context) -> Result:
             except (OSError, ValueError):
                 data = None
         if isinstance(data, dict):
+            if not (L.own_tracker(data) or plan_page or W.records_a_page(sidecar)):
+                # T-03: nothing renders or publishes this page any more.
+                leftover = True
+                bad.append(f"{ctx.rel(sidecar)} records a page for {stem}.json, which records no tracker of its "
+                           f"own -- the project publishes one page, and that record is "
+                           f"docs/proposals/tracker/{B.PUBLISHED_NAME}")
+                continue
             _pub, problem, _label = W.publish_state(ctx.root, ledger, data, R.default_out(ledger))
             if problem:
                 bad.append(problem)
@@ -830,9 +865,12 @@ def check_publishing(ctx: Context) -> Result:
         if problems:
             bad.append(f"{rel} is malformed: {'; '.join(problems)}")
     if bad:
-        return not_hold("; ".join(bad[:3]) + (f" (+{len(bad) - 3} more)" if len(bad) > 3 else ""),
-                        f"republish the page and record it with {RULES_DIR}/bin/tracker published <ledger> --url "
-                        f"<url> (--page <path> for a declared plan_page), then commit the sidecar on its own")
+        record = (f"republish the page and record it with {RULES_DIR}/bin/tracker published --project "
+                  f"{ctx.root} --url <url>, then commit the sidecar on its own (a ledger with a tracker of "
+                  f"its own, or a declared plan_page: tracker published <ledger> --url <url> [--page <path>])")
+        if leftover:
+            record = "git rm the per-ledger sidecar named above, then " + record
+        return not_hold("; ".join(bad[:3]) + (f" (+{len(bad) - 3} more)" if len(bad) > 3 else ""), record)
     return holds(f"{len(sidecars)} publish record(s), each well-formed")
 
 

@@ -16,6 +16,7 @@ import datetime
 import hashlib
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -436,17 +437,21 @@ class TestDerecordPreCommitLedger(LedgerCommitHelpers, DerecordCase):
     checkpoint, alongside the existing conflict-marker guard."""
 
     def test_a_staged_ledger_gets_its_page_and_checkpoint_committed_alongside(self):
+        """Proposal 22, T-02: the page is the project's one tracker page."""
         self.run_derecord()
         ledger_path = self.write_ledger()
         r = self.commit(ledger_path)
         self.assertEqual(r.returncode, 0, r.stderr)
-        page = self.proj / "docs" / "proposals" / "tracker" / "42-thing.html"
-        self.assertTrue(page.exists(), "tracker page was not regenerated")
+        page = self.proj / "docs" / "proposals" / "tracker" / "index.html"
+        self.assertTrue(page.exists(), "the project page was not regenerated")
+        self.assertFalse((self.proj / "docs" / "proposals" / "tracker" / "42-thing.html").exists(),
+                         "a ledger without its own tracker got a per-ledger page")
         checkpoint_dir = self.proj / "docs" / "handovers"
         checkpoints = list(checkpoint_dir.glob("*-checkpoint.md")) if checkpoint_dir.is_dir() else []
         self.assertTrue(checkpoints, "checkpoint was not written")
         files = self.committed_files()
-        self.assertIn("42-thing.html", files)
+        self.assertIn("index.html", files)
+        self.assertNotIn("42-thing.html", files)
         self.assertIn("checkpoint.md", files)
 
     def test_an_invalid_ledger_fails_the_commit_with_trackers_message(self):
@@ -585,8 +590,9 @@ class TestDerecordPreCommitUnstagedGuard(LedgerCommitHelpers, DerecordCase):
         self.assertNotEqual(r.returncode, 0, "a ledger with unstaged edits must not be committed")
         self.assertIn("has unstaged changes", r.stderr + r.stdout)
         self.assertIn("docs/proposals/42-thing.json", r.stderr + r.stdout)
-        page = self.proj / "docs" / "proposals" / "tracker" / "42-thing.html"
-        self.assertFalse(page.exists(), "the page must not be rendered from the never-staged text")
+        for name in ("index.html", "42-thing.html"):
+            page = self.proj / "docs" / "proposals" / "tracker" / name
+            self.assertFalse(page.exists(), f"{name} must not be rendered from the never-staged text")
 
     def test_the_committed_page_never_carries_never_staged_text(self):
         """Even if the guard above did not exist, the page that does get
@@ -595,23 +601,27 @@ class TestDerecordPreCommitUnstagedGuard(LedgerCommitHelpers, DerecordCase):
         ledger_path = self.write_ledger(title="Original Title")
         r = self.commit(ledger_path)
         self.assertEqual(r.returncode, 0, r.stderr)
-        page = self.proj / "docs" / "proposals" / "tracker" / "42-thing.html"
+        page = self.proj / "docs" / "proposals" / "tracker" / "index.html"
         self.assertIn("Original Title", page.read_text())
 
     def test_a_page_with_unstaged_edits_refuses_the_next_ledger_commit(self):
+        """The project page (proposal 22, T-02) is refused exactly as a
+        per-ledger page was, and nothing is rendered over the local edit."""
         self.run_derecord()
         ledger_path = self.write_ledger()
         r = self.commit(ledger_path)
         self.assertEqual(r.returncode, 0, r.stderr)
-        page = self.proj / "docs" / "proposals" / "tracker" / "42-thing.html"
+        page = self.proj / "docs" / "proposals" / "tracker" / "index.html"
         # A local, unstaged hand-edit to the generated page.
         page.write_text(page.read_text() + "\n<!-- local note -->\n")
+        edited = page.read_bytes()
 
         self.write_ledger(title="Thing v2")
         r = self.commit(ledger_path)
         self.assertNotEqual(r.returncode, 0, "an unstaged edit to the page must refuse the commit")
         self.assertIn("has unstaged changes", r.stderr + r.stdout)
-        self.assertIn("42-thing.html", r.stderr + r.stdout)
+        self.assertIn("docs/proposals/tracker/index.html", r.stderr + r.stdout)
+        self.assertEqual(edited, page.read_bytes(), "the refused commit rendered over the local edit")
 
     def test_a_checkpoint_with_unstaged_edits_refuses_the_next_ledger_commit(self):
         self.run_derecord()
@@ -628,6 +638,328 @@ class TestDerecordPreCommitUnstagedGuard(LedgerCommitHelpers, DerecordCase):
         self.assertNotEqual(r.returncode, 0, "an unstaged edit to the checkpoint must refuse the commit")
         self.assertIn("has unstaged changes", r.stderr + r.stdout)
         self.assertIn("checkpoint.md", r.stderr + r.stdout)
+
+
+OWN_TRACKER = {"own": True, "by": "sponsor", "at": "2026-09-14T21:00:00+02:00",
+               "quote": "this one gets a tracker of its own"}
+
+
+class TestDerecordProjectPage(LedgerCommitHelpers, DerecordCase):
+    """Proposal 22, T-02. The sponsor (A-01): "per project, there should be one
+    tracker unless and until specified for a proposal if I need another
+    tracker." A staged ledger renders and stages the project page,
+    docs/proposals/tracker/index.html; a per-ledger page only for a staged
+    ledger whose `tracker.own` is true. The page reads every ledger, so every
+    ledger it reads must be what the commit holds."""
+
+    TRACKER_DIR = "docs/proposals/tracker"
+
+    def names(self):
+        return self.git("show", "--name-only", "--pretty=", "HEAD").stdout.split()
+
+    def tracker(self, *args):
+        return subprocess.run([sys.executable, str(ROOT / "bin" / "tracker"), *args],
+                              capture_output=True, text=True, check=False)
+
+    def board_check(self):
+        return self.tracker("board", "--project", str(self.proj), "--check")
+
+    def two(self, own=False):
+        first = self.write_ledger(**({"tracker": OWN_TRACKER} if own else {}))
+        second = self.write_ledger(rel="docs/proposals/43-other.json", proposal=43, title="Other")
+        return first, second
+
+    def test_two_ledgers_commit_one_project_page(self):
+        self.run_derecord()
+        first, second = self.two()
+        r = self.commit(first, second)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        names = self.names()
+        self.assertIn(f"{self.TRACKER_DIR}/index.html", names)
+        self.assertEqual([], [n for n in names if n.startswith(self.TRACKER_DIR) and not n.endswith("index.html")])
+        self.assertFalse((self.proj / self.TRACKER_DIR / "42-thing.html").exists())
+        self.assertFalse((self.proj / self.TRACKER_DIR / "43-other.html").exists())
+        chk = self.board_check()
+        self.assertEqual(chk.returncode, 0, chk.stdout + chk.stderr)
+        # derecord seeds docs/OPERATING-RULES.md and a lead prompt, untracked: not ours to commit here.
+        self.assertEqual("", self.git("status", "--porcelain", "--", "docs/proposals").stdout)
+
+    def test_a_ledger_with_its_own_tracker_also_gets_its_own_page(self):
+        self.run_derecord()
+        first, second = self.two(own=True)
+        r = self.commit(first, second)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        names = self.names()
+        self.assertIn(f"{self.TRACKER_DIR}/index.html", names)
+        self.assertIn(f"{self.TRACKER_DIR}/42-thing.html", names)
+        self.assertNotIn(f"{self.TRACKER_DIR}/43-other.html", names)
+        self.assertFalse((self.proj / self.TRACKER_DIR / "43-other.html").exists())
+        chk = self.tracker("render", "--check", str(first))
+        self.assertEqual(chk.returncode, 0, chk.stdout + chk.stderr)
+        self.assertEqual(self.board_check().returncode, 0)
+
+    def test_an_own_tracker_page_with_unstaged_edits_refuses(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger(tracker=OWN_TRACKER)
+        self.assertEqual(self.commit(ledger_path).returncode, 0)
+        page = self.proj / self.TRACKER_DIR / "42-thing.html"
+        page.write_text(page.read_text() + "\n<!-- local note -->\n")
+        edited = page.read_bytes()
+        index_before = (self.proj / self.TRACKER_DIR / "index.html").read_bytes()
+        self.write_ledger(title="Thing v2", tracker=OWN_TRACKER)
+        r = self.commit(ledger_path)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("has unstaged changes", r.stderr)
+        self.assertIn("42-thing.html", r.stderr)
+        self.assertEqual(edited, page.read_bytes())
+        self.assertEqual(index_before, (self.proj / self.TRACKER_DIR / "index.html").read_bytes(),
+                         "a refused commit rendered the project page")
+
+    def test_a_plain_ledgers_old_page_is_neither_rendered_nor_refused(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger()
+        self.assertEqual(self.commit(ledger_path).returncode, 0)
+        old = self.proj / self.TRACKER_DIR / "42-thing.html"
+        old.write_text("an old per-proposal page\n")
+        self.assertEqual(self.commit(old).returncode, 0)
+        old.write_text("an old per-proposal page, edited locally\n")
+        self.write_ledger(title="Thing v2")
+        r = self.commit(ledger_path)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual("an old per-proposal page, edited locally\n", old.read_text())
+        self.assertNotIn(f"{self.TRACKER_DIR}/42-thing.html", self.names())
+        self.assertIn(f"{self.TRACKER_DIR}/index.html", self.names())
+
+    def test_another_ledger_with_unstaged_edits_refuses(self):
+        """The project page would carry the other ledger's working-tree text,
+        which the commit does not hold: the same refusal as a partly staged ledger."""
+        self.run_derecord()
+        first, second = self.two()
+        self.assertEqual(self.commit(first, second).returncode, 0)
+        index = self.proj / self.TRACKER_DIR / "index.html"
+        before = index.read_bytes()
+        second.write_text(second.read_text().replace("Other", "Other, not staged"))
+        self.write_ledger(title="Thing v2")
+        r = self.commit(first)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("docs/proposals/43-other.json", r.stderr)
+        self.assertIn("has unstaged changes", r.stderr)
+        self.assertEqual(before, index.read_bytes())
+
+    def test_an_untracked_ledger_refuses_and_an_untracked_data_file_does_not(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger()
+        self.assertEqual(self.commit(ledger_path).returncode, 0)
+        sheet = self.proj / "docs" / "proposals" / "56-sheet.sidecar.json"
+        sheet.write_text(json.dumps({"rows": [1]}))
+        self.write_ledger(title="Thing v2")
+        self.assertEqual(self.commit(ledger_path).returncode, 0, "an untracked data file refused the commit")
+        draft = self.write_ledger(rel="docs/proposals/44-draft.json", proposal=44, title="Draft")
+        self.write_ledger(title="Thing v3")
+        r = self.commit(ledger_path)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("docs/proposals/44-draft.json", r.stderr)
+        self.assertIn("not staged", r.stderr)
+        self.assertTrue(draft.exists())
+
+    def test_deleting_or_renaming_a_ledger_rerenders_the_project_page(self):
+        self.run_derecord()
+        first, second = self.two()
+        self.assertEqual(self.commit(first, second).returncode, 0)
+        self.git("mv", "docs/proposals/43-other.json", "docs/proposals/43-renamed.json")
+        r = self.git("commit", "-m", "rename", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"{self.TRACKER_DIR}/index.html", self.names())
+        self.assertEqual(self.board_check().returncode, 0, self.board_check().stdout)
+        self.git("rm", "-q", "docs/proposals/43-renamed.json")
+        r = self.git("commit", "-m", "remove", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"{self.TRACKER_DIR}/index.html", self.names())
+        self.assertEqual(self.board_check().returncode, 0, self.board_check().stdout)
+        self.assertNotIn("Other", (self.proj / self.TRACKER_DIR / "index.html").read_text())
+
+    def test_deleting_the_last_ledger_is_not_refused(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger()
+        self.assertEqual(self.commit(ledger_path).returncode, 0)
+        self.git("rm", "-q", "docs/proposals/42-thing.json")
+        r = self.git("commit", "-m", "remove the last ledger", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_the_hook_conformance_compares_is_the_one_installed(self):
+        """The body changed, so its sha256 identity line did; conformance item 4
+        reads the template out of derecord and must still recognise it."""
+        import importlib.machinery
+        import importlib.util
+        self.run_derecord()
+        loader = importlib.machinery.SourceFileLoader("conformance_for_derecord", str(ROOT / "bin" / "conformance"))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        mod = importlib.util.module_from_spec(spec)
+        loader.exec_module(mod)
+        template = mod.derecord_hook_template()
+        self.assertIn("tracker\" board --project", template)
+        self.assertTrue(mod.hook_is_derecords(self.proj / ".git" / "hooks" / "pre-commit", template))
+
+
+class TestDerecordHookRefusesSymlinks(LedgerCommitHelpers, DerecordCase):
+    """T-02 review round 1: the hook wrote through a symlinked index.html -- an
+    outside file was overwritten and a mode-120000 entry committed. A tracker
+    page, or the tracker folder, that is a symlink refuses before anything is
+    rendered, the same rule new-proposal keeps."""
+
+    def outside(self) -> Path:
+        target = Path(self.tmp.name) / "outside.html"
+        target.write_text("outside the project\n")
+        return target
+
+    def tracker_dir(self) -> Path:
+        d = self.proj / "docs" / "proposals" / "tracker"
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def assert_refused(self, r, name):
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(name, r.stderr)
+        self.assertIn("symlink", r.stderr)
+        self.assertNotEqual(0, self.git("rev-parse", "--verify", "-q", "HEAD", check=False).returncode,
+                            "a commit was made")
+
+    def test_a_symlinked_project_page_is_refused_and_nothing_written(self):
+        self.run_derecord()
+        target = self.outside()
+        (self.tracker_dir() / "index.html").symlink_to(target)
+        r = self.commit(self.write_ledger())
+        self.assert_refused(r, "docs/proposals/tracker/index.html")
+        self.assertEqual("outside the project\n", target.read_text())
+
+    def test_a_symlinked_tracker_folder_is_refused_and_nothing_written(self):
+        self.run_derecord()
+        elsewhere = Path(self.tmp.name) / "elsewhere"
+        elsewhere.mkdir()
+        (self.proj / "docs" / "proposals").mkdir(parents=True)
+        (self.proj / "docs" / "proposals" / "tracker").symlink_to(elsewhere)
+        r = self.commit(self.write_ledger())
+        self.assert_refused(r, "docs/proposals/tracker")
+        self.assertEqual([], list(elsewhere.iterdir()))
+
+    def test_a_symlinked_own_tracker_page_is_refused_and_nothing_written(self):
+        self.run_derecord()
+        target = self.outside()
+        (self.tracker_dir() / "42-thing.html").symlink_to(target)
+        r = self.commit(self.write_ledger(tracker=OWN_TRACKER))
+        self.assert_refused(r, "docs/proposals/tracker/42-thing.html")
+        self.assertEqual("outside the project\n", target.read_text())
+        self.assertFalse((self.tracker_dir() / "index.html").exists())
+
+
+class TestDerecordPathModeCommit(LedgerCommitHelpers, DerecordCase):
+    """T-02 review round 1: `git commit -m x <path>` commits from a temporary
+    index, so the page the hook stages is committed while the working tree is
+    left MM, and the next commit reverts the page. With a ledger involved, that
+    refuses; `git commit` and `git commit -a` do not."""
+
+    def names(self):
+        return self.git("show", "--name-only", "--pretty=", "HEAD").stdout.split()
+
+    def count(self):
+        return self.git("rev-list", "--count", "HEAD").stdout.strip()
+
+    def test_a_path_mode_commit_of_a_ledger_is_refused(self):
+        self.run_derecord()
+        self.assertEqual(self.commit(self.write_ledger()).returncode, 0)
+        self.write_ledger(title="Thing v2")
+        r = self.git("commit", "-m", "only", "--", "docs/proposals/42-thing.json", check=False)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("stage", r.stderr)
+        self.assertIn("without paths", r.stderr)
+        self.assertEqual("1", self.count())
+
+    def test_git_commit_a_still_works_and_leaves_nothing_behind(self):
+        self.run_derecord()
+        self.assertEqual(self.commit(self.write_ledger()).returncode, 0)
+        self.write_ledger(title="Thing v2")
+        r = self.git("commit", "-a", "-m", "all", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("docs/proposals/tracker/index.html", self.names())
+        self.assertEqual("", self.git("status", "--porcelain", "--", "docs/proposals").stdout)
+        self.assertIn("Thing v2", (self.proj / "docs/proposals/tracker/index.html").read_text())
+
+    def test_a_plain_git_commit_still_works(self):
+        self.run_derecord()
+        ledger_path = self.write_ledger()
+        self.git("add", str(ledger_path))
+        r = self.git("commit", "-m", "plain", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("docs/proposals/tracker/index.html", self.names())
+
+    def test_a_path_mode_commit_with_no_ledger_is_not_refused(self):
+        self.run_derecord()
+        self.assertEqual(self.commit(self.write_ledger()).returncode, 0)
+        readme = self.proj / "README.md"
+        readme.write_text("one\n")
+        self.assertEqual(self.commit(readme).returncode, 0)
+        readme.write_text("two\n")
+        r = self.git("commit", "-m", "readme", "--", "README.md", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(["README.md"], self.names())
+
+
+class TestDerecordDeletedPages(LedgerCommitHelpers, DerecordCase):
+    """T-02 review round 1: a page nothing will render again goes in the same
+    commit -- the project page with the last ledger, an own-tracker page with
+    its ledger. Another ledger's leftover page is not ours to remove."""
+
+    TRACKER_DIR = "docs/proposals/tracker"
+
+    def tracked(self, rel):
+        return self.git("ls-files", "--error-unmatch", "--", rel, check=False).returncode == 0
+
+    def test_deleting_the_last_ledger_removes_the_project_page(self):
+        self.run_derecord()
+        self.assertEqual(self.commit(self.write_ledger()).returncode, 0)
+        self.git("rm", "-q", "docs/proposals/42-thing.json")
+        r = self.git("commit", "-m", "remove the last ledger", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertFalse((self.proj / self.TRACKER_DIR / "index.html").exists())
+        self.assertFalse(self.tracked(f"{self.TRACKER_DIR}/index.html"))
+        self.assertEqual("", self.git("status", "--porcelain", "--", "docs/proposals").stdout)
+
+    def test_deleting_or_renaming_an_own_tracker_ledger_removes_its_old_page(self):
+        self.run_derecord()
+        own = self.write_ledger(tracker=OWN_TRACKER)
+        other = self.write_ledger(rel="docs/proposals/43-other.json", proposal=43, title="Other")
+        self.assertEqual(self.commit(own, other).returncode, 0)
+        self.assertTrue(self.tracked(f"{self.TRACKER_DIR}/42-thing.html"))
+
+        self.git("mv", "docs/proposals/42-thing.json", "docs/proposals/42-renamed.json")
+        r = self.git("commit", "-m", "rename", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertFalse((self.proj / self.TRACKER_DIR / "42-thing.html").exists())
+        self.assertFalse(self.tracked(f"{self.TRACKER_DIR}/42-thing.html"))
+        self.assertTrue(self.tracked(f"{self.TRACKER_DIR}/42-renamed.html"))
+        self.assertEqual("", self.git("status", "--porcelain", "--", "docs/proposals").stdout)
+
+        self.git("rm", "-q", "docs/proposals/42-renamed.json")
+        r = self.git("commit", "-m", "remove", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertFalse((self.proj / self.TRACKER_DIR / "42-renamed.html").exists())
+        self.assertFalse(self.tracked(f"{self.TRACKER_DIR}/42-renamed.html"))
+        self.assertTrue(self.tracked(f"{self.TRACKER_DIR}/index.html"))
+        self.assertEqual("", self.git("status", "--porcelain", "--", "docs/proposals").stdout)
+
+    def test_a_plain_ledgers_leftover_page_is_untouched_when_it_is_deleted(self):
+        self.run_derecord()
+        first = self.write_ledger()
+        other = self.write_ledger(rel="docs/proposals/43-other.json", proposal=43, title="Other")
+        self.assertEqual(self.commit(first, other).returncode, 0)
+        leftover = self.proj / self.TRACKER_DIR / "43-other.html"
+        leftover.write_text("a leftover page\n")
+        self.assertEqual(self.commit(leftover).returncode, 0)
+        self.git("rm", "-q", "docs/proposals/43-other.json")
+        r = self.git("commit", "-m", "remove other", check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual("a leftover page\n", leftover.read_text())
+        self.assertTrue(self.tracked(f"{self.TRACKER_DIR}/43-other.html"))
 
 
 class TestDerecordCheckpointPathFromStdout(LedgerCommitHelpers, DerecordCase):

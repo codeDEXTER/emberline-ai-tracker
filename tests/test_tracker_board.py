@@ -366,10 +366,20 @@ class TestReviewRoundTwo(unittest.TestCase):
         self.assertIn('data-request="RQ-01"', text)
 
     def test_a_log_entry_that_is_not_an_object_does_not_crash(self):
-        self.p.write("19-x.json", ledger(19, "X", [item("W-01", "done", log=["just a string"])]))
+        """Proposal 22, T-02 closed the hole in ledger.validate: a string log
+        entry is now a named problem, so the command refuses cleanly and
+        writes nothing. The renderer itself still skips one, rather than
+        crash, for a caller that renders without validating."""
+        from tools.tracker import board
+        data = ledger(19, "X", [item("W-01", "done", log=["just a string"])])
+        self.p.write("19-x.json", data)
         r = self.p.run()
-        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertNotIn("Traceback", r.stderr)
+        self.assertIn("W-01: log[0] is not an object", r.stderr)
+        self.assertFalse(self.p.page.exists())
+        text = board.render([(self.p.proposals / "19-x.json", data)], "demo", None)
+        self.assertIn('data-id="W-01"', text)
 
     def test_the_asks_headers_follow_the_filters(self):
         self.p.write("19-x.json", ledger(19, "X", [item("W-01", "done")], asks=[
@@ -379,6 +389,65 @@ class TestReviewRoundTwo(unittest.TestCase):
         text = self.p.page.read_text()
         self.assertIn('id="attention"', text)
         self.assertIn('id="answered-n"', text)
+
+
+class TestProjectPageState(unittest.TestCase):
+    """T-02: warmup, conformance and new-proposal ask one helper whether the
+    project page is fresh, so none of them re-derives which ledgers it reads."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.p = Project(Path(self._tmp.name))
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_missing_ok_stale_and_no_ledgers(self):
+        from tools.tracker import board
+        self.assertEqual(("none", self.p.page), board.project_page_state(self.p.root))
+        two_ledgers(self.p)
+        self.assertEqual(("missing", self.p.page), board.project_page_state(self.p.root))
+        self.assertEqual(0, self.p.run().returncode)
+        self.assertEqual(("ok", self.p.page), board.project_page_state(self.p.root))
+        # A data file shaped NN-*.json is not a ledger, and does not make the page stale.
+        (self.p.proposals / "56-sheet.sidecar.json").write_text('{"rows": []}')
+        self.assertEqual("ok", board.project_page_state(self.p.root)[0])
+        self.p.write("30-new.json", ledger(30, "New", [item("N-01", "not started")]))
+        self.assertEqual("stale", board.project_page_state(self.p.root)[0])
+
+
+class TestTheSidecarHelpers(unittest.TestCase):
+    """T-03: `tracker published --project` and bin/warmup ask board.py where
+    the project page's publish record lives, and what ledger digests the page
+    itself carries -- neither re-derives the path or re-reads the markup."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.p = Project(Path(self._tmp.name))
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_the_sidecar_sits_beside_the_page(self):
+        from tools.tracker import board
+        self.assertEqual(self.p.proposals / "tracker" / "index.published.json",
+                         board.published_path(self.p.root))
+
+    def test_page_digests_is_the_pages_own_meta(self):
+        from tools.tracker import board
+        two_ledgers(self.p)
+        self.assertEqual(0, self.p.run().returncode)
+        paths = board.ledger_paths(self.p.root)
+        self.assertEqual(board.digests(paths), board.page_digests(self.p.page))
+        for name in ("19-warmup.json", "21-standard.json"):
+            self.assertIn(name, board.page_digests(self.p.page))
+
+    def test_a_page_without_the_meta_or_no_page_at_all_reads_none(self):
+        from tools.tracker import board
+        self.assertIsNone(board.page_digests(self.p.page))
+        self.p.page.parent.mkdir(parents=True, exist_ok=True)
+        self.p.page.write_text("<p>not the generated page</p>\n")
+        self.assertIsNone(board.page_digests(self.p.page))
 
 
 if __name__ == "__main__":

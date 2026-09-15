@@ -26,6 +26,7 @@ ledger 58 times a day.
 """
 from __future__ import annotations
 
+import datetime
 import json
 import math
 import re
@@ -119,8 +120,11 @@ def validate(ledger: dict) -> list[str]:
     `discovered_from` point at something that exists, asks are shaped.
     """
     problems: list[str] = []
-    if not isinstance(ledger.get("proposal"), int):
-        problems.append("top level: `proposal` must be the proposal number, an integer")
+    number = ledger.get("proposal")
+    # A bool is an int in Python: `"proposal": true` passed until T-02 (the
+    # T-01 review found it).
+    if isinstance(number, bool) or not isinstance(number, int) or number < 0:
+        problems.append("top level: `proposal` must be the proposal number, a non-negative integer")
     seen: set[str] = set()
     phases = {p.get("id") for p in (ledger.get("phases") or [])}
     ids = {i.get("id") for i in items(ledger)}
@@ -151,6 +155,14 @@ def validate(ledger: dict) -> list[str]:
             problems.append(f"{name}: discovered_from {src}, which is neither an item nor an ask")
         if i.get("status") == "done" and not i.get("log"):
             problems.append(f"{name}: done with an empty log -- nothing says how")
+        # T-02, from the T-01 review: a string log entry passed, and the board
+        # had to learn to skip it.
+        if "log" in i and not isinstance(i["log"], list):
+            problems.append(f"{name}: `log` must be a list of entries")
+        else:
+            for k, entry in enumerate(i.get("log") or []):
+                if not isinstance(entry, dict):
+                    problems.append(f"{name}: log[{k}] is not an object {{at, event, by, evidence}}")
     seen_asks: set[str] = set()
     for n, a in enumerate(ledger.get("asks") or []):
         name = a.get("id") or f"asks[{n}]"
@@ -169,6 +181,7 @@ def validate(ledger: dict) -> list[str]:
         if a.get("state") == "became-item" and not a.get("became"):
             problems.append(f"{name}: became-item but `became` names nothing")
     problems.extend(_validate_v2(ledger, ids, ask_ids))
+    problems.extend(_validate_tracker(ledger))
     # A message can quote a malformed id; every problem is printed as one line
     # (V-02 final review: "Z-01\\nwarmup --check: ready" split a problem in two).
     return [_printable(p) for p in problems]
@@ -341,6 +354,74 @@ def switch_on(ledger: dict, name: str) -> bool:
     """False only when the ledger records the switch off (D5); on by default."""
     sw = (ledger.get("switches") or {}).get(name) if isinstance(ledger.get("switches"), dict) else None
     return not (isinstance(sw, dict) and sw.get("on") is False)
+
+
+TRACKER_FIELDS = ("by", "at", "quote")
+# ISO 8601 date and time: the pieces are read here and the ranges checked
+# with datetime, so the rule does not move with the Python version's own
+# fromisoformat (3.11 widened it).
+_AT = re.compile(r"(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?(Z|[+-]\d{2}:\d{2})?",
+                 re.ASCII)   # T-02 review round 1: \d took Arabic-Indic and fullwidth digits
+# Text that reorders or hides itself, or breaks a line without a newline:
+# the line and paragraph separators, bidi controls and invisible characters
+# (the set bin/new-proposal refuses in a title). Joiners and the soft hyphen
+# are not in it -- emoji, Devanagari and Persian need them.
+_REORDER_HIDE_OR_BREAK = re.compile("[\u2028\u2029\u061c\u200b\u200e\u200f\u202a-\u202e"
+                                    "\u2060-\u2064\u2066-\u2069\ufeff]")
+
+
+def _at_problem(value: str) -> str | None:
+    m = _AT.fullmatch(value)
+    bad = "`at` is not an ISO 8601 date and time (e.g. 2026-09-14T21:00:00+02:00)"
+    if not m:
+        return bad
+    year, month, day, hour, minute, second, offset = m.groups()
+    try:
+        datetime.date(int(year), int(month), int(day))
+        datetime.time(int(hour or 0), int(minute or 0), int(second or 0))
+    except ValueError:
+        return bad
+    if offset is None:
+        return "`at` has no offset (e.g. 2026-09-14T21:00:00+02:00) -- the time he asked, with its zone"
+    if hour is None or (offset != "Z" and (int(offset[1:3]) > 23 or int(offset[4:6]) > 59)):
+        return bad
+    return None
+
+
+def _validate_tracker(ledger: dict) -> list[str]:
+    """Proposal 22, T-02. `tracker` is declared only when the sponsor asked
+    for this proposal's own tracker page: {"own": true, "by", "at", "quote"},
+    each one line, `at` with its offset -- the same record a switch keeps."""
+    if "tracker" not in ledger:
+        return []
+    t = ledger["tracker"]
+    if not isinstance(t, dict):
+        return ["tracker: must be an object {own: true, by, at, quote} -- declared only when the sponsor "
+                "asks for this proposal's own tracker"]
+    problems = []
+    if t.get("own") is not True:
+        problems.append("tracker: `own` must be true -- a proposal without its own tracker has no `tracker` key")
+    for field in TRACKER_FIELDS:
+        value = t.get(field)
+        if value is None or value == "":
+            problems.append(f"tracker: no `{field}`" + (" -- in the sponsor's words" if field == "quote" else ""))
+        elif not _one_line(value):
+            problems.append(f"tracker: `{field}` must be one line of text")
+        elif field in ("by", "quote") and _REORDER_HIDE_OR_BREAK.search(value):
+            problems.append(f"tracker: `{field}` carries a line separator or a bidi or invisible character")
+        elif field == "at":
+            at = _at_problem(value)
+            if at:
+                problems.append(f"tracker: {at}")
+    return problems
+
+
+def own_tracker(ledger: dict) -> bool:
+    """True when the sponsor asked for this proposal's own tracker page
+    (proposal 22, T-02): `tracker.own` is exactly true. Otherwise the
+    proposal is on the project's one page only."""
+    t = ledger.get("tracker") if isinstance(ledger, dict) else None
+    return isinstance(t, dict) and t.get("own") is True
 
 
 def open_requests(ledger: dict) -> list[dict]:

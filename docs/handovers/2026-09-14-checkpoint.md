@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-14 23:35
+# Checkpoint — 2026-09-14 23:37
 
-Reason: manual · branch: p22-ruling-sonnet · HEAD: 4614013
+Reason: manual · branch: p22 · HEAD: a7ce1a6
 
-<!-- ledger-digest: af01b3d4f0179722e603c75132643a4fb6dabc9027ad7be0fab7bfb496b34f96 -->
+<!-- ledger-digest: ca847991283b7c1d0a153531fad249765a1df1ff2926f4cc710225244bf13e0e -->
 
 ## Proposal 19 · Warm-up
 
@@ -47,11 +47,12 @@ Reason: manual · branch: p22-ruling-sonnet · HEAD: 4614013
 
 ## Proposal 22 · One tracker per project
 
-1 done / 0 in progress / 0 blocked / 4 not started
+2 done / 2 in progress / 0 blocked / 1 not started
 
 ### In progress
 
-- none
+- T-03 · [ruflo · high · opus] · Publishing the project page · T-02 done, merged into p22
+- T-04 · [ruflo · lead · lead model] · common-rules on one tracker · started, wording only
 
 ### Blocked, and why
 
@@ -63,7 +64,7 @@ Reason: manual · branch: p22-ruling-sonnet · HEAD: 4614013
 
 ### Next unblocked
 
-- T-02 · [ruflo · high · opus] · The chain reads the project page, not one page per proposal
+- none
 
 ## Exact next action
 

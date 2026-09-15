@@ -66,6 +66,12 @@
           "event": "started",
           "by": "lead",
           "evidence": "Branch p22-land cut from origin/p22 (9ae271f) in its own worktree .worktrees/p22-land; merging origin/main into it. The other session's p22 worktree is not touched; it was asked to stand down on p22."
+        },
+        {
+          "at": "2026-09-15T12:23:45+02:00",
+          "event": "review: fix-first",
+          "by": "lead",
+          "evidence": "quality-manager (sonnet) on a202087: 598 touched tests OK; merge kept every change from main; T-01 to T-03 behave as decided on a scratch copy. Findings: (1) no CHANGELOG entry with a Standard change line for T-02/T-03, promised by the T-01 entry - added; (2) main had moved (3fe6906) - merged again, only generated files conflicted, regenerated. Observation, not fixed here: tracker set and tracker ask re-render the proposal's page but not the project board, so board --check reads stale until tracker board runs; follow-up for C-04/K-02."
         }
       ]
     },
@@ -213,7 +219,14 @@
       "model": "lead model",
       "tag": "[ruflo · lead · lead model]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T12:21:28+02:00",
+          "event": "chat archived",
+          "by": "lead",
+          "evidence": "The Common Rules chat v1 session (local_bd66c5cc) shows as idle, archived on 15 Sep 2026 (session tools); its pending question to the sponsor was interrupted by him. Archiving is reversible; permanent deletion is still his decision, after K-01, K-02 and K-06."
+        }
+      ]
     }
   ],
   "asks": [
@@ -254,9 +267,9 @@
       "kind": "feature",
       "quote": "Also in the board, refactor to utilize lower agents as much as possible.",
       "became": null,
-      "state": "open",
+      "state": "answered",
       "source": "Common Rules rework session transcript",
-      "note": "Applied to every open item on the board: proposals 23-29 in this branch, 19-22 on p22-land (K-01). Tier table C3 moves from opus to sonnet (standing Sonnet ceiling)."
+      "note": "Applied to every open item on the board: proposals 23-29 in this branch, 19-22 on p22-land (K-01). Tier table C3 moves from opus to sonnet (standing Sonnet ceiling). Applied 15 Sep 2026: proposals 23-29 in PR 178 (bfb3122); 19-22 in the p22-land merge (K-01). Open items now: haiku for read-only or mechanical work, sonnet for builds, lead only for K-01 and the sponsor's K-07."
     }
   ],
   "proposed_changes": [],

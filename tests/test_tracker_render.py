@@ -473,6 +473,20 @@ class TestBackwardCompatibility(unittest.TestCase):
 URL = "https://claude.ai/code/artifact/00000000-0000-0000-0000-000000000000"
 
 
+OWN_TRACKER = {"own": True, "by": "sponsor", "at": "2026-09-14T21:00:00+02:00",
+               "quote": "this one gets a tracker of its own"}
+
+
+def own_sample(**changes):
+    """The sample ledger, marked as one the sponsor asked to track separately
+    (proposal 22, T-03): from T-03 on, the per-ledger publish flow is for
+    these ledgers only."""
+    d = sample()
+    d.update(changes)
+    d["tracker"] = dict(OWN_TRACKER)
+    return d
+
+
 class TestPublished(RenderCase):
     """Proposal 20, V-09 (D1): an artifact is published only through a
     session's Artifact tool, which no script can call. `tracker published`
@@ -480,10 +494,14 @@ class TestPublished(RenderCase):
     stands -- in a committed sidecar beside the page, so the card can say when
     the page has moved since. It refuses to record a page that is not the
     ledger's current page, a URL that is not one https line, and anything at
-    all when the ledger switches publishing off."""
+    all when the ledger switches publishing off.
+
+    Proposal 22, T-03: this flow is now for a ledger that records its own
+    tracker, so the fixture's ledger does."""
 
     def setUp(self):
         super().setUp()
+        self.p.ledger.write_text(json.dumps(own_sample(), indent=2))
         # V-11 round 2: a record is made only of a committed ledger, so the
         # scratch project is a git repository.
         self.git("init", "-q", "-b", "main")
@@ -509,7 +527,7 @@ class TestPublished(RenderCase):
     def test_an_uncommitted_or_untracked_ledger_is_refused(self):
         """V-11 round 2, D2: the digest of a ledger nobody committed is not a record."""
         self.render()
-        d = sample(); d["items"][3]["status"] = "in progress"
+        d = own_sample(); d["items"][3]["status"] = "in progress"
         self.p.ledger.write_text(json.dumps(d, indent=2))
         self.render()                                   # the tracker page is fresh; the ledger is not committed
         r = self.published("--url", URL)
@@ -527,7 +545,7 @@ class TestPublished(RenderCase):
         self.assertFalse(self.sidecar.exists())
 
     def test_a_ledger_outside_any_git_repository_is_refused(self):
-        q = Project()
+        q = Project(own_sample())
         try:
             self.assertEqual(0, q.run(str(q.ledger)).returncode)
             r = subprocess.run([sys.executable, str(TRACKER), "published", str(q.ledger), "--url", URL],
@@ -598,7 +616,7 @@ class TestPublished(RenderCase):
 
     def test_a_stale_page_is_refused(self):
         self.render()
-        d = sample(); d["items"][3]["status"] = "in progress"
+        d = own_sample(); d["items"][3]["status"] = "in progress"
         self.p.ledger.write_text(json.dumps(d, indent=2))
         self.commit("ledger moved, page not rendered")
         r = self.published("--url", URL)
@@ -608,7 +626,7 @@ class TestPublished(RenderCase):
         self.assertFalse(self.sidecar.exists())
 
     def test_nothing_is_recorded_when_publish_is_switched_off(self):
-        d = sample()
+        d = own_sample()
         d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00",
                                      "quote": "do not publish this one"}}
         self.p.ledger.write_text(json.dumps(d, indent=2))
@@ -689,7 +707,7 @@ class TestPublished(RenderCase):
         self.render()
         self.assertEqual(0, self.published("--url", URL).returncode)
         first = json.loads(self.sidecar.read_text())["digest"]
-        d = sample(); d["items"][3]["status"] = "in progress"
+        d = own_sample(); d["items"][3]["status"] = "in progress"
         self.p.ledger.write_text(json.dumps(d, indent=2))
         self.commit("ledger moved")
         self.render()
@@ -1055,6 +1073,9 @@ class TestPublishedTrackerPageInAGitProject(unittest.TestCase):
     def setUp(self):
         self.p = AppProject(declaration={"read_order": ["README.md"]})
         (self.p.root / "README.md").write_text("seed\n")
+        # Proposal 22, T-03: without a declared plan_page the per-ledger flow
+        # is for a ledger that records its own tracker.
+        self.p.ledger.write_text(json.dumps(own_sample(proposal=70), indent=2))
         self.p.commit("readme")
 
     def tearDown(self):
@@ -1128,6 +1149,419 @@ class TestTheRealLedger(unittest.TestCase):
         self.assertIn('<section class="gates">', html)
         self.assertIn('<section class="floors">', html)
         self.assertIn("merged, awaiting evidence", html)
+
+
+INDEX = "docs/proposals/tracker/index.html"
+INDEX_SIDECAR = "docs/proposals/tracker/index.published.json"
+
+
+def second_sample():
+    d = sample()
+    d.update(proposal=22, title="One tracker per project")
+    return d
+
+
+class ProjectPages:
+    """A scratch git project with two ledgers and the project's one tracker
+    page (proposal 22, T-03) -- what `tracker published --project` records."""
+
+    def __init__(self, ledgers=None, declaration=None):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name).resolve() / "demo"
+        self.proposals = self.root / "docs" / "proposals"
+        self.proposals.mkdir(parents=True)
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "t@example.com")
+        self.git("config", "user.name", "t")
+        self.ledgers = {"19-proposal-warmup.json": sample(),
+                        "22-one-tracker.json": second_sample()} if ledgers is None else ledgers
+        for name, data in self.ledgers.items():
+            (self.proposals / name).write_text(json.dumps(data, indent=2))
+        if declaration is not None:
+            (self.root / ".common-rules.json").write_text(
+                declaration if isinstance(declaration, str) else json.dumps(declaration, indent=2))
+        self.board()
+        self.commit("seed")
+
+    @property
+    def page(self):
+        return self.root / INDEX
+
+    @property
+    def sidecar(self):
+        return self.root / INDEX_SIDECAR
+
+    def ledger(self, name="19-proposal-warmup.json"):
+        return self.proposals / name
+
+    def set_ledger(self, data, name="19-proposal-warmup.json"):
+        (self.proposals / name).write_text(json.dumps(data, indent=2))
+
+    def git(self, *a):
+        return subprocess.run(["git", "-C", str(self.root), *a], capture_output=True, text=True, check=False)
+
+    def commit(self, msg):
+        self.git("add", "-A")
+        self.git("commit", "-qm", msg)
+
+    def board(self):
+        return subprocess.run([sys.executable, str(TRACKER), "board", "--project", str(self.root)],
+                              capture_output=True, text=True, check=False)
+
+    def published(self, *args, project=None):
+        where = str(self.root) if project is None else project
+        return subprocess.run([sys.executable, str(TRACKER), "published", "--project", where, "--url", URL, *args],
+                              capture_output=True, text=True, check=False, cwd=self.root)
+
+    def close(self):
+        self.tmp.cleanup()
+
+
+class ProjectCase(unittest.TestCase):
+
+    def setUp(self):
+        self.p = ProjectPages()
+
+    def tearDown(self):
+        self.p.close()
+
+    def assert_refused(self, r, *needles, code=1):
+        self.assertEqual(code, r.returncode, r.stdout + r.stderr)
+        for needle in needles:
+            self.assertIn(needle, r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+        self.assertFalse(self.p.sidecar.exists(), "a refusal wrote a record")
+
+
+class TestPublishedProject(ProjectCase):
+    """Proposal 22, T-03: the sponsor asked for one tracker per project, so
+    what is published is docs/proposals/tracker/index.html and what records it
+    is `tracker published --project`. The record carries the page's digest and
+    the ledger digests the page itself carries, so the card knows which
+    ledgers the published page showed."""
+
+    def test_it_records_url_digest_ledgers_real_clock_and_by(self):
+        import datetime
+        import hashlib
+        before = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+        r = self.p.published("--by", "lead")
+        after = datetime.datetime.now(datetime.timezone.utc)
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        record = json.loads(self.p.sidecar.read_text())
+        self.assertEqual({"url", "digest", "ledgers", "at", "by"}, set(record))
+        self.assertEqual(URL, record["url"])
+        self.assertEqual(hashlib.sha256(self.p.page.read_bytes()).hexdigest(), record["digest"])
+        self.assertEqual("lead", record["by"])
+        at = datetime.datetime.fromisoformat(record["at"])
+        self.assertTrue(before <= at <= after, f"{at} is not the real clock ({before} .. {after})")
+
+    def test_the_recorded_ledgers_are_the_pages_own_meta(self):
+        import html as html_mod
+        self.assertEqual(0, self.p.published().returncode)
+        m = re.search(r'<meta name="ledger-digests" content="([^"]*)">', self.p.page.read_text())
+        self.assertEqual(html_mod.unescape(m.group(1)), json.loads(self.p.sidecar.read_text())["ledgers"])
+        for name in self.p.ledgers:
+            self.assertIn(name, json.loads(self.p.sidecar.read_text())["ledgers"])
+
+    def test_the_sidecar_is_deterministic_json(self):
+        self.assertEqual(0, self.p.published().returncode)
+        text = self.p.sidecar.read_text()
+        self.assertEqual(json.dumps(json.loads(text), indent=2, sort_keys=True, ensure_ascii=False) + "\n", text)
+
+    def test_by_is_optional_and_recorded_as_null(self):
+        self.assertEqual(0, self.p.published().returncode)
+        self.assertIsNone(json.loads(self.p.sidecar.read_text())["by"])
+
+    def test_a_republish_replaces_the_record(self):
+        self.assertEqual(0, self.p.published().returncode)
+        first = json.loads(self.p.sidecar.read_text())
+        d = sample(); d["items"][3]["status"] = "in progress"
+        self.p.set_ledger(d)
+        self.p.board()
+        self.p.commit("ledger moved, page rendered")
+        self.assertEqual(0, self.p.published().returncode)
+        second = json.loads(self.p.sidecar.read_text())
+        self.assertNotEqual(first["digest"], second["digest"])
+        self.assertNotEqual(first["ledgers"], second["ledgers"])
+
+    def test_a_missing_page_is_refused(self):
+        self.p.page.unlink()
+        self.p.commit("page removed")
+        self.assert_refused(self.p.published(), "missing", "tracker board --project")
+
+    def test_a_stale_page_is_refused(self):
+        d = sample(); d["items"][3]["status"] = "in progress"
+        self.p.set_ledger(d)
+        self.p.commit("ledger moved, page not rendered")
+        self.assert_refused(self.p.published(), "stale", "tracker board --project")
+
+    def test_a_new_ledger_makes_the_page_stale_and_is_refused(self):
+        self.p.set_ledger(second_sample(), "23-third.json")
+        self.p.commit("a third ledger, page not rendered")
+        self.assert_refused(self.p.published(), "stale")
+
+    def test_publish_switched_off_in_any_ledger_is_refused(self):
+        d = second_sample()
+        d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00",
+                                     "quote": "do not publish this one"}}
+        self.p.set_ledger(d, "22-one-tracker.json")
+        self.p.board()
+        self.p.commit("publish off in one ledger")
+        r = self.p.published()
+        self.assert_refused(r, "switched off", "22-one-tracker.json", "sponsor", "nothing recorded")
+        self.assertIn("nothing should have been published", r.stderr)
+
+    def test_a_bad_url_is_refused(self):
+        for bad in ("http://claude.ai/x", "", "https://", URL + "\nwarmup --check: ready",
+                    "https://user:pw@claude.ai/x", "https://claude.ai/a b"):
+            with self.subTest(url=bad):
+                r = subprocess.run([sys.executable, str(TRACKER), "published", "--project", str(self.p.root),
+                                    "--url", bad], capture_output=True, text=True, check=False)
+                self.assert_refused(r, "url")
+                self.assertNotIn("\nwarmup --check: ready", r.stderr)
+
+    def test_a_multi_line_by_is_refused(self):
+        self.assert_refused(self.p.published("--by", "lead\nwarmup --check: ready"), "--by")
+
+    def test_an_uncommitted_or_untracked_ledger_is_refused(self):
+        d = sample(); d["items"][3]["status"] = "in progress"
+        self.p.set_ledger(d)
+        self.p.board()                       # the page is fresh; the ledger is not committed
+        self.assert_refused(self.p.published(), "19-proposal-warmup.json", "uncommitted")
+        self.p.git("add", "-A")              # staged is not committed either
+        self.assert_refused(self.p.published(), "uncommitted")
+        self.p.commit("ledger and page")
+        self.assertEqual(0, self.p.published().returncode)
+        self.p.sidecar.unlink()
+        self.p.git("rm", "-q", "--cached", str(self.p.ledger()))
+        self.p.git("commit", "-qm", "ledger untracked")
+        self.assert_refused(self.p.published(), "19-proposal-warmup.json", "uncommitted")
+
+    def test_an_uncommitted_or_untracked_page_is_refused(self):
+        self.p.page.write_text(self.p.page.read_text() + "<!-- hand edited -->\n")
+        self.assert_refused(self.p.published(), INDEX, "uncommitted")
+        self.p.git("rm", "-q", "--cached", str(self.p.page))
+        self.p.git("commit", "-qm", "page untracked")
+        self.assert_refused(self.p.published(), INDEX)
+
+    def test_a_ledger_symlinked_outside_the_project_is_refused_not_a_traceback(self):
+        # Round-1 review finding F1: path.resolve().relative_to(root) in the
+        # ledger loop raised ValueError uncaught, printing a Python traceback
+        # instead of a named refusal -- the one path in this function that was
+        # not symlink-guarded like the page and sidecar checks already are.
+        outside = Path(self.p.tmp.name) / "ledger-elsewhere.json"
+        outside.write_text(self.p.ledger().read_text())
+        self.p.ledger().unlink()
+        self.p.ledger().symlink_to(outside)
+        self.p.commit("ledger symlinked out")
+        self.assert_refused(self.p.published(), "19-proposal-warmup.json", "outside the project")
+
+    def test_the_switch_off_refusal_wins_over_a_bad_url(self):
+        # Round-1 review finding F2: the documented refusal order (switch-off,
+        # then url, then declared plan_page, then staleness) had no test that
+        # presented two faults at once, so a silent reorder would go unnoticed.
+        d = second_sample()
+        d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00",
+                                     "quote": "do not publish this one"}}
+        self.p.set_ledger(d, "22-one-tracker.json")
+        self.p.board()
+        self.p.commit("publish off in one ledger")
+        r = subprocess.run([sys.executable, str(TRACKER), "published", "--project", str(self.p.root),
+                            "--url", "not-a-url"], capture_output=True, text=True, check=False)
+        self.assert_refused(r, "switched off")
+        self.assertNotIn("url", r.stderr)
+
+    def test_no_ledgers_wins_over_a_bad_url(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "plain"
+            (root / "docs" / "proposals").mkdir(parents=True)
+            r = subprocess.run([sys.executable, str(TRACKER), "published", "--project", str(root),
+                                "--url", "not-a-url"], capture_output=True, text=True, check=False)
+            self.assertEqual(2, r.returncode, r.stdout + r.stderr)
+            self.assertIn("no ledger", r.stderr)
+            self.assertNotIn("url", r.stderr)
+
+    def test_a_symlinked_sidecar_page_or_tracker_directory_is_refused(self):
+        outside = Path(self.p.tmp.name) / "outside.json"
+        outside.write_text("untouched\n")
+        self.p.sidecar.symlink_to(outside)
+        self.p.commit("sidecar symlinked out")
+        r = self.p.published()
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn("nothing recorded", r.stderr)
+        self.assertEqual("untouched\n", outside.read_text())
+        self.p.sidecar.unlink()
+        # a page that is a symlink is not a published page
+        page_target = self.p.proposals / "elsewhere.html"
+        page_target.write_text(self.p.page.read_text())
+        self.p.page.unlink()
+        self.p.page.symlink_to("../elsewhere.html")
+        self.p.commit("page symlinked")
+        self.assert_refused(self.p.published(), "symlink")
+
+    def test_a_tracker_directory_symlinked_outside_the_project_is_refused(self):
+        elsewhere = Path(self.p.tmp.name) / "elsewhere"
+        elsewhere.mkdir()
+        tracker = self.p.proposals / "tracker"
+        for child in tracker.iterdir():
+            child.unlink()
+        tracker.rmdir()
+        tracker.symlink_to(elsewhere, target_is_directory=True)
+        self.p.commit("tracker dir symlinked out")
+        r = self.p.published()
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn("nothing recorded", r.stderr)
+        self.assertEqual([], list(elsewhere.iterdir()))
+
+    def test_a_project_outside_any_git_repository_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "plain"
+            (root / "docs" / "proposals").mkdir(parents=True)
+            (root / "docs" / "proposals" / "19-proposal-warmup.json").write_text(json.dumps(sample(), indent=2))
+            subprocess.run([sys.executable, str(TRACKER), "board", "--project", str(root)],
+                           capture_output=True, check=True)
+            r = subprocess.run([sys.executable, str(TRACKER), "published", "--project", str(root), "--url", URL],
+                               capture_output=True, text=True, check=False)
+            self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+            self.assertIn("not inside a git repository", r.stderr)
+            self.assertEqual([], list(root.rglob("*.published.json")))
+
+    def test_a_project_without_ledgers_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "plain"
+            (root / "docs" / "proposals").mkdir(parents=True)
+            r = subprocess.run([sys.executable, str(TRACKER), "published", "--project", str(root), "--url", URL],
+                               capture_output=True, text=True, check=False)
+            self.assertEqual(2, r.returncode, r.stdout + r.stderr)
+            self.assertIn("no ledger", r.stderr)
+
+    def test_project_with_a_ledger_argument_or_with_page_is_a_usage_error(self):
+        for extra in (["--page", INDEX], ["--page-unchanged"]):
+            with self.subTest(extra=extra[0]):
+                r = subprocess.run([sys.executable, str(TRACKER), "published", "--project", str(self.p.root),
+                                    "--url", URL, *extra], capture_output=True, text=True, check=False)
+                self.assertEqual(2, r.returncode, r.stdout + r.stderr)
+                self.assertFalse(self.p.sidecar.exists())
+        r = subprocess.run([sys.executable, str(TRACKER), "published", str(self.p.ledger()),
+                            "--project", str(self.p.root), "--url", URL],
+                           capture_output=True, text=True, check=False)
+        self.assertEqual(2, r.returncode, r.stdout + r.stderr)
+        self.assertFalse(self.p.sidecar.exists())
+
+    def test_neither_a_ledger_nor_project_is_a_usage_error(self):
+        r = subprocess.run([sys.executable, str(TRACKER), "published", "--url", URL],
+                           capture_output=True, text=True, check=False, cwd=self.p.root)
+        self.assertEqual(2, r.returncode, r.stdout + r.stderr)
+
+    def test_project_defaults_to_the_current_directory(self):
+        r = subprocess.run([sys.executable, str(TRACKER), "published", "--project", "--url", URL],
+                           capture_output=True, text=True, check=False, cwd=self.p.root)
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        self.assertTrue(self.p.sidecar.is_file())
+
+
+class TestPublishedProjectWithADeclaredPlanPage(unittest.TestCase):
+    """Proposal 22, T-03, D5: a project that declares plan_page keeps
+    publishing that page as its tracker (proposal 20, V-11, unchanged). The
+    project page is still rendered and checked beside it, never published in
+    its place."""
+
+    def setUp(self):
+        self.p = ProjectPages(declaration={"plan_page": "python3 tools/build_plan.py"})
+
+    def tearDown(self):
+        self.p.close()
+
+    def test_the_project_flow_is_refused_and_names_the_declared_page(self):
+        r = self.p.published()
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn("plan_page", r.stderr)
+        self.assertIn("--page", r.stderr)
+        self.assertIn("nothing recorded", r.stderr)
+        self.assertFalse(self.p.sidecar.exists())
+
+    def test_plan_page_refusal_wins_over_a_stale_project_page(self):
+        # Round-1 review finding F2: the plan_page carve-out runs before the
+        # project page's own freshness check, so a stale index.html should
+        # never surface -- pinned so a reorder would fail loudly.
+        d = second_sample(); d["items"][0]["status"] = "in progress"
+        self.p.set_ledger(d, "22-one-tracker.json")
+        self.p.commit("ledger moved, project page not rendered")
+        r = self.p.published()
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn("plan_page", r.stderr)
+        self.assertNotIn("stale", r.stderr)
+
+    def test_a_broken_declaration_is_refused_with_its_problems_named(self):
+        (self.p.root / ".common-rules.json").write_text("{not json")
+        self.p.commit("broken declaration")
+        r = self.p.published()
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn(".common-rules.json", r.stderr)
+        self.assertFalse(self.p.sidecar.exists())
+
+
+class TestPerLedgerFlowNarrows(ProjectCase):
+    """Proposal 22, T-03, MUST 2: `tracker published LEDGER --url` without
+    --page is for a ledger that records its own tracker. Any other ledger is
+    refused, naming the command that publishes the project's one page."""
+
+    def published_ledger(self, name="19-proposal-warmup.json", *args):
+        return subprocess.run([sys.executable, str(TRACKER), "published", str(self.p.ledger(name)),
+                               "--url", URL, *args], capture_output=True, text=True, check=False, cwd=self.p.root)
+
+    def sidecar_for(self, name):
+        return self.p.proposals / "tracker" / f"{Path(name).stem}.published.json"
+
+    def test_a_ledger_without_its_own_tracker_is_refused_and_names_project(self):
+        r = self.published_ledger()
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn("tracker published --project", r.stderr)
+        self.assertIn("nothing recorded", r.stderr)
+        self.assertFalse(self.sidecar_for("19-proposal-warmup.json").exists())
+
+    def test_a_ledger_that_records_its_own_tracker_still_records(self):
+        self.p.set_ledger(own_sample())
+        self.p.board()
+        subprocess.run([sys.executable, str(TRACKER), "render", str(self.p.ledger())],
+                       capture_output=True, check=True)
+        self.p.commit("own tracker, page rendered")
+        r = self.published_ledger()
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        record = json.loads(self.sidecar_for("19-proposal-warmup.json").read_text())
+        self.assertEqual({"url", "digest", "at", "by", "ledger_digest"}, set(record))
+
+    def test_the_switched_off_refusal_still_comes_first(self):
+        d = sample()
+        d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00",
+                                     "quote": "do not publish this one"}}
+        self.p.set_ledger(d)
+        self.p.board()
+        self.p.commit("publish off")
+        r = self.published_ledger()
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn("switched off", r.stderr)
+
+
+class TestTheDeclaredPageFlowIsUnchanged(unittest.TestCase):
+    """MUST 2: the plan_page flow (--page, V-11) is unchanged, byte for byte
+    in its records -- for a ledger that records no tracker of its own."""
+
+    def setUp(self):
+        self.p = AppProject()
+
+    def tearDown(self):
+        self.p.close()
+
+    def test_a_ledger_without_its_own_tracker_still_records_the_declared_page(self):
+        import hashlib
+        self.assertNotIn("tracker", json.loads(self.p.ledger.read_text()))
+        r = self.p.published("--page", APP_PAGE, "--by", "lead")
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        record = json.loads(self.p.sidecar.read_text())
+        self.assertEqual({"url", "digest", "at", "by", "page", "ledger_digest"}, set(record))
+        self.assertEqual(APP_PAGE, record["page"])
+        self.assertEqual(hashlib.sha256(self.p.page.read_bytes()).hexdigest(), record["digest"])
 
 
 if __name__ == "__main__":
