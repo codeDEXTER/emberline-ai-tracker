@@ -504,6 +504,12 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C4/lead model -> C1/haiku: run bin/conformance on the PhotoVault app and record it; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T12:46:37+02:00",
+          "event": "measured",
+          "by": "lead",
+          "evidence": "15 Sep (P29 K-04): conformance 6 of 12 on origin/main 32cd0b9; behind P22 T-02/T-03 and P23 L-01 to L-07. Stays with session:PhotoVault App to implement via /warmup."
         }
       ],
       "owner": "session:PhotoVault App"
@@ -531,6 +537,12 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C4/lead model -> C1/haiku: run bin/conformance on the PhotoVault engine and record it; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T12:46:37+02:00",
+          "event": "measured",
+          "by": "lead",
+          "evidence": "15 Sep (P29 K-04): conformance 7 of 12 on origin/main 32cd0b9 (was 12 of 12 at 4863eec before today's Standard changes); behind P22 T-02/T-03 and P23 L-01 to L-07. Stays with session:PhotoVault Engine."
         }
       ],
       "owner": "session:PhotoVault Engine"

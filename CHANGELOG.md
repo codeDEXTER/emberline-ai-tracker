@@ -1,5 +1,19 @@
 # Changelog — common-rules
 
+## 2026-09-15 · One tracker per project, written where sessions read it (P22 T-04)
+
+The sponsor, 15 September 2026: "Please maintain a single tracker for common
+rules. And also add that as a common rule to maintain a single tracker up until
+I have asked to create another tracker. Per project." Proposal 22's T-02 and T-03
+built it; this states it in `CLAUDE-workflow.md`, `skills/standard`,
+`skills/warmup` and `templates/lead-prompt.md`: one tracker per project,
+`docs/proposals/tracker/index.html` published at one stable URL, and another
+tracker only when the sponsor asks for one, recorded with the ledger's `tracker`
+key. `tests/test_one_tracker_rule.py` pins the wording in all four files.
+
+**Behaviour change:** no new one. The T-02/T-03 entry below already carries the
+Standard change line for what projects must do.
+
 ## 2026-09-15 · One tracker per project: the chain and publishing move onto it (P22 T-02, T-03)
 
 The sponsor, 15 September 2026: "Please maintain a single tracker for common

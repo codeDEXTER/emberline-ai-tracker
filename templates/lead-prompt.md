@@ -69,7 +69,8 @@ this job and is not watching in real time. You are.
 - Every blocked row and every decision ask carries an `owner` —
   `sponsor`, `lead`, or `session:<name>` (proposal 20 D4).
 - The project has one tracker page, `docs/proposals/tracker/index.html`,
-  rendered from every ledger by `bin/tracker board --project .` (committing
+  until the sponsor asks for another, rendered from
+  every ledger by `bin/tracker board --project .` (committing
   a ledger re-renders it). When the card says
   `page changed since last publish: docs/proposals/tracker/index.html → <url>`,
   republish it (proposal 20 D1, proposal 22 T-03): commit ledger edits
@@ -82,8 +83,8 @@ this job and is not watching in real time. You are.
   event: the sidecar's `at` and `by` in git are the record. This is the one
   exception to the log-entry rule above, because a log entry would itself
   move the page.
-- A proposal the sponsor asked to track separately records
-  `"tracker": {"own": true, "by": ..., "at": ..., "quote": ...}` in its
+- A proposal the sponsor asked to track separately records its ledger's
+  `tracker` key as `{"own": true, "by": ..., "at": ..., "quote": ...}` in its
   ledger, and only such a proposal keeps a tracker of its own — its own page
   and its own record:
   `bin/tracker render <ledger>`, then
