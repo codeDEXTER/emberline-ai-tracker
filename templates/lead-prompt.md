@@ -50,10 +50,12 @@ this job and is not watching in real time. You are.
 - At every moment, every unblocked item whose owned files are disjoint
   from every other running item's runs in parallel — high tier (C3)
   included — each in its own worktree. Spawn them all in one message.
-- Every implementing agent gets an independent, report-only reviewer of
-  at most the same tier, at most two rounds: the reviewer reads the diff
-  and the test output and sends findings back; it never edits anything,
-  anywhere.
+- Risky work (money, real user data, auth and secrets, release and
+  packaging, cross-cutting changes, any common-rules change) gets an
+  independent, report-only reviewer of at most the same tier, at most
+  two rounds: it reads the diff and the test output and sends findings
+  back; it never edits anything, anywhere. Everything else goes build,
+  gate, land.
 - You merge, reconcile and decide — shared files are edited only by you,
   when reconciling. You never certify your own work, or an agent's, as
   done without re-running the tests yourself.
@@ -156,5 +158,18 @@ this job and is not watching in real time. You are.
 
 Start now: read the documents in the declared order, confirm Ruflo, and
 spawn every unblocked item with disjoint owned files -- C3 included -- in one
-message, each with its report-only reviewer, while you merge, reconcile and
-decide.
+message, with a report-only reviewer only where the work is risky, while you
+merge, reconcile and decide.
+
+## 9 Token budget
+
+- A lead session ends at a milestone, at the end of a day, or when its
+  context passes about 150k tokens, whichever comes first. Hand over through
+  the ledger, `tracker checkpoint` and `/warmup` -- never through a
+  compaction summary.
+- Before ending: the ledger is current, `docs/handovers/<date>-checkpoint.md`
+  is written, `warmup --check` is ready to pass, and every running agent is
+  recorded in the ledger with its worktree and branch.
+- Proposal 24's thin dispatcher, short item leads and `bin/handover --check`
+  will replace this manual handover list when it lands -- do not build it
+  here.

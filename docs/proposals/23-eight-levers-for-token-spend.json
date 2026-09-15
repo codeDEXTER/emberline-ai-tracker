@@ -50,19 +50,44 @@
       "cx": "C4",
       "title": "Fresh lead per milestone or day",
       "what": "A lead session ends at a milestone or at the end of a day and the next one starts from /warmup and the checkpoint. The lead's context stays under about 150k tokens. The safeguards that keep this from dropping anything, and keep work continuing without the sponsor, are proposal 24 (X-03).",
-      "files": [],
-      "tests": [],
+      "files": [
+        "CLAUDE-workflow.md",
+        "templates/lead-prompt.md",
+        "docs/workflow.html"
+      ],
+      "tests": [
+        "tests/test_levers_in_templates.py"
+      ],
       "done": "The rule is in CLAUDE-workflow.md with a Standard change line; a rerun of the transcript measurement on one project shows lead spend above 500k context below 10%.",
       "depends": [
         "X-03"
       ],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "lead",
       "model": "lead model",
       "tag": "[ruflo · lead · lead model]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-levers-rules from origin/main ba01418; ruflo-item start L-01 recorded (namespace patterns). Integration branch p23-levers."
+        },
+        {
+          "at": "2026-09-15T08:33:51+02:00",
+          "event": "reported",
+          "by": "lead",
+          "evidence": "origin/l-levers-rules = 6eab815 (from git), based on ba01418: CLAUDE-workflow.md +17, brief.md +10, lead-prompt.md +13 (section 9 appended), scout-brief.md new, test_levers_in_templates.py (17 failures and 3 errors before the edits). Trial merge with origin/p22: no conflict in these files."
+        },
+        {
+          "at": "2026-09-15T08:33:51+02:00",
+          "event": "merged into integration",
+          "by": "lead",
+          "evidence": "Merged into p23-levers as bd0d4eb."
+        }
+      ]
     },
     {
       "id": "L-02",
@@ -70,19 +95,44 @@
       "cx": "C4",
       "title": "Review only risky work",
       "what": "A separate reviewer runs only for money, data safety, cross-cutting changes and release merges. Everything else goes build, gate, land. Replaces the report-only-reviewer-on-every-item step in HANDOFF 'What good looks like'. Which items count as risky is set by the risk class from proposal 25 (X-01).",
-      "files": [],
-      "tests": [],
+      "files": [
+        "CLAUDE-workflow.md",
+        "templates/lead-prompt.md",
+        "docs/workflow.html"
+      ],
+      "tests": [
+        "tests/test_levers_in_templates.py"
+      ],
       "done": "Rule and brief template changed with a Standard change line; review and fix agents fall below 10% of subagent spend on a rerun, with no rise in defects found after merge.",
       "depends": [
         "X-01"
       ],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "lead",
       "model": "lead model",
       "tag": "[ruflo · lead · lead model]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-levers-rules from origin/main ba01418; ruflo-item start L-02 recorded (namespace patterns). Integration branch p23-levers."
+        },
+        {
+          "at": "2026-09-15T08:33:51+02:00",
+          "event": "reported",
+          "by": "lead",
+          "evidence": "origin/l-levers-rules = 6eab815 (from git), based on ba01418: CLAUDE-workflow.md +17, brief.md +10, lead-prompt.md +13 (section 9 appended), scout-brief.md new, test_levers_in_templates.py (17 failures and 3 errors before the edits). Trial merge with origin/p22: no conflict in these files."
+        },
+        {
+          "at": "2026-09-15T08:33:51+02:00",
+          "event": "merged into integration",
+          "by": "lead",
+          "evidence": "Merged into p23-levers as bd0d4eb. Lead fix: CLAUDE-workflow.md 'four things' gate line and roles table, and lead-prompt.md section 3 and closing line, still required a reviewer on every item; reworded to risky work only."
+        }
+      ]
     },
     {
       "id": "L-03",
@@ -90,17 +140,40 @@
       "cx": "C2",
       "title": "Quiet builds: log to file, read the summary line",
       "what": "Test, analyzer and build output goes to a file. Agents read only the summary line (^OK and no ^FAILED, analyzer counts). The brief template says so and a helper prints the verdict in one line. Mining found 138 raw flutter test runs bypassing tools/gate.sh (~124k tokens) and 23 raw unittest runs; the helper and rule cover both.",
-      "files": [],
-      "tests": [],
+      "files": [
+        "bin/quiet"
+      ],
+      "tests": [
+        "tests/test_quiet.py"
+      ],
       "done": "Helper in bin/ with tests, including a red run that proves a FAILED line is caught; brief template updated.",
       "depends": [],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-03-quiet from origin/main ba01418; ruflo-item start L-03 recorded (namespace patterns). Integration branch p23-levers."
+        },
+        {
+          "at": "2026-09-15T08:25:56+02:00",
+          "event": "reported",
+          "by": "lead",
+          "evidence": "origin/l-03-quiet = 2b0bfc3 (from git), based on ba01418: bin/quiet +201, tests/test_quiet.py +187. Agent's red-first: 16 tests errored before bin/quiet existed; suite 1078 tests OK."
+        },
+        {
+          "at": "2026-09-15T08:25:56+02:00",
+          "event": "merged into integration",
+          "by": "lead",
+          "evidence": "Merged into p23-levers as 944877d; full suite on the merged branch gates the push."
+        }
+      ]
     },
     {
       "id": "L-04",
@@ -108,17 +181,43 @@
       "cx": "C2",
       "title": "One-line tracker commands for ledger updates",
       "what": "bin/tracker gains a command that sets an item's status and appends a log entry, then validates, renders and prints one line. Leads stop writing inline python against ledger JSON. Independent transcript mining (2026-09-15) found 341 inline load-ledger/set/dump scripts (~386k tokens) plus 369 more generic JSON load/dump scripts across the three sessions: this command is the largest repeat to remove.",
-      "files": [],
-      "tests": [],
+      "files": [
+        "tools/tracker/set.py",
+        "tools/tracker/ask.py",
+        "bin/tracker"
+      ],
+      "tests": [
+        "tests/test_tracker_set.py",
+        "tests/test_tracker_ask.py"
+      ],
       "done": "Command with tests (red first); OPERATING-RULES names it; one lead session uses it for a full item.",
       "depends": [],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-04-tracker-set from origin/main ba01418; ruflo-item start L-04 recorded (namespace patterns). Integration branch p23-levers."
+        },
+        {
+          "at": "2026-09-15T08:33:51+02:00",
+          "event": "reported",
+          "by": "lead",
+          "evidence": "origin/l-04-tracker-set = 58ad5da (from git), based on ba01418: set.py +147, ask.py +125, bin/tracker +7/-1, 17 tests. Agent's red-first: all 17 failed with the modules moved aside. Read-only trial merge with origin/p22 conflicts in bin/tracker (COMMANDS tuple and docstring); the parallel session was told."
+        },
+        {
+          "at": "2026-09-15T08:33:51+02:00",
+          "event": "merged into integration",
+          "by": "lead",
+          "evidence": "Merged into p23-levers as 09e112f."
+        }
+      ]
     },
     {
       "id": "L-05",
@@ -126,19 +225,44 @@
       "cx": "C2",
       "title": "Bundle small issues by surface",
       "what": "Small issues on the same screen or module go to one agent in one worktree: one commit per issue, one gate run, one PR closing all of them. Parallel agents only for areas that do not touch. The bundle is picked from the catalogue (X-02).",
-      "files": [],
-      "tests": [],
+      "files": [
+        "CLAUDE-workflow.md",
+        "templates/brief.md",
+        "docs/workflow.html"
+      ],
+      "tests": [
+        "tests/test_levers_in_templates.py"
+      ],
       "done": "Brief template has a bundle form; CLAUDE-workflow.md Issues section updated with a Standard change line.",
       "depends": [
         "X-02"
       ],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-levers-rules from origin/main ba01418; ruflo-item start L-05 recorded (namespace patterns). Integration branch p23-levers."
+        },
+        {
+          "at": "2026-09-15T08:33:51+02:00",
+          "event": "reported",
+          "by": "lead",
+          "evidence": "origin/l-levers-rules = 6eab815 (from git), based on ba01418: CLAUDE-workflow.md +17, brief.md +10, lead-prompt.md +13 (section 9 appended), scout-brief.md new, test_levers_in_templates.py (17 failures and 3 errors before the edits). Trial merge with origin/p22: no conflict in these files."
+        },
+        {
+          "at": "2026-09-15T08:33:51+02:00",
+          "event": "merged into integration",
+          "by": "lead",
+          "evidence": "Merged into p23-levers as bd0d4eb."
+        }
+      ]
     },
     {
       "id": "L-06",
@@ -146,17 +270,42 @@
       "cx": "C2",
       "title": "Haiku scout writes the context pack",
       "what": "Before a builder starts, a Haiku scout maps the files, line ranges and recall hits the item needs and writes them into the brief's CONTEXT section. The builder starts with its reading done.",
-      "files": [],
-      "tests": [],
+      "files": [
+        "templates/scout-brief.md",
+        "templates/brief.md",
+        "docs/workflow.html"
+      ],
+      "tests": [
+        "tests/test_levers_in_templates.py"
+      ],
       "done": "A scout brief template and the CONTEXT pack format exist; one item run with a scout shows builder read and inspect spend lower than a comparable item without.",
       "depends": [],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-levers-rules from origin/main ba01418; ruflo-item start L-06 recorded (namespace patterns). Integration branch p23-levers."
+        },
+        {
+          "at": "2026-09-15T08:33:51+02:00",
+          "event": "reported",
+          "by": "lead",
+          "evidence": "origin/l-levers-rules = 6eab815 (from git), based on ba01418: CLAUDE-workflow.md +17, brief.md +10, lead-prompt.md +13 (section 9 appended), scout-brief.md new, test_levers_in_templates.py (17 failures and 3 errors before the edits). Trial merge with origin/p22: no conflict in these files."
+        },
+        {
+          "at": "2026-09-15T08:33:51+02:00",
+          "event": "merged into integration",
+          "by": "lead",
+          "evidence": "Merged into p23-levers as bd0d4eb."
+        }
+      ]
     },
     {
       "id": "X-01",
@@ -247,17 +396,41 @@
       "cx": "C2",
       "title": "Use the existing tool, not an inline copy",
       "what": "Transcript mining found agents re-doing what tools already do: sed -n and cat instead of the Read tool (295 uses, ~150k tokens), hand-appended HANDOFF and AGENT-LOG entries instead of spend and remember (158, ~85k), raw flutter test instead of gate.sh (138, ~124k). The brief template and OPERATING-RULES name the tool for each.",
-      "files": [],
-      "tests": [],
+      "files": [
+        "templates/brief.md",
+        "docs/workflow.html"
+      ],
+      "tests": [
+        "tests/test_levers_in_templates.py"
+      ],
       "done": "Brief template MUST lines added with a Standard change line; a rerun of the mining script shows each cluster down by half.",
       "depends": [],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-levers-rules from origin/main ba01418; ruflo-item start L-07 recorded (namespace patterns). Integration branch p23-levers."
+        },
+        {
+          "at": "2026-09-15T08:33:51+02:00",
+          "event": "reported",
+          "by": "lead",
+          "evidence": "origin/l-levers-rules = 6eab815 (from git), based on ba01418: CLAUDE-workflow.md +17, brief.md +10, lead-prompt.md +13 (section 9 appended), scout-brief.md new, test_levers_in_templates.py (17 failures and 3 errors before the edits). Trial merge with origin/p22: no conflict in these files."
+        },
+        {
+          "at": "2026-09-15T08:33:51+02:00",
+          "event": "merged into integration",
+          "by": "lead",
+          "evidence": "Merged into p23-levers as bd0d4eb."
+        }
+      ]
     }
   ],
   "asks": [
@@ -394,12 +567,23 @@
       "quote": "Documented open decisions",
       "source": "Common Rules rework session transcript 3cff917f…jsonl, queued message at 2026-09-14T22:13:25.273Z",
       "note": "He had answered all ten questions on the Autonomy & Sizing Decisions page; recorded in proposals 24 and 25."
+    },
+    {
+      "id": "A-14",
+      "kind": "feature",
+      "state": "became-item",
+      "became": "L-01",
+      "at": "2026-09-15T08:14:30+02:00",
+      "by": "sponsor",
+      "quote": "Implement the eight levers of uh, token spending. to optimize token utilization. In the standards, and then give me the command to update the standards.",
+      "source": "Common Rules rework session transcript",
+      "note": "Covers L-01 to L-07; bundles: rules and templates (L-01, L-02, L-05, L-06, L-07), bin/quiet (L-03), tracker set and ask (L-04)."
     }
   ],
   "proposed_changes": [],
   "execution": {
     "started": "2026-09-15T00:20:00+02:00",
-    "integration_branch": "p23-eight-levers",
+    "integration_branch": "p23-levers",
     "ruflo_route": "CLI, cached ruflo at ~/.npm/_npx/85fb20e3e7e3a233"
   }
 }
