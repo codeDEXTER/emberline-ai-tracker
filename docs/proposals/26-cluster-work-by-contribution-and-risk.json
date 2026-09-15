@@ -126,12 +126,20 @@
       "depends": [
         "C-02"
       ],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
-      "issue": null
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T17:18:34+02:00",
+          "event": "done",
+          "by": "session:bundle-i",
+          "evidence": "tools/tracker/ledger.py findings array + _validate_findings; tools/tracker/findings.py (catalogue/decide/defer/decline, shared queue()/lanes() reusing lanes.py's lanes() unchanged, light_eligible() for proposal 23 M-05, triage()/triage_log_lines()); bin/tracker findings dispatch; tests/test_tracker_findings.py (30 tests: validation, lifecycle, shared lane sort incl. 80% cut across items+findings, light path, triage grouping+duplicate exclusion, CLI round trip); full suite 1353 tests OK (skipped=1); branch worktree-agent-a5bc11a707fd64d66"
+        }
+      ]
     },
     {
       "id": "C-03",
