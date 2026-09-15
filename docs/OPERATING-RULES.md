@@ -23,6 +23,14 @@ Every entry has this shape:
 - **A new proposal is created with `bin/new-proposal`.** 2026-09-14 — proposal
   21 had a ledger and no page until `--page-for` wrote one. The PhotoVault
   projects' hand-written pages 72–77 had none of the checked shape.
+- **The ledger has one writer.** A builder or item lead never runs
+  `tracker set` or `tracker ask`, and never hand-edits ledger JSON — it
+  records its change with `tracker stage` instead. The dispatcher, or
+  whichever session is doing the merging, applies every staged file with
+  `tracker apply-staged LEDGER` once per ledger when it merges that branch
+  in, then commits and republishes (proposal 23, M-04). This is the
+  canonical statement of the rule; `templates/lead-prompt.md` and
+  `templates/brief.md` point here rather than restating it.
 
 ## 2 Running work
 
@@ -72,9 +80,10 @@ Every entry has this shape:
 
 ## 5 Ruflo
 
-- **Ruflo around every item:** `bin/ruflo-item start | done | note | recall`,
-  with `RUFLO` and `RUFLO_NAMESPACE=patterns`, run with
-  `--project /Users/aashish/apps/common-rules`.
+- **Ruflo is mandatory** — the rule and its four steps are stated once, in
+  `skills/warmup/SKILL.md` §3; this file does not restate them. Run
+  `bin/ruflo-item start | done | note | recall` with `RUFLO` and
+  `RUFLO_NAMESPACE=patterns`, `--project /Users/aashish/apps/common-rules`.
 - **Ruflo's memory database lives in the main checkout only.** 2026-09-14 — an
   agent's `memory search` from its worktree reported "Database not found".
   `.swarm/` is untracked and exists only in `/Users/aashish/apps/common-rules`.

@@ -143,8 +143,8 @@ ask), never from the summary.
 While working, keep to one status line in the lead prompt's form:
 `N done / N in progress / N blocked / N not started · what changed · waiting on · yours:`
 
-Every sponsor message that is not an answer to a question becomes an `A-nn`
-ask row in the ledger, in the same turn.
+Every sponsor message that is not an answer to a question becomes an ask
+row (`docs/OPERATING-RULES.md` §1), in the same turn.
 
 ## Moving a running project onto the standard
 

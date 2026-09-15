@@ -321,12 +321,9 @@ Ask only when:
 
 **When there is nothing to decide, show no buttons.** Do the work and report it.
 
-Reserved to the user, always:
-- anything under `common-rules/` — surface and ask, never edit unprompted
-- merging a change to these rules — open the PR, the user merges
-- creating, picking and closing features
-- clearing orphaned processes or archiving sessions
-- `finance_data/`, `auth.json`, `.env` — never leave the machine in the clear
+**Reserved to the user, always** — the full list is canonical in
+`HANDOFF.md`'s "Reserved to the sponsor, always" section; state it verbatim
+whenever it applies.
 
 ---
 

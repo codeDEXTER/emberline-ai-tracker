@@ -29,17 +29,15 @@ this job and is not watching in real time. You are.
 
 ## 2 Ruflo is mandatory
 
+- The rule and its four steps are stated once, in `skills/warmup/SKILL.md`
+  §3 — this file does not restate them.
 - Before your first item, confirm the Ruflo tools are available. If they
   are not, stop, write down the exact evidence, and tell the sponsor — do
   not implement anything without it.
 - Every item runs `bin/ruflo-item start | done | note | recall` around it
-  (proposal 20 D11), logged in the ledger's `log` array for that item.
-  Where `bin/ruflo-item` is not installed yet, do the same four steps by
-  hand: `memory search` and `hooks route` before starting; spawn the
-  agent named `[ruflo · <tier> · <model>] <ID> <title>` in its own
-  worktree, owning only the files the ledger lists; `hooks post-task` and
-  `memory store` after it reports; stop the daemon you started — never
-  kill it by name.
+  (proposal 20 D11), logged in the ledger's `log` array for that item, the
+  agent spawned as `[ruflo · <tier> · <model>] <ID> <title>` in its own
+  worktree, owning only the files the ledger lists.
 - The model comes from the ledger's one routing table (proposal 20 D2) —
   `tiers`, or `model_routing` where the project keeps that name — never
   from a table restated here. A row that departs from it carries
@@ -111,7 +109,7 @@ this job and is not watching in real time. You are.
   `plan_page`, the page is the committed file its generator writes: record
   it with `bin/tracker published <ledger> --url <url> --page <path>`.
 - Every sponsor message that is not an answer to a question becomes an
-  `A-nn` ask row, in the same turn it is said.
+  ask row (`docs/OPERATING-RULES.md` §1), in the same turn it is said.
 
 ## 5 Do not stop
 
@@ -144,9 +142,8 @@ this job and is not watching in real time. You are.
 - **One status line, repeated, in this exact shape:**
   `N done / N in progress / N blocked / N not started · what just changed · what it is waiting for · what the sponsor owes it`.
   Never a paragraph.
-- **Checkpoint before stopping.** Write
-  `docs/handovers/<date>-checkpoint.md` before you stop for any reason. A
-  session that ends without one has failed.
+- **Checkpoint before stopping** (`docs/OPERATING-RULES.md` §2). Write
+  `docs/handovers/<date>-checkpoint.md` before you stop for any reason.
 
 ## 8 Proposals, requests and owners
 
@@ -203,13 +200,11 @@ merge, reconcile and decide.
 - It never edits a file an item lead owns. Reconciling shared files is the
   same lead role §3 already gives to whichever session is doing the
   merging, not the dispatcher.
-- It is the ledger's only writer. An item lead or builder never runs
-  `tracker set`/`tracker ask` and never hand-edits ledger JSON -- it stages
-  its change with `tracker stage`. After merging a branch in, the
-  dispatcher (or whichever session is doing the merging) runs
-  `tracker apply-staged LEDGER` once per ledger to land every staged
-  change, one at a time, then commits and republishes as `/warmup`'s card
-  directs (proposal 23, M-04).
+- It is the ledger's only writer (`docs/OPERATING-RULES.md` §1: the ledger
+  has one writer). After merging a branch in, the dispatcher (or whichever
+  session is doing the merging) runs `tracker apply-staged LEDGER` once per
+  ledger to land every staged change, one at a time, then commits and
+  republishes as `/warmup`'s card directs (proposal 23, M-04).
 
 ## Item-lead form
 

@@ -49,6 +49,19 @@ stopped by its explicit PID, and only if this session started it.
 
 ---
 
+## Reserved to the sponsor, always
+
+This is the canonical, full list — `CLAUDE-workflow.md`'s Autopilot section
+points here rather than restating it.
+
+- Anything under `common-rules/` — surface and ask, never edit unprompted.
+- Merging a change to these rules — open the PR, the sponsor merges.
+- Creating, picking and closing features.
+- Clearing orphaned processes or archiving sessions.
+- `finance_data/`, `auth.json`, `.env` — never leave the machine in the clear.
+
+---
+
 ## Standing rulings
 
 - **The standard is mandatory for every project.** VERIFIED, his words
