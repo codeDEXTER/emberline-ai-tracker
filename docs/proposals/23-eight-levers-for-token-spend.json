@@ -56,13 +56,20 @@
       "depends": [
         "X-03"
       ],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "lead",
       "model": "lead model",
       "tag": "[ruflo · lead · lead model]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-levers-rules from origin/main ba01418; ruflo-item start L-01 recorded (namespace patterns). Integration branch p23-levers."
+        }
+      ]
     },
     {
       "id": "L-02",
@@ -76,13 +83,20 @@
       "depends": [
         "X-01"
       ],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "lead",
       "model": "lead model",
       "tag": "[ruflo · lead · lead model]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-levers-rules from origin/main ba01418; ruflo-item start L-02 recorded (namespace patterns). Integration branch p23-levers."
+        }
+      ]
     },
     {
       "id": "L-03",
@@ -94,13 +108,20 @@
       "tests": [],
       "done": "Helper in bin/ with tests, including a red run that proves a FAILED line is caught; brief template updated.",
       "depends": [],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-03-quiet from origin/main ba01418; ruflo-item start L-03 recorded (namespace patterns). Integration branch p23-levers."
+        }
+      ]
     },
     {
       "id": "L-04",
@@ -112,13 +133,20 @@
       "tests": [],
       "done": "Command with tests (red first); OPERATING-RULES names it; one lead session uses it for a full item.",
       "depends": [],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-04-tracker-set from origin/main ba01418; ruflo-item start L-04 recorded (namespace patterns). Integration branch p23-levers."
+        }
+      ]
     },
     {
       "id": "L-05",
@@ -132,13 +160,20 @@
       "depends": [
         "X-02"
       ],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-levers-rules from origin/main ba01418; ruflo-item start L-05 recorded (namespace patterns). Integration branch p23-levers."
+        }
+      ]
     },
     {
       "id": "L-06",
@@ -150,13 +185,20 @@
       "tests": [],
       "done": "A scout brief template and the CONTEXT pack format exist; one item run with a scout shows builder read and inspect spend lower than a comparable item without.",
       "depends": [],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-levers-rules from origin/main ba01418; ruflo-item start L-06 recorded (namespace patterns). Integration branch p23-levers."
+        }
+      ]
     },
     {
       "id": "X-01",
@@ -251,13 +293,20 @@
       "tests": [],
       "done": "Brief template MUST lines added with a Standard change line; a rerun of the mining script shows each cluster down by half.",
       "depends": [],
-      "status": "not started",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T08:14:30+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-levers-rules from origin/main ba01418; ruflo-item start L-07 recorded (namespace patterns). Integration branch p23-levers."
+        }
+      ]
     }
   ],
   "asks": [
@@ -394,12 +443,23 @@
       "quote": "Documented open decisions",
       "source": "Common Rules rework session transcript 3cff917f…jsonl, queued message at 2026-09-14T22:13:25.273Z",
       "note": "He had answered all ten questions on the Autonomy & Sizing Decisions page; recorded in proposals 24 and 25."
+    },
+    {
+      "id": "A-14",
+      "kind": "feature",
+      "state": "became-item",
+      "became": "L-01",
+      "at": "2026-09-15T08:14:30+02:00",
+      "by": "sponsor",
+      "quote": "Implement the eight levers of uh, token spending. to optimize token utilization. In the standards, and then give me the command to update the standards.",
+      "source": "Common Rules rework session transcript",
+      "note": "Covers L-01 to L-07; bundles: rules and templates (L-01, L-02, L-05, L-06, L-07), bin/quiet (L-03), tracker set and ask (L-04)."
     }
   ],
   "proposed_changes": [],
   "execution": {
     "started": "2026-09-15T00:20:00+02:00",
-    "integration_branch": "p23-eight-levers",
+    "integration_branch": "p23-levers",
     "ruflo_route": "CLI, cached ruflo at ~/.npm/_npx/85fb20e3e7e3a233"
   }
 }

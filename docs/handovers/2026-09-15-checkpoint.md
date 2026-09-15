@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 00:35
+# Checkpoint — 2026-09-15 08:22
 
-Reason: manual · branch: p23-eight-levers · HEAD: c790596
+Reason: manual · branch: p23-levers · HEAD: ba01418
 
-<!-- ledger-digest: 0a8d42c0fc128b5747e19001e27945ccaa092b2c11f5bd99b0c44f6af486a1b3 -->
+<!-- ledger-digest: a8ec5a147c12b4d31e02bfe653c4c9491c07d760ba4ec7b4772f5c6b6b59291b -->
 
 ## Proposal 19 · Warm-up
 
@@ -67,11 +67,17 @@ Reason: manual · branch: p23-eight-levers · HEAD: c790596
 
 ## Proposal 23 · Eight levers for token spend
 
-3 done / 0 in progress / 0 blocked / 7 not started
+3 done / 7 in progress / 0 blocked / 0 not started
 
 ### In progress
 
-- none
+- L-01 · [ruflo · lead · lead model] · Fresh lead per milestone or day · started
+- L-02 · [ruflo · lead · lead model] · Review only risky work · started
+- L-03 · [ruflo · medium · sonnet] · Quiet builds: log to file, read the summary line · started
+- L-04 · [ruflo · medium · sonnet] · One-line tracker commands for ledger updates · started
+- L-05 · [ruflo · medium · sonnet] · Bundle small issues by surface · started
+- L-06 · [ruflo · medium · sonnet] · Haiku scout writes the context pack · started
+- L-07 · [ruflo · medium · sonnet] · Use the existing tool, not an inline copy · started
 
 ### Blocked, and why
 
@@ -83,13 +89,7 @@ Reason: manual · branch: p23-eight-levers · HEAD: c790596
 
 ### Next unblocked
 
-- L-01 · [ruflo · lead · lead model] · Fresh lead per milestone or day
-- L-02 · [ruflo · lead · lead model] · Review only risky work
-- L-03 · [ruflo · medium · sonnet] · Quiet builds: log to file, read the summary line
-- L-04 · [ruflo · medium · sonnet] · One-line tracker commands for ledger updates
-- L-05 · [ruflo · medium · sonnet] · Bundle small issues by surface
-- L-06 · [ruflo · medium · sonnet] · Haiku scout writes the context pack
-- L-07 · [ruflo · medium · sonnet] · Use the existing tool, not an inline copy
+- none
 
 ## Proposal 24 · Autonomous work without missing anything
 
