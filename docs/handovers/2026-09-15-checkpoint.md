@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 09:59
+# Checkpoint — 2026-09-15 12:04
 
-Reason: manual · branch: p26-cluster-by-risk · HEAD: 4f1de4c
+Reason: manual · branch: p28-warmup-reheat · HEAD: 560e1bd
 
-<!-- ledger-digest: 0aff387a00b90cda7fca7eac3a301443a84610be78ad7c90a7b122be0619ad58 -->
+<!-- ledger-digest: e4cda692fa85a9128f4c4404dcdb67a726e5ed874e177112ff8666e32891690f -->
 
 ## Proposal 19 · Warm-up
 
@@ -145,6 +145,27 @@ Reason: manual · branch: p26-cluster-by-risk · HEAD: 4f1de4c
 ### Next unblocked
 
 - W-01 · [ruflo · medium · sonnet] · Fix bin/spend: subagents, once per response, all token kinds
+
+## Proposal 28 · Two commands: warmup and reheat
+
+0 done / 0 in progress / 0 blocked / 5 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- R-01 · [ruflo · medium · sonnet] · bin/warmup runs the standard every time, in both modes
+- R-05 · [ruflo · medium · sonnet] · Fast-forward the shared common-rules checkout when behind
 
 ## Exact next action
 
