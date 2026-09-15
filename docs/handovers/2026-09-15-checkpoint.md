@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 14:20
+# Checkpoint — 2026-09-15 16:05
 
-Reason: manual · branch: backlog · HEAD: af3dbc8
+Reason: manual · branch: backlog · HEAD: c13de9a
 
-<!-- ledger-digest: 16e205542e244a1076301b678ba356523d8a5754b66543c54e3e82de1edc6295 -->
+<!-- ledger-digest: 7aef1545801abf0d21d912bdbe09d42852db469d8d6454af7fe3035a1ca9a1ce -->
 
 ## Proposal 19 · Warm-up
 
@@ -65,9 +65,39 @@ Reason: manual · branch: backlog · HEAD: af3dbc8
 
 - T-05 · [ruflo · low · haiku] · PhotoVault app and engine move to one tracker
 
+## Proposal 23 · Eight levers for token spend
+
+10 done / 0 in progress / 0 blocked / 11 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- A-16 · "I would like to know how much a review is efficient. Uh, does it find any bugs?"
+- A-17 · "also do a review of everything we are implementing on the rules are there any conflicts between the rules at the end of the day these rules need to be very concise and small so they can be easily consumed by the leads"
+
+### Next unblocked
+
+- M-01 · [ruflo · medium · sonnet] · Parallel test suite
+- M-02 · [ruflo · medium · sonnet] · Builders run only affected tests; one full suite at merge
+- M-03 · [ruflo · medium · sonnet] · Trim Ruflo's tool loading
+- M-04 · [ruflo · medium · sonnet] · One writer for ledger and tracker files
+- M-05 · [ruflo · medium · sonnet] · A light path for tiny items
+- M-06 · [ruflo · low · haiku] · Say where lead-prompt §4 stands on hand-editing ledgers
+- M-07 · [ruflo · low · haiku] · CLAUDE-workflow.md names the quick/merge two-gate exception
+- M-08 · [ruflo · medium · sonnet] · Six-category review list in CLAUDE-workflow.md gets replaced, not duplicated, when P26 routing lands
+- M-09 · [ruflo · medium · sonnet] · Dedupe five rules stated in more than one file
+- M-10 · [ruflo · medium · sonnet] · Move dated rationale out of CLAUDE-workflow.md into CHANGELOG
+
 ## Proposal 24 · Autonomous work without missing anything
 
-0 done / 3 in progress / 0 blocked / 0 not started
+0 done / 3 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -112,7 +142,7 @@ Reason: manual · branch: backlog · HEAD: af3dbc8
 
 ## Proposal 26 · Cluster work by contribution and risk
 
-0 done / 2 in progress / 0 blocked / 2 not started
+0 done / 2 in progress / 0 blocked / 3 not started
 
 ### In progress
 
@@ -155,7 +185,7 @@ Reason: manual · branch: backlog · HEAD: af3dbc8
 
 ## Proposal 28 · Two commands: warmup and reheat
 
-0 done / 4 in progress / 0 blocked / 1 not started
+0 done / 5 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -163,6 +193,7 @@ Reason: manual · branch: backlog · HEAD: af3dbc8
 - R-02 · [ruflo · medium · sonnet] · /warmup and /reheat skills with context; /standard becomes a shortcut · started
 - R-03 · [ruflo · medium · sonnet] · Hooks run warmup and reheat by themselves · started
 - R-05 · [ruflo · medium · sonnet] · Fast-forward the shared common-rules checkout when behind · started
+- R-06 · [ruflo · lead · lead model] · A visual cookbook page: how warmup and reheat work, the standard's features, constraints and rules · no log entry yet
 
 ### Blocked, and why
 
