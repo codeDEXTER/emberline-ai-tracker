@@ -508,6 +508,14 @@ its direction chosen — it does not re-research it.
 a rendered HTML artifact, not a wall of text in chat. The user reviews by
 looking. Do not ask them to read requirements prose.
 
+**A published page's name is set once, and never changes (proposal 22, T-06,
+mandatory).** The tracker/board, a per-proposal tracker page, the cookbook, or
+any future maintained page — once its `<title>` is set on first publish, no
+later republish edits it: not a differing `title` parameter, not by hand, not
+a regenerating rebuild that emits the tag differently. Stated once, here; it
+covers every maintained page, not just the tracker (`skills/warmup/SKILL.md`
+§3 points back here rather than restating it).
+
 **Number every proposal, and lead with the number.** Proposals live in
 `docs/proposals/` as `NN-<type>-<slug>.html`, numbered sequentially per project,
 never reused. The visible heading and the `<title>` both read

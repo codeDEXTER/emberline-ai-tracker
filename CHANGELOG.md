@@ -1,5 +1,91 @@
 # Changelog — common-rules
 
+## 2026-09-15 · The rules-file cluster: dedupe, a merged mandatory read, the light path named, and published titles never move (P23 M-05, M-06, M-07, M-09, M-11; P22 T-06)
+
+A rules-conflict review this session ran across HANDOFF.md,
+docs/OPERATING-RULES.md, CLAUDE-workflow.md, skills/warmup/SKILL.md and
+templates/lead-prompt.md found seven items touching the same small set of
+files; landed together as one bundle to avoid merge conflicts on the same
+paragraphs. M-10 (CLAUDE-workflow.md's dated rationale) has its own entry
+above; this one covers the rest.
+
+**M-09 — five rules, one canonical home each.** `ruflo-mandatory` lives only
+in `skills/warmup/SKILL.md`; `the-ledger-has-one-writer`,
+`checkpoint-before-stopping` and `every-sponsor-message-gets-an-ask-row` now
+live only in `HANDOFF.md` (folded there by M-11, below); `reserved-to-the-
+sponsor` lives only in `HANDOFF.md`'s new "Reserved to the sponsor, always"
+section. Every other file that used to restate one of these in full now
+carries a one-line pointer naming where it actually lives. No rule's content
+was cut, only its duplicates.
+
+**M-11 — the mandatory read, restructured.** `docs/OPERATING-RULES.md`'s
+content folded into `HANDOFF.md` under "Operating rules, learned the hard
+way"; the standalone file still exists, nearly empty, only because
+`.common-rules.json`'s `read_order` and `CLAUDE.md` (both reserved to the
+sponsor) still name its path — it now just points to `HANDOFF.md`. Every
+read-order line in `HANDOFF.md`, `skills/warmup/SKILL.md` and
+`templates/lead-prompt.md` that used to say "the ledger(s)" now says the
+warmup card instead — the card is the compressed form (~1,061 words against
+~37,672 for the raw JSON across 11 proposals, measured 2026-09-15); a
+ledger's full JSON is opened only for the item currently being worked.
+Target was 3,000 words for the fresh-lead mandatory read
+(CLAUDE.md + HANDOFF.md + card + checkpoint + CLAUDE-workflow.md); measured
+after this bundle and M-10 together, the static four files alone are still
+several thousand words over that, dominated by CLAUDE-workflow.md, which
+carries process rules for every project on the standard, not just
+common-rules. The sponsor's own ruling settles the tradeoff: *"the priority
+is on the word limit that we do not miss anything important"* — nothing was
+cut to force the number down; the checkpoint, both prohibitions and every
+rule this bundle touched are still in the mandatory read, and the real count
+is reported here rather than hidden by further trimming.
+
+**M-06 — `templates/lead-prompt.md` §4 names its tool.** §4 ("Keep the
+ledger current") now says the lead uses `tracker set` for status/field
+changes and `tracker ask` for ask rows, and never hand-edits the ledger JSON
+— matching what `templates/brief.md` already states for a builder (which
+instead uses `tracker stage`, since it does not hold the pen — proposal 23,
+M-04). The two sections another bundle added after §9 (`## Dispatcher form`,
+`## Item-lead form`) are untouched.
+
+**M-07 — the quick/merge gate split is a named exception.** CLAUDE-workflow.md's
+"one command, everywhere" rule now carries one sentence: a project's own
+declared `gates.quick`/`gates.merge` split in its `.common-rules.json`
+(proposal 23, L-03) is the one sanctioned second command, run through
+`bin/quiet -- {{TEST_COMMAND}}` — never a command invented ad hoc inside a
+task.
+
+**M-05 — the light path is a real, named thing.** CLAUDE-workflow.md's
+"Ceremony is opt-in" section now names it: an item small enough (points 1,
+risk `standard`) skips the scout, the separate reviewer, and the per-item
+ledger ceremony — one commit, one gate run, one log line. Routing (proposal
+25, Z-02) decides eligibility; `templates/brief.md` carries the short form.
+Proposal 26's C-05 findings-triage work can now cite "the light path" as a
+real, defined thing. **Common-rules' own items are never light** — every
+change here is already `restricted` under the risky-work list, so this only
+applies to the projects that follow the standard, not to this repository.
+
+**T-06 — a published page's `<title>` is set once, never changed.**
+CLAUDE-workflow.md's "Talking to the user" section states it once, covering
+every maintained page (the tracker/board, a per-proposal tracker page, the
+cookbook, or any future one) — not a differing `title` parameter on a later
+publish, not by hand, not a regenerating rebuild that emits the tag
+differently. `skills/warmup/SKILL.md` §3 points back to this statement
+rather than restating it. Nothing was actually broken by this — the Artifact
+tool's own rule already makes a page's own `<title>` win over a publish-call
+`title` parameter — but the sponsor's ruling makes it explicit and
+mandatory: *"don't change the name of the tracker again and again that
+should also be a mandatory rule"*, later broadened to *"make it a mandatory
+rule not to rename the artifacts like cookbook and a trackers again and
+again."*
+
+**Standard change (mandatory):** every project on the standard — when
+publishing or republishing any maintained page (a tracker, a board, a
+cookbook, or any future one) — never changes that page's `<title>` after its
+first publish, for any reason (T-06). The light path (M-05) is available to
+any project on the standard for points-1/risk-standard items; using it is
+not required, but the definition above is now the one a project should point
+to rather than inventing its own.
+
 ## 2026-09-15 · CLAUDE-workflow.md's Autopilot and Talking-to-the-user sections trimmed of dated rationale (P23 M-10)
 
 Proposal 23, M-10. The two sections carried roughly 230 lines of dated,

@@ -73,7 +73,10 @@ ask), never from the summary.
      page as stale, run `tracker board --project .` and commit that.
   2. Publish that committed page file with your Artifact tool **to the same
      URL** the line names — update the existing artifact in place, never
-     create a new one.
+     create a new one. **Its `<title>`, once set on first publish, never
+     changes on a later republish** — not a differing `title` parameter, not
+     by hand (`CLAUDE-workflow.md`, "Talking to the user", proposal 22 T-06 —
+     stated once there, covering every maintained page, not restated here).
   3. Record it: `RULES/bin/tracker published --project . --url <url>`
      (add `--by <your session's name>`), then commit the sidecar on its own:
      `docs/proposals/tracker/index.published.json`, with nothing else in that
