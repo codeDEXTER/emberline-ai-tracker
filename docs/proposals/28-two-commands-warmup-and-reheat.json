@@ -1,0 +1,222 @@
+{
+  "proposal": 28,
+  "title": "Two commands: warmup and reheat",
+  "status": "accepted",
+  "updated": "2026-09-15",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "opus",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "lead model",
+      "effort": "-",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "R",
+      "name": "Warmup and reheat",
+      "goal": "Two commands with the standard inside, run by the hooks and the dispatcher, so a lead's whole life needs no typing; both take free-text context.",
+      "exit": "R-01 to R-05 merged; one item lead started by the dispatcher warms up, compacts, reheats and ends with no sponsor action."
+    },
+    {
+      "id": "X",
+      "name": "Research",
+      "goal": "Questions that need reading, not writing, before they become items, a proposal, or a decline.",
+      "exit": "Every X row is done only when it becomes items, a numbered proposal, or a recorded decline with the reason -- never a report nobody acted on."
+    }
+  ],
+  "items": [
+    {
+      "id": "R-01",
+      "phase": "R",
+      "cx": "C2",
+      "title": "bin/warmup runs the standard every time, in both modes",
+      "what": "bin/warmup (full) and bin/warmup --reheat (since the last checkpoint or state) both run conformance and rulecheck --mandatory; each non-holding item and each new Standard change becomes a ledger item via tracker set/ask, ahead of other queued work.",
+      "files": [],
+      "tests": [],
+      "done": "Tests: a fixture project behind the rules gets the Standard change queued in both modes; a holding project gets nothing new.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "R-02",
+      "phase": "R",
+      "cx": "C2",
+      "title": "/warmup and /reheat skills with context; /standard becomes a shortcut",
+      "what": "skills/warmup rewritten for a fresh lead; new skills/reheat for a running one; both accept free-text context (the sponsor's D1 note) shown as a Context line on the card and carried into the first steps. skills/standard becomes a one-release shortcut to /warmup with a notice, then is removed.",
+      "files": [],
+      "tests": [],
+      "done": "Skill files and templates updated with a Standard change line; test that context text reaches the card.",
+      "depends": [
+        "R-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "R-03",
+      "phase": "R",
+      "cx": "C2",
+      "title": "Hooks run warmup and reheat by themselves",
+      "what": "Measure first: can hooks/sessionstart run bin/warmup within Claude Code's hook limits? Then SessionStart startup runs warmup, compact or resume runs reheat; the Stop hook notices a new rules version and asks for reheat. Never fails a session.",
+      "files": [],
+      "tests": [],
+      "done": "Timing recorded in the ledger; hook tests for startup, compact, resume and a rules change; derecord installs them.",
+      "depends": [
+        "R-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "R-04",
+      "phase": "R",
+      "cx": "C4",
+      "title": "Dispatcher starts a new lead with /warmup <item> [context]",
+      "what": "When a lead passes its closing check (proposal 24 H-01), the dispatcher (H-02) starts the next item lead whose first message is /warmup <item> plus any context. Built with proposal 24's H-03.",
+      "files": [],
+      "tests": [],
+      "done": "One item lead started by the dispatcher runs warmup with no sponsor action, session ids recorded.",
+      "depends": [
+        "R-02",
+        "R-03"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "R-05",
+      "phase": "R",
+      "cx": "C2",
+      "title": "Fast-forward the shared common-rules checkout when behind",
+      "what": "warmup and reheat run git -C <rules checkout> pull --ff-only when it is behind origin/main, on main, with no tracked changes; otherwise they say why on the card. Never merges, rebases or stashes.",
+      "files": [],
+      "tests": [],
+      "done": "Tests on a temp clone: behind and clean fast-forwards; dirty, diverged or not on main leaves it alone with a card line.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    }
+  ],
+  "asks": [
+    {
+      "id": "A-01",
+      "at": "2026-09-15T09:22:52+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "So currently there are standard, warmup and reheat… I want to keep just two warmup and reheat. Standard should always be included. Also if the lead needs to be created again then how will it work with these two or it happens automatically. Show me a visual proposal",
+      "became": "R-02",
+      "state": "became-item",
+      "source": "Common Rules rework session transcript"
+    },
+    {
+      "id": "A-02",
+      "kind": "decision",
+      "state": "became-item",
+      "became": "R-02",
+      "at": "2026-09-15T09:25:41+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P28 D1\" Answered: \"A · Two: /warmup and /reheat\". Note: \"Also there should be a possibility to give some context\"",
+      "source": "Warmup & Reheat page https://claude.ai/artifact/JJbFX6PdxBgkeVopVdLktA, database collection answers"
+    },
+    {
+      "id": "A-03",
+      "kind": "decision",
+      "state": "became-item",
+      "became": "R-01",
+      "at": "2026-09-15T09:25:19+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P28 D2\" Answered: \"A · Checked and queued every time\".",
+      "source": "Warmup & Reheat page https://claude.ai/artifact/JJbFX6PdxBgkeVopVdLktA, database collection answers"
+    },
+    {
+      "id": "A-04",
+      "kind": "decision",
+      "state": "became-item",
+      "became": "R-03",
+      "at": "2026-09-15T11:54:39+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P28 D3\" Answered: \"A · Yes, from the hooks\".",
+      "source": "Warmup & Reheat page https://claude.ai/artifact/JJbFX6PdxBgkeVopVdLktA, database collection answers"
+    },
+    {
+      "id": "A-05",
+      "kind": "decision",
+      "state": "became-item",
+      "became": "R-04",
+      "at": "2026-09-15T11:54:48+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P28 D4\" Answered: \"A · Dispatcher starts it with /warmup <item>\".",
+      "source": "Warmup & Reheat page https://claude.ai/artifact/JJbFX6PdxBgkeVopVdLktA, database collection answers"
+    },
+    {
+      "id": "A-06",
+      "kind": "decision",
+      "state": "became-item",
+      "became": "R-02",
+      "at": "2026-09-15T11:55:04+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P28 D5\" Answered: \"A · Shortcut to /warmup for one release, then gone\".",
+      "source": "Warmup & Reheat page https://claude.ai/artifact/JJbFX6PdxBgkeVopVdLktA, database collection answers"
+    },
+    {
+      "id": "A-07",
+      "kind": "decision",
+      "state": "became-item",
+      "became": "R-05",
+      "at": "2026-09-15T11:55:28+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P28 D6\" Answered: \"A · Yes, fast-forward only, when behind\".",
+      "source": "Warmup & Reheat page https://claude.ai/artifact/JJbFX6PdxBgkeVopVdLktA, database collection answers"
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {
+    "started": "2026-09-15T12:00:00+02:00",
+    "integration_branch": "p28-warmup-reheat"
+  }
+}
