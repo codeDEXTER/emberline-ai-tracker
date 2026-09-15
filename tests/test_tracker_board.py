@@ -132,7 +132,9 @@ class TestBoardPage(unittest.TestCase):
         text = self.p.page.read_text()
         statuses = dict(re.findall(r'<button class="chip" data-filter="status" data-value="([^"]+)"[^>]*>'
                                    r'.*?<span class="n">(\d+)</span>', text))
-        self.assertEqual(statuses, {"in progress": "1", "blocked": "1", "not started": "2", "done": "2"})
+        # C-06: two more filter chips, always built (even at zero).
+        self.assertEqual(statuses, {"in progress": "1", "in review": "0", "in testing": "0",
+                                     "blocked": "1", "not started": "2", "done": "2"})
         self.assertRegex(text, r'<input[^>]+type="search"')
         owners = re.findall(r'<option value="([^"]*)"', text)
         self.assertIn("sponsor", owners)
@@ -305,7 +307,10 @@ class TestReviewRoundOne(unittest.TestCase):
         self.p.run()
         cols = re.findall(r'<section class="col [^"]*" data-column="([^"]+)"><h2>.*?<span class="n">(\d+)</span>',
                           self.p.page.read_text())
-        self.assertEqual(cols, [("in progress", "1"), ("blocked", "1"), ("not started", "2"), ("done", "2")])
+        # C-06: two more columns, always shown (even at zero), between
+        # "in progress" and "blocked".
+        self.assertEqual(cols, [("in progress", "1"), ("in review", "0"), ("in testing", "0"),
+                                 ("blocked", "1"), ("not started", "2"), ("done", "2")])
 
     def test_page_declares_doctype_and_charset(self):
         two_ledgers(self.p)
