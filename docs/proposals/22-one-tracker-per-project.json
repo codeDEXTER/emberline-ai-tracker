@@ -303,7 +303,7 @@
         "T-02",
         "T-03"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -327,6 +327,12 @@
           "event": "wording written",
           "by": "lead",
           "evidence": "Taken over under P29 K-02: the sponsor's ruling of 15 Sep ('maintain a single tracker up until I have asked to create another tracker. Per project.') stated in CLAUDE-workflow.md, skills/standard, skills/warmup and templates/lead-prompt.md with tests (d39d66a). Done when merged to main."
+        },
+        {
+          "at": "2026-09-15T13:23:21+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "Taken over as P29 K-02. PR 180 merged to main as 8aa1f55 (from gh). Suite on 9989c53: quiet: OK · 1225 tests. CI: only the known Linux test_a_long_branch_says_how_many_it_did_not_print. Review (haiku, checklist): merge; its CHANGELOG check read an older entry, the lead verified the newest entry quotes the sponsor exactly with no new Standard change line."
         }
       ]
     },
