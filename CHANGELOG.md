@@ -1,5 +1,29 @@
 # Changelog — common-rules
 
+## 2026-09-15 · W-01: `spend` read subagent transcripts and deduped streamed usage (P27)
+
+`bin/spend` undercounted and overcounted the same session in opposite
+directions: `_sessions()` globbed `<project>/*.jsonl` only, so every
+subagent transcript at `<project>/<session>/subagents/*.jsonl` was never
+read at all, and `_read()` summed `usage.output_tokens` across every record
+in a transcript, though a streamed response writes the same `message.id`
+several times as usage grows (about 3.6 records per message, measured
+2026-08-07) -- so the fraction that *was* read was overstated by roughly
+that factor.
+
+`tools/worklog.py` is now the one place that knows the transcript shape
+(`list_transcripts`, `iter_records`, `dedupe_messages` -- last record per
+`message.id` wins) so `bin/worklog` (W-02/W-04, following) shares it rather
+than duplicating. `bin/spend` reads through it. `report` and `today` gained
+input, cache-read and cache-write columns alongside the existing output
+column; `agentlog` and `log` are unchanged in shape.
+
+**Behaviour change:** `spend report`/`today`/`agentlog` totals now include
+subagent transcripts and are deduped by `message.id` — existing figures for
+any project will move (down, for the dedupe fix; up, for subagents).
+`tests/test_spend.py` adds `TestSubagentsAndDedupe` and updates the
+zero-total regression guard for the new columns.
+
 ## 2026-09-15 · One tracker per project, written where sessions read it (P22 T-04)
 
 The sponsor, 15 September 2026: "Please maintain a single tracker for common

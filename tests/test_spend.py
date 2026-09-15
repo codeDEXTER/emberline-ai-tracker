@@ -31,14 +31,25 @@ def load_spend():
     return mod
 
 
-def write_transcript(path: Path, cwd: str, out_tokens: list[int], agents=()):
-    """A minimal transcript in the shape spend actually reads."""
+def write_transcript(path: Path, cwd: str, out_tokens: list[int], agents=(),
+                      message_id=None):
+    """A minimal transcript in the shape spend actually reads.
+
+    `message_id`, if given, is written on every usage record with that same
+    id -- the shape a streamed response actually takes, so a caller can
+    build the "one message.id, written three times" fixture the dedupe fix
+    exists to survive.
+    """
     with path.open("w") as fh:
         for i, n in enumerate(out_tokens):
+            usage = {"output_tokens": n}
+            if message_id:
+                usage["output_tokens"] = n  # last write wins on dedupe
             rec = {
                 "timestamp": f"2026-08-0{(i % 5) + 1}T10:00:0{i % 10}.000Z",
                 "cwd": cwd,
-                "message": {"role": "assistant", "usage": {"output_tokens": n}},
+                "message": {"role": "assistant", "usage": usage,
+                            **({"id": message_id} if message_id else {})},
             }
             fh.write(json.dumps(rec) + "\n")
         for role in agents:
@@ -95,7 +106,7 @@ class TestReport(SpendHarness):
         out = self.report()
         self.assertIn("3,900", out, "task-one's 1000+2500 and the checkout's 400")
         self.assertNotRegex(
-            out, r"TOTAL\s+0\b",
+            out, r"TOTAL\s+0\s+0\s+0\s+0\b",
             "a zero total over transcripts that carry usage is the original bug")
 
     def test_report_does_not_depend_on_a_hand_written_file(self):
@@ -132,6 +143,34 @@ class TestReport(SpendHarness):
         out = self.report(by_agent=True)
         self.assertRegex(out, r"code-engineer\s+1")
         self.assertRegex(out, r"test-engineer\s+1")
+
+
+class TestSubagentsAndDedupe(SpendHarness):
+    """W-01: subagent transcripts were never read, and streamed records were
+    summed instead of deduped by message.id -- both undercounted or
+    overcounted the same session, in opposite directions."""
+
+    def test_subagent_transcripts_are_counted(self):
+        """Subagent transcripts live at <project>/<session>/subagents/*.jsonl
+        and were entirely missed before this fix."""
+        session_dir = self.projects / "ssss4444"
+        sub_dir = session_dir / "subagents"
+        sub_dir.mkdir(parents=True)
+        write_transcript(sub_dir / "agent-aaaa.jsonl",
+                          str(self.repo / ".claude" / "worktrees" / "task-one"),
+                          [500])
+        out = self.report()
+        self.assertIn("4,400", out, "task-one's 3,900 plus the subagent's 500")
+
+    def test_streamed_records_are_deduped_by_message_id(self):
+        """One response streamed three times must count once, at its final
+        (largest) usage -- not summed to ~3.6x the real total."""
+        write_transcript(self.projects / "dddd5555.jsonl",
+                          str(self.repo / ".claude" / "worktrees" / "task-one"),
+                          [1000, 1800, 2500], message_id="msg_streamed_1")
+        out = self.report()
+        self.assertIn("6,400", out, "task-one's 3,900 plus the final 2,500, not the sum 8,700")
+        self.assertNotIn("8,200", out, "would be 3,900 + (1000+1800+2500) if not deduped")
 
 
 class TestTasksForPath(SpendHarness):
