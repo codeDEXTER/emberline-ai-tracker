@@ -52,14 +52,6 @@ def _ensure_phase(data: dict) -> None:
         phases.append(dict(PHASE))
 
 
-def already_queued(ledger_path: Path, source_key: str) -> bool:
-    try:
-        data = L.load(ledger_path)
-    except (OSError, ValueError):
-        return False
-    return any(i.get("queue_source") == source_key for i in L.items(data))
-
-
 def queue(ledger_path: Path, title: str, source_key: str, by: str = "warmup") -> bool:
     """Add one item for `source_key` unless it is already queued. Returns
     True when the ledger changed (and was written to disk)."""
