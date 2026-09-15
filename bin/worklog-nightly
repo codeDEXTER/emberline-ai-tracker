@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+"""worklog-nightly -- the nightly worklog commit (common-rules proposal 27,
+W-03).
+
+    bin/worklog-nightly [--projects DIR] [--out DIR] [--state FILE]
+                         [--repo DIR] [--date YYYY-MM-DD] [--dry-run]
+
+Not run by the interactive Stop hook. `hooks/stop` already runs a fast,
+best-effort `tools.worklog.collect()` on every turn (see its own docstring)
+-- but a session never commits what that writes, because a commit on every
+turn of every session would spam `worklog/` with hundreds of tiny commits a
+day and race every other session's own commits to the same files. This
+script is the other half: a fuller collect (the same incremental pass, just
+run less often and not time-boxed to a hook budget), followed by AT MOST
+ONE commit of `worklog/` per calendar day, however many times this script
+runs that day.
+
+This script does not schedule itself, and does not touch any system cron or
+launchd table on this machine -- deliberately: wiring a scheduled job is an
+operational deployment step for whoever administers the machine this
+checkout lives on, not something to configure from inside the repo. Point
+whatever scheduler you use at this file, once, outside of any Claude
+session.
+
+Idempotent-per-day mechanism: `<out>/.nightly-state.json` (the same
+directory and shape convention `tools/worklog.py`'s own `.state.json`
+already uses for `collect`'s incremental offsets) records the last date this
+script committed. A run for a date already recorded there does nothing
+further, even if `collect` itself finds new transcript lines to write --
+those land in the day file on disk (so nothing is lost) and ride along in
+the following day's commit rather than each triggering a commit of their
+own the moment they are seen.
+
+Exit codes: 0 ran (whether or not anything was committed), 1 `collect`
+refused via `worklog.StateTrustError`, 2 the git commands themselves failed.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO))
+from tools import worklog  # noqa: E402  (needs sys.path set first)
+
+
+def _nightly_state_path(out_dir) -> str:
+    return os.path.join(out_dir, ".nightly-state.json")
+
+
+def load_nightly_state(out_dir) -> dict:
+    """{"last_commit_date": "YYYY-MM-DD" | None}. Never raises -- a
+    missing or corrupt state file is just "nothing committed yet"; unlike
+    `collect`'s own `.state.json`, losing this file only risks one
+    redundant commit attempt, never a doubled count, so there is nothing
+    here worth refusing over."""
+    path = _nightly_state_path(out_dir)
+    if not os.path.exists(path):
+        return {"last_commit_date": None}
+    try:
+        with open(path) as fh:
+            state = json.load(fh)
+    except (OSError, ValueError):
+        return {"last_commit_date": None}
+    if not isinstance(state, dict):
+        return {"last_commit_date": None}
+    state.setdefault("last_commit_date", None)
+    return state
+
+
+def save_nightly_state(out_dir, state: dict) -> None:
+    path = _nightly_state_path(out_dir)
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w") as fh:
+        json.dump(state, fh, indent=2, sort_keys=True)
+    os.replace(tmp, path)
+
+
+def _git(repo, *args):
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True,
+                           text=True, check=False)
+
+
+def run(projects=None, out=None, state=None, repo=None, date=None,
+        dry_run=False) -> dict:
+    """One nightly pass. Returns
+    {"collected": <collect() result or None>, "committed": bool,
+     "reason": str, "date": str} -- never raises `worklog.StateTrustError`
+    past this point; the caller decides how to report it.
+
+    Already-committed-today short-circuits before `collect` even runs, so a
+    second same-day invocation is nearly free and, more importantly, never
+    reaches the git steps below -- that is what makes "exactly one commit
+    per day, however many times this runs" true rather than merely usual.
+    """
+    out_dir = out or worklog.DEFAULT_OUT
+    repo_dir = Path(repo) if repo else REPO
+    today = date or datetime.date.today().isoformat()
+
+    nstate = load_nightly_state(out_dir)
+    if nstate.get("last_commit_date") == today:
+        return {"collected": None, "committed": False, "date": today, "error": False,
+                "reason": f"already committed worklog/ for {today}"}
+
+    result = worklog.collect(projects=projects, out=out_dir, state_file=state)
+
+    status = _git(repo_dir, "status", "--porcelain", "--", "worklog")
+    if status.returncode != 0:
+        return {"collected": result, "committed": False, "date": today, "error": True,
+                "reason": f"git status failed: {status.stderr.strip()}"}
+    if not status.stdout.strip():
+        # Collected, but nothing on disk actually changed (an earlier pass
+        # today already wrote everything there was). Record the date so a
+        # later same-day run short-circuits above too, without an empty
+        # commit.
+        nstate["last_commit_date"] = today
+        if not dry_run:
+            save_nightly_state(out_dir, nstate)
+        return {"collected": result, "committed": False, "date": today, "error": False,
+                "reason": "nothing to commit"}
+
+    if dry_run:
+        return {"collected": result, "committed": False, "date": today, "error": False,
+                "reason": "--dry-run: not committing"}
+
+    add = _git(repo_dir, "add", "--", "worklog")
+    if add.returncode != 0:
+        return {"collected": result, "committed": False, "date": today, "error": True,
+                "reason": f"git add failed: {add.stderr.strip()}"}
+    commit = _git(repo_dir, "commit", "-m", f"worklog: {today}")
+    if commit.returncode != 0:
+        return {"collected": result, "committed": False, "date": today, "error": True,
+                "reason": f"git commit failed: {commit.stderr.strip()}"}
+
+    nstate["last_commit_date"] = today
+    save_nightly_state(out_dir, nstate)
+    return {"collected": result, "committed": True, "date": today, "error": False,
+            "reason": "committed"}
+
+
+def main(argv):
+    p = argparse.ArgumentParser(prog="worklog-nightly")
+    p.add_argument("--projects", default=None)
+    p.add_argument("--out", default=None)
+    p.add_argument("--state", default=None)
+    p.add_argument("--repo", default=None, help="the git checkout to commit worklog/ in "
+                                                 "(default: this checkout)")
+    p.add_argument("--date", default=None, help="override today's date (testing)")
+    p.add_argument("--dry-run", action="store_true",
+                    help="collect, but never git add/commit")
+    args = p.parse_args(argv)
+
+    try:
+        result = run(
+            projects=os.path.expanduser(args.projects) if args.projects else None,
+            out=os.path.expanduser(args.out) if args.out else None,
+            state=os.path.expanduser(args.state) if args.state else None,
+            repo=os.path.expanduser(args.repo) if args.repo else None,
+            date=args.date, dry_run=args.dry_run)
+    except worklog.StateTrustError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if result["committed"]:
+        print(f"worklog-nightly: committed worklog/ for {result['date']}")
+    else:
+        stream = sys.stderr if result["error"] else sys.stdout
+        print(f"worklog-nightly: {result['reason']}", file=stream)
+    return 2 if result["error"] else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

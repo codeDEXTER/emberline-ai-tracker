@@ -721,6 +721,36 @@ class TestCardV2Lines(Case):
         self.assertIn("RQ-01 session:App → session:Engine (open)", line)
 
 
+class TestOverdueTailOnTheCard(Case):
+    """Proposal 26, C-04: a tail-lane item whose next_check date has passed
+    shows up on the warm card, the same overdue() tools/tracker/board.py's
+    lane section reads -- not a second rule re-derived here."""
+
+    def test_a_past_next_check_shows_up_as_overdue(self):
+        d = ledger_data()
+        d["items"][2]["next_check"] = "2000-01-01"  # W-03, always in the past
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.commit("W-03 overdue")
+        out = self.p.warmup().stdout
+        line = next(l for l in out.splitlines() if l.strip().startswith("overdue"))
+        self.assertIn("W-03", line)
+        self.assertIn("next_check was 2000-01-01", line)
+
+    def test_a_future_next_check_is_not_shown_as_overdue(self):
+        d = ledger_data()
+        d["items"][2]["next_check"] = "2099-01-01"  # W-03, always in the future
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.commit("W-03 not yet due")
+        out = self.p.warmup().stdout
+        self.assertNotIn("overdue", out)
+
+    def test_no_next_check_means_no_overdue_line(self):
+        out = self.p.warmup().stdout
+        self.assertNotIn("overdue", out)
+
+
 class TestCardTextForgery(Case):
     """Proposal 20, V-02 round 2 (HIGH): a value from a ledger or declaration
     that reaches the card unescaped can forge a line -- a title of

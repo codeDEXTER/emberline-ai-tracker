@@ -1,12 +1,25 @@
 #!/usr/bin/env python3
 """ruflo-item -- the mandatory Ruflo loop around one plan item (proposal 20, D11).
 
-  ruflo-item start  <ID> "<task>"      hooks pre-task, memory search, hooks route, memory store
-  ruflo-item done   <ID> "<summary>"   the project's merge gate, then hooks post-task + memory store + testgaps
-  ruflo-item note   <ID> "<text>"      memory store, keyed to the item, timestamped from the real clock
-  ruflo-item recall "<keywords>"       memory list, then memory search
-  ruflo-item ... --project DIR         default: `git rev-parse --show-toplevel` of the current directory
-  ruflo-item ... --namespace NS        default: $RUFLO_NAMESPACE, else the project directory name
+  ruflo-item start  <ID> "<task>"           hooks pre-task, memory search, hooks route, memory store
+  ruflo-item done   <ID> [<ID> ...] "<summary>"
+                                             the project's merge gate ONCE for the whole bundle, then
+                                             hooks post-task + memory store per id, then testgaps once
+  ruflo-item note   <ID> "<text>"           memory store, keyed to the item, timestamped from the real clock
+  ruflo-item recall "<keywords>"            memory list, then memory search
+  ruflo-item ... --project DIR              default: `git rev-parse --show-toplevel` of the current directory
+  ruflo-item ... --namespace NS             default: $RUFLO_NAMESPACE, else the project directory name
+
+`done` takes one or more item ids followed by one summary shared by all of
+them (proposal 26, C-03: `bin/ruflo-item done` accepts several item ids and
+runs the merge gate once, not once per item -- `templates/brief.md`'s "one
+gate run" per bundle needs exactly this from the tool that runs the gate).
+The gate itself runs once for the whole call; `hooks post-task` and the
+`item:<ID>:done` memory store still run once per id, because each item's own
+ledger row needs its own done record (the same "an item without start and
+done in Ruflo memory is not done" rule `start` already satisfies per id);
+`hooks worker dispatch --trigger testgaps` runs once at the end of the call,
+not once per id, matching the single gate run it follows.
 
 This lifts PhotoVault app's own `tools/ruflo_task.sh` into common-rules, so
 every project gets the same four commands instead of the four steps as prose
@@ -243,7 +256,7 @@ def cmd_start(binary: list[str], project: Path, item_id: str, task: str, ns: str
     return 0
 
 
-def cmd_done(binary: list[str], project: Path, item_id: str, summary: str, ns: str) -> int:
+def cmd_done(binary: list[str], project: Path, item_ids: list[str], summary: str, ns: str) -> int:
     gate = P.test_command(project)
     if not gate:
         print(f"{PREFIX} no merge gate declared, and none could be guessed -- "
@@ -254,7 +267,7 @@ def cmd_done(binary: list[str], project: Path, item_id: str, summary: str, ns: s
     if gate.strip().startswith("false") and "#" in gate:
         reason = gate.split("#", 1)[1].strip()
 
-    print(f"{PREFIX} running gate: {gate}")
+    print(f"{PREFIX} running gate once for {', '.join(item_ids)}: {gate}")
     returncode = _run_gate(gate, project)
     if returncode != 0:
         if reason:
@@ -264,15 +277,16 @@ def cmd_done(binary: list[str], project: Path, item_id: str, summary: str, ns: s
         return 1
     print(f"{PREFIX} gate green")
 
-    _note_ignored("hooks post-task", run_ruflo(
-        binary, project, "hooks", "post-task", "--task-id", item_id,
-        "--success", "true", "--store-results", "true"))
+    for item_id in item_ids:
+        _note_ignored("hooks post-task", run_ruflo(
+            binary, project, "hooks", "post-task", "--task-id", item_id,
+            "--success", "true", "--store-results", "true"))
 
-    key = f"item:{item_id}:done"
-    value = f"{now_iso()} {summary}"
-    _note_ignored("memory store", run_ruflo(
-        binary, project, "memory", "store", "--namespace", ns, "--key", key, "--value", value))
-    print(f"{PREFIX} stored {key}")
+        key = f"item:{item_id}:done"
+        value = f"{now_iso()} {summary}"
+        _note_ignored("memory store", run_ruflo(
+            binary, project, "memory", "store", "--namespace", ns, "--key", key, "--value", value))
+        print(f"{PREFIX} stored {key}")
 
     _note_ignored("hooks worker dispatch", run_ruflo(
         binary, project, "hooks", "worker", "dispatch", "--trigger", "testgaps"))
@@ -311,7 +325,8 @@ def main(argv: list[str]) -> int:
     p_start.add_argument("task")
 
     p_done = sub.add_parser("done")
-    p_done.add_argument("id")
+    p_done.add_argument("ids", nargs="+", help="one or more item ids; the last "
+                         "positional argument is always the shared summary")
     p_done.add_argument("summary")
 
     p_note = sub.add_parser("note")
@@ -337,7 +352,7 @@ def main(argv: list[str]) -> int:
         if args.cmd == "start":
             return cmd_start(binary, project, args.id, args.task, ns)
         if args.cmd == "done":
-            return cmd_done(binary, project, args.id, args.summary, ns)
+            return cmd_done(binary, project, args.ids, args.summary, ns)
         if args.cmd == "note":
             return cmd_note(binary, project, args.id, args.text, ns)
         if args.cmd == "recall":

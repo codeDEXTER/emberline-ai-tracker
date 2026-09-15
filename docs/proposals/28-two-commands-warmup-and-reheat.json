@@ -154,8 +154,8 @@
         "R-02",
         "R-03"
       ],
-      "status": "not started",
-      "owner": "lead",
+      "status": "done",
+      "owner": "session:bundle-k",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
@@ -166,6 +166,18 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C4/lead model -> C2/sonnet: dispatcher sends /warmup <item> [context]; bounded build with tests: a Sonnet builder, briefed with a Haiku scout's context pack; the lead only reviews and merges. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T19:44:44+02:00",
+          "event": "dispatched, bundle K",
+          "by": "lead",
+          "evidence": ""
+        },
+        {
+          "at": "2026-09-15T21:46:34+02:00",
+          "event": "done: templates/lead-prompt.md's Dispatcher form now states explicitly that the dispatcher starts the next unblocked item lead the moment a lead passes bin/handover --check (H-01), via claude --bg -p with the H-03/H-04 mechanism and naming, whose first message is /warmup <item id> [context]; session id recorded in the ledger. One item lead started by the dispatcher runs warmup with no sponsor action -- this bundle documents the mechanism, does not itself run a live dispatcher/lead pair end to end. Full suite: quiet: OK · 1457 tests · 863.8s.",
+          "by": "session:bundle-k",
+          "evidence": "commit a7a6c6f on branch bundle-k-m08-c03-r04"
         }
       ]
     },

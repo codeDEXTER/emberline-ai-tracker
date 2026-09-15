@@ -18,6 +18,33 @@ and the checkout has moved past it since -- read with `git rev-parse`, never
 a fetch -- this hook prints one line: `rules moved -- run /reheat`. No state
 file, or a checkout that has not moved, prints nothing. Hard-timed the same
 as the checkpoint write below; still exits 0 on any failure.
+
+WORKLOG COLLECT (proposal 27, W-03). Also runs `tools.worklog.collect()` --
+the fast, incremental pass over transcripts that `bin/worklog collect`
+itself runs, writing new rows into `worklog/<day>.jsonl` under common-rules.
+This is best-effort telemetry, not a gate: any exception it raises
+(including `worklog.StateTrustError`, e.g. a `.state.json` an earlier
+`--rebuild` left mid-way) is caught and swallowed inside `_collect_worklog`
+itself, before it ever reaches this hook's own outer guard. A session never
+commits what this writes -- see `bin/worklog-nightly`, the separate,
+non-interactive script that collects the rest and makes the day's one
+commit of `worklog/`. Nothing here calls git.
+
+`collect` scans every transcript on the machine (`~/.claude/projects`), not
+just this project's -- fine once its own `.state.json` is warm (only new
+bytes since the last run), but a first pass, or a machine with many
+sessions writing at once, can run long. So this never blocks the hook past
+`WORKLOG_COLLECT_TIMEOUT` seconds (default 5, same default as the
+rules-moved check above): it runs in a daemon thread and the hook moves on
+without waiting for it. `collect` only persists its new byte offsets in
+`.state.json` once, at the very end of a run, after any day files it
+touched are already written -- so a run this abandons mid-way leaves those
+day files ahead of what `.state.json` remembers, and the *next* collect
+re-reads and re-adds the same transcript bytes once more. That is a
+one-time, self-correcting over-count under sustained heavy concurrency, not
+data corruption (every file write is still tmp-then-`os.replace`) and not a
+hang -- the trade this hook is allowed to make, being best-effort telemetry
+rather than a gate.
 """
 from __future__ import annotations
 
@@ -32,6 +59,7 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
 RULES_MOVED_TIMEOUT = float(os.environ.get("COMMON_RULES_HOOK_TIMEOUT", "5"))
+WORKLOG_COLLECT_TIMEOUT = float(os.environ.get("WORKLOG_COLLECT_TIMEOUT", "5"))
 
 
 def _load_warmup():
@@ -65,6 +93,31 @@ def _rules_moved_line(project: Path) -> str | None:
     return None
 
 
+def _collect_worklog() -> None:
+    """Best-effort `worklog collect` (W-03): never raises, never prints,
+    never touches git, and never blocks the hook past
+    `WORKLOG_COLLECT_TIMEOUT` seconds -- see this file's own docstring for
+    why a daemon thread with a join timeout, rather than waiting outright,
+    is the right trade here. `tools.worklog` is imported lazily, like
+    `_load_warmup`, so a broken import of it cannot break every other hook
+    that loads this file's siblings."""
+    import threading
+
+    def _run():
+        try:
+            from tools import worklog
+            worklog.collect()
+        except Exception:
+            pass
+
+    try:
+        t = threading.Thread(target=_run, daemon=True)
+        t.start()
+        t.join(WORKLOG_COLLECT_TIMEOUT)
+    except Exception:
+        pass
+
+
 def _read_payload() -> dict:
     try:
         raw = sys.stdin.read()
@@ -85,6 +138,7 @@ def main() -> int:
         if payload.get("stop_hook_active") is True:
             return 0
         project = payload.get("cwd") or os.getcwd()
+        _collect_worklog()
         from tools.tracker import checkpoint
         with contextlib.redirect_stdout(io.StringIO()):
             checkpoint.main(["--project", str(project), "--reason", "stop", "--if-changed"])

@@ -287,6 +287,18 @@ def _int_in(value, allowed) -> bool:
     return type(value) is int and value in allowed
 
 
+def _iso_date(value) -> bool:
+    """A "YYYY-MM-DD" string date.fromisoformat() itself accepts -- not a
+    datetime, not a bool, not a bare int (json.loads would pass one through)."""
+    if not isinstance(value, str):
+        return False
+    try:
+        datetime.date.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
 def _validate_sizing(ledger: dict) -> list[str]:
     """Proposal 25's value, points, risk and cluster, each checked only when present."""
     problems: list[str] = []
@@ -305,6 +317,9 @@ def _validate_sizing(ledger: dict) -> list[str]:
             problems.append(f"{name}: impact {i['impact']!r} is not 1-4 (4 stops everything, 1 back-end only)")
         if "likelihood" in i and not _int_in(i["likelihood"], LIKELIHOODS):
             problems.append(f"{name}: likelihood {i['likelihood']!r} is not 1-3")
+        # Proposal 26, C-04: a tail item's 14-day re-score date.
+        if "next_check" in i and not _iso_date(i["next_check"]):
+            problems.append(f"{name}: next_check {i['next_check']!r} is not a YYYY-MM-DD date")
     return problems
 
 

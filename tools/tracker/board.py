@@ -28,6 +28,7 @@ or no ledgers.
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import html
 import json
@@ -36,8 +37,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+from tools.tracker import cluster as CLUSTER
+from tools.tracker import lanes as LANES
 from tools.tracker import ledger as L
 from tools.tracker import render as R
+from tools.tracker import rescore as RS
 
 OUT_NAME = "index.html"
 PUBLISHED_NAME = "index.published.json"
@@ -248,6 +252,108 @@ def request_row(req: dict, number) -> str:
             f'{" · unblocks " + e(" ".join(unblocks)) if unblocks else ""}</span></li>')
 
 
+LANE_ORDER = ("Now", "Daily", "Weekly", "When touched")
+
+
+def lane_state(ledgers: list[tuple[Path, dict]], project, today: datetime.date | None = None) -> dict:
+    """Every ledger's items in one shared `tracker lanes` run (proposal 26,
+    C-02, unchanged), each sized row also carrying whether it is overdue --
+    `next_check` in the past (proposal 26, C-04) -- read from the item's own
+    ledger row, since lanes.lanes()'s own rows never carry that field.
+    `today` defaults to the real date; a caller (a test) can pin it."""
+    combined: list[dict] = []
+    by_id: dict[str, dict] = {}
+    for _, data in ledgers:
+        for it in L.items(data):
+            combined.append(it)
+            if it.get("id"):
+                by_id[it["id"]] = it
+    result = LANES.lanes(combined, project)
+    today = today or datetime.date.today()
+    for row in result["items"]:
+        it = by_id.get(row["id"])
+        row["overdue"] = bool(it and RS.overdue(it, today))
+        row["next_check"] = (it or {}).get("next_check")
+    return result
+
+
+def cluster_state(ledgers: list[tuple[Path, dict]]) -> dict:
+    """Every ledger's not-yet-taken items and findings, file-overlap clustered
+    (proposal 25, Z-06)."""
+    rows: list[dict] = []
+    for _, data in ledgers:
+        rows.extend(CLUSTER.not_taken_rows(data))
+    return CLUSTER.file_overlap_clusters(rows)
+
+
+def lane_slug(lane: str) -> str:
+    return "lane-" + lane.lower().replace(" ", "-")
+
+
+def lane_row(r: dict) -> str:
+    overdue = r.get("overdue")
+    badge = f' <span class="badge-overdue">overdue since {e(r.get("next_check"))}</span>' if overdue else ""
+    alone = ' <span class="badge-alone">alone</span>' if r.get("alone") else ""
+    return (f'<li class="lane-item{" overdue" if overdue else ""}" data-id="{e(r["id"])}">'
+            f'<span class="id">{e(r["id"])}</span> {b(r["title"])} '
+            f'<span class="share dim">{r["share"] * 100:.1f}% · cum {r["cumulative"] * 100:.1f}%'
+            f'{" · risk " + e(r["risk"]) if r.get("risk") is not None else ""}</span>{alone}{badge}</li>')
+
+
+def lanes_block(result: dict) -> str:
+    """Lane groups in order, with the 80% cut line marked once, between the
+    last `Now` row and the first tail row (proposal 26, C-04)."""
+    groups: dict[str, list[dict]] = {}
+    for r in result["items"]:
+        groups.setdefault(r["lane"], []).append(r)
+    parts, cut_marked = [], False
+    for lane in LANE_ORDER:
+        rows = groups.get(lane, [])
+        if lane != "Now" and not cut_marked:
+            parts.append('<div class="cut-line" role="separator" aria-label="80% cut">'
+                         '<span>80% cut -- tail lanes below, re-checked on their own schedule</span></div>')
+            cut_marked = True
+        if not rows:
+            continue
+        parts.append(f'<section class="lane {lane_slug(lane)}"><h3>{e(lane)} '
+                     f'<span class="n">{len(rows)}</span></h3><ul>{"".join(lane_row(r) for r in rows)}</ul>'
+                     f'</section>')
+    if result["unsized"]:
+        rows = "".join(f'<li class="lane-item" data-id="{e(u["id"])}"><span class="id">{e(u["id"])}</span> '
+                       f'{b(u["title"])}</li>' for u in result["unsized"])
+        parts.append(f'<section class="lane lane-unsized"><h3>Unsized <span class="n">{len(result["unsized"])}</span>'
+                     f'</h3><ul>{rows}</ul></section>')
+    return "".join(parts)
+
+
+def cluster_member_row(m: dict) -> str:
+    return f'<li><span class="id">{e(m["id"])}</span> {b(m["title"])}</li>'
+
+
+def clusters_section(c: dict) -> str:
+    if not c["clusters"] and not c["singles"]:
+        return ""
+    cards = "".join(
+        f'<article class="cluster"><h3>{e(g["id"])} <span class="n">{len(g["items"])}</span></h3>'
+        f'<p class="files">{", ".join(e(f) for f in g["files"])}</p>'
+        f'<ul>{"".join(cluster_member_row(m) for m in g["items"])}</ul>'
+        f'</article>'
+        for g in c["clusters"])
+    singles = "".join(cluster_member_row(s) for s in c["singles"])
+    singles_block = (f'<details class="cluster-singles"><summary>Not clustered · {len(c["singles"])}</summary>'
+                     f'<ul>{singles}</ul></details>' if c["singles"] else "")
+    return (f'<section class="clusters" id="clusters"><h2>Not taken, clustered by files touched '
+           f'<span class="n">{len(c["clusters"])}</span></h2><div class="cluster-cards">{cards}</div>'
+           f'{singles_block}</section>')
+
+
+def lanes_section(result: dict) -> str:
+    if not result["items"] and not result["unsized"]:
+        return ""
+    return (f'<section class="lanes" id="lanes"><h2>Lanes <span class="n">{len(result["items"])}</span></h2>'
+           f'{lanes_block(result)}</section>')
+
+
 def column_order(status: str, entries: list) -> list:
     """Cards inside a column: newest activity first where there is activity;
     not-started work by newest proposal, then ledger order."""
@@ -258,7 +364,7 @@ def column_order(status: str, entries: list) -> list:
 
 # ---------------------------------------------------------------------------
 
-def render(ledgers: list[tuple[Path, dict]], name: str, repo) -> str:
+def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> str:
     totals = {s: 0 for s in L.STATUSES}
     proposals, entries, open_asks, answered, requests = [], [], [], [], []
     owners, tiers = set(), set()
@@ -316,6 +422,14 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo) -> str:
                      f'<span class="n" id="attention-n">{len(open_asks) + len(requests)}</span></h2>'
                      f'<ul class="asks">{rows}</ul></section>')
 
+    # Proposal 25 Z-06 and proposal 26 C-04: not-yet-taken work clustered by
+    # files touched, and every open item's lane with the 80% cut marked --
+    # both computed only when a project is given (render() stays callable
+    # without one, as it always has been, for a caller with no lanes/risk
+    # context to offer).
+    clusters = clusters_section(cluster_state(ledgers)) if project is not None else ""
+    lanes = lanes_section(lane_state(ledgers, project)) if project is not None else ""
+
     columns = []
     for status in COLUMNS:
         its = column_order(status, [t for t in entries if t[1].get("status") == status])
@@ -369,6 +483,8 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo) -> str:
         '<button type="button" class="clear" id="clear">Clear</button>'
         '<p class="shown" id="shown" aria-live="polite"></p></div>'
         f'{attention}'
+        f'{clusters}'
+        f'{lanes}'
         f'<div class="board" id="board">{"".join(columns)}</div>'
         '<div class="list" id="list" hidden><div class="scroll"><table><thead><tr>'
         '<th>ID</th><th>Proposal</th><th>Item</th><th>Status</th><th>Owner</th><th>Tag</th><th>Issue</th><th>Last</th>'
@@ -441,6 +557,32 @@ border:1px solid var(--rule);border-radius:5px;background:var(--raise)}
 .clear{border:0;background:none;color:var(--accent);cursor:pointer;font-size:13.5px;padding:5px 4px}
 .shown{margin:0 0 0 auto;font:12px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
 .attention{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
+.clusters,.lanes{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
+.cluster-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:10px}
+.cluster{background:var(--raise);border:1px solid var(--rule);border-radius:6px;padding:10px 12px}
+.cluster h3{font:600 13.5px var(--sans);margin:0}
+.cluster .files{font:12px var(--mono);color:var(--dim);margin:4px 0 6px;overflow-wrap:anywhere}
+.cluster ul,.cluster-singles ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.cluster li,.cluster-singles li{font:13px var(--sans)}
+.cluster-singles{margin-top:10px}
+.cluster-singles summary{font:12px var(--mono);color:var(--dim);cursor:pointer}
+.lane{margin-top:12px}
+.lane:first-child{margin-top:10px}
+.lane h3{font:600 12px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--dim);margin:0 0 6px}
+.lane ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.lane-item{font:13.5px/1.4 var(--sans);padding:4px 8px;border-radius:4px;background:var(--raise);
+border:1px solid var(--rule);display:flex;flex-wrap:wrap;align-items:baseline;gap:6px}
+.lane-item .id{font:600 12px var(--mono)}
+.lane-item .share{font:12px var(--mono);margin-left:auto}
+.lane-item.overdue{border-color:color-mix(in srgb,var(--block) 45%,var(--rule));
+background:var(--block-soft)}
+.badge-overdue{font:600 11px var(--mono);color:var(--block);border:1px solid currentColor;
+border-radius:9px;padding:0 6px}
+.badge-alone{font:500 11px var(--mono);color:var(--dim);border:1px solid var(--rule);border-radius:9px;padding:0 6px}
+.cut-line{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--dim);
+font:500 11.5px var(--mono);text-transform:uppercase;letter-spacing:.05em}
+.cut-line::before,.cut-line::after{content:"";flex:1;height:1px;background:var(--rule)}
+.lane-unsized .lane-item{opacity:.75}
 h2{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;margin:0;display:flex;align-items:center}
 .asks{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
 .ask{display:grid;grid-template-columns:auto auto auto 1fr;gap:2px 10px;align-items:baseline}
@@ -640,7 +782,7 @@ def main(argv) -> int:
 
     ledgers.sort(key=lambda t: (int(t[1].get("proposal")) if str(t[1].get("proposal")).isdigit() else 0, t[0].name))
     repo = args.repo or R.infer_repo(paths[0])
-    text = render(ledgers, args.name or project_name(project), repo)
+    text = render(ledgers, args.name or project_name(project), repo, project)
     out.parent.mkdir(parents=True, exist_ok=True)
     if not out.exists() or out.read_text() != text:
         out.write_text(text)

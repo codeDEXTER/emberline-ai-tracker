@@ -108,6 +108,7 @@ not check (not a git repository).
 from __future__ import annotations
 
 import argparse
+import datetime
 import glob
 import hashlib
 import json
@@ -125,6 +126,7 @@ from tools.tracker import board as B  # noqa: E402
 from tools.tracker import checkpoint as CP  # noqa: E402
 from tools.tracker import ledger as L  # noqa: E402
 from tools.tracker import render as R  # noqa: E402
+from tools.tracker import rescore as RS  # noqa: E402
 
 PROSE = tuple(P.DEFAULTS["read_order"])
 PLACEHOLDER = re.compile(r"\{\{[A-Z0-9_]+\}\}")
@@ -602,6 +604,7 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
     if top is None:
         raise SystemExit(2)
     project = Path(top)
+    today = datetime.date.today()
     gitdir, common = git(project, "rev-parse", "--git-dir"), git(project, "rev-parse", "--git-common-dir")
     decl, own = P.load(project), P.declared(project)
     rules, rules_problems = rules_status(project)
@@ -742,6 +745,11 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             "published": published,
             # Proposal 22, T-02: the sponsor asked for this proposal's own tracker.
             "own_tracker": own_page,
+            # Proposal 26, C-04: a tail-lane item whose next_check has passed --
+            # read the same way tools/tracker/board.py's lane section does,
+            # never a second overdue rule.
+            "overdue_tail": [{"id": i["id"], "title": i.get("title", ""), "next_check": i.get("next_check")}
+                             for i in L.items(data) if RS.overdue(i, today)],
         }
         if "session" in data:
             clean, problem = _session_problem(data["session"], rel)
@@ -882,6 +890,11 @@ def ledger_v2_lines(led: dict, session: str | None) -> list[str]:
     pub = led.get("published")
     if pub and pub.get("changed"):
         lines.append(publish_line(pub))
+    # Proposal 26, C-04: a tail-lane item whose next_check has passed --
+    # the same overdue() tools/tracker/board.py's lane section reads.
+    for t in led.get("overdue_tail") or []:
+        lines.append(f"  overdue      {shown(t['id'])} {shown(t['title'])} "
+                     f"(next_check was {shown(t.get('next_check'))})")
     return lines
 
 
