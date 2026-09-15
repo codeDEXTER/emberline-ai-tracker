@@ -541,12 +541,20 @@
       "tests": [],
       "done": "Rule in CLAUDE-workflow and the lead-prompt forms; bin/handover --check flags a ledger edit made outside the single writer; tested.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
-      "issue": null
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T16:46:50+02:00",
+          "event": "M-04 built: tracker stage / tracker apply-staged -- staged changes under docs/proposals/.staging/ never touch the ledger; only the dispatcher applies them, one at a time, deleting each as it lands. templates/brief.md and templates/lead-prompt.md's dispatcher form updated to point item leads/builders at stage, never set/ask. 9 new tests (tests/test_tracker_stage.py), tracker-set tests re-verified after refactor (9/9), test_conformance.py green (76/76).",
+          "by": "lead",
+          "evidence": "tools/tracker/stage.py, tools/tracker/apply_staged.py, tools/tracker/set.py (apply_change extracted), bin/tracker, templates/brief.md, templates/lead-prompt.md, tests/test_tracker_stage.py -- by lead"
+        }
+      ]
     },
     {
       "id": "M-05",

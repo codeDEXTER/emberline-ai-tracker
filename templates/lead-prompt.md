@@ -203,6 +203,13 @@ merge, reconcile and decide.
 - It never edits a file an item lead owns. Reconciling shared files is the
   same lead role §3 already gives to whichever session is doing the
   merging, not the dispatcher.
+- It is the ledger's only writer. An item lead or builder never runs
+  `tracker set`/`tracker ask` and never hand-edits ledger JSON -- it stages
+  its change with `tracker stage`. After merging a branch in, the
+  dispatcher (or whichever session is doing the merging) runs
+  `tracker apply-staged LEDGER` once per ledger to land every staged
+  change, one at a time, then commits and republishes as `/warmup`'s card
+  directs (proposal 23, M-04).
 
 ## Item-lead form
 

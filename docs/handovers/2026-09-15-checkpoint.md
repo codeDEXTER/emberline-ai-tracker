@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 16:24
+# Checkpoint — 2026-09-15 16:47
 
-Reason: manual · branch: backlog · HEAD: 3b54c25
+Reason: manual · branch: backlog · HEAD: c6b73a8
 
-<!-- ledger-digest: d4111eb0a45dde37e22ad4767547262cc2c4966eb3e60152ab87b14bf6453155 -->
+<!-- ledger-digest: 159e1b8d6ce625ecc311c51a0d104eb5bb9da68a961abd327bae558d96b992e9 -->
 
 ## Proposal 19 · Warm-up
 
@@ -68,7 +68,7 @@ Reason: manual · branch: backlog · HEAD: 3b54c25
 
 ## Proposal 23 · Eight levers for token spend
 
-10 done / 0 in progress / 0 blocked / 11 not started
+11 done / 0 in progress / 0 blocked / 10 not started
 
 ### In progress
 
@@ -87,7 +87,6 @@ Reason: manual · branch: backlog · HEAD: 3b54c25
 - M-01 · [ruflo · medium · sonnet] · Parallel test suite
 - M-02 · [ruflo · medium · sonnet] · Builders run only affected tests; one full suite at merge
 - M-03 · [ruflo · medium · sonnet] · Trim Ruflo's tool loading
-- M-04 · [ruflo · medium · sonnet] · One writer for ledger and tracker files
 - M-05 · [ruflo · medium · sonnet] · A light path for tiny items
 - M-06 · [ruflo · low · haiku] · Say where lead-prompt §4 stands on hand-editing ledgers
 - M-07 · [ruflo · low · haiku] · CLAUDE-workflow.md names the quick/merge two-gate exception
