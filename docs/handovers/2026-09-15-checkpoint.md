@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 16:47
+# Checkpoint — 2026-09-15 19:28
 
-Reason: manual · branch: backlog · HEAD: 38c4c3e
+Reason: manual · branch: backlog-wave2 · HEAD: b2f842b
 
-<!-- ledger-digest: 159e1b8d6ce625ecc311c51a0d104eb5bb9da68a961abd327bae558d96b992e9 -->
+<!-- ledger-digest: 82ccf87dc6ccff307262ec7666ba564975c12022c2b94937e37549c624ef570b -->
 
 ## Proposal 19 · Warm-up
 
@@ -47,7 +47,7 @@ Reason: manual · branch: backlog · HEAD: 38c4c3e
 
 ## Proposal 22 · One tracker per project
 
-4 done / 0 in progress / 0 blocked / 2 not started
+5 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -64,11 +64,10 @@ Reason: manual · branch: backlog · HEAD: 38c4c3e
 ### Next unblocked
 
 - T-05 · [ruflo · low · haiku] · PhotoVault app and engine move to one tracker
-- T-06 · [ruflo · low · haiku] · A published page's name is set once and never changes -- tracker, board, cookbook, any of them
 
 ## Proposal 23 · Eight levers for token spend
 
-11 done / 0 in progress / 0 blocked / 10 not started
+19 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
@@ -84,35 +83,8 @@ Reason: manual · branch: backlog · HEAD: 38c4c3e
 
 ### Next unblocked
 
-- M-01 · [ruflo · medium · sonnet] · Parallel test suite
-- M-02 · [ruflo · medium · sonnet] · Builders run only affected tests; one full suite at merge
 - M-03 · [ruflo · medium · sonnet] · Trim Ruflo's tool loading
-- M-05 · [ruflo · medium · sonnet] · A light path for tiny items
-- M-06 · [ruflo · low · haiku] · Say where lead-prompt §4 stands on hand-editing ledgers
-- M-07 · [ruflo · low · haiku] · CLAUDE-workflow.md names the quick/merge two-gate exception
 - M-08 · [ruflo · medium · sonnet] · Six-category review list in CLAUDE-workflow.md gets replaced, not duplicated, when P26 routing lands
-- M-09 · [ruflo · medium · sonnet] · Dedupe five rules stated in more than one file
-- M-10 · [ruflo · medium · sonnet] · Move dated rationale out of CLAUDE-workflow.md into CHANGELOG
-
-## Proposal 24 · Autonomous work without missing anything
-
-3 done / 0 in progress / 0 blocked / 1 not started
-
-### In progress
-
-- none
-
-### Blocked, and why
-
-- none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- H-04 · [ruflo · medium · sonnet] · Background leads are visible and named apart from chat sessions
 
 ## Proposal 25 · Sizing items by value, points and risk
 
@@ -137,7 +109,7 @@ Reason: manual · branch: backlog · HEAD: 38c4c3e
 
 ## Proposal 26 · Cluster work by contribution and risk
 
-2 done / 0 in progress / 0 blocked / 4 not started
+4 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
@@ -153,10 +125,8 @@ Reason: manual · branch: backlog · HEAD: 38c4c3e
 
 ### Next unblocked
 
-- C-05 · [ruflo · medium · sonnet] · Findings are catalogued, lane-sorted, triaged into batches and light-pathed
 - C-03 · [ruflo · medium · sonnet] · One gate and review per bundle or batch
 - C-04 · [ruflo · medium · sonnet] · Board shows lanes and the 14-day re-score
-- C-06 · [ruflo · medium · sonnet] · Two more statuses: in review, in testing
 
 ## Proposal 27 · Time and tokens per task, in one place
 

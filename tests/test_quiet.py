@@ -183,5 +183,114 @@ class TestQuiet(unittest.TestCase):
         self.assertLessEqual(len(line), 300)
 
 
+# -- --jobs: parallel unittest discover (proposal 23, lever M-01) -----------
+#
+# Why: 67-81% faster suites (Trail of Bits, May 2025). The requirement is
+# that quiet's own one-line verdict is unchanged: these tests build a real
+# fixture test tree (some files pass, one fails) and assert that running it
+# through `quiet -- python3 -m unittest discover -s DIR -q` (sequential) and
+# through `quiet --jobs N -- python3 -m unittest discover -s DIR -q`
+# (parallel, sharded one OS process per file) report the *same* verdict --
+# same OK/FAILED, same total test count, same failure count.
+
+PASSING_MODULE = """
+import unittest
+
+class T{n}(unittest.TestCase):
+    def test_a(self):
+        self.assertTrue(True)
+
+    def test_b(self):
+        self.assertEqual(1, 1)
+"""
+
+FAILING_MODULE = """
+import unittest
+
+class TFail(unittest.TestCase):
+    def test_ok(self):
+        self.assertTrue(True)
+
+    def test_boom(self):
+        self.fail("boom")
+"""
+
+
+class TestQuietParallelDiscover(unittest.TestCase):
+    def _make_fixture(self, n_passing_modules: int, failing: bool) -> Path:
+        d = Path(self.tmp.name) / "fixture_tests"
+        d.mkdir(parents=True, exist_ok=True)
+        for i in range(n_passing_modules):
+            (d / f"test_p{i}.py").write_text(PASSING_MODULE.format(n=i))
+        if failing:
+            (d / "test_zfail.py").write_text(FAILING_MODULE)
+        return d
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _run(self, extra_args, fixture_dir):
+        log = str(Path(self.tmp.name) / f"run-{'-'.join(extra_args) or 'seq'}.log")
+        cmd = [
+            str(QUIET), "--log", log, *extra_args, "--",
+            sys.executable, "-m", "unittest", "discover", "-s", str(fixture_dir), "-q",
+        ]
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        return r, Path(log)
+
+    def test_parallel_passes_agree_with_sequential(self):
+        fixture = self._make_fixture(n_passing_modules=5, failing=False)
+        seq, _ = self._run([], fixture)
+        par, _ = self._run(["--jobs", "4"], fixture)
+        self.assertTrue(seq.stdout.startswith("quiet: OK"), seq.stdout)
+        self.assertTrue(par.stdout.startswith("quiet: OK"), par.stdout)
+        # 5 modules x 2 tests each = 10, same total either way.
+        self.assertIn("10 tests", seq.stdout)
+        self.assertIn("10 tests", par.stdout)
+        self.assertEqual(seq.returncode, 0)
+        self.assertEqual(par.returncode, 0)
+
+    def test_parallel_failure_agrees_with_sequential(self):
+        fixture = self._make_fixture(n_passing_modules=4, failing=True)
+        seq, _ = self._run([], fixture)
+        par, _ = self._run(["--jobs", "4"], fixture)
+        self.assertTrue(seq.stdout.startswith("quiet: FAILED"), seq.stdout)
+        self.assertTrue(par.stdout.startswith("quiet: FAILED"), par.stdout)
+        self.assertIn("failures=1", seq.stdout)
+        self.assertIn("failures=1", par.stdout)
+        self.assertNotEqual(seq.returncode, 0)
+        self.assertNotEqual(par.returncode, 0)
+
+    def test_jobs_without_discover_shape_falls_back_unchanged(self):
+        """--jobs is a no-op for any CMD that is not a plain `unittest
+        discover` invocation -- it must never change behaviour for an
+        arbitrary command."""
+        log = str(Path(self.tmp.name) / "run.log")
+        cmd = [str(QUIET), "--log", log, "--jobs", "4", "--", *py(
+            f"import sys; sys.stdout.write({UNITTEST_OK!r}); sys.exit(0)"
+        )]
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        self.assertTrue(r.stdout.startswith("quiet: OK"), r.stdout)
+        self.assertIn("3 tests", r.stdout)
+
+    def test_jobs_1_runs_sequentially(self):
+        fixture = self._make_fixture(n_passing_modules=3, failing=False)
+        seq, _ = self._run([], fixture)
+        one, _ = self._run(["--jobs", "1"], fixture)
+        self.assertTrue(seq.stdout.startswith("quiet: OK"), seq.stdout)
+        self.assertTrue(one.stdout.startswith("quiet: OK"), one.stdout)
+        self.assertIn("6 tests", seq.stdout)
+        self.assertIn("6 tests", one.stdout)
+
+    def test_stdout_still_exactly_one_line_when_parallel(self):
+        fixture = self._make_fixture(n_passing_modules=5, failing=False)
+        par, _ = self._run(["--jobs", "4"], fixture)
+        lines = [l for l in par.stdout.split("\n") if l != ""]
+        self.assertEqual(len(lines), 1, f"expected exactly one line, got {par.stdout!r}")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -144,7 +144,12 @@ python3 -m unittest discover -s tests -q
 `bin/land` runs it before landing and CI runs the identical string, so a test
 written once is enforced in both without anybody wiring anything up. Do not
 invent a second command, a second directory, or a second runner: two commands
-wearing one name is how a test passes locally and never runs in CI.
+wearing one name is how a test passes locally and never runs in CI. The one
+sanctioned exception is a project's own declared `gates.quick`/`gates.merge`
+split in its `.common-rules.json` (proposal 23, L-03) — a fast command for
+routine work and a fuller one before landing, both named once in that file and
+run through `bin/quiet -- {{TEST_COMMAND}}` (`templates/brief.md`), never
+invented ad hoc inside a task.
 
 **Verification you performed lands as a test.** Measured on 2026-08-10:
 **29% of every Bash call a session makes is a one-off verification probe** —
@@ -161,6 +166,13 @@ the destination differs.
 `bin/land` refuses a branch that changes code and touches no test. If a change
 genuinely cannot be tested, say why and re-run with `LAND_ALLOW_UNTESTED=1` —
 recorded either way.
+
+**A builder's own gate runs only the tests its changed files touch** —
+`python3 tools/affected_tests.py [--base REF]` prints them; `bin/quiet --jobs
+N -- python3 -m unittest discover -s tests -q` shards the full suite across N
+processes for the times you do want all of it locally. Either way, the one
+full sequential run at integration (`bin/land`, CI) stays the gate that
+decides a merge (proposal 23, M-01/M-02).
 
 **A guard nobody has watched fail is not known to be a guard.** Run a new test
 against the broken state first and see it fail, then fix. Two tests written
@@ -219,18 +231,16 @@ answer to "what is this product made of, and how much of it is done".
 
 | # | Feature | State |
 |---|---|---|
-| [#2](…/issues/2) | Capture a document and see it filed | **in flight** — issue #1 |
-| [#3](…/issues/3) | Import the backlog | blocked by #2 |
-| [#8](…/issues/8) | Get it onto the second phone | version 2 |
 
 States: `in flight` · `next` · `blocked by #N` · `later` / `version N` · `built`
 / `completed`. Name the implementing issues as `issue #N` — that is what makes a
 percentage computable, and it is read separately from `blocked by`, which is a
-dependency and never progress. `completed` is the word for fully finished —
-`done` is a grandfathered synonym, not mass-renamed where it's already written,
-but write `completed` from here on (same convention as proposal-status's own
-`built` → `completed`, 2026-08-20). `built` keeps its own, narrower meaning here
-— shipped but not yet closed — and is not folded into `completed`.
+dependency and never progress. `completed` is the word for fully finished, and
+is what to write from here on; `done` is a grandfathered synonym of it, not
+mass-renamed where already written; `built` keeps its own narrower meaning —
+shipped but not yet closed — and is never folded into `completed` (naming
+history and dates: CHANGELOG, 2026-08-20). A worked example of this table is
+in that CHANGELOG entry.
 
 **This is not a per-task obligation.** It changes when the sponsor adds, renames
 or closes a feature — which is rare, and is his act rather than a session's.
@@ -246,9 +256,8 @@ A project with no register is reported as **"no features declared"**, never as
 
 | # | Milestone | Proves | You get | State |
 |---|---|---|---|---|
-| 1 | One corpus indexed, answering a question | retrieval is good enough to build on | nothing to hold | completed |
-| 2 | The model timed on the real phone | the felt speed, and so the retrieval budget | nothing to hold | in flight |
-| 3 | The first real screen, on the device | the design survives contact with a hand | **an app you can use, one corpus** | next |
+
+A worked example of this table is in the CHANGELOG entry for M-10.
 
 Same states as the register — including `completed`/grandfathered `done` for a
 milestone that is fully finished, not just `built` and shipped. The register
@@ -263,10 +272,7 @@ happened to say. And **every row states what the sponsor gets, including when th
 answer is nothing** — a plan whose first four steps hand him nothing is a fine plan,
 but he should be told that at the start rather than discover it in week three.
 
-Measured on `pocket-internet`, 2026-08-20: the first milestone was five cheap
-verifications named in advance. Three ran — two confirmed an estimate and one
-corrected a verdict that had already propagated into two proposals. Twenty minutes,
-and it changed a conclusion that eleven passes of reading had not.
+(Measured on `pocket-internet`, 2026-08-20 — CHANGELOG has the incident.)
 
 **One optional column: `Track`.** A project running genuinely parallel work —
 finance-tracker has correctness and surfaces moving at the same time — names a track
@@ -301,13 +307,11 @@ it, and only three:
 - the **order changes**, because a proof came back badly enough to reorder what
   follows.
 
-**Still not a per-task obligation**, same guardrail as the register. Those three
-events happen a handful of times across a whole feature, not once per task, and
-nothing here asks a session to append anything when work lands. This is deliberately
-not proposal 08's logbook, which was rejected for exactly that reason. The test is
-simple: if a session is editing the plan because it *did* something, that is the
-logbook and it is wrong; if it is editing because something is now *known*, that is
-the plan and it is right.
+**Still not a per-task obligation**, same guardrail as the register above:
+those three events happen a handful of times across a whole feature, not once
+per task. The test is simple: editing because a session *did* something is the
+rejected proposal-08 logbook; editing because something is now *known* is the
+plan, and right.
 
 **A question to the user is a cost, not a safety move.** Before asking, check
 whether the answer would change what gets built. If either answer leads to the
@@ -321,12 +325,9 @@ Ask only when:
 
 **When there is nothing to decide, show no buttons.** Do the work and report it.
 
-Reserved to the user, always:
-- anything under `common-rules/` — surface and ask, never edit unprompted
-- merging a change to these rules — open the PR, the user merges
-- creating, picking and closing features
-- clearing orphaned processes or archiving sessions
-- `finance_data/`, `auth.json`, `.env` — never leave the machine in the clear
+**Reserved to the user, always** — the full list is canonical in
+`HANDOFF.md`'s "Reserved to the sponsor, always" section; state it verbatim
+whenever it applies.
 
 ---
 
@@ -481,6 +482,17 @@ it 2.4×–22.7× cheaper than the rest, and the heaviest arm was the slowest of
 Argue for more process against that, not against a taste.
 (`experiments/pockets-core/RESULTS.md`, branch `experiment/results`.)
 
+**The light path (proposal 23, M-05).** An item small enough (points 1, risk
+`standard`) skips more than just the separate reviewer above — it skips the
+scout and the per-item ledger ceremony too: one commit, one gate run, one log
+line, nothing else. Routing (proposal 25, Z-02) is what decides an item
+qualifies; `templates/brief.md` carries the short form once it does. A finding
+triaged and decided small the same way (proposal 26, C-05) takes this same
+named path, batched with others from its cluster. **Common-rules items are
+never light** — every change here is already `restricted` under the risky-work
+list above, so the light path never applies inside this repository, only to
+the projects that follow this standard.
+
 The chain, when it does run:
 
 1. A proposal, delivered as an HTML artifact, then a decision (below).
@@ -503,6 +515,14 @@ its direction chosen — it does not re-research it.
 a rendered HTML artifact, not a wall of text in chat. The user reviews by
 looking. Do not ask them to read requirements prose.
 
+**A published page's name is set once, and never changes (proposal 22, T-06,
+mandatory).** The tracker/board, a per-proposal tracker page, the cookbook, or
+any future maintained page — once its `<title>` is set on first publish, no
+later republish edits it: not a differing `title` parameter, not by hand, not
+a regenerating rebuild that emits the tag differently. Stated once, here; it
+covers every maintained page, not just the tracker (`skills/warmup/SKILL.md`
+§3 points back here rather than restating it).
+
 **Number every proposal, and lead with the number.** Proposals live in
 `docs/proposals/` as `NN-<type>-<slug>.html`, numbered sequentially per project,
 never reused. The visible heading and the `<title>` both read
@@ -514,40 +534,25 @@ before a word is read. Status is one of `proposed`, `accepted`, `completed`,
 `completed` from here on. An unnumbered proposal is not a proposal; it is a
 sketch.
 
-**A proposal that asked numbered decisions must record the answers.**
-Measured in finance-tracker (issue #584): 11 proposals `accepted`, 9 carrying
-a decision date (`<meta name="proposal-decided">`), 3 recording what was
-actually decided — and those three were hand-written the day the gap was
-noticed. A date says *when*; it says nothing about *what*, and
-`proposal-auditor` has nothing to measure a build against without the answers.
-Scoped mechanically, not by taste: a proposal whose `<ol class="decisions">`
-list asked something must carry the answers, in the same document, in a block
-a reader can find (`id="decided"` — proposal 18, portfolio-pdf, already does
-this by hand) before it reaches `accepted`, `completed`, `completed in part`,
-or the grandfathered `built`. A proposal that asked nothing needs nothing —
-"did it ask?" is checkable, "is it big?" is not.
+**A proposal that asked numbered decisions must record the answers,** in the
+same document, in a block a reader can find (`id="decided"`) — scoped
+mechanically: a proposal whose `<ol class="decisions">` list asked something
+must carry the answers before it reaches `accepted`, `completed`, `completed
+in part`, or the grandfathered `built`. A proposal that asked nothing needs
+nothing. (Why this rule exists, measured in finance-tracker: CHANGELOG,
+2026-08-19.)
 
 **A proposal reaches a terminal state — `completed`, or `completed in part`
 with its exceptions named.** `completed in part` requires an `id="exceptions"`
-block beside the decisions: what was not built, and why. A status claiming
-partial completion with nothing named is indistinguishable from quietly
-marking something done — the block is what keeps it honest. `built` remains
-the grandfathered word for full completion; `completed in part` is new
-vocabulary with no prior use to reconcile.
+block beside the decisions: what was not built, and why — the block is what
+keeps a partial-completion claim honest.
 
 **Grandfathered by decision date, not by list.** Both requirements above bind
-proposals decided on or after **2026-08-19**, the day this rule was written.
-A proposal decided before that date, or carrying no `proposal-decided` date at
-all, is exempt — undated reads the same as "decided before this rule
-existed," not as a loophole to leave the meta off going forward.
-finance-tracker alone has 8 accepted proposals whose answers are
-unrecoverable; inventing them would misstate history worse than the gap does,
-and a test that fails on day one against documents nobody can fix gets
-disabled. `bin/proposalcheck --project <dir>` is the mechanical form of both
-rules and this grandfather; it currently reports 0 blocked proposals across
-finance-tracker, mac-explorer, pockets and pip — finance-tracker has 4 that
-would fail without the floor (20, 23, 24, 25), all dated before it, so
-enforcement is forward-only from here.
+proposals decided on or after **2026-08-19**; a proposal decided before that
+date, or carrying no `proposal-decided` date at all, is exempt.
+`bin/proposalcheck --project <dir>` is the mechanical form of both rules and
+this grandfather. (The measurement behind the date and the cutover: CHANGELOG,
+2026-08-19.)
 
 **A document is either a proposal or an artifact, and the difference is
 whether it carries a status.** A **lead** — a document with no
@@ -556,21 +561,12 @@ a decision, and must carry a `proposal-status` from the vocabulary above. A
 **section** — `part-of` some lead — is supporting material with nothing of
 its own to decide (an exploration, a findings run, a design-explorer's
 parallel concepts shown side by side before a direction is picked): it
-carries no status at all, because there is only ever one decision per
-topic, and the lead is where it lives. Six parallel spending-UI concepts
-from one design-explorer run (finance-tracker, 2026-08-20) had nowhere to
-go but loose, unnumbered `claude.ai` links until this was made explicit —
-`NN-<type>-<slug>.html` already had a real answer (make each its own
-numbered section of one lead proposal), it just wasn't written down as a
-rule anyone could check.
+carries no status at all, because there is only ever one decision per topic,
+and the lead is where it lives. (What made this explicit: CHANGELOG, 2026-08-20.)
 
 **Grandfathered the same way, a separate floor.** This binds proposals
 touched on or after **2026-08-20** — its own day, not reused from the floor
-above. `bin/proposalcheck` reports 0 blocked today: pockets carries one
-lead with a typo'd status (`superseded-by 14` for `superseded by 14`,
-decided 2026-08-04) and pip carries two undated leads with no status at
-all — both grandfathered the identical way an undated or pre-floor proposal
-already is above, not specially cased.
+above. (CHANGELOG, 2026-08-20, has which projects it grandfathered.)
 
 **Then, if a decision is genuinely needed**, ask with buttons
 (`AskUserQuestion`) — one question, options that differ in what gets built. If
@@ -579,9 +575,8 @@ no decision is needed, skip the buttons entirely.
 **Ask before code, in one batch, and do not wait.** Collect what the spec leaves
 undetermined, put it in one message, then pick a default for each and keep
 working — recording what you picked and what it blocks. A question that blocks
-nothing is recorded, not asked. The bake-off arm that did this logged six
-questions, received no answers, and still finished; the control asked two and
-silently resolved nine, which it happened to get right.
+nothing is recorded, not asked. (The bake-off measurement behind this: CHANGELOG,
+2026-08-20.)
 
 **Offer a demo before asking for a yes**, and before closing a feature. Say what
 to open and what to click. The user should see the thing working, not read that

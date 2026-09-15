@@ -1,5 +1,195 @@
 # Changelog — common-rules
 
+## 2026-09-15 · The rules-file cluster: dedupe, a merged mandatory read, the light path named, and published titles never move (P23 M-05, M-06, M-07, M-09, M-11; P22 T-06)
+
+A rules-conflict review this session ran across HANDOFF.md,
+docs/OPERATING-RULES.md, CLAUDE-workflow.md, skills/warmup/SKILL.md and
+templates/lead-prompt.md found seven items touching the same small set of
+files; landed together as one bundle to avoid merge conflicts on the same
+paragraphs. M-10 (CLAUDE-workflow.md's dated rationale) has its own entry
+above; this one covers the rest.
+
+**M-09 — five rules, one canonical home each.** `ruflo-mandatory` lives only
+in `skills/warmup/SKILL.md`; `the-ledger-has-one-writer`,
+`checkpoint-before-stopping` and `every-sponsor-message-gets-an-ask-row` now
+live only in `HANDOFF.md` (folded there by M-11, below); `reserved-to-the-
+sponsor` lives only in `HANDOFF.md`'s new "Reserved to the sponsor, always"
+section. Every other file that used to restate one of these in full now
+carries a one-line pointer naming where it actually lives. No rule's content
+was cut, only its duplicates.
+
+**M-11 — the mandatory read, restructured.** `docs/OPERATING-RULES.md`'s
+content folded into `HANDOFF.md` under "Operating rules, learned the hard
+way"; the standalone file still exists, nearly empty, only because
+`.common-rules.json`'s `read_order` and `CLAUDE.md` (both reserved to the
+sponsor) still name its path — it now just points to `HANDOFF.md`. Every
+read-order line in `HANDOFF.md`, `skills/warmup/SKILL.md` and
+`templates/lead-prompt.md` that used to say "the ledger(s)" now says the
+warmup card instead — the card is the compressed form (~1,061 words against
+~37,672 for the raw JSON across 11 proposals, measured 2026-09-15); a
+ledger's full JSON is opened only for the item currently being worked.
+Target was 3,000 words for the fresh-lead mandatory read
+(CLAUDE.md + HANDOFF.md + card + checkpoint + CLAUDE-workflow.md); measured
+after this bundle and M-10 together, the static four files alone are still
+several thousand words over that, dominated by CLAUDE-workflow.md, which
+carries process rules for every project on the standard, not just
+common-rules. The sponsor's own ruling settles the tradeoff: *"the priority
+is on the word limit that we do not miss anything important"* — nothing was
+cut to force the number down; the checkpoint, both prohibitions and every
+rule this bundle touched are still in the mandatory read, and the real count
+is reported here rather than hidden by further trimming.
+
+**M-06 — `templates/lead-prompt.md` §4 names its tool.** §4 ("Keep the
+ledger current") now says the lead uses `tracker set` for status/field
+changes and `tracker ask` for ask rows, and never hand-edits the ledger JSON
+— matching what `templates/brief.md` already states for a builder (which
+instead uses `tracker stage`, since it does not hold the pen — proposal 23,
+M-04). The two sections another bundle added after §9 (`## Dispatcher form`,
+`## Item-lead form`) are untouched.
+
+**M-07 — the quick/merge gate split is a named exception.** CLAUDE-workflow.md's
+"one command, everywhere" rule now carries one sentence: a project's own
+declared `gates.quick`/`gates.merge` split in its `.common-rules.json`
+(proposal 23, L-03) is the one sanctioned second command, run through
+`bin/quiet -- {{TEST_COMMAND}}` — never a command invented ad hoc inside a
+task.
+
+**M-05 — the light path is a real, named thing.** CLAUDE-workflow.md's
+"Ceremony is opt-in" section now names it: an item small enough (points 1,
+risk `standard`) skips the scout, the separate reviewer, and the per-item
+ledger ceremony — one commit, one gate run, one log line. Routing (proposal
+25, Z-02) decides eligibility; `templates/brief.md` carries the short form.
+Proposal 26's C-05 findings-triage work can now cite "the light path" as a
+real, defined thing. **Common-rules' own items are never light** — every
+change here is already `restricted` under the risky-work list, so this only
+applies to the projects that follow the standard, not to this repository.
+
+**T-06 — a published page's `<title>` is set once, never changed.**
+CLAUDE-workflow.md's "Talking to the user" section states it once, covering
+every maintained page (the tracker/board, a per-proposal tracker page, the
+cookbook, or any future one) — not a differing `title` parameter on a later
+publish, not by hand, not a regenerating rebuild that emits the tag
+differently. `skills/warmup/SKILL.md` §3 points back to this statement
+rather than restating it. Nothing was actually broken by this — the Artifact
+tool's own rule already makes a page's own `<title>` win over a publish-call
+`title` parameter — but the sponsor's ruling makes it explicit and
+mandatory: *"don't change the name of the tracker again and again that
+should also be a mandatory rule"*, later broadened to *"make it a mandatory
+rule not to rename the artifacts like cookbook and a trackers again and
+again."*
+
+**Standard change (mandatory):** every project on the standard — when
+publishing or republishing any maintained page (a tracker, a board, a
+cookbook, or any future one) — never changes that page's `<title>` after its
+first publish, for any reason (T-06). The light path (M-05) is available to
+any project on the standard for points-1/risk-standard items; using it is
+not required, but the definition above is now the one a project should point
+to rather than inventing its own.
+
+## 2026-09-15 · CLAUDE-workflow.md's Autopilot and Talking-to-the-user sections trimmed of dated rationale (P23 M-10)
+
+Proposal 23, M-10. The two sections carried roughly 230 lines of dated,
+proposal-specific rationale — grandfather clauses, sample register and
+milestone rows, and citations to one-off measurements — sitting beside the
+actual rules a session needs to follow. Table shapes and the rules
+themselves are unchanged; the worked examples and the measurement history
+that justified each date move here, one line plus a pointer left in
+`CLAUDE-workflow.md`.
+
+**Feature register, worked example** (`## Features` table): what used to sit
+in the file as sample rows —
+
+| # | Feature | State |
+|---|---|---|
+| [#2](…/issues/2) | Capture a document and see it filed | **in flight** — issue #1 |
+| [#3](…/issues/3) | Import the backlog | blocked by #2 |
+| [#8](…/issues/8) | Get it onto the second phone | version 2 |
+
+**Naming history:** `completed` is the word for fully finished, written from
+here on; `done` is a grandfathered synonym of it, not mass-renamed where
+already written; `built` keeps its own narrower meaning — shipped but not
+yet closed — and is never folded into `completed` (same convention as
+proposal-status's own `built` → `completed`, decided 2026-08-20).
+
+**Milestone plan, worked example** (`## Milestones` table):
+
+| # | Milestone | Proves | You get | State |
+|---|---|---|---|---|
+| 1 | One corpus indexed, answering a question | retrieval is good enough to build on | nothing to hold | completed |
+| 2 | The model timed on the real phone | the felt speed, and so the retrieval budget | nothing to hold | in flight |
+| 3 | The first real screen, on the device | the design survives contact with a hand | **an app you can use, one corpus** | next |
+
+**Measured on `pocket-internet`, 2026-08-20:** the first milestone was five
+cheap verifications named in advance. Three ran — two confirmed an estimate
+and one corrected a verdict that had already propagated into two proposals.
+Twenty minutes, and it changed a conclusion that eleven passes of reading
+had not.
+
+**Why the proposal-decisions rule exists, measured in finance-tracker
+(issue #584), 2026-08-19:** 11 proposals `accepted`, 9 carrying a decision
+date (`<meta name="proposal-decided">`), only 3 recording what was actually
+decided — and those three were hand-written the day the gap was noticed. A
+date says *when*; it says nothing about *what*, and `proposal-auditor` has
+nothing to measure a build against without the answers.
+
+**The 2026-08-19 grandfather's measurement:** undated reads the same as
+"decided before this rule existed," not a loophole to leave the meta off
+going forward — finance-tracker alone has 8 accepted proposals whose
+answers are unrecoverable; inventing them would misstate history worse than
+the gap does, and a test that fails on day one against documents nobody can
+fix gets disabled. `bin/proposalcheck` reported 0 blocked proposals across
+finance-tracker, mac-explorer, pockets and pip at the time; finance-tracker
+had 4 that would have failed without the floor (proposals 20, 23, 24, 25),
+all dated before it, so enforcement is forward-only from there.
+
+**Why the lead-vs-section rule was made explicit, 2026-08-20:** six
+parallel spending-UI concepts from one design-explorer run (finance-tracker)
+had nowhere to go but loose, unnumbered `claude.ai` links until this was
+written down — `NN-<type>-<slug>.html` already had a real answer (make each
+its own numbered section of one lead proposal).
+
+**The 2026-08-20 floor's grandfathering, at the time it was written:**
+`bin/proposalcheck` reported 0 blocked: pockets carried one lead with a
+typo'd status (`superseded-by 14` for `superseded by 14`, decided
+2026-08-04) and pip carried two undated leads with no status at all — both
+grandfathered the identical way an undated or pre-floor proposal already is
+above, not specially cased.
+
+**The bake-off measurement behind "ask before code, in one batch":** the arm
+that batched and defaulted logged six open questions, received no answers,
+and still finished; the control arm asked two and silently resolved nine,
+which it happened to get right.
+## 2026-09-15 · Findings are ledger rows too: `tracker findings` (P26 C-05)
+
+Proposal 26, C-05. A review's or a test's finding -- from quality-manager,
+any reviewer, test-engineer's bug reports, or a failing/red-first test not
+yet fixed -- is now a row in a ledger's own top-level `findings` array, not
+only prose in a report: id (`F-NN`, distinct in shape from an item's
+`PHASE-NN`), `source` (`review`|`test`), `file`[`:line`], `severity`, and
+`state` (`catalogued`|`decided`|`deferred`|`declined`). It shares proposal
+25/26's value, points, risk, cluster, impact and likelihood fields with
+items, checked the same way, all optional -- a ledger with no `findings`
+validates exactly as before.
+
+`bin/tracker findings add|decide|defer|decline LEDGER ...` catalogues a
+finding and moves it through its lifecycle, writing straight to the ledger
+like `tracker set`/`tracker ask` already do (an item lead still stages
+ledger changes through `tracker stage` per proposal 23's M-04 -- this is
+the write primitive for a new kind of row, the same way `set`/`ask` are for
+items and asks).
+
+`bin/tracker findings lanes LEDGER...` shapes every finding like an item
+row and hands the combined queue to `tools/tracker/lanes.py`'s `lanes()`
+unchanged, so items and findings sort into the one share/risk/80%-cut
+queue -- a catalogued finding gets a lane and stays visible, unworked,
+until the sponsor decides it. `bin/tracker findings triage LEDGER --batch
+ID...` groups a batch of decided-small findings by their shared `cause`
+before it is worked, one line per group; a duplicate is `declined` with
+`duplicate_of` naming the survivor and dropped from the count. A decided
+finding is light-path eligible (proposal 23 M-05, built in a parallel
+bundle) when it is not alone (restricted, or risk 9+) and 1-3 points --
+`light_eligible()`, reusing the one shared `lanes()` run.
+
 ## 2026-09-15 · `bin/handover --check`: the closing check before a lead's turn ends (P24 H-01, H-02, H-03)
 
 Proposal 24, H-01 to H-03. A new `bin/handover --check --project DIR` runs four
