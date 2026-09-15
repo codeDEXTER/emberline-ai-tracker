@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 12:04
+# Checkpoint — 2026-09-15 12:17
 
-Reason: manual · branch: p28-warmup-reheat · HEAD: 560e1bd
+Reason: manual · branch: p29-takeover · HEAD: 6997402
 
-<!-- ledger-digest: e4cda692fa85a9128f4c4404dcdb67a726e5ed874e177112ff8666e32891690f -->
+<!-- ledger-digest: 801e705770c1a007445946a3bbdc1cc10ed3adc5f84c6fda4c6ecb8328d0df1c -->
 
 ## Proposal 19 · Warm-up
 
@@ -123,7 +123,7 @@ Reason: manual · branch: p28-warmup-reheat · HEAD: 560e1bd
 
 ### Next unblocked
 
-- C-01 · [ruflo · medium · sonnet] · Impact and likelihood on items
+- C-01 · [ruflo · low · haiku] · Impact and likelihood on items
 - C-03 · [ruflo · medium · sonnet] · One gate and review per bundle or batch
 
 ## Proposal 27 · Time and tokens per task, in one place
@@ -166,6 +166,27 @@ Reason: manual · branch: p28-warmup-reheat · HEAD: 560e1bd
 
 - R-01 · [ruflo · medium · sonnet] · bin/warmup runs the standard every time, in both modes
 - R-05 · [ruflo · medium · sonnet] · Fast-forward the shared common-rules checkout when behind
+
+## Proposal 29 · Taking over the Common Rules chat v1 work
+
+0 done / 1 in progress / 0 blocked / 6 not started
+
+### In progress
+
+- K-01 · [ruflo · lead · lead model] · Land p22 on main · started
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- A-04 · "Also in the board, refactor to utilize lower agents as much as possible."
+
+### Next unblocked
+
+- K-04 · [ruflo · low · haiku] · PhotoVault app and engine on the standard (P21 S-07, S-08)
+- K-05 · [ruflo · low · haiku] · Proposal 19 pilot exit conditions (W-10)
 
 ## Exact next action
 
