@@ -490,12 +490,20 @@
       "tests": [],
       "done": "Suite wall-clock measured before and after on the same commit; merge gate and land use it; flaky or order-dependent tests fixed or named.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
-      "issue": null
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T17:21:05+02:00",
+          "event": "bin/quiet gained --jobs N: shards a unittest discover CMD across N processes, aggregates to the same summary shape, verdict line unchanged. tests/test_quiet.py::TestQuietParallelDiscover proves sequential vs --jobs 4 report identical verdicts on a fixture tree.",
+          "by": "session:bundle-e",
+          "evidence": "commit 41ea8a8 on branch bundle-e-test-speed; full suite green: bin/quiet -- python3 -m unittest discover -s tests -q -> OK, 1368 tests, 1210.2s"
+        }
+      ]
     },
     {
       "id": "M-02",
@@ -507,12 +515,20 @@
       "tests": [],
       "done": "Brief template and CLAUDE-workflow say so with a Standard change line; a tool prints the affected tests for a diff; tested on a fixture repo.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
-      "issue": null
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T17:21:10+02:00",
+          "event": "New tools/affected_tests.py maps changed files (git diff, --base REF, or explicit args) to the tests/test_*.py files that plausibly touch them, for a builder's own gate; full suite still runs once per bundle at integration. One sentence added to CLAUDE-workflow.md's existing Tests section, no new section.",
+          "by": "session:bundle-e",
+          "evidence": "commit c2e0bda on branch bundle-e-test-speed; tests/test_affected_tests.py 10/10 passing (in-memory fixture + real git fixture repo); full suite green: bin/quiet -- python3 -m unittest discover -s tests -q -> OK, 1368 tests, 1210.2s"
+        }
+      ]
     },
     {
       "id": "M-03",

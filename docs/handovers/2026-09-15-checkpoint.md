@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 18:16
+# Checkpoint — 2026-09-15 18:36
 
-Reason: manual · branch: backlog · HEAD: c082b73
+Reason: manual · branch: backlog · HEAD: 637b6ff
 
-<!-- ledger-digest: fbc0234cee8420094db6e0982cb3a461200af68340d3f67cae3e7e62a1e8693c -->
+<!-- ledger-digest: dcf48551575f355bfe45ec540d53b4514129b621718f20c7a5875a883f2d087a -->
 
 ## Proposal 19 · Warm-up
 
@@ -68,7 +68,7 @@ Reason: manual · branch: backlog · HEAD: c082b73
 
 ## Proposal 23 · Eight levers for token spend
 
-11 done / 0 in progress / 0 blocked / 10 not started
+13 done / 0 in progress / 0 blocked / 8 not started
 
 ### In progress
 
@@ -84,8 +84,6 @@ Reason: manual · branch: backlog · HEAD: c082b73
 
 ### Next unblocked
 
-- M-01 · [ruflo · medium · sonnet] · Parallel test suite
-- M-02 · [ruflo · medium · sonnet] · Builders run only affected tests; one full suite at merge
 - M-03 · [ruflo · medium · sonnet] · Trim Ruflo's tool loading
 - M-05 · [ruflo · medium · sonnet] · A light path for tiny items
 - M-06 · [ruflo · low · haiku] · Say where lead-prompt §4 stands on hand-editing ledgers
