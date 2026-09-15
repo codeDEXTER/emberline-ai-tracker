@@ -175,6 +175,23 @@
           "evidence": "Bundle C (bin/warmup, skills, hooks, bin/derecord): one Sonnet builder after a Haiku scout, branch bundle-c from af3dbc8, integration branch backlog."
         }
       ]
+    },
+    {
+      "id": "R-06",
+      "phase": "R",
+      "cx": "C4",
+      "title": "A visual cookbook page: how warmup and reheat work, the standard's features, constraints and rules",
+      "what": "A published, maintained reference page (not the ledger tracker, which stays proposal-by-proposal status): a workflow diagram of warmup vs reheat vs the hooks that trigger them (R-01, R-03), a features table (what warmup/reheat/the old standard shortcut each do), a constraints/rules section sourced from HANDOFF.md's prohibitions and docs/OPERATING-RULES.md, and pointers to the mandatory commands (tracker route/lanes, bin/handover --check). Built from the real rule files, not invented. Kept current: whenever CHANGELOG.md carries a Standard change (mandatory) entry touching warmup, reheat, or a rule the page shows, the page is regenerated in the same commit, the same way the tracker page regenerates with the ledger.",
+      "files": [],
+      "tests": [],
+      "done": "First version published as an artifact, its URL recorded (tracker published-style sidecar, or a line in docs/README.md); a rule in docs/OPERATING-RULES.md or CLAUDE-workflow.md says a Standard change touching warmup/reheat/rules regenerates it; the page renders the real card/hook behaviour, not a mockup.",
+      "depends": [],
+      "status": "in progress",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null
     }
   ],
   "asks": [
@@ -258,6 +275,15 @@
       "state": "answered",
       "source": "Common Rules rework session transcript",
       "note": "Applies to every accepted, not-built item in proposals 24-28; built in surface bundles on integration branch backlog."
+    },
+    {
+      "id": "A-09",
+      "at": "2026-09-15T16:02:43+02:00",
+      "by": "lead",
+      "kind": "feature",
+      "quote": "also going ahead, can you maintain a standard cookbook for common rules? Uh, how the warm up and reheat works? I need a visual cookbook. What features, what constraints, and what rules are there? Some sort of a workflow.",
+      "became": "R-06",
+      "state": "became-item"
     }
   ],
   "proposed_changes": [],
