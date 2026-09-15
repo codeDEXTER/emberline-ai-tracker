@@ -1,0 +1,203 @@
+{
+  "proposal": 27,
+  "title": "Time and tokens per task, in one place",
+  "status": "accepted",
+  "updated": "2026-09-15",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "opus",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "lead model",
+      "effort": "-",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "W",
+      "name": "Worklog",
+      "goal": "Tokens and active time for every task, from every session, collected without typing into daily files that common-rules keeps under version control, reviewed each evening.",
+      "exit": "W-01 to W-04 merged; one full day's worklog committed and its evening page published."
+    },
+    {
+      "id": "X",
+      "name": "Research",
+      "goal": "Questions that need reading, not writing, before they become items, a proposal, or a decline.",
+      "exit": "Every X row is done only when it becomes items, a numbered proposal, or a recorded decline with the reason -- never a report nobody acted on."
+    }
+  ],
+  "items": [
+    {
+      "id": "W-01",
+      "phase": "W",
+      "cx": "C2",
+      "title": "Fix bin/spend: subagents, once per response, all token kinds",
+      "what": "Read <session>/subagents/*.jsonl too; count each assistant message id once (last record); report input, cache read, cache write and output.",
+      "files": [],
+      "tests": [],
+      "done": "Tests red first on a fixture with a subagent file and a response written three times.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "W-02",
+      "phase": "W",
+      "cx": "C2",
+      "title": "bin/worklog collect into common-rules/worklog/<date>.jsonl",
+      "what": "Incremental reader (remembers each transcript's offset); one line per task per session per day with project, session, agent, model, item id (brief tag, then branch, then session), four token kinds, list-price cost and active time (gaps over 5 minutes left out). Numbers and ids only, never transcript text.",
+      "files": [],
+      "tests": [],
+      "done": "Tests on fixture transcripts for task naming, active time, idempotent re-runs and no text fields.",
+      "depends": [
+        "W-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "W-03",
+      "phase": "W",
+      "cx": "C2",
+      "title": "Stop hook after each turn and a nightly run with one commit",
+      "what": "derecord installs a Stop hook that runs collect (fast, never fails the session); a nightly scheduled run collects the rest and makes the day's single commit of worklog/ in common-rules. Sessions never commit it.",
+      "files": [],
+      "tests": [],
+      "done": "Hook test; nightly run commits exactly one file per day.",
+      "depends": [
+        "W-02"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "W-04",
+      "phase": "W",
+      "cx": "C2",
+      "title": "Evening page and the /warmup line",
+      "what": "bin/worklog day renders the day's page (tasks, sessions, projects, lead vs agents, tokens, cost, active time); the warm card shows yesterday's totals in one line.",
+      "files": [],
+      "tests": [],
+      "done": "Page and card tests on a fixture day; first real page published.",
+      "depends": [
+        "W-02"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    }
+  ],
+  "asks": [
+    {
+      "id": "A-01",
+      "at": "2026-09-15T09:10:43+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "Second thing, uh, it needs to be a low effort uh, thing that all the tasks and everything should be tracked, time and tokens. So at the end of the day, we can, you know, continuously review these things across different sessions. There could be a central database maintained for all sessions and everything, and we updated their regularly.",
+      "became": "W-02",
+      "state": "became-item",
+      "source": "Common Rules rework session transcript"
+    },
+    {
+      "id": "A-02",
+      "kind": "decision",
+      "at": "2026-09-15T09:19:04+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P27 D1\" Answered: \"B · Daily JSON files\". Note: \"A central folder revisioned under common rules\"",
+      "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
+      "state": "became-item",
+      "became": "W-02"
+    },
+    {
+      "id": "A-03",
+      "kind": "decision",
+      "at": "2026-09-15T09:19:11+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P27 D2\" Answered: \"A · After each session turn, plus nightly\".",
+      "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
+      "state": "became-item",
+      "became": "W-03"
+    },
+    {
+      "id": "A-04",
+      "kind": "decision",
+      "at": "2026-09-15T09:19:18+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P27 D3\" Answered: \"A · Brief tag, then branch, then session\".",
+      "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
+      "state": "became-item",
+      "became": "W-02"
+    },
+    {
+      "id": "A-05",
+      "kind": "decision",
+      "at": "2026-09-15T09:19:28+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P27 D4\" Answered: \"A · Active time\".",
+      "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
+      "state": "became-item",
+      "became": "W-02"
+    },
+    {
+      "id": "A-06",
+      "kind": "decision",
+      "at": "2026-09-15T09:19:34+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P27 D5\" Answered: \"A · Both: evening page and a /warmup line\".",
+      "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
+      "state": "became-item",
+      "became": "W-04"
+    },
+    {
+      "id": "A-07",
+      "kind": "decision",
+      "at": "2026-09-15T09:19:45+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P27 D6\" Answered: \"A · Fix them first\".",
+      "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
+      "state": "became-item",
+      "became": "W-01"
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {
+    "started": "2026-09-15T09:40:00+02:00",
+    "integration_branch": "p26-cluster-by-risk"
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "proposal": 26,
+  "title": "Cluster work by contribution and risk",
+  "status": "accepted",
+  "updated": "2026-09-15",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "opus",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "lead model",
+      "effort": "-",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "C",
+      "name": "Clusters",
+      "goal": "Work is scored by share and risk, the top 80% of share is built now, the tail runs in daily, weekly or when-touched batches, and checks run once per bundle.",
+      "exit": "C-01 to C-04 merged; one project's queue shows lanes and the cut line on its board."
+    },
+    {
+      "id": "X",
+      "name": "Research",
+      "goal": "Questions that need reading, not writing, before they become items, a proposal, or a decline.",
+      "exit": "Every X row is done only when it becomes items, a numbered proposal, or a recorded decline with the reason -- never a report nobody acted on."
+    }
+  ],
+  "items": [
+    {
+      "id": "C-01",
+      "phase": "C",
+      "cx": "C2",
+      "title": "Impact and likelihood on items",
+      "what": "Two ledger fields beside proposal 25's value and points: impact 1-4 (4 stops everything, 3 a user-visible feature breaks, 2 user-visible but still works, 1 back-end only) and likelihood 1-3. Needs proposal 25's Z-01 fields first.",
+      "files": [],
+      "tests": [],
+      "done": "Validator accepts and checks both; tests red first.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "C-02",
+      "phase": "C",
+      "cx": "C2",
+      "title": "tracker lanes: share, risk, the 80% cut and each item's lane",
+      "what": "share = value x points / queue total; risk = impact x likelihood, at least 9 for money, user data, secrets, releases and common-rules. Items in share order until 80% cumulative (the one crossing the line included) are Now; risk 9+ alone; tail risk 6-8 daily, 3-5 weekly, 1-2 when touched.",
+      "files": [],
+      "tests": [],
+      "done": "Command with tests on a fixture queue, including the item that crosses the line and the restricted override.",
+      "depends": [
+        "C-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "C-03",
+      "phase": "C",
+      "cx": "C2",
+      "title": "One gate and review per bundle or batch",
+      "what": "ruflo-item done accepts several item ids and runs the merge gate once; the lead prompt and brief say one full suite and at most one review per bundle or batch, restricted changes still alone.",
+      "files": [],
+      "tests": [],
+      "done": "ruflo-item test with three ids runs the gate once; template text changed with a Standard change line.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "C-04",
+      "phase": "C",
+      "cx": "C2",
+      "title": "Board shows lanes and the 14-day re-score",
+      "what": "Tail items carry a next-check date 14 days out; the board groups by lane and marks the cut line; overdue items appear on the warm card.",
+      "files": [],
+      "tests": [],
+      "done": "Board and card tests for lanes, the cut line and an overdue item.",
+      "depends": [
+        "C-02"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    }
+  ],
+  "asks": [
+    {
+      "id": "A-01",
+      "at": "2026-09-15T09:10:43+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "So if the reviews and all that can be also done in clusters so reviews and main testing, so can you think of some kind of a formula where we can analyse and see what is the percentage of contribution by these changes in the overall changes, what might be the impact what might be the risk? Is it a user visible risk, or is it a pack and risk? Does it completely stop working? Everything? Does it improve something and based on the different priorities and different percentage of contribution and percentage of risk it prioritise how to cluster these tasks. So lower ones can be done like once in a day or once in a week or when something else is done, can be deferred for later. At least I want to get the 90% of the work done rather than focusing on the last 10% and the majority is completed, but things are tracked.",
+      "became": "C-02",
+      "state": "became-item",
+      "source": "Common Rules rework session transcript"
+    },
+    {
+      "id": "A-02",
+      "kind": "decision",
+      "at": "2026-09-15T09:17:38+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P26 D1\" Answered: \"A · Share + risk, cut, batch the tail\".",
+      "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
+      "state": "became-item",
+      "became": "C-02"
+    },
+    {
+      "id": "A-03",
+      "kind": "decision",
+      "at": "2026-09-15T09:17:44+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P26 D2\" Answered: \"A · Value × points\".",
+      "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
+      "state": "became-item",
+      "became": "C-01"
+    },
+    {
+      "id": "A-04",
+      "kind": "decision",
+      "at": "2026-09-15T09:17:52+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P26 D3\" Answered: \"B · 80%\".",
+      "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
+      "state": "became-item",
+      "became": "C-02"
+    },
+    {
+      "id": "A-05",
+      "kind": "decision",
+      "at": "2026-09-15T09:18:07+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P26 D4\" Answered: \"A · By risk: daily, weekly, when touched\".",
+      "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
+      "state": "became-item",
+      "became": "C-02"
+    },
+    {
+      "id": "A-06",
+      "kind": "decision",
+      "at": "2026-09-15T09:18:13+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P26 D5\" Answered: \"A · Once per bundle or batch\".",
+      "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
+      "state": "became-item",
+      "became": "C-03"
+    },
+    {
+      "id": "A-07",
+      "kind": "decision",
+      "at": "2026-09-15T09:18:22+02:00",
+      "by": "sponsor",
+      "quote": "Asked: \"P26 D6\" Answered: \"B · 14 days\".",
+      "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
+      "state": "became-item",
+      "became": "C-04"
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {
+    "started": "2026-09-15T09:40:00+02:00",
+    "integration_branch": "p26-cluster-by-risk"
+  }
+}
