@@ -67,7 +67,7 @@ Every item is mechanical, so the report can prove it. If a tool below is not in 
    - Older pages are grandfathered by that date, never rewritten.
    - A project that shares proposal numbers with a sibling declares `proposal_series` in both projects' `.common-rules.json`.
 8. **One tracker per project, and no hand-kept duplicates.**
-   - The project has one tracker page, `docs/proposals/tracker/index.html`, covering every proposal.
+   - The project has one tracker page, `docs/proposals/tracker/index.html`, covering every proposal, until the sponsor asks for another.
    - A proposal has a tracker page of its own only when the sponsor asked for one, recorded in its ledger as `tracker` (`own`, `by`, `at`, and his words in `quote`). Retire every other per-proposal tracker page (`git rm`), and stop republishing its artifact.
    - A page generated from a ledger is regenerated, never edited.
    - A hand-kept document mirroring a ledger (a `.md` twin, a hand-updated artifact) is either retired, with a one-line pointer to the ledger, or declared as `plan_page`.

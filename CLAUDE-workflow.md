@@ -45,10 +45,10 @@ only the pointer.
   by hand.
 - **Anything needed from another project's session** is a `requests`
   entry in the ledger, never prose; every blocked row carries an `owner`.
-- **A lead ends at a boundary** — a milestone, the end of a day, or about
-  150k tokens of context, whichever comes first — and hands over through
-  the ledger, `tracker checkpoint` and `/warmup`, never a compaction
-  summary; detail in `templates/lead-prompt.md` §9.
+- **A lead ends at a boundary** — a milestone, day's end, or ~150k tokens
+  of context — and hands over via the ledger, `tracker checkpoint` and
+  `/warmup` (never a compaction summary; `templates/lead-prompt.md` §9).
+  One tracker page per project, `docs/proposals/tracker/index.html`, until the sponsor asks for another, recorded in that ledger's `tracker` key.
 
 ---
 
