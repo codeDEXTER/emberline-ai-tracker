@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 16:09
+# Checkpoint — 2026-09-15 16:15
 
-Reason: manual · branch: backlog · HEAD: 85838ce
+Reason: manual · branch: backlog · HEAD: 838a251
 
-<!-- ledger-digest: f5826aa5a79ae5e43fed036c09e70aa1870548cf5c31c96ae02e0b472d51699f -->
+<!-- ledger-digest: d8064d58f411cbec520e9a04c38e227a366c8cc8d44582d2b1cfee23e10014f5 -->
 
 ## Proposal 19 · Warm-up
 
@@ -80,8 +80,7 @@ Reason: manual · branch: backlog · HEAD: 85838ce
 
 ### Open asks
 
-- A-16 · "I would like to know how much a review is efficient. Uh, does it find any bugs?"
-- A-17 · "also do a review of everything we are implementing on the rules are there any conflicts between the rules at the end of the day these rules need to be very concise and small so they can be easily consumed by the leads"
+- none
 
 ### Next unblocked
 
@@ -201,7 +200,7 @@ Reason: manual · branch: backlog · HEAD: 85838ce
 
 ## Proposal 29 · Taking over the Common Rules chat v1 work
 
-4 done / 0 in progress / 1 blocked / 2 not started
+6 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -209,7 +208,7 @@ Reason: manual · branch: backlog · HEAD: 85838ce
 
 ### Blocked, and why
 
-- K-06 · Haiku agent compared both worktrees with origin/main; lead verified: agent-acf3f21931e1d70f8 has no CHANGELOG heading or line absent from main, its other staged files match main or are superseded, tmp/ is scratch; agent-a6cbd5b0dfbe31b3e's LESSONS.md bug (parent-folder card) is fixed on main in hooks/sessionstart _safe_open_ledgers and _is_child_project (lines 77-91). Nothing unique would be lost. Removing them deletes local files, so it waits for the sponsor's yes.
+- none
 
 ### Open asks
 

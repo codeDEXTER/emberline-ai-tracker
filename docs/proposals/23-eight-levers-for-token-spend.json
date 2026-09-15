@@ -834,7 +834,7 @@
       "kind": "research",
       "quote": "I would like to know how much a review is efficient. Uh, does it find any bugs?",
       "became": null,
-      "state": "open",
+      "state": "answered",
       "owner": "lead"
     },
     {
@@ -844,7 +844,7 @@
       "kind": "research",
       "quote": "also do a review of everything we are implementing on the rules are there any conflicts between the rules at the end of the day these rules need to be very concise and small so they can be easily consumed by the leads",
       "became": null,
-      "state": "open",
+      "state": "answered",
       "owner": "lead"
     },
     {
