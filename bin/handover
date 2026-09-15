@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""handover -- the four checks an item lead runs before it ends a turn
-(proposal 24, H-01).
+"""handover -- the checks an item lead runs before it ends a turn
+(proposal 24, H-01; check 5 added by H-04).
 
   handover --check --project DIR [--transcript FILE] [--since ISO]
 
-Four checks, each printed with a mark and what is missing:
+Five checks, each printed with a mark and what is missing:
 
   1. every sponsor message since the session started has an ask row.
      Read from `--transcript` -- a Claude Code transcript JSONL -- matched
@@ -39,6 +39,21 @@ Four checks, each printed with a mark and what is missing:
   4. `bin/warmup --project DIR --check` exits 0. The warmup binary run is
      `bin/warmup` beside this script unless `HANDOVER_WARMUP_BIN` names
      another one (for tests against a fixture project).
+  5. every running background session belonging to this project is named by
+     the H-04 convention -- `bg · <project> · dispatcher` for the
+     dispatcher, `bg · <project> · lead · P<nn> <item ids>` for an item
+     lead (`<project>` is `--project`'s own directory name) -- and prints
+     each one's name with its session id, the way the tracker page is also
+     meant to. Sessions are read from `claude agents --json` (the binary
+     run is `claude` unless `HANDOVER_AGENTS_BIN` names another one, for
+     tests against a stub); a session counts as "background" when its
+     `background` field is true. Whether this actually reflects `claude
+     agents`' real JSON shape was never observed end to end from inside a
+     sandboxed worktree -- if the command or the `background` field is not
+     what the real CLI produces, say so rather than trusting this check's
+     pass. When the command itself is missing or fails, there is nothing on
+     disk that could answer this either: "not checked", same as check 1
+     without a transcript.
 
 Each check prints one line, marked:
   (tick)  passed
@@ -330,6 +345,50 @@ def check_warmup(project: Path) -> tuple[str, str]:
     return FAIL, "warmup --check: " + (detail[-1] if detail else f"exit {r.returncode}")
 
 
+# ---------------------------------------------------------------- check 5 --
+
+BG_NAME_RE_TEMPLATE = r"^bg · {project} · (dispatcher|lead · P\d+ \S.*)$"
+
+
+def running_agents(project: Path) -> list[dict] | None:
+    """Every session `claude agents --json` reports, or None when the
+    command is missing, errors, times out, or prints something that is not
+    a JSON list -- there is nothing on disk to fall back to for this check,
+    unlike checks 1-4. `HANDOVER_AGENTS_BIN` overrides the binary (for tests
+    against a stub, and for a sandbox where the real `claude` CLI is not on
+    PATH)."""
+    agents_bin = os.environ.get("HANDOVER_AGENTS_BIN", "claude")
+    try:
+        r = subprocess.run([agents_bin, "agents", "--json"], capture_output=True, text=True,
+                           check=False, timeout=10, cwd=str(project))
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        data = json.loads(r.stdout)
+    except ValueError:
+        return None
+    return data if isinstance(data, list) else None
+
+
+def check_background_names(project: Path) -> tuple[str, str]:
+    agents = running_agents(project)
+    if agents is None:
+        return SKIP, "not checked: `claude agents --json` not available"
+    background = [a for a in agents if isinstance(a, dict) and a.get("background")]
+    if not background:
+        return SKIP, "no running background session"
+    name_re = re.compile(BG_NAME_RE_TEMPLATE.format(project=re.escape(project.resolve().name)))
+    bad = [a for a in background if not name_re.match(str(a.get("name") or ""))]
+    if bad:
+        shown = "; ".join(f"{a.get('id', '?')} named {a.get('name')!r}" for a in bad[:5])
+        more = f" (+{len(bad) - 5} more)" if len(bad) > 5 else ""
+        return FAIL, f"{len(bad)} background session(s) not named by convention: {shown}{more}"
+    listed = "; ".join(f"{a.get('name')} ({a.get('id', '?')})" for a in background)
+    return PASS, f"{len(background)} background session(s), all named by convention: {listed}"
+
+
 # ------------------------------------------------------------------ main --
 
 def run(project: Path, transcript: Path | None, since: datetime.datetime | None) -> tuple[list[tuple], bool]:
@@ -338,6 +397,7 @@ def run(project: Path, transcript: Path | None, since: datetime.datetime | None)
         ("every running agent worktree is named in a ledger log", check_worktrees(project)),
         ("the latest checkpoint matches the open ledgers", check_checkpoint(project)),
         ("warmup --check is ready", check_warmup(project)),
+        ("running background leads are named by convention", check_background_names(project)),
     ]
     ok = all(mark != FAIL for _, (mark, _) in checks)
     return checks, ok
