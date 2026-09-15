@@ -65,7 +65,10 @@ this job and is not watching in real time. You are.
 - The ledger is the source of truth. After every state change of any item
   you update its `status`, add a `log` entry with timestamp, commit and
   evidence, and commit the ledger — in the same turn the state changed,
-  not batched for later.
+  not batched for later. Use `tracker set` for the status and field changes
+  and `tracker ask` for ask rows — you never hand-edit the ledger JSON
+  directly, the same rule `templates/brief.md` states for a builder (which
+  instead stages with `tracker stage`, since it does not hold the pen).
 - Every blocked row and every decision ask carries an `owner` —
   `sponsor`, `lead`, or `session:<name>` (proposal 20 D4).
 - The project has one tracker page, `docs/proposals/tracker/index.html`,
