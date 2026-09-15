@@ -54,7 +54,7 @@
       "tests": [],
       "done": "Tool in common-rules bin/ with tests, each of the four checks shown failing on a broken fixture first; OPERATING-RULES names it.",
       "depends": [],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -66,6 +66,12 @@
           "event": "started",
           "by": "lead",
           "evidence": "Bundle D (new bin/handover, templates/lead-prompt.md dispatcher and item-lead forms, the session-start spike): one Sonnet builder after a Haiku scout, branch bundle-d from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "bin/handover --check, new; tests/test_handover.py 17 tests; full suite OK · 1243 tests; PR bundle-d"
         }
       ]
     },
@@ -81,7 +87,7 @@
       "depends": [
         "H-01"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -99,6 +105,12 @@
           "event": "started",
           "by": "lead",
           "evidence": "Bundle D (new bin/handover, templates/lead-prompt.md dispatcher and item-lead forms, the session-start spike): one Sonnet builder after a Haiku scout, branch bundle-d from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "templates/lead-prompt.md dispatcher/item-lead forms; tests/test_templates.py updated; PR bundle-d"
         }
       ]
     },
@@ -114,7 +126,7 @@
       "depends": [
         "H-02"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -132,6 +144,12 @@
           "event": "started",
           "by": "lead",
           "evidence": "Bundle D (new bin/handover, templates/lead-prompt.md dispatcher and item-lead forms, the session-start spike): one Sonnet builder after a Haiku scout, branch bundle-d from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "docs/research/starting-item-leads.md; recommends claude --bg -p; proof run still open (D)"
         }
       ]
     },

@@ -54,7 +54,7 @@
       "tests": [],
       "done": "Tests: a fixture project behind the rules gets the Standard change queued in both modes; a holding project gets nothing new.",
       "depends": [],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -66,6 +66,12 @@
           "event": "started",
           "by": "lead",
           "evidence": "Bundle C (bin/warmup, skills, hooks, bin/derecord): one Sonnet builder after a Haiku scout, branch bundle-c from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "bin/warmup --reheat --queue, tools/tracker/queue.py; tests/test_warmup_reheat.py; PR bundle-c, commit 7d9bc45"
         }
       ]
     },
@@ -81,7 +87,7 @@
       "depends": [
         "R-01"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -93,6 +99,12 @@
           "event": "started",
           "by": "lead",
           "evidence": "Bundle C (bin/warmup, skills, hooks, bin/derecord): one Sonnet builder after a Haiku scout, branch bundle-c from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "skills/warmup, skills/reheat (new), skills/standard shortcut; tests updated; PR bundle-c, commit 0188b49"
         }
       ]
     },
@@ -108,7 +120,7 @@
       "depends": [
         "R-01"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -120,6 +132,12 @@
           "event": "started",
           "by": "lead",
           "evidence": "Bundle C (bin/warmup, skills, hooks, bin/derecord): one Sonnet builder after a Haiku scout, branch bundle-c from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "hooks/sessionstart, hooks/stop; tests/test_hooks.py; PR bundle-c, commit a3a54a0"
         }
       ]
     },
@@ -161,7 +179,7 @@
       "tests": [],
       "done": "Tests on a temp clone: behind and clean fast-forwards; dirty, diverged or not on main leaves it alone with a card line.",
       "depends": [],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -173,6 +191,12 @@
           "event": "started",
           "by": "lead",
           "evidence": "Bundle C (bin/warmup, skills, hooks, bin/derecord): one Sonnet builder after a Haiku scout, branch bundle-c from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "tools/rules_pull.py, bin/warmup fast-forward; tests/test_rules_pull.py; PR bundle-c, commit 86fa882"
         }
       ]
     },

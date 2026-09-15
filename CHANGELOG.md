@@ -1,5 +1,69 @@
 # Changelog — common-rules
 
+## 2026-09-15 · `bin/handover --check`: the closing check before a lead's turn ends (P24 H-01, H-02, H-03)
+
+Proposal 24, H-01 to H-03. A new `bin/handover --check --project DIR` runs four
+checks a lead should pass before it stops, and exits non-zero naming what is
+missing rather than 0 on a silent gap: every sponsor message since the
+session (or `--since`) has an `A-nn` ask row; every worktree ahead of
+`origin/main` for the project is named in some ledger log, found from the
+main checkout's `.claude/worktrees/`/`.worktrees/`, not only from inside the
+worktree itself; the latest `docs/handovers/*-checkpoint.md` digest matches
+the open ledgers; `bin/warmup --project DIR --check` reads ready. `--transcript`
+matches sponsor messages to asks one-to-one -- first by a normalised quote
+match, then by nearest unused ask within ten minutes -- so one covered ask
+can no longer make an unrelated message look answered.
+
+`templates/lead-prompt.md` gains two new sections after its existing nine,
+`## Dispatcher form` (holds only ledgers, asks and routing; never reads
+diffs, logs or images; kept under roughly 150k tokens of context) and
+`## Item-lead form` (builds one bundle, merges, closes on `bin/handover
+--check`) -- proposal 24's autonomy split between a cheap, long-lived
+dispatcher and short, disposable item leads. `docs/OPERATING-RULES.md` names
+`bin/handover --check` as the closing check.
+
+H-03 is research only: `docs/research/starting-item-leads.md` compares the
+mechanisms a dispatcher could use to start an item lead with no sponsor
+click (`claude --bg -p`, the desktop session-management tools, a scheduled
+task) and recommends `claude --bg -p`. No session was started to write it;
+the proof run -- one item lead started and finished with no sponsor action,
+recorded by session id -- is still open.
+
+**Standard change (mandatory):** every project adds `bin/handover --check`
+as its closing check, the same way `bin/warmup --check` already is one.
+
+## 2026-09-15 · Sizing, risk and routing on the ledger: `tracker route` and `tracker lanes` (P25 Z-01–Z-04, P26 C-01, C-02)
+
+Proposals 25 and 26, decided. Ledger items may now carry `value`
+(high|medium|low), `points` (Fibonacci, 1 to 13), `risk`
+(standard|elevated|restricted), `cluster`, `impact` (1 to 4) and
+`likelihood` (1 to 3) -- every field optional, so every ledger that
+declares none of them, including the PhotoVault engine's, still validates
+unchanged.
+
+`.common-rules.json` gains `value_defaults` (a value per surface, an item's
+own value always wins), `risk_paths` (glob lists that classify a changed
+path as restricted or elevated) and `risk_always` (a floor no path can
+lower -- common-rules declares `restricted`, per proposal 25's D4).
+
+`bin/tracker route LEDGER ITEM` prints how one item is reviewed and bundled:
+restricted is never bundled and goes to a separate reviewer the sponsor
+sees; elevated, or high value with five or more points, gets a separate
+reviewer on its own branch; everything else is gate-and-tests only, with
+one to three points bundling by cluster. Points are never put in a
+builder's brief (proposal 25, D3) -- `templates/brief.md` says so.
+
+`bin/tracker lanes LEDGER...` sorts the open queue by share (value weight
+times points, over the queue's total) and cuts at 80% cumulative -- the
+item that crosses the line is included in `Now` -- with the tail lane set
+by risk (impact times likelihood, forced to at least 9 for anything
+restricted): `Daily` at 6 or more, `Weekly` at 3 to 5, `When touched` at 1
+to 2. Risk 9 and over never bundles, in whichever lane it lands. An item
+missing value or points is listed as unsized, never guessed a share.
+
+Not a Standard change: no ledger is required to declare these fields, and
+nothing existing changes behaviour until a project chooses to use them.
+
 ## 2026-09-15 · `bin/worklog collect` and `bin/worklog day`: a central token/time record (P27 W-02, W-04)
 
 Proposal 27, decided 15 September 2026 (D1-D6): a folder revisioned under

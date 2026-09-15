@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 16:08
+# Checkpoint — 2026-09-15 16:09
 
-Reason: manual · branch: backlog · HEAD: 071a446
+Reason: manual · branch: backlog · HEAD: 85838ce
 
-<!-- ledger-digest: 4faf24a158ddf78c07d85b8974191d1ef972810dd0ab78db9edb17d6d529a768 -->
+<!-- ledger-digest: f5826aa5a79ae5e43fed036c09e70aa1870548cf5c31c96ae02e0b472d51699f -->
 
 ## Proposal 19 · Warm-up
 
@@ -98,13 +98,11 @@ Reason: manual · branch: backlog · HEAD: 071a446
 
 ## Proposal 24 · Autonomous work without missing anything
 
-0 done / 3 in progress / 0 blocked / 1 not started
+3 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
-- H-01 · [ruflo · medium · sonnet] · Closing check: bin/handover --check · started
-- H-02 · [ruflo · medium · sonnet] · Thin dispatcher and short item leads · started
-- H-03 · [ruflo · medium · sonnet] · The dispatcher starts the next lead without asking · started
+- none
 
 ### Blocked, and why
 
@@ -116,18 +114,15 @@ Reason: manual · branch: backlog · HEAD: 071a446
 
 ### Next unblocked
 
-- none
+- H-04 · [ruflo · medium · sonnet] · Background leads are visible and named apart from chat sessions
 
 ## Proposal 25 · Sizing items by value, points and risk
 
-0 done / 4 in progress / 0 blocked / 2 not started
+4 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
-- Z-01 · [ruflo · medium · sonnet] · Ledger fields: value, points, risk, cluster · started
-- Z-02 · [ruflo · medium · sonnet] · Routing table from the four fields · started
-- Z-03 · [ruflo · low · haiku] · Value defaults per surface · started
-- Z-04 · [ruflo · medium · sonnet] · Risk class from paths; common-rules always restricted · started
+- none
 
 ### Blocked, and why
 
@@ -139,16 +134,16 @@ Reason: manual · branch: backlog · HEAD: 071a446
 
 ### Next unblocked
 
-- none
+- Z-05 · [ruflo · medium · sonnet] · Calibrate points every 20 items
+- Z-06 · [ruflo · medium · sonnet] · Issue catalogue clustered by files touched
 
 ## Proposal 26 · Cluster work by contribution and risk
 
-0 done / 2 in progress / 0 blocked / 3 not started
+2 done / 0 in progress / 0 blocked / 3 not started
 
 ### In progress
 
-- C-01 · [ruflo · low · haiku] · Impact and likelihood on items · started
-- C-02 · [ruflo · medium · sonnet] · tracker lanes: share, risk, the 80% cut and each item's lane · started
+- none
 
 ### Blocked, and why
 
@@ -160,17 +155,17 @@ Reason: manual · branch: backlog · HEAD: 071a446
 
 ### Next unblocked
 
+- C-05 · [ruflo · medium · sonnet] · Findings are catalogued, lane-sorted, triaged into batches and light-pathed
 - C-03 · [ruflo · medium · sonnet] · One gate and review per bundle or batch
+- C-04 · [ruflo · medium · sonnet] · Board shows lanes and the 14-day re-score
 
 ## Proposal 27 · Time and tokens per task, in one place
 
-0 done / 3 in progress / 0 blocked / 1 not started
+3 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
-- W-01 · [ruflo · medium · sonnet] · Fix bin/spend: subagents, once per response, all token kinds · started
-- W-02 · [ruflo · medium · sonnet] · bin/worklog collect into common-rules/worklog/<date>.jsonl · started
-- W-04 · [ruflo · medium · sonnet] · Evening page and the /warmup line · started
+- none
 
 ### Blocked, and why
 
@@ -182,18 +177,15 @@ Reason: manual · branch: backlog · HEAD: 071a446
 
 ### Next unblocked
 
-- none
+- W-03 · [ruflo · medium · sonnet] · Stop hook after each turn and a nightly run with one commit
 
 ## Proposal 28 · Two commands: warmup and reheat
 
-1 done / 4 in progress / 0 blocked / 1 not started
+5 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
-- R-01 · [ruflo · medium · sonnet] · bin/warmup runs the standard every time, in both modes · started
-- R-02 · [ruflo · medium · sonnet] · /warmup and /reheat skills with context; /standard becomes a shortcut · started
-- R-03 · [ruflo · medium · sonnet] · Hooks run warmup and reheat by themselves · started
-- R-05 · [ruflo · medium · sonnet] · Fast-forward the shared common-rules checkout when behind · started
+- none
 
 ### Blocked, and why
 
@@ -205,7 +197,7 @@ Reason: manual · branch: backlog · HEAD: 071a446
 
 ### Next unblocked
 
-- none
+- R-04 · [ruflo · medium · sonnet] · Dispatcher starts a new lead with /warmup <item> [context]
 
 ## Proposal 29 · Taking over the Common Rules chat v1 work
 

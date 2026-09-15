@@ -54,7 +54,7 @@
       "tests": [],
       "done": "Validator tests, red first, for each field's bad value; tracker render shows the four fields.",
       "depends": [],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -66,6 +66,12 @@
           "event": "started",
           "by": "lead",
           "evidence": "Bundle A (tools/tracker ledger fields, route and lanes): one Sonnet builder after a Haiku scout, one commit per item, branch bundle-a from origin/main af3dbc8, integration branch backlog; sponsor: implement the backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "tools/tracker/ledger.py _validate_sizing; tests/test_tracker_sizing.py; PR bundle-a"
         }
       ]
     },
@@ -81,7 +87,7 @@
       "depends": [
         "Z-01"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -93,6 +99,12 @@
           "event": "started",
           "by": "lead",
           "evidence": "Bundle A (tools/tracker ledger fields, route and lanes): one Sonnet builder after a Haiku scout, one commit per item, branch bundle-a from origin/main af3dbc8, integration branch backlog; sponsor: implement the backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "tools/tracker/route.py, bin/tracker route; tests/test_tracker_route.py; PR bundle-a"
         }
       ]
     },
@@ -108,7 +120,7 @@
       "depends": [
         "Z-01"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "low",
       "model": "haiku",
@@ -126,6 +138,12 @@
           "event": "started",
           "by": "lead",
           "evidence": "Bundle A (tools/tracker ledger fields, route and lanes): one Sonnet builder after a Haiku scout, one commit per item, branch bundle-a from origin/main af3dbc8, integration branch backlog; sponsor: implement the backlog. Tier stays haiku; same reason."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "tools/project.py value_defaults, tools/tracker/sizing.py; tests/test_tracker_value_defaults.py; PR bundle-a"
         }
       ]
     },
@@ -141,7 +159,7 @@
       "depends": [
         "Z-01"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -153,6 +171,12 @@
           "event": "started",
           "by": "lead",
           "evidence": "Bundle A (tools/tracker ledger fields, route and lanes): one Sonnet builder after a Haiku scout, one commit per item, branch bundle-a from origin/main af3dbc8, integration branch backlog; sponsor: implement the backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "tools/tracker/risk.py, .common-rules.json risk_always; tests/test_tracker_risk.py; PR bundle-a"
         }
       ]
     },
