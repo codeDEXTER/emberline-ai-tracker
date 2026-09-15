@@ -1,5 +1,224 @@
 # Changelog — common-rules
 
+## 2026-09-15 · `bin/handover --check`: the closing check before a lead's turn ends (P24 H-01, H-02, H-03)
+
+Proposal 24, H-01 to H-03. A new `bin/handover --check --project DIR` runs four
+checks a lead should pass before it stops, and exits non-zero naming what is
+missing rather than 0 on a silent gap: every sponsor message since the
+session (or `--since`) has an `A-nn` ask row; every worktree ahead of
+`origin/main` for the project is named in some ledger log, found from the
+main checkout's `.claude/worktrees/`/`.worktrees/`, not only from inside the
+worktree itself; the latest `docs/handovers/*-checkpoint.md` digest matches
+the open ledgers; `bin/warmup --project DIR --check` reads ready. `--transcript`
+matches sponsor messages to asks one-to-one -- first by a normalised quote
+match, then by nearest unused ask within ten minutes -- so one covered ask
+can no longer make an unrelated message look answered.
+
+`templates/lead-prompt.md` gains two new sections after its existing nine,
+`## Dispatcher form` (holds only ledgers, asks and routing; never reads
+diffs, logs or images; kept under roughly 150k tokens of context) and
+`## Item-lead form` (builds one bundle, merges, closes on `bin/handover
+--check`) -- proposal 24's autonomy split between a cheap, long-lived
+dispatcher and short, disposable item leads. `docs/OPERATING-RULES.md` names
+`bin/handover --check` as the closing check.
+
+H-03 is research only: `docs/research/starting-item-leads.md` compares the
+mechanisms a dispatcher could use to start an item lead with no sponsor
+click (`claude --bg -p`, the desktop session-management tools, a scheduled
+task) and recommends `claude --bg -p`. No session was started to write it;
+the proof run -- one item lead started and finished with no sponsor action,
+recorded by session id -- is still open.
+
+**Standard change (mandatory):** every project adds `bin/handover --check`
+as its closing check, the same way `bin/warmup --check` already is one.
+
+## 2026-09-15 · Sizing, risk and routing on the ledger: `tracker route` and `tracker lanes` (P25 Z-01–Z-04, P26 C-01, C-02)
+
+Proposals 25 and 26, decided. Ledger items may now carry `value`
+(high|medium|low), `points` (Fibonacci, 1 to 13), `risk`
+(standard|elevated|restricted), `cluster`, `impact` (1 to 4) and
+`likelihood` (1 to 3) -- every field optional, so every ledger that
+declares none of them, including the PhotoVault engine's, still validates
+unchanged.
+
+`.common-rules.json` gains `value_defaults` (a value per surface, an item's
+own value always wins), `risk_paths` (glob lists that classify a changed
+path as restricted or elevated) and `risk_always` (a floor no path can
+lower -- common-rules declares `restricted`, per proposal 25's D4).
+
+`bin/tracker route LEDGER ITEM` prints how one item is reviewed and bundled:
+restricted is never bundled and goes to a separate reviewer the sponsor
+sees; elevated, or high value with five or more points, gets a separate
+reviewer on its own branch; everything else is gate-and-tests only, with
+one to three points bundling by cluster. Points are never put in a
+builder's brief (proposal 25, D3) -- `templates/brief.md` says so.
+
+`bin/tracker lanes LEDGER...` sorts the open queue by share (value weight
+times points, over the queue's total) and cuts at 80% cumulative -- the
+item that crosses the line is included in `Now` -- with the tail lane set
+by risk (impact times likelihood, forced to at least 9 for anything
+restricted): `Daily` at 6 or more, `Weekly` at 3 to 5, `When touched` at 1
+to 2. Risk 9 and over never bundles, in whichever lane it lands. An item
+missing value or points is listed as unsized, never guessed a share.
+
+Not a Standard change: no ledger is required to declare these fields, and
+nothing existing changes behaviour until a project chooses to use them.
+
+## 2026-09-15 · `bin/worklog collect` and `bin/worklog day`: a central token/time record (P27 W-02, W-04)
+
+Proposal 27, decided 15 September 2026 (D1-D6): a folder revisioned under
+common-rules, one JSON-lines file per day, updated incrementally, task named
+from the brief tag then the branch then the session, active time with gaps
+over five minutes left out.
+
+`bin/worklog collect [--projects DIR] [--out DIR] [--state FILE]` reads every
+transcript's new lines since its last run — lead and subagent alike — and
+merges input, cache-read, cache-write and output tokens, list-price cost and
+active time into `worklog/<YYYY-MM-DD>.jsonl`, one line per (day, project,
+session, agent, model, item). It is incremental by byte offset per
+transcript and, within a transcript, by `message.id`: a message that grows
+across two collector runs (still streaming when `collect` last ran)
+contributes only the delta the second time, so a re-run never double-counts
+and a day file rewrites byte-identical when nothing changed. Nothing it
+writes ever carries transcript prose — every field is drawn from a fixed
+whitelist, and the only text ever inspected (the first user prompt, to look
+for a leading item tag) is discarded with the record it came from.
+
+`bin/worklog day [--date D] [--html FILE]` renders that day as a
+self-contained HTML page (tasks, sessions, projects, lead vs. agent split,
+the four token kinds, cost, active time) and a plain-text summary on
+stdout; every value it writes is `html.escape`d, since a git branch name or
+a brief tag reaching that markup is as untrusted as any other input.
+`bin/worklog yesterday-line` prints a one-line summary for a future
+`/warmup` card to shell out to (that wiring, and the nightly/Stop-hook
+collection cadence, are W-03/the card change — not built here).
+
+`tools/worklog.py` holds the shared primitives (`list_transcripts`,
+`dedupe_messages`, now also `collect`, `derive_item_id`, `render_day_html`)
+so `bin/spend` and `bin/worklog` read the same transcript shape once.
+`tests/test_worklog.py` covers task naming, active-time gaps, idempotent
+re-run after a transcript grows, and that no output ever carries transcript
+text.
+
+**Behaviour change:** none for existing tools — this adds `bin/worklog` and
+`worklog/` (gitignored state file only) without touching `bin/spend`'s own
+behaviour further. A project adopting the daily collection needs to run
+`bin/worklog collect` itself for now; automatic scheduling is W-03.
+
+## 2026-09-15 · W-01: `spend` read subagent transcripts and deduped streamed usage (P27)
+
+`bin/spend` undercounted and overcounted the same session in opposite
+directions: `_sessions()` globbed `<project>/*.jsonl` only, so every
+subagent transcript at `<project>/<session>/subagents/*.jsonl` was never
+read at all, and `_read()` summed `usage.output_tokens` across every record
+in a transcript, though a streamed response writes the same `message.id`
+several times as usage grows (about 3.6 records per message, measured
+2026-08-07) -- so the fraction that *was* read was overstated by roughly
+that factor.
+
+`tools/worklog.py` is now the one place that knows the transcript shape
+(`list_transcripts`, `iter_records`, `dedupe_messages` -- last record per
+`message.id` wins) so `bin/worklog` (W-02/W-04, following) shares it rather
+than duplicating. `bin/spend` reads through it. `report` and `today` gained
+input, cache-read and cache-write columns alongside the existing output
+column; `agentlog` and `log` are unchanged in shape.
+
+**Behaviour change:** `spend report`/`today`/`agentlog` totals now include
+subagent transcripts and are deduped by `message.id` — existing figures for
+any project will move (down, for the dedupe fix; up, for subagents).
+`tests/test_spend.py` adds `TestSubagentsAndDedupe` and updates the
+zero-total regression guard for the new columns.
+## 2026-09-15 · warmup gains --reheat and --queue; both run the standard (P28 R-01)
+
+Proposal 28, R-01 (decided, option A). Two commands now cover the whole lead
+lifecycle: `warmup` for a fresh lead, `warmup --reheat` for one already
+running -- `--reheat` is `--since` against a state file warmup keeps for
+itself (default: inside the project's own git directory), with the
+standard's own status (conformance's twelve items, plus every pending
+mandatory Standard change) appended every time, not only when it changed.
+Both now run conformance and the mandatory-pending check on every call; with
+`--queue`, each item that does not hold becomes a ledger item -- owner
+`lead`, status `not started`, first in that ledger's own `items` list
+(`tools/tracker/queue.py`, new) -- idempotent, so a second `--queue` adds
+nothing for a source already queued.
+
+**Behaviour change:** a plain `warmup` (no flags) now also runs
+`bin/conformance`'s twelve checks and rulecheck's mandatory-pending check in
+process every time, which is measurably slower than the card alone
+(conformance item 12 itself spawns a nested `warmup --check`) -- gather()
+computes conformance only for the plain card and `--reheat`, never for
+`--check` itself, to avoid that nested call recursing into conformance a
+second time. `--queue` writes to the project's first ledger under
+`docs/proposals`; a project with several ledgers keeps everything else about
+them untouched.
+
+## 2026-09-15 · SessionStart and Stop hooks dispatch to warmup/reheat (P28 R-03)
+
+Proposal 28, R-03 (decided, option A). `hooks/sessionstart` now runs
+`bin/warmup` (plain card, no `--queue`: a hook never writes) on `startup`,
+and `bin/warmup --reheat` on `compact` or `resume` -- always with
+`--no-pull`, keeping this hook's own read-only, no-network contract even
+though warmup's plain card and `--reheat` otherwise fast-forward the rules
+checkout (R-05). `clear`, or no source at all, keeps the pre-R-03 one-line-
+per-ledger summary outright. Every dispatch is bounded by a hard timeout
+(`WARMUP_TIMEOUT`, default 8s, overridable only via
+`COMMON_RULES_HOOK_TIMEOUT` for tests) and falls back to that same one-line
+summary on any failure or timeout -- never to a failed session.
+`hooks/stop` now also compares the shared rules checkout's current HEAD
+(`git rev-parse`, never a fetch) against the `rules_head` warmup's own state
+file recorded, and prints `rules moved -- run /reheat` when they differ; the
+same timeout override applies to that check.
+
+Measured end to end (subprocess start to exit): common-rules' own checkout,
+startup/resume/compact ~2.0s each; a small fixture project, ~1.6s each;
+`hooks/stop`'s rules-moved check, ~0.4s. All well under the 8s default and
+the 10s ceiling this item asked for.
+
+**Behaviour change:** a SessionStart hook that used to print one line per
+open ledger on `startup` and `resume` now prints warmup's or reheat's full
+card/delta instead (more text, more subprocess and git work per session
+start) -- bounded by the timeout above, and unchanged for `clear` or a
+missing source.
+
+## 2026-09-15 · /standard folds into /warmup; /reheat is new (P28 R-02)
+
+Proposal 28, R-02 (decided, option A). New `skills/reheat/SKILL.md` for a
+session already running (`bin/warmup --reheat --queue`); `skills/warmup/
+SKILL.md` rewritten for a fresh one, both `--queue`d by default and both
+accepting `--context TEXT` for one free-text line the sponsor gave that
+would otherwise have nowhere to go. `skills/standard/SKILL.md` is now a
+short shortcut pointing at `/warmup` -- `/standard` used to walk a lead
+through "queue every pending mandatory Standard change by hand"; `warmup
+--queue` (R-01) now does that on every run, so there is nothing left for
+`/standard` to do. It says it will be removed next release.
+`bin/derecord` installs both `/warmup` and `/reheat` alongside each other
+(previously only `/warmup`).
+
+**Behaviour change:** a project already on the standard gets a second
+installed skill (`.claude/skills/reheat/SKILL.md`) the next time `derecord`
+runs, and `/standard`, if a session still types it, now only points at
+`/warmup` instead of walking the old twelve-item checklist inline.
+
+## 2026-09-15 · warmup fast-forwards the shared rules checkout when it is safe (P28 R-05)
+
+Proposal 28, R-05 (decided, option A). `bin/warmup`'s plain card now checks the
+shared rules checkout (wherever `bin/warmup` itself lives) and fast-forwards it
+with `git pull --ff-only` when it is on `main`, has no tracked changes, and
+`origin/main` is strictly ahead after a short `git fetch` -- never merge,
+rebase, stash or reset. Anything else (dirty, diverged, not on main, no
+`origin`, a fetch that times out or fails) is left alone and named on one card
+line instead. `--no-pull` skips the check entirely; `--check`, `--json`,
+`--since` and `--migrate` never trigger it, since those are queries, not the
+moment to move a checkout under whoever is reading it. New `tools/rules_pull.py`
+carries the pure check, testable against temp clones without ever touching a
+real checkout's git state.
+
+**Behaviour change:** a plain `warmup` (no flags) can now write to the rules
+checkout's ref (a fast-forward only) and reach the network (one `git fetch`,
+short timeout). Anything invoking `bin/warmup` from a context where a network
+call or a moving HEAD is unwanted -- CI, a read-only hook -- must pass
+`--no-pull`.
+
 ## 2026-09-15 · One tracker per project, written where sessions read it (P22 T-04)
 
 The sponsor, 15 September 2026: "Please maintain a single tracker for common

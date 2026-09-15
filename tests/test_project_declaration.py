@@ -297,7 +297,10 @@ class AppProject(unittest.TestCase):
         self.git("commit", "-qm", msg)
 
     def warmup(self, *args):
-        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.root), "--no-recall", *args],
+        # --no-pull always: bin/warmup's RULES_DIR is the real common-rules
+        # checkout in a test run -- R-05's fetch/pull must never touch it.
+        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.root),
+                               "--no-recall", "--no-pull", *args],
                               capture_output=True, text=True, check=False)
 
     def state(self):
@@ -715,6 +718,11 @@ class TestTheStateKeysWithNoDeclaration(unittest.TestCase):
                 # added by proposal 20, V-02: the project's own session name,
                 # when a ledger or the declaration names one (else None).
                 "session",
+                # added by proposal 28, R-01/R-03: always present, but only
+                # filled in for the plain card and --reheat (never --json,
+                # to avoid recursing into conformance's own `warmup --check`
+                # subprocess -- see bin/warmup's gather()).
+                "conformance", "mandatory_pending", "rules_head",
             }, set(json.loads(r.stdout)))
         finally:
             p.close()

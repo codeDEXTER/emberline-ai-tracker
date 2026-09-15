@@ -235,11 +235,32 @@ class TestLeadPrompt(SectionOrder):
         "## 7 How you talk",
         "## 8 Proposals, requests and owners",
         "## 9 Token budget",
+        "## Dispatcher form",
+        "## Item-lead form",
     ]
 
     def test_sections_in_order(self):
         text = read("lead-prompt.md")
         self.assert_ordered("lead-prompt.md", headings(text), self.EXPECTED)
+
+    def test_dispatcher_and_item_lead_forms_mention_handover_check(self):
+        """Proposal 24, H-02: both forms after §9 exist and each names
+        `bin/handover --check` as how an item lead closes its turn."""
+        text = read("lead-prompt.md")
+        dispatcher = text.split("## Dispatcher form", 1)[1].split("## Item-lead form", 1)[0]
+        item_lead = text.split("## Item-lead form", 1)[1]
+        self.assertIn(
+            "150k", dispatcher,
+            "lead-prompt.md: Dispatcher form does not name the context budget",
+        )
+        self.assertIn(
+            "diff", dispatcher.lower(),
+            "lead-prompt.md: Dispatcher form should say it never reads diffs/logs/images",
+        )
+        self.assertIn(
+            "bin/handover --check", item_lead,
+            "lead-prompt.md: Item-lead form does not mention bin/handover --check",
+        )
 
     def test_read_order_named(self):
         text = read("lead-prompt.md")

@@ -361,6 +361,23 @@
           "evidence": "C4/lead model -> C1/haiku: draft the requests to the two PhotoVault sessions; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
         }
       ]
+    },
+    {
+      "id": "T-06",
+      "phase": "T",
+      "cx": "C1",
+      "title": "A published page's name is set once and never changes -- tracker, board, cookbook, any of them",
+      "what": "A published tracker page's <title> is set the first time it is published and never edited after -- not by a differing `title` parameter on a later publish, not by hand. Nothing about this was actually broken (the Artifact tool's own rule already makes the page's own <title> tag win over a publish-call `title` parameter, so the board's name never moved), but the sponsor's ruling makes it explicit and mandatory rather than an accident of tool behaviour: a session republishing any maintained page this standard keeps current -- the tracker/board, a per-proposal tracker page, the cookbook (proposal 28, R-06), or any future one -- never changes its <title> once first published, whether by a differing `title` parameter, a hand edit, or a rebuild that regenerates the tag differently. CLAUDE-workflow.md and skills/warmup say so, and the rule is stated once, not per-artifact.",
+      "files": [],
+      "tests": [],
+      "done": "docs/OPERATING-RULES.md or CLAUDE-workflow.md states the rule; a test asserts render.py never emits a different <title> for the same project across two renders, and any other page-writing tool (the cookbook's own build step, once it has one) is covered by the same stated rule even without its own test; `tracker published` refuses (or warns loudly) when the file it is about to publish carries a <title> different from what was last recorded published.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "low",
+      "model": "haiku",
+      "tag": "[ruflo · low · haiku]",
+      "issue": null
     }
   ],
   "asks": [
@@ -372,6 +389,28 @@
       "at": "2026-09-14T19:44:51+02:00",
       "by": "sponsor",
       "quote": "Can we make the tracker a little bit visually readable with some filters or something like that? Like, a top level, uh, you know, where it filters everything, and I can see things in block, maybe visually appealing a little bit? Also, per project, there should be one tracker unless and until specified for a proposal if I need another tracker."
+    },
+    {
+      "id": "A-02",
+      "at": "2026-09-15T16:06:52+02:00",
+      "by": "lead",
+      "kind": "decision",
+      "quote": "don't change the name of the tracker again and again that should also be a mandatory rule",
+      "became": "T-06",
+      "state": "answered",
+      "owner": "lead",
+      "note": "nothing actually changed -- the board's <title> stayed 'common-rules tracker' the whole time, since the Artifact tool's own rule already makes the page's <title> tag win over a publish-call title parameter; made explicit and mandatory anyway, per the sponsor's words"
+    },
+    {
+      "id": "A-03",
+      "at": "2026-09-15T16:08:13+02:00",
+      "by": "lead",
+      "kind": "decision",
+      "quote": "Also, make it a mandatory rule not to rename the artifacts like cookbook and a trackers again and again.",
+      "became": "T-06",
+      "state": "answered",
+      "owner": "lead",
+      "note": "broadens T-06 to every maintained page (cookbook included), not only the tracker"
     }
   ],
   "requests": [],

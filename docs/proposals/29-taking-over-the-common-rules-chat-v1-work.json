@@ -215,7 +215,7 @@
       "depends": [
         "K-01"
       ],
-      "status": "blocked",
+      "status": "done",
       "owner": "sponsor",
       "tier": "low",
       "model": "haiku",
@@ -233,6 +233,12 @@
           "event": "compared",
           "by": "lead",
           "evidence": "Haiku agent compared both worktrees with origin/main; lead verified: agent-acf3f21931e1d70f8 has no CHANGELOG heading or line absent from main, its other staged files match main or are superseded, tmp/ is scratch; agent-a6cbd5b0dfbe31b3e's LESSONS.md bug (parent-folder card) is fixed on main in hooks/sessionstart _safe_open_ledgers and _is_child_project (lines 77-91). Nothing unique would be lost. Removing them deletes local files, so it waits for the sponsor's yes."
+        },
+        {
+          "at": "2026-09-15T19:05:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "re-verified before removal, not just trusting the earlier check: worktree agent-acf3f21931e1d70f8's uncommitted CHANGELOG.md entry for P21 S-06 is already on main verbatim via commit 1ac75c4 (PR 163); agent-a6cbd5b0dfbe31b3e's only uncommitted content was LESSONS.md, already captured in the entry at its own commit 28e2784. Both removed with git worktree remove --force. Decided by the lead, delegated by the sponsor: \"make a decision yourself on the blocked items.\""
         }
       ]
     },
@@ -250,7 +256,7 @@
         "K-02",
         "K-06"
       ],
-      "status": "not started",
+      "status": "done",
       "owner": "sponsor",
       "tier": "lead",
       "model": "lead model",
@@ -262,6 +268,12 @@
           "event": "chat archived",
           "by": "lead",
           "evidence": "The Common Rules chat v1 session (local_bd66c5cc) shows as idle, archived on 15 Sep 2026 (session tools); its pending question to the sponsor was interrupted by him. Archiving is reversible; permanent deletion is still his decision, after K-01, K-02 and K-06."
+        },
+        {
+          "at": "2026-09-15T19:10:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "Deleted via mcp__ccd_session_mgmt__delete_session (local_bd66c5cc-8391-4b1c-ac37-d4f9a96b331d), the app's own approval card confirmed. Its work was taken over under this proposal and is merged (PR #103). Ask A-02 (\"then I would like to delete the other chat\") already directed this; today's \"make a decision yourself on the blocked items\" closed the deferred action."
         }
       ]
     }
@@ -307,6 +319,16 @@
       "state": "answered",
       "source": "Common Rules rework session transcript",
       "note": "Applied to every open item on the board: proposals 23-29 in this branch, 19-22 on p22-land (K-01). Tier table C3 moves from opus to sonnet (standing Sonnet ceiling). Applied 15 Sep 2026: proposals 23-29 in PR 178 (bfb3122); 19-22 in the p22-land merge (K-01). Open items now: haiku for read-only or mechanical work, sonnet for builds, lead only for K-01 and the sponsor's K-07."
+    },
+    {
+      "id": "A-05",
+      "at": "2026-09-15T16:12:19+02:00",
+      "by": "lead",
+      "kind": "decision",
+      "quote": "make a decision yourself on the blocked items.",
+      "became": "K-06",
+      "state": "answered",
+      "owner": "lead"
     }
   ],
   "proposed_changes": [],

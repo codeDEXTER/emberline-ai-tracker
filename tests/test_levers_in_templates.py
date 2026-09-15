@@ -10,6 +10,7 @@ Run:  python3 -m unittest discover -s tests -p 'test_levers_in_templates.py' -v
 """
 from __future__ import annotations
 
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -159,12 +160,34 @@ class TestLeadPromptTokenBudget(unittest.TestCase):
             "lead-prompt.md: no '## 9 Token budget' section",
         )
 
-    def test_section_9_is_last(self):
-        headings = [l.rstrip() for l in self.text.splitlines() if l.startswith("## ")]
+    def headings_after_section_9(self, text: str) -> list[str]:
+        headings = [l.rstrip() for l in text.splitlines() if l.startswith("## ")]
+        idx = headings.index("## 9 Token budget")
+        return headings[idx + 1:]
+
+    def test_only_the_two_h02_forms_may_follow_section_9(self):
+        """Restores L-01's strict boundary (proposal 23), which a bundle-d
+        H-02 fixup had relaxed to "any number of numbered sections may
+        follow, we just don't check unnumbered ones" -- letting any future
+        heading after §9 grow unnoticed (bundle-d review, MEDIUM). Proposal
+        24, H-02 names exactly two appendices after §9, in this order --
+        the Dispatcher form and the Item-lead form -- and they are the only
+        exception this rule grants; anything else after §9 fails it."""
+        after = self.headings_after_section_9(self.text)
         self.assertEqual(
-            headings[-1], "## 9 Token budget",
-            f"lead-prompt.md: '## 9 Token budget' is not the last section -- got {headings}",
+            after, ["## Dispatcher form", "## Item-lead form"],
+            f"lead-prompt.md: only the Dispatcher form and Item-lead form may follow "
+            f"'## 9 Token budget' -- got {after}",
         )
+
+    def test_the_strict_check_itself_rejects_an_extra_heading(self):
+        """Proof the check above is load-bearing, not just true of today's
+        file by coincidence: a text with one more heading appended after
+        the two allowed forms must fail it."""
+        mutated = self.text + "\n\n## 10 Something new\n\nunauthorized.\n"
+        with self.assertRaises(AssertionError):
+            self.assertEqual(["## Dispatcher form", "## Item-lead form"],
+                             self.headings_after_section_9(mutated))
 
     def test_boundary_rule_named(self):
         section = self.text.split("## 9 Token budget", 1)[1]

@@ -1,9 +1,9 @@
 ---
 name: warmup
-description: Warm up this session on the project's standard (common-rules proposal 19). Reads HANDOFF.md, the operating rules, the ledger and the last checkpoint in a fixed order, checks the tools, and prints the warm card before any work. Use at the start of every session, after a context compaction, or mid-session ("warm up", "what changed", "refresh the rules").
+description: Warm up a FRESH session on the project's standard (common-rules proposal 19, and proposal 28's R-01/R-02). Reads HANDOFF.md, the operating rules, the ledger and the last checkpoint in a fixed order, checks the tools and the standard, queues what is pending, and prints the warm card before any work. Use at the start of a session. A session already running uses /reheat instead ("warm up", "what changed", "refresh the rules").
 ---
 
-# /warmup
+# /warmup: a fresh lead
 
 The rules are already on disk. This skill loads them in the same order every
 time, so the sponsor never has to type "reread the handoff", "are you using
@@ -12,16 +12,32 @@ ruflo" or "what is the current status" again. It asks nothing.
 `RULES` below is `/Users/the-sponsor/apps/common-rules`, unless this project's
 CLAUDE.md names a different common-rules checkout.
 
-## 1. Cold start, or mid-session
+**A session already running does not use this skill again — it uses
+`skills/reheat/SKILL.md` (`/reheat`)**, which asks only what moved since the
+last warm-up or reheat, with the standard's own status carried along every
+time. This skill is for the start of a session: a fresh lead, or a lead that
+cannot tell whether it already warmed up.
 
-- **No earlier warm-up in this session** (or you cannot tell):
-  `RULES/bin/warmup --project . --state .claude/warmup/last.json`
-- **Mid-session refresh, or after a compaction:**
-  `RULES/bin/warmup --project . --since .claude/warmup/last.json`,
-  then save the new state with `RULES/bin/warmup --project . --json --state .claude/warmup/last.json > /dev/null`.
-  Only what moved is printed; act on each line.
+## 1. Run it
 
-`.claude/warmup/` is scratch state. Never commit it.
+`RULES/bin/warmup --project . --queue --state .claude/warmup/last.json`
+
+- **`--queue`** records every non-holding standard item and every pending
+  mandatory Standard change as a ledger item — owner `lead`, status
+  `not started`, first in the queue — so what the card shows is also what the
+  ledger already tracks. Running it again adds nothing for what is already
+  queued: it is always safe to include.
+- **`--state .claude/warmup/last.json`** saves this run's state, so `/reheat`
+  has a baseline to compare against later in the session. `.claude/warmup/`
+  is scratch state — never commit it.
+- Picking up a conversation with real context (a handoff from another
+  session, something the sponsor said before this skill ran): add
+  `--context "<one line>"` — it is printed on the card and carried into the
+  saved state.
+
+The card now always includes `standard: N of 12 hold` and, under it, every
+item that does not hold — the same twelve `bin/conformance` checks, run in
+process. What `--queue` wrote is listed at the end, under `queue:`.
 
 ## 2. Read, in the order the card names
 

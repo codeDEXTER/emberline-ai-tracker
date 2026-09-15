@@ -185,5 +185,43 @@ merge, reconcile and decide.
   is written, `warmup --check` is ready to pass, and every running agent is
   recorded in the ledger with its worktree and branch.
 - Proposal 24's thin dispatcher, short item leads and `bin/handover --check`
-  will replace this manual handover list when it lands -- do not build it
-  here.
+  replace this manual handover list. Use one of the two forms below,
+  matching which role a session is filling.
+
+## Dispatcher form
+
+- A dispatcher session holds only three things: the ledgers, the open
+  `asks`, and which bundle is running where. It never reads a diff, a build
+  log, a screenshot or a rendered page -- that is an item lead's job, and
+  reading it here is exactly the context growth this form exists to avoid.
+- Its context stays under about 150k tokens for its whole life. When it
+  would cross that, it hands over through the ledger and a checkpoint, the
+  same as any other session -- never through a compaction summary.
+- It starts one item lead per unblocked bundle of disjoint owned files, in
+  its own worktree, and stops when there is nothing left unblocked that
+  is not itself a decision the sponsor owns.
+- It never edits a file an item lead owns. Reconciling shared files is the
+  same lead role §3 already gives to whichever session is doing the
+  merging, not the dispatcher.
+- It is the ledger's only writer. An item lead or builder never runs
+  `tracker set`/`tracker ask` and never hand-edits ledger JSON -- it stages
+  its change with `tracker stage`. After merging a branch in, the
+  dispatcher (or whichever session is doing the merging) runs
+  `tracker apply-staged LEDGER` once per ledger to land every staged
+  change, one at a time, then commits and republishes as `/warmup`'s card
+  directs (proposal 23, M-04).
+
+## Item-lead form
+
+- An item-lead session builds exactly one bundle: the items an ask or the
+  dispatcher named, in the worktree it was started in. It does not pick up
+  a second bundle without being asked.
+- It follows every section above -- the plan is the law, Ruflo is
+  mandatory, the ledger is kept current, it does not stop while unblocked
+  work in its own bundle remains -- for that one bundle only.
+- It merges its own work, then runs `bin/handover --check` before ending
+  its turn. A problem `bin/handover --check` reports is fixed before the
+  session ends, not carried into the checkpoint as a known gap.
+- It ends there: report back to the dispatcher (or, with none running, to
+  the sponsor) what landed, what is blocked, and stop -- it does not pull
+  another bundle off the plan on its own.

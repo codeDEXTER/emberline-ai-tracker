@@ -29,11 +29,15 @@ from __future__ import annotations
 
 import collections
 import datetime
-import glob
 import json
 import os
 import subprocess
 import sys
+from pathlib import Path
+
+RULES_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RULES_DIR))
+from tools import worklog  # noqa: E402  (needs sys.path set first)
 
 PROJECTS = os.path.expanduser("~/.agent-data/projects")
 LOG = "AGENT-LOG.md"
@@ -41,35 +45,43 @@ MANAGEMENT = "(management)"
 
 
 def _sessions():
-    """Yield (project_dir_name, path) for every transcript on this machine."""
-    for path in glob.glob(os.path.join(PROJECTS, "*", "*.jsonl")):
-        yield os.path.basename(os.path.dirname(path)), path
+    """Yield (project_dir_name, path) for every transcript on this machine,
+    main sessions and subagent transcripts alike (see tools/worklog.py)."""
+    for project, _session, path in worklog.list_transcripts(PROJECTS):
+        yield project, path
 
 
 def _read(path):
-    """Output tokens, agent calls and day-buckets for one transcript."""
-    out = 0
+    """Input, cache-write, cache-read and output tokens, agent calls and
+    day-buckets for one transcript.
+
+    Streamed responses write the same `message.id` several times as usage
+    grows; summing every record overstated every kind of token by about
+    3.6x. `worklog.dedupe_messages` collapses that to one record per
+    `message.id`, last (largest) usage kept -- see that module's docstring.
+    """
+    inp = cache_write = cache_read = out = 0
     agents = collections.Counter()
     days = collections.Counter()
-    with open(path, errors="replace") as fh:
-        lines = fh.readlines()
-    for line in lines:
-        try:
-            rec = json.loads(line)
-        except ValueError:
-            continue
+    records = list(worklog.iter_records(path))
+    for rec, msg, usage in worklog.dedupe_messages(records):
+        i, cw, cr, o = worklog.usage_tokens(usage)
+        inp += i
+        cache_write += cw
+        cache_read += cr
+        out += o
+        ts = rec.get("timestamp")
+        if o and ts:
+            days[ts[:10]] += o
+    for rec in records:
         msg = rec.get("message") or {}
-        tokens = (msg.get("usage") or {}).get("output_tokens", 0)
-        out += tokens
-        if tokens and rec.get("timestamp"):
-            days[rec["timestamp"][:10]] += tokens
         content = msg.get("content")
         if isinstance(content, list):
             for block in content:
                 if isinstance(block, dict) and block.get("type") == "tool_use" \
                         and block.get("name") == "Agent":
                     agents[(block.get("input") or {}).get("subagent_type", "?")] += 1
-    return out, agents, days
+    return out, inp, cache_write, cache_read, agents, days
 
 
 def _scan(path):
@@ -79,7 +91,7 @@ def _scan(path):
     task" -- which is what `report` needs and what it used to ask a
     hand-written file for.
     """
-    out, agents, days = _read(path)
+    out, inp, cache_write, cache_read, agents, days = _read(path)
     cwds = []
     first = last = ""
     with open(path, errors="replace") as fh:
@@ -98,7 +110,8 @@ def _scan(path):
                 first = ts
             if not last or ts > last:
                 last = ts
-    return {"path": path, "out": out, "agents": agents, "days": days,
+    return {"path": path, "out": out, "inp": inp, "cache_write": cache_write,
+            "cache_read": cache_read, "agents": agents, "days": days,
             "cwd": cwds[0] if cwds else "", "cwds": cwds,
             "home": _dominant(cwds),
             "first": first, "last": last}
@@ -202,16 +215,21 @@ def tasks_for(path=None):
     tasks = {}
     for _, path in _sessions():
         info = _scan(path)
-        if not info["out"]:
+        if not (info["out"] or info["inp"] or info["cache_write"] or info["cache_read"]):
             continue
         task = _task_of(info.get("cwds") or info["cwd"], root)
         if task is None:
             continue
-        t = tasks.setdefault(task, {"task": task, "out": 0, "sessions": 0,
+        t = tasks.setdefault(task, {"task": task, "out": 0, "inp": 0,
+                                    "cache_write": 0, "cache_read": 0,
+                                    "sessions": 0,
                                     "agents": collections.Counter(),
                                     "days": collections.Counter(),
                                     "first": "", "last": "", "cwd": info["cwd"]})
         t["out"] += info["out"]
+        t["inp"] += info["inp"]
+        t["cache_write"] += info["cache_write"]
+        t["cache_read"] += info["cache_read"]
         # Per-day tokens, which `_read` already counts and this used to drop.
         # A caller asking "what did this week cost" cannot get there from a
         # task total plus first/last: a task spanning the window would be
@@ -263,7 +281,7 @@ def cmd_log(task):
               file=sys.stderr)
         out, agents = 0, collections.Counter()
     else:
-        out, agents, _ = _read(path)
+        out, _inp, _cw, _cr, agents, _days = _read(path)
 
     branch = _git("rev-parse", "--abbrev-ref", "HEAD") or "?"
     landed = _git("rev-list", "--count", "main..HEAD") or "0"
@@ -333,19 +351,25 @@ def cmd_report(by_agent=False):
         print(f"{'TOTAL':24} {sum(roles.values()):>6}")
         return
 
-    total_t = total_c = 0
-    print(f"{'started':11} {'task':34} {'tokens':>10} {'agents':>7} "
+    total_t = total_c = total_i = total_cw = total_cr = 0
+    print(f"{'started':11} {'task':28} {'input':>9} {'cache-r':>9} "
+          f"{'cache-w':>9} {'output':>10} {'agents':>7} "
           f"{'commits':>8} {'per commit':>11}")
     for t in tasks:
         commits = _commits_in(t["cwd"])
         per = f"{t['out'] // commits:,}" if commits else "—"
-        print(f"{t['first'][:10]:11} {t['task'][:34]:34} {t['out']:>10,} "
+        print(f"{t['first'][:10]:11} {t['task'][:28]:28} {t['inp']:>9,} "
+              f"{t['cache_read']:>9,} {t['cache_write']:>9,} {t['out']:>10,} "
               f"{sum(t['agents'].values()):>7} "
               f"{(commits if commits is not None else '—'):>8} {per:>11}")
         total_t += t["out"]
+        total_i += t["inp"]
+        total_cw += t["cache_write"]
+        total_cr += t["cache_read"]
         total_c += commits or 0
     per = f"{total_t // total_c:,}" if total_c else "—"
-    print(f"{'':11} {'TOTAL':34} {total_t:>10,} "
+    print(f"{'':11} {'TOTAL':28} {total_i:>9,} {total_cr:>9,} {total_cw:>9,} "
+          f"{total_t:>10,} "
           f"{sum(sum(t['agents'].values()) for t in tasks):>7} "
           f"{total_c:>8} {per:>11}")
 
@@ -398,7 +422,7 @@ def cmd_today():
             b = "pockets"
         else:
             b = "management chats"
-        _, _, days = _read(path)
+        _out, _inp, _cw, _cr, _agents, days = _read(path)
         buckets[b] += days.get(day, 0)
 
     total = sum(buckets.values())

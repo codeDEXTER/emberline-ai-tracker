@@ -41,6 +41,9 @@ Every entry has this shape:
 - **Never `git stash`.** The stash is shared across worktrees.
 - **Checkpoint before stopping.** A session that ends without
   `docs/handovers/<date>-checkpoint.md` has failed.
+- **`bin/handover --check` is the closing check.** Run it before ending any
+  turn; it fails on what a compaction summary would otherwise let slip past
+  unnoticed (proposal 24, H-01).
 
 ## 3 Merging and shipping
 

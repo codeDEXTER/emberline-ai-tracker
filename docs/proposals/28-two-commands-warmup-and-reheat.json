@@ -54,13 +54,26 @@
       "tests": [],
       "done": "Tests: a fixture project behind the rules gets the Standard change queued in both modes; a holding project gets nothing new.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle C (bin/warmup, skills, hooks, bin/derecord): one Sonnet builder after a Haiku scout, branch bundle-c from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "bin/warmup --reheat --queue, tools/tracker/queue.py; tests/test_warmup_reheat.py; PR bundle-c, commit 7d9bc45"
+        }
+      ]
     },
     {
       "id": "R-02",
@@ -74,13 +87,26 @@
       "depends": [
         "R-01"
       ],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle C (bin/warmup, skills, hooks, bin/derecord): one Sonnet builder after a Haiku scout, branch bundle-c from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "skills/warmup, skills/reheat (new), skills/standard shortcut; tests updated; PR bundle-c, commit 0188b49"
+        }
+      ]
     },
     {
       "id": "R-03",
@@ -94,13 +120,26 @@
       "depends": [
         "R-01"
       ],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle C (bin/warmup, skills, hooks, bin/derecord): one Sonnet builder after a Haiku scout, branch bundle-c from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "hooks/sessionstart, hooks/stop; tests/test_hooks.py; PR bundle-c, commit a3a54a0"
+        }
+      ]
     },
     {
       "id": "R-04",
@@ -140,13 +179,51 @@
       "tests": [],
       "done": "Tests on a temp clone: behind and clean fast-forwards; dirty, diverged or not on main leaves it alone with a card line.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle C (bin/warmup, skills, hooks, bin/derecord): one Sonnet builder after a Haiku scout, branch bundle-c from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "tools/rules_pull.py, bin/warmup fast-forward; tests/test_rules_pull.py; PR bundle-c, commit 86fa882"
+        }
+      ]
+    },
+    {
+      "id": "R-06",
+      "phase": "R",
+      "cx": "C4",
+      "title": "A visual cookbook page: how warmup and reheat work, the standard's features, constraints and rules",
+      "what": "A published, maintained reference page (not the ledger tracker, which stays proposal-by-proposal status): a workflow diagram of warmup vs reheat vs the hooks that trigger them (R-01, R-03), a features table (what warmup/reheat/the old standard shortcut each do), a constraints/rules section sourced from HANDOFF.md's prohibitions and docs/OPERATING-RULES.md, and pointers to the mandatory commands (tracker route/lanes, bin/handover --check). Built from the real rule files, not invented. Kept current: whenever CHANGELOG.md carries a Standard change (mandatory) entry touching warmup, reheat, or a rule the page shows, the page is regenerated in the same commit, the same way the tracker page regenerates with the ledger.",
+      "files": [],
+      "tests": [],
+      "done": "First version published as an artifact, its URL recorded (tracker published-style sidecar, or a line in docs/README.md); a rule in docs/OPERATING-RULES.md or CLAUDE-workflow.md says a Standard change touching warmup/reheat/rules regenerates it; the page renders the real card/hook behaviour, not a mockup.",
+      "depends": [],
+      "status": "done",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T18:20:00+02:00",
+          "event": "published",
+          "by": "lead",
+          "evidence": "https://claude.ai/artifact/HYFVRfjemufZH1C83xCxPF -- built from HANDOFF.md, docs/OPERATING-RULES.md, CLAUDE-workflow.md, skills/warmup, skills/reheat on branch backlog"
+        }
+      ]
     }
   ],
   "asks": [
@@ -219,6 +296,26 @@
       "by": "sponsor",
       "quote": "Asked: \"P28 D6\" Answered: \"A · Yes, fast-forward only, when behind\".",
       "source": "Warmup & Reheat page https://claude.ai/artifact/JJbFX6PdxBgkeVopVdLktA, database collection answers"
+    },
+    {
+      "id": "A-08",
+      "at": "2026-09-15T14:10:17+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "implement the backlog",
+      "became": null,
+      "state": "answered",
+      "source": "Common Rules rework session transcript",
+      "note": "Applies to every accepted, not-built item in proposals 24-28; built in surface bundles on integration branch backlog."
+    },
+    {
+      "id": "A-09",
+      "at": "2026-09-15T16:02:43+02:00",
+      "by": "lead",
+      "kind": "feature",
+      "quote": "also going ahead, can you maintain a standard cookbook for common rules? Uh, how the warm up and reheat works? I need a visual cookbook. What features, what constraints, and what rules are there? Some sort of a workflow.",
+      "became": "R-06",
+      "state": "became-item"
     }
   ],
   "proposed_changes": [],

@@ -22,6 +22,16 @@
   tracker ask LEDGER --kind KIND --quote TEXT [--state S] [--by NAME] [--at ISO]
                       [--owner O] [--became ITEM] [--source TEXT] [--note TEXT]
                                        record a sponsor ask as the next A-nn (P23 L-04)
+  tracker route LEDGER ITEM_ID [--project DIR] [--json]
+                                       how one item is reviewed and bundled   (P25 Z-02)
+  tracker lanes LEDGER... [--project DIR] [--json]
+                                       share, risk, the 80% cut, each item's lane (P26 C-02)
+  tracker stage LEDGER ITEM_ID [--status S] [--owner O] [--field K=V ...]
+                                [--event TEXT] [--evidence TEXT] [--by NAME] [--at ISO]
+                                       an item lead or builder records an intended
+                                       change without touching the ledger      (P23 M-04)
+  tracker apply-staged LEDGER         the dispatcher applies every staged change,
+                                       one at a time, deleting each as it lands (P23 M-04)
 
 Each command is a module in tools/tracker/ with a `main(argv) -> int`, so
 commands built in parallel never edit the same file.
@@ -35,7 +45,8 @@ from pathlib import Path
 RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
-COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import", "published", "board", "set", "ask")
+COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import", "published", "board", "set", "ask",
+            "route", "lanes", "stage", "apply-staged")
 
 
 def validate(argv):
@@ -75,7 +86,7 @@ def main(argv):
         # Lives beside render, whose page digest it records (proposal 20, V-09).
         from tools.tracker import render
         return render.published_main(rest)
-    module = "import_" if cmd == "import" else cmd
+    module = {"import": "import_", "apply-staged": "apply_staged"}.get(cmd, cmd)
     try:
         mod = importlib.import_module(f"tools.tracker.{module}")
     except ModuleNotFoundError:

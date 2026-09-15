@@ -24,16 +24,48 @@ no git command that writes, and only one level down -- no recursion into a
 child's own subdirectories beyond what ledger.find already reads (its own
 docs/proposals/). Never fails the session: every exception is swallowed and
 the exit code is always 0.
+
+DISPATCH TO WARMUP (proposal 28, R-03). When the start folder has its own
+open ledger, `startup` runs `bin/warmup` (the plain card, no --queue: a hook
+never writes); `compact` and `resume` run `bin/warmup --reheat`. Both always
+pass `--no-pull`, keeping this hook's own read-only, no-network contract even
+though warmup's plain card and --reheat otherwise fast-forward the rules
+checkout (R-05). Every call to warmup is bounded by WARMUP_TIMEOUT (well
+under Claude Code's own hook timeout); a timeout, a non-zero exit, or any
+other failure falls back to this hook's own one-line-per-ledger summary,
+never to a failed session. `clear` and any other or missing source keep that
+same one-line fallback outright -- only startup, resume and compact reach
+for the fuller card.
 """
 from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
+
+# proposal 28, R-03: a hard timeout well under Claude Code's own. Overridable
+# only for tests, which need a deterministic way to exercise the fallback.
+WARMUP_TIMEOUT = float(os.environ.get("COMMON_RULES_HOOK_TIMEOUT", "8"))
+
+
+def _run_warmup(project: Path, extra_args: list[str]) -> str | None:
+    """`bin/warmup`'s own stdout, or None on any failure, timeout, or
+    non-zero exit -- the hook falls back to its own plain line rather than
+    ever failing the session. Always `--no-pull`: a SessionStart hook is
+    read-only, per this file's own contract, and warmup's plain card and
+    --reheat otherwise reach the network and can move the rules checkout."""
+    cmd = [sys.executable, str(REPO / "bin" / "warmup"), "--project", str(project),
+           "--no-recall", "--no-pull", *extra_args]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=WARMUP_TIMEOUT, check=False)
+    except Exception:
+        return None
+    return r.stdout if r.returncode == 0 and r.stdout.strip() else None
 
 
 def _printable(text) -> str:
@@ -170,17 +202,37 @@ def main() -> int:
             _parent_card(project, source)
             return 0
 
+        # Proposal 28, R-03: startup runs the plain card; compact or resume
+        # runs --reheat (a delta against warmup's own saved state, or the
+        # full card the first time). Any other source (clear, or none) keeps
+        # this hook's own one-line-per-ledger fallback, unchanged.
         if source == "compact":
-            ledger_paths = ", ".join(str(p) for p, _ in open_ledgers)
-            latest = checkpoint.latest_checkpoint(project)
-            latest_str = str(latest) if latest else "no checkpoint yet"
-            statuses = "; ".join(
-                f"Proposal {d.get('proposal')}: {ledger.status_line(d)}"
-                for _, d in open_ledgers
-            )
             print("Context was compacted. The summary above is a paraphrase; the ledger is the record.")
-            print(f"Re-read, in order: HANDOFF.md → docs/OPERATING-RULES.md → {ledger_paths} → {latest_str}.")
-            print(f"Quote rulings from disk, never from the summary. Status: {statuses}.")
+            print("Quote rulings from disk, never from the summary.")
+            out = _run_warmup(project, ["--reheat"])
+            if out:
+                print(out, end="" if out.endswith("\n") else "\n")
+            else:
+                statuses = "; ".join(f"Proposal {d.get('proposal')}: {ledger.status_line(d)}"
+                                     for _, d in open_ledgers)
+                latest = checkpoint.latest_checkpoint(project)
+                latest_str = str(latest) if latest else "no checkpoint yet"
+                print(f"Re-read, in order: HANDOFF.md → docs/OPERATING-RULES.md → the ledger(s) → {latest_str}.")
+                print(f"Status: {statuses}.")
+        elif source == "resume":
+            out = _run_warmup(project, ["--reheat"])
+            if out:
+                print(out, end="" if out.endswith("\n") else "\n")
+            else:
+                for _, d in open_ledgers:
+                    print(f"Proposal {d.get('proposal')}: {ledger.status_line(d)} · run /warmup")
+        elif source == "startup":
+            out = _run_warmup(project, [])
+            if out:
+                print(out, end="" if out.endswith("\n") else "\n")
+            else:
+                for _, d in open_ledgers:
+                    print(f"Proposal {d.get('proposal')}: {ledger.status_line(d)} · run /warmup")
         else:
             for _, d in open_ledgers:
                 print(f"Proposal {d.get('proposal')}: {ledger.status_line(d)} · run /warmup")
