@@ -1,5 +1,79 @@
 # Changelog — common-rules
 
+## 2026-09-15 · CLAUDE-workflow.md's Autopilot and Talking-to-the-user sections trimmed of dated rationale (P23 M-10)
+
+Proposal 23, M-10. The two sections carried roughly 230 lines of dated,
+proposal-specific rationale — grandfather clauses, sample register and
+milestone rows, and citations to one-off measurements — sitting beside the
+actual rules a session needs to follow. Table shapes and the rules
+themselves are unchanged; the worked examples and the measurement history
+that justified each date move here, one line plus a pointer left in
+`CLAUDE-workflow.md`.
+
+**Feature register, worked example** (`## Features` table): what used to sit
+in the file as sample rows —
+
+| # | Feature | State |
+|---|---|---|
+| [#2](…/issues/2) | Capture a document and see it filed | **in flight** — issue #1 |
+| [#3](…/issues/3) | Import the backlog | blocked by #2 |
+| [#8](…/issues/8) | Get it onto the second phone | version 2 |
+
+**Naming history:** `completed` is the word for fully finished, written from
+here on; `done` is a grandfathered synonym of it, not mass-renamed where
+already written; `built` keeps its own narrower meaning — shipped but not
+yet closed — and is never folded into `completed` (same convention as
+proposal-status's own `built` → `completed`, decided 2026-08-20).
+
+**Milestone plan, worked example** (`## Milestones` table):
+
+| # | Milestone | Proves | You get | State |
+|---|---|---|---|---|
+| 1 | One corpus indexed, answering a question | retrieval is good enough to build on | nothing to hold | completed |
+| 2 | The model timed on the real phone | the felt speed, and so the retrieval budget | nothing to hold | in flight |
+| 3 | The first real screen, on the device | the design survives contact with a hand | **an app you can use, one corpus** | next |
+
+**Measured on `pocket-internet`, 2026-08-20:** the first milestone was five
+cheap verifications named in advance. Three ran — two confirmed an estimate
+and one corrected a verdict that had already propagated into two proposals.
+Twenty minutes, and it changed a conclusion that eleven passes of reading
+had not.
+
+**Why the proposal-decisions rule exists, measured in finance-tracker
+(issue #584), 2026-08-19:** 11 proposals `accepted`, 9 carrying a decision
+date (`<meta name="proposal-decided">`), only 3 recording what was actually
+decided — and those three were hand-written the day the gap was noticed. A
+date says *when*; it says nothing about *what*, and `proposal-auditor` has
+nothing to measure a build against without the answers.
+
+**The 2026-08-19 grandfather's measurement:** undated reads the same as
+"decided before this rule existed," not a loophole to leave the meta off
+going forward — finance-tracker alone has 8 accepted proposals whose
+answers are unrecoverable; inventing them would misstate history worse than
+the gap does, and a test that fails on day one against documents nobody can
+fix gets disabled. `bin/proposalcheck` reported 0 blocked proposals across
+finance-tracker, mac-explorer, pockets and pip at the time; finance-tracker
+had 4 that would have failed without the floor (proposals 20, 23, 24, 25),
+all dated before it, so enforcement is forward-only from there.
+
+**Why the lead-vs-section rule was made explicit, 2026-08-20:** six
+parallel spending-UI concepts from one design-explorer run (finance-tracker)
+had nowhere to go but loose, unnumbered `claude.ai` links until this was
+written down — `NN-<type>-<slug>.html` already had a real answer (make each
+its own numbered section of one lead proposal).
+
+**The 2026-08-20 floor's grandfathering, at the time it was written:**
+`bin/proposalcheck` reported 0 blocked: pockets carried one lead with a
+typo'd status (`superseded-by 14` for `superseded by 14`, decided
+2026-08-04) and pip carried two undated leads with no status at all — both
+grandfathered the identical way an undated or pre-floor proposal already is
+above, not specially cased.
+
+**The bake-off measurement behind "ask before code, in one batch":** the arm
+that batched and defaulted logged six open questions, received no answers,
+and still finished; the control arm asked two and silently resolved nine,
+which it happened to get right.
+
 ## 2026-09-15 · `bin/handover --check`: the closing check before a lead's turn ends (P24 H-01, H-02, H-03)
 
 Proposal 24, H-01 to H-03. A new `bin/handover --check --project DIR` runs four
