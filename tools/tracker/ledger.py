@@ -56,6 +56,10 @@ REQUEST_STATES = ("open", "in progress", "answered", "declined")
 VALUES = ("high", "medium", "low")
 POINTS = (1, 2, 3, 5, 8, 13)
 RISKS = ("standard", "elevated", "restricted")
+# Proposal 26 (C-01): impact 4 stops everything, 3 breaks a user-visible
+# feature, 2 is user-visible but still works, 1 is back-end only.
+IMPACTS = (1, 2, 3, 4)
+LIKELIHOODS = (1, 2, 3)
 
 
 def load(path) -> dict:
@@ -262,6 +266,11 @@ def _validate_sizing(ledger: dict) -> list[str]:
             problems.append(f"{name}: risk {i['risk']!r} is not one of {', '.join(RISKS)}")
         if "cluster" in i and not (_one_line(i["cluster"]) and i["cluster"].strip()):
             problems.append(f"{name}: cluster must be a surface name, one line of text")
+        # Proposal 26, C-01.
+        if "impact" in i and not _int_in(i["impact"], IMPACTS):
+            problems.append(f"{name}: impact {i['impact']!r} is not 1-4 (4 stops everything, 1 back-end only)")
+        if "likelihood" in i and not _int_in(i["likelihood"], LIKELIHOODS):
+            problems.append(f"{name}: likelihood {i['likelihood']!r} is not 1-3")
     return problems
 
 

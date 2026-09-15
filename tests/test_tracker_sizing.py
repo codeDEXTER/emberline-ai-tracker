@@ -70,5 +70,31 @@ class TestValuePointsRiskCluster(unittest.TestCase):
         self.assertNotIn('size"', row)
 
 
+class TestImpactAndLikelihood(unittest.TestCase):
+    """Proposal 26, C-01: impact 1-4 (4 stops everything, 3 a user-visible
+    feature breaks, 2 user-visible but still works, 1 back-end only) and
+    likelihood 1-3."""
+
+    def test_good_values_pass(self):
+        for impact in (1, 2, 3, 4):
+            for likelihood in (1, 2, 3):
+                self.assertEqual(L.validate(one_item(impact=impact, likelihood=likelihood)), [])
+
+    def test_bad_impact_is_named(self):
+        for bad in (0, 5, "3", 3.0, True, None):
+            problems = L.validate(one_item(impact=bad))
+            self.assertTrue(any("Z-01: impact" in p for p in problems), (bad, problems))
+
+    def test_bad_likelihood_is_named(self):
+        for bad in (0, 4, "2", 2.0, False, None):
+            problems = L.validate(one_item(likelihood=bad))
+            self.assertTrue(any("Z-01: likelihood" in p for p in problems), (bad, problems))
+
+    def test_render_shows_them(self):
+        row = R.item_row(one_item(impact=4, likelihood=2)["items"][0], None)
+        self.assertIn("impact 4", row)
+        self.assertIn("likelihood 2", row)
+
+
 if __name__ == "__main__":
     unittest.main()
