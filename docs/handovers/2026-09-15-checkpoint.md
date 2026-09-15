@@ -1,6 +1,6 @@
 # Checkpoint — 2026-09-15 22:46
 
-Reason: manual · branch: backlog-wave3 · HEAD: 39f5351
+Reason: manual · branch: backlog-wave3 · HEAD: 72ef5ce
 
 <!-- ledger-digest: 925f2b6208918390cbabfd86f1dae0912dda2e62d45c6b5ad6b6eb5e51ab2e86 -->
 
