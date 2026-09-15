@@ -314,6 +314,100 @@ class CheckWarmupTests(unittest.TestCase):
         self.assertEqual(H.PASS, mark, detail)
 
 
+class CheckBackgroundNamesTests(unittest.TestCase):
+    """Check 5 (proposal 24, H-04): every running background session is
+    named `bg · <project> · dispatcher` or `bg · <project> · lead · P<nn>
+    <item ids>` -- never the reverse of broken-then-fixed, so a check that
+    always prints PASS would still be caught."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name) / "common-rules"
+        init_repo(self.root)
+
+    def stub(self, agents: list[dict] | None, exit_code: int = 0) -> Path:
+        """A fake `claude agents --json` -- prints `agents` (or nothing, on
+        a non-zero exit, the way a missing/erroring binary would)."""
+        p = Path(self.tmp.name) / "stub_agents.py"
+        payload = json.dumps(agents if agents is not None else [])
+        p.write_text(
+            "#!/usr/bin/env python3\n"
+            "import sys\n"
+            f"sys.exit({exit_code}) if {exit_code} else print({payload!r})\n"
+        )
+        p.chmod(0o755)
+        return p
+
+    def run_check(self, agents_bin: Path | None):
+        import os
+        old = os.environ.get("HANDOVER_AGENTS_BIN")
+        if agents_bin is None:
+            os.environ.pop("HANDOVER_AGENTS_BIN", None)
+        else:
+            os.environ["HANDOVER_AGENTS_BIN"] = str(agents_bin)
+        try:
+            return H.check_background_names(self.root)
+        finally:
+            if old is None:
+                os.environ.pop("HANDOVER_AGENTS_BIN", None)
+            else:
+                os.environ["HANDOVER_AGENTS_BIN"] = old
+
+    def test_agents_command_not_available_is_skipped_not_failed(self):
+        """Nothing on disk can answer this from inside a sandboxed worktree
+        -- an unavailable `claude agents --json` is neither pass nor fail."""
+        mark, _ = self.run_check(Path(self.tmp.name) / "does-not-exist")
+        self.assertEqual(H.SKIP, mark)
+
+    def test_no_background_session_is_skipped(self):
+        mark, _ = self.run_check(self.stub([
+            {"id": "sess-1", "name": "some interactive chat", "background": False},
+        ]))
+        self.assertEqual(H.SKIP, mark)
+
+    def test_background_session_named_off_convention_fails(self):
+        """Broken fixture: a background session running, named like an
+        ordinary chat instead of the bg-lead convention."""
+        mark, detail = self.run_check(self.stub([
+            {"id": "sess-2", "name": "common-rules item lead", "background": True},
+        ]))
+        self.assertEqual(H.FAIL, mark, detail)
+        self.assertIn("sess-2", detail)
+
+    def test_background_session_named_by_convention_passes(self):
+        """Same fixture, fixed: the session is named by the H-04 convention."""
+        mark, detail = self.run_check(self.stub([
+            {"id": "sess-3", "name": "bg · common-rules · lead · P24 H-04", "background": True},
+        ]))
+        self.assertEqual(H.PASS, mark, detail)
+        self.assertIn("sess-3", detail)
+        self.assertIn("bg · common-rules · lead · P24 H-04", detail)
+
+    def test_dispatcher_name_passes(self):
+        mark, detail = self.run_check(self.stub([
+            {"id": "sess-4", "name": "bg · common-rules · dispatcher", "background": True},
+        ]))
+        self.assertEqual(H.PASS, mark, detail)
+
+    def test_one_conventional_one_not_fails_on_the_bad_one_only(self):
+        mark, detail = self.run_check(self.stub([
+            {"id": "sess-5", "name": "bg · common-rules · dispatcher", "background": True},
+            {"id": "sess-6", "name": "common-rules lead 2", "background": True},
+        ]))
+        self.assertEqual(H.FAIL, mark, detail)
+        self.assertIn("sess-6", detail)
+        self.assertNotIn("sess-5", detail)
+
+    def test_project_name_must_match_this_project(self):
+        """A background session named for a different project is not this
+        project's to claim as conventional -- it must still fail here."""
+        mark, detail = self.run_check(self.stub([
+            {"id": "sess-7", "name": "bg · some-other-project · dispatcher", "background": True},
+        ]))
+        self.assertEqual(H.FAIL, mark, detail)
+
+
 class MainCLITests(unittest.TestCase):
     """The whole binary, via subprocess -- exit code follows the checks."""
 

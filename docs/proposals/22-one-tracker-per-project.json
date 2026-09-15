@@ -372,12 +372,20 @@
       "tests": [],
       "done": "docs/OPERATING-RULES.md or CLAUDE-workflow.md states the rule; a test asserts render.py never emits a different <title> for the same project across two renders, and any other page-writing tool (the cookbook's own build step, once it has one) is covered by the same stated rule even without its own test; `tracker published` refuses (or warns loudly) when the file it is about to publish carries a <title> different from what was last recorded published.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "low",
       "model": "haiku",
       "tag": "[ruflo · low · haiku]",
-      "issue": null
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T17:25:40+02:00",
+          "event": "done",
+          "by": "session:bundle-g",
+          "evidence": "Rule stated once in CLAUDE-workflow.md Talking-to-the-user, covers every maintained page not just tracker; skills/warmup points back. tests/test_published_title_stable.py pins render.py title stability across two renders. Commit e09d50f."
+        }
+      ]
     }
   ],
   "asks": [

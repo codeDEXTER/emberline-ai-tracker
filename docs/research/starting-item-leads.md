@@ -67,3 +67,36 @@ claude --bg -p "print 'handover proof run' and exit" --worktree handover-proof
 Then confirm with `claude agents --json` that the id it printed shows up,
 `claude logs <id>` shows the expected line, and `claude rm <id>` cleans up
 the worktree it made.
+
+## Follow-up: naming, so a background lead is visible and not mistaken for a chat (proposal 24, H-04)
+
+Mechanism 1 above (`claude --bg -p ...`) also takes `--name`, unused in the
+proof run. Every session the dispatcher starts in the background is started
+with `claude --bg --name <name>`, so it shows by that name in `claude
+agents` and the desktop session list, distinct from an interactive chat:
+
+- `bg · <project> · dispatcher` for the dispatcher itself.
+- `bg · <project> · lead · P<nn> <item ids>` for an item lead, e.g.
+  `bg · common-rules · lead · P26 C-03`.
+
+`<project>` is the project's own directory name (`common-rules`, not a
+display title), matching what `bin/handover --check`'s new check reads from
+`--project`. `<item ids>` is the bundle the lead was started for, exactly as
+the dispatcher named it when it read the plan -- the same ids that end up in
+the item's own ledger log, so the name and the ledger agree on what that
+session is doing.
+
+`bin/handover --check` and the tracker page list running background leads
+by this name, with their session id. `bin/handover`'s check 5
+(`check_background_names` in `bin/handover`) reads `claude agents --json`,
+filters to sessions whose `background` field is true, and flags any of
+those not named by the convention above -- SKIP, not FAIL, when the
+command itself is not available (nothing on disk can answer that from
+inside a sandboxed worktree). **Not verified end to end**: this pass never
+had a real background session running to point `claude agents --json` at,
+so whether the command's real JSON shape actually carries a `background`
+field (or something else entirely) was not observed -- only the naming
+logic and the new handover check were exercised, against a stub
+(`HANDOVER_AGENTS_BIN`). The lead-prompt Dispatcher form and the H-03 proof
+run are the next places this needs to be wired in and actually watched
+once a real background session exists to watch.
