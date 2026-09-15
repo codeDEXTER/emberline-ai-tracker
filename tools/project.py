@@ -34,6 +34,9 @@ module does not know is ignored, because later proposals add keys.
       inside the project's parent folder (so `..` is allowed here, and only
       here), is not the project itself, exists, and holds docs/proposals.
       bin/new-proposal numbers across all of them. Default: [].
+  "value_defaults": {"tracker": "high", "docs": "low"}
+      Proposal 25, Z-03: the value (high|medium|low) an item takes from its
+      `cluster` when it has no `value` of its own. Default: {}.
 
 EVERY VALUE IS UNTRUSTED. A path is relative to the project root: an absolute
 path, a `..` part, or a path that resolves (through a symlink) outside the
@@ -101,7 +104,10 @@ DEFAULTS: dict = {
     "plan_check": None,
     "plan_page": None,
     "proposal_series": [],
+    "value_defaults": {},
 }
+
+VALUES = ("high", "medium", "low")  # tools/tracker/ledger.py VALUES, proposal 25
 
 INVALID, NOT_OBJECT = "invalid", "not an object"
 
@@ -324,6 +330,16 @@ def _checked(data: dict) -> tuple[dict, list[str]]:
                 bad.extend(why)
             else:
                 ok["proposal_series"] = list(v)
+    if "value_defaults" in data:
+        v = data["value_defaults"]
+        if not isinstance(v, dict):
+            bad.append(f'{FILE}: value_defaults must be an object, like {{"tracker": "high"}}')
+        elif not all(isinstance(k, str) and k.strip() and _utf8(k) and _one_line(k) for k in v):
+            bad.append(f"{FILE}: value_defaults names must be surface names, one line of text")
+        elif not all(x in VALUES for x in v.values()):
+            bad.append(f"{FILE}: value_defaults values must be one of {', '.join(VALUES)}")
+        else:
+            ok["value_defaults"] = dict(v)
     for key in COMMANDS:
         if key in data:
             cmd, why = _command(key, data[key])

@@ -4,5 +4,12 @@
   "gates": {
     "quick": "python3 -m unittest discover -s tests -q -p 'test_tracker*.py'",
     "merge": "python3 -m unittest discover -s tests -q"
+  },
+  "value_defaults": {
+    "tracker": "high",
+    "warmup": "high",
+    "handover": "high",
+    "worklog": "medium",
+    "docs": "low"
   }
 }
