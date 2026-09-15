@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>26 · proposed · Cluster work by contribution and risk</title>
+<title>26 · accepted · Cluster work by contribution and risk</title>
 <meta name="proposal-id" content="26">
-<meta name="proposal-status" content="proposed">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-15">
 <meta name="common-rules-template" content="proposal/21">
 <!--
   Written by common-rules bin/new-proposal from templates/proposal.html
@@ -61,8 +62,8 @@
 <body>
 <div class="wrap">
 
-<h1><span class="num">26</span> · <span class="status">proposed</span> · Cluster work by contribution and risk</h1>
-<p class="sub">Proposal 26 · proposed 2026-09-15. Every queued change gets a contribution share and a risk score. The changes that together make up 90% of the value are built now; the last 10% is batched daily, weekly or when its surface is next touched, and stays tracked. Reviews and full test runs happen once per cluster, not once per item. Amends proposal 25, which is accepted but not built.</p>
+<h1><span class="num">26</span> · <span class="status">accepted</span> · Cluster work by contribution and risk</h1>
+<p class="sub">Proposal 26 · accepted 2026-09-15. Every queued change gets a contribution share and a risk score. The changes that together make up 90% of the value are built now; the last 10% is batched daily, weekly or when its surface is next touched, and stays tracked. Reviews and full test runs happen once per cluster, not once per item. Amends proposal 25, which is accepted but not built.</p>
 
 <h2>The ask</h2>
 <blockquote>
@@ -126,21 +127,16 @@
 </ol>
 
 <h2>Decided</h2>
-<section class="slot">
-  <p>Not decided yet. When the sponsor answers, change this page in this order.</p>
-  <ol>
-    <li><b>The date, first.</b> Copy this line into the head, directly under the status meta, and put the real date in place of YYYY-MM-DD:
-      <pre class="m">&lt;meta name="proposal-decided" content="YYYY-MM-DD"&gt;</pre>
-      Without it, bin/proposalcheck treats the page as decided before its rules existed and checks nothing.</li>
-    <li><b>Then the status.</b> Replace the proposed status meta with this line:
-      <pre class="m">&lt;meta name="proposal-status" content="accepted"&gt;</pre>
-      and change "proposed" to "accepted" in the title, the heading, and the "Proposal NN · proposed DATE" line under it.</li>
-    <li>Write both lines exactly as shown. Do not self-close them with <span class="m">/&gt;</span>: bin/proposalcheck does not read that form, and the page would read as undecided.</li>
-    <li>Give this section the id <span class="m">decided</span>, and replace this text with the sponsor's answer quoted from disk, the date, and what each of D1, D2 ... was decided as.</li>
-    <li>Add the items to the ledger beside this page (same number, <span class="m">.json</span>).</li>
-  </ol>
-  <p>The id is added by hand, on purpose. A page that shipped with an empty answers block would pass bin/proposalcheck while recording nothing.</p>
-  <p><b>Completed in part.</b> A proposal closed as <span class="m">completed in part</span> also needs a block with the id exceptions beside the <span class="m">&lt;ol class="decisions"&gt;</span> list, naming what was not built and why. The same rule applies: add it when it is true, never in advance.</p>
+<section class="slot" id="decided">
+  <p>Decided by the sponsor on 15 September 2026, 09:17–09:18 CEST, on the Clusters &amp; Costs Decisions page (database collection <span class="m">answers</span>, documents P26-D1 to P26-D6), recorded as asks A-02 to A-07. No notes.</p>
+  <ul>
+    <li><b>D1:</b> A · Share and risk, cut, batch the tail. → C-02</li>
+    <li><b>D2:</b> A · Share is value × points. → C-01</li>
+    <li><b>D3:</b> B · The cut line is <b>80%</b>, not 90%. → C-02</li>
+    <li><b>D4:</b> A · Tail by risk: 6+ daily, 3–5 weekly, 1–2 when touched. → C-02</li>
+    <li><b>D5:</b> A · One review and one full suite per bundle or batch; restricted changes alone. → C-03</li>
+    <li><b>D6:</b> B · Deferred changes re-scored after <b>14 days</b>. → C-04</li>
+  </ul>
 </section>
 
 <p class="src">Sources: the sponsor's message (proposal 26 ask A-01); proposal 25 ledger and page; proposal 23 ledger and PR 173 (git diff --numstat per commit: 2b0bfc3, 58ad5da, 6eab815, bd0d4eb..7b73296); bin/ruflo-item source (done runs the project's merge gate before post-task) and its 15 September run. Not verified: the 90/10 split on other projects' queues.</p>

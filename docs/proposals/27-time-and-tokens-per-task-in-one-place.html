@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>27 · proposed · Time and tokens per task, in one place</title>
+<title>27 · accepted · Time and tokens per task, in one place</title>
 <meta name="proposal-id" content="27">
-<meta name="proposal-status" content="proposed">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-15">
 <meta name="common-rules-template" content="proposal/21">
 <!--
   Written by common-rules bin/new-proposal from templates/proposal.html
@@ -61,8 +62,8 @@
 <body>
 <div class="wrap">
 
-<h1><span class="num">27</span> · <span class="status">proposed</span> · Time and tokens per task, in one place</h1>
-<p class="sub">Proposal 27 · proposed 2026-09-15. Every session's transcripts already record tokens and timestamps. This proposal collects them, without anyone typing anything, into one database for all projects, tied to ledger items, and shows an end-of-day review of time and tokens per task, session and project.</p>
+<h1><span class="num">27</span> · <span class="status">accepted</span> · Time and tokens per task, in one place</h1>
+<p class="sub">Proposal 27 · accepted 2026-09-15. Every session's transcripts already record tokens and timestamps. This proposal collects them, without anyone typing anything, into one database for all projects, tied to ledger items, and shows an end-of-day review of time and tokens per task, session and project.</p>
 
 <h2>The ask</h2>
 <blockquote>
@@ -121,21 +122,16 @@
 </ol>
 
 <h2>Decided</h2>
-<section class="slot">
-  <p>Not decided yet. When the sponsor answers, change this page in this order.</p>
-  <ol>
-    <li><b>The date, first.</b> Copy this line into the head, directly under the status meta, and put the real date in place of YYYY-MM-DD:
-      <pre class="m">&lt;meta name="proposal-decided" content="YYYY-MM-DD"&gt;</pre>
-      Without it, bin/proposalcheck treats the page as decided before its rules existed and checks nothing.</li>
-    <li><b>Then the status.</b> Replace the proposed status meta with this line:
-      <pre class="m">&lt;meta name="proposal-status" content="accepted"&gt;</pre>
-      and change "proposed" to "accepted" in the title, the heading, and the "Proposal NN · proposed DATE" line under it.</li>
-    <li>Write both lines exactly as shown. Do not self-close them with <span class="m">/&gt;</span>: bin/proposalcheck does not read that form, and the page would read as undecided.</li>
-    <li>Give this section the id <span class="m">decided</span>, and replace this text with the sponsor's answer quoted from disk, the date, and what each of D1, D2 ... was decided as.</li>
-    <li>Add the items to the ledger beside this page (same number, <span class="m">.json</span>).</li>
-  </ol>
-  <p>The id is added by hand, on purpose. A page that shipped with an empty answers block would pass bin/proposalcheck while recording nothing.</p>
-  <p><b>Completed in part.</b> A proposal closed as <span class="m">completed in part</span> also needs a block with the id exceptions beside the <span class="m">&lt;ol class="decisions"&gt;</span> list, naming what was not built and why. The same rule applies: add it when it is true, never in advance.</p>
+<section class="slot" id="decided">
+  <p>Decided by the sponsor on 15 September 2026, 09:19 CEST, on the Clusters &amp; Costs Decisions page (documents P27-D1 to P27-D6), recorded as asks A-02 to A-07.</p>
+  <ul>
+    <li><b>D1:</b> B · Daily JSON files, with his note: “A central folder revisioned under common rules”. → W-02: <span class="m">common-rules/worklog/&lt;date&gt;.jsonl</span>, committed by the nightly run only.</li>
+    <li><b>D2:</b> A · After each session turn, plus nightly. → W-03</li>
+    <li><b>D3:</b> A · Task from the brief tag, then branch, then session. → W-02</li>
+    <li><b>D4:</b> A · Active time, gaps over 5 minutes left out. → W-02</li>
+    <li><b>D5:</b> A · Both an evening page and a /warmup line. → W-04</li>
+    <li><b>D6:</b> A · Fix bin/spend's gaps first. → W-01</li>
+  </ul>
 </section>
 
 <p class="src">Sources: the sponsor's message (proposal 27 ask A-01); bin/spend source (_sessions globs */*.jsonl; _read sums output_tokens on every record) and its 15 September output; bin/tower cost section (issue #76 note); common-rules proposal 23's transcript re-check (3.64 records per response). Not verified: first-collection time across all transcripts.</p>
