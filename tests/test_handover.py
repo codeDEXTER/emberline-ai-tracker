@@ -176,6 +176,26 @@ class CheckWorktreesTests(unittest.TestCase):
         mark, detail = H.check_worktrees(self.root)
         self.assertEqual(H.PASS, mark, detail)
 
+    def test_run_from_a_linked_worktree_still_sees_its_sibling(self):
+        """Regression (bundle-d review, HIGH): the reviewer found check 2
+        blind when `--project` is a linked worktree, not the main checkout
+        -- `git worktree list` reports every worktree's path relative to the
+        main checkout's `.claude/worktrees/`, and the old code only ever
+        looked under `--project` itself, so a lead running `bin/handover
+        --check` from its own worktree (the item-lead form's own
+        instruction) saw 0 candidates. Two linked worktrees here, ledger
+        names neither: --project set to worktree A must still report
+        worktree B (its unnamed sibling) as a failing candidate."""
+        write_ledger(self.root, "90-fixture.json", base_ledger())
+        git("add", "-A", cwd=self.root)
+        git("commit", "-q", "-m", "add ledger", cwd=self.root)
+        self.add_active_worktree("p90-a")
+        self.add_active_worktree("p90-b")
+        project_a = self.root / ".claude" / "worktrees" / "p90-a"
+        mark, detail = H.check_worktrees(project_a)
+        self.assertEqual(H.FAIL, mark, detail)
+        self.assertIn("p90-b", detail)
+
 
 class CheckCheckpointTests(unittest.TestCase):
     def setUp(self):

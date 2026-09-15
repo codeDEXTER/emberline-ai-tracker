@@ -19,12 +19,16 @@ Four checks, each printed with a mark and what is missing:
      disk that could answer it, and a hard fail here would make every lead
      that forgets `--transcript` unable to ever close cleanly.
   2. every running agent worktree of the project (`git worktree list`,
-     paths under `.claude/worktrees/` or `.worktrees/`) that carries
-     commits not on `origin/main` (or, with no remote, `main`) is named --
-     by path basename or branch name -- in some ledger item's log (its
-     `by` or `evidence` field, where the agent evidence this project
-     already writes looks like `"by": "subagent sonnet, worktree"` or
-     `"evidence": "worktree .worktrees/p19-w05 from ..."`).
+     paths under the *main checkout's* `.claude/worktrees/` or
+     `.worktrees/` -- found from `--project` via `git rev-parse
+     --git-common-dir`, so this still works when `--project` is itself a
+     linked worktree, as the item-lead form runs it) that carries commits
+     not on `origin/main` (or, with no remote, `main`) is named -- by path
+     basename or branch name -- in some ledger item's log (its `by` or
+     `evidence` field, where the agent evidence this project already
+     writes looks like `"by": "subagent sonnet, worktree"` or `"evidence":
+     "worktree .worktrees/p19-w05 from ..."`). This includes the caller's
+     own worktree, when it is itself under that directory.
   3. the latest docs/handovers/*-checkpoint.md's `<!-- ledger-digest: ... -->`
      equals `tools.tracker.checkpoint.digest_of()` of the project's
      currently open ledgers -- the same comparison bin/warmup's card makes.
@@ -191,12 +195,30 @@ def worktrees(project: Path) -> list[dict]:
     return trees
 
 
-def _under_worktree_dir(path: Path, project: Path) -> bool:
+def _under_worktree_dir(path: Path, base: Path) -> bool:
     try:
-        rel = path.resolve().relative_to(project.resolve()).as_posix() + "/"
+        rel = path.resolve().relative_to(base.resolve()).as_posix() + "/"
     except ValueError:
         return False
     return any(rel.startswith(d) for d in WORKTREE_DIRS)
+
+
+def main_checkout_root(project: Path) -> Path | None:
+    """The main checkout's own root -- `.claude/worktrees/` and
+    `.worktrees/` always sit here, never inside a linked worktree, so a
+    lead running from its own worktree (the item-lead form's own
+    instruction) has to look here too, not under `--project`. `git
+    rev-parse --git-common-dir` names the one `.git` every worktree of a
+    repo shares; its parent is the main checkout. None outside a git repo,
+    or on any git failure."""
+    common = git(project, "rev-parse", "--git-common-dir")
+    if common is None:
+        return None
+    p = Path(common)
+    if not p.is_absolute():
+        p = project / p
+    p = p.resolve()
+    return p.parent if p.name == ".git" else p
 
 
 def _ahead_of_main(path: str) -> int | None:
@@ -226,7 +248,8 @@ def ledger_evidence_text(project: Path) -> str:
 
 def check_worktrees(project: Path) -> tuple[str, str]:
     trees = worktrees(project)
-    candidates = [t for t in trees if _under_worktree_dir(Path(t["path"]), project)]
+    base = main_checkout_root(project) or project
+    candidates = [t for t in trees if _under_worktree_dir(Path(t["path"]), base)]
     active = []
     for t in candidates:
         ahead = _ahead_of_main(t["path"])
