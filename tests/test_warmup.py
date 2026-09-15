@@ -131,7 +131,11 @@ class Project:
                        capture_output=True, check=True)
 
     def warmup(self, *args):
-        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.root), "--no-recall", *args],
+        # --no-pull always: bin/warmup's RULES_DIR is wherever bin/warmup
+        # itself lives, which in this test run is the real common-rules
+        # checkout -- R-05's fetch/pull must never run against it from a test.
+        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.root),
+                               "--no-recall", "--no-pull", *args],
                               capture_output=True, text=True, check=False)
 
     def close(self):
@@ -510,7 +514,7 @@ class TestTheTestCommandIsLands(unittest.TestCase):
     def test_no_declaration_has_no_quick_gate_on_the_card(self):
         p = Project(seeded=True)
         try:
-            r = subprocess.run([sys.executable, str(WARMUP), "--project", str(p.root), "--no-recall"],
+            r = subprocess.run([sys.executable, str(WARMUP), "--project", str(p.root), "--no-recall", "--no-pull"],
                                capture_output=True, text=True, check=False)
             self.assertNotIn("quick gate", r.stdout)
             self.assertNotIn("merge gate", r.stdout)
@@ -1462,7 +1466,11 @@ class TestMandatoryStandardChanges(Case):
     def warm(self, *args):
         import os
         env = {**os.environ, "COMMON_RULES_DIR": str(self.rules.root)}
-        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.p.root), "--no-recall", *args],
+        # --no-pull: bin/warmup's own RULES_DIR (unlike rulecheck's, which
+        # honours COMMON_RULES_DIR) is still the real common-rules checkout
+        # here -- R-05's fetch/pull must never touch it from a test.
+        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.p.root),
+                               "--no-recall", "--no-pull", *args],
                               capture_output=True, text=True, check=False, env=env)
 
     def rules_block(self, card: str) -> list[str]:

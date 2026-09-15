@@ -1,5 +1,25 @@
 # Changelog — common-rules
 
+## 2026-09-15 · warmup fast-forwards the shared rules checkout when it is safe (P28 R-05)
+
+Proposal 28, R-05 (decided, option A). `bin/warmup`'s plain card now checks the
+shared rules checkout (wherever `bin/warmup` itself lives) and fast-forwards it
+with `git pull --ff-only` when it is on `main`, has no tracked changes, and
+`origin/main` is strictly ahead after a short `git fetch` -- never merge,
+rebase, stash or reset. Anything else (dirty, diverged, not on main, no
+`origin`, a fetch that times out or fails) is left alone and named on one card
+line instead. `--no-pull` skips the check entirely; `--check`, `--json`,
+`--since` and `--migrate` never trigger it, since those are queries, not the
+moment to move a checkout under whoever is reading it. New `tools/rules_pull.py`
+carries the pure check, testable against temp clones without ever touching a
+real checkout's git state.
+
+**Behaviour change:** a plain `warmup` (no flags) can now write to the rules
+checkout's ref (a fast-forward only) and reach the network (one `git fetch`,
+short timeout). Anything invoking `bin/warmup` from a context where a network
+call or a moving HEAD is unwanted -- CI, a read-only hook -- must pass
+`--no-pull`.
+
 ## 2026-09-15 · One tracker per project, written where sessions read it (P22 T-04)
 
 The sponsor, 15 September 2026: "Please maintain a single tracker for common

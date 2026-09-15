@@ -297,7 +297,10 @@ class AppProject(unittest.TestCase):
         self.git("commit", "-qm", msg)
 
     def warmup(self, *args):
-        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.root), "--no-recall", *args],
+        # --no-pull always: bin/warmup's RULES_DIR is the real common-rules
+        # checkout in a test run -- R-05's fetch/pull must never touch it.
+        return subprocess.run([sys.executable, str(WARMUP), "--project", str(self.root),
+                               "--no-recall", "--no-pull", *args],
                               capture_output=True, text=True, check=False)
 
     def state(self):

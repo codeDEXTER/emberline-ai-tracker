@@ -102,6 +102,7 @@ RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
 from tools import project as P  # noqa: E402
+from tools import rules_pull as RP  # noqa: E402
 from tools.tracker import board as B  # noqa: E402
 from tools.tracker import checkpoint as CP  # noqa: E402
 from tools.tracker import ledger as L  # noqa: E402
@@ -862,6 +863,8 @@ def card(s: dict) -> str:
     first, *headings = str(s["rules"]).split("\n")
     out.append(f"  rules         {first}")
     out += [f"                  {h}" for h in headings]
+    if s.get("rules_pull"):
+        out.append(f"  {s['rules_pull']}")
     out.append(f"  ruflo         {'CLI at ' + s['ruflo'] + ' -- not run by warm-up; the loop runs per item, stop the daemon you start' if s['ruflo'] else 'CLI NOT FOUND -- Ruflo is mandatory: stop and report'}")
     for r in s["recall"]:
         out.append(f"Recall for {shown(r['item'])} ({' '.join(r['words'])}): {len(r['hits'])} hit(s)")
@@ -950,6 +953,8 @@ def main(argv) -> int:
     ap.add_argument("--state", type=Path)
     ap.add_argument("--no-recall", action="store_true")
     ap.add_argument("--recall-corpus", action="append", default=[])
+    ap.add_argument("--no-pull", action="store_true",
+                    help="never fast-forward the shared rules checkout (proposal 28, R-05)")
     args = ap.parse_args(argv)
 
     if args.migrate:
@@ -967,6 +972,12 @@ def main(argv) -> int:
     except SystemExit:
         print(f"warmup: {args.project} is not inside a git repository -- could not check", file=sys.stderr)
         return 2
+
+    # R-05: only the plain card fast-forwards the shared rules checkout --
+    # --check, --json, --since and --migrate are queries, not the moment to
+    # move the checkout under whoever is reading it.
+    if not args.check and not args.json and not args.since and not args.migrate:
+        s["rules_pull"] = RP.check_and_pull(RULES_DIR, no_pull=args.no_pull)
 
     if args.check:
         print(check_report(s))
