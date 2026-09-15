@@ -104,8 +104,12 @@
       "cx": "C2",
       "title": "Quiet builds: log to file, read the summary line",
       "what": "Test, analyzer and build output goes to a file. Agents read only the summary line (^OK and no ^FAILED, analyzer counts). The brief template says so and a helper prints the verdict in one line. Mining found 138 raw flutter test runs bypassing tools/gate.sh (~124k tokens) and 23 raw unittest runs; the helper and rule cover both.",
-      "files": [],
-      "tests": [],
+      "files": [
+        "bin/quiet"
+      ],
+      "tests": [
+        "tests/test_quiet.py"
+      ],
       "done": "Helper in bin/ with tests, including a red run that proves a FAILED line is caught; brief template updated.",
       "depends": [],
       "status": "in progress",
@@ -120,6 +124,18 @@
           "event": "started",
           "by": "lead",
           "evidence": "Sponsor ask A-14. Dispatched to a Sonnet code-engineer in its own worktree, branch l-03-quiet from origin/main ba01418; ruflo-item start L-03 recorded (namespace patterns). Integration branch p23-levers."
+        },
+        {
+          "at": "2026-09-15T08:25:56+02:00",
+          "event": "reported",
+          "by": "lead",
+          "evidence": "origin/l-03-quiet = 2b0bfc3 (from git), based on ba01418: bin/quiet +201, tests/test_quiet.py +187. Agent's red-first: 16 tests errored before bin/quiet existed; suite 1078 tests OK."
+        },
+        {
+          "at": "2026-09-15T08:25:56+02:00",
+          "event": "merged into integration",
+          "by": "lead",
+          "evidence": "Merged into p23-levers as 944877d; full suite on the merged branch gates the push."
         }
       ]
     },

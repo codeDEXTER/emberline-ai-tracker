@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 08:22
+# Checkpoint — 2026-09-15 08:32
 
-Reason: manual · branch: p23-levers · HEAD: ba01418
+Reason: manual · branch: p23-levers · HEAD: 944877d
 
-<!-- ledger-digest: a8ec5a147c12b4d31e02bfe653c4c9491c07d760ba4ec7b4772f5c6b6b59291b -->
+<!-- ledger-digest: 02f55754397c5b6a400975995e45b79c38bb6af775db1f13b2ee8ab1abfb68f4 -->
 
 ## Proposal 19 · Warm-up
 
@@ -73,7 +73,7 @@ Reason: manual · branch: p23-levers · HEAD: ba01418
 
 - L-01 · [ruflo · lead · lead model] · Fresh lead per milestone or day · started
 - L-02 · [ruflo · lead · lead model] · Review only risky work · started
-- L-03 · [ruflo · medium · sonnet] · Quiet builds: log to file, read the summary line · started
+- L-03 · [ruflo · medium · sonnet] · Quiet builds: log to file, read the summary line · merged into integration
 - L-04 · [ruflo · medium · sonnet] · One-line tracker commands for ledger updates · started
 - L-05 · [ruflo · medium · sonnet] · Bundle small issues by surface · started
 - L-06 · [ruflo · medium · sonnet] · Haiku scout writes the context pack · started
