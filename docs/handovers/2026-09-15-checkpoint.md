@@ -1,6 +1,6 @@
 # Checkpoint — 2026-09-15 17:40
 
-Reason: manual · branch: worktree-agent-a5bc11a707fd64d66 · HEAD: 7c393e5
+Reason: manual · branch: worktree-agent-a5bc11a707fd64d66 · HEAD: 37dca67
 
 <!-- ledger-digest: 420e860b8ae4f4abc5815ef32102f1c8eba1953494e44c4f2cf5dbbd9ca20d1f -->
 
