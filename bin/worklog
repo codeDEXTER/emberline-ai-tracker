@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+"""worklog -- time and tokens per task, in one place (common-rules proposal 27).
+
+    worklog collect [--projects DIR] [--out DIR] [--state FILE]
+        Read every transcript's new lines since the last run (lead and
+        subagents alike), dedupe by message.id, and merge input, cache-read,
+        cache-write and output tokens plus active time into
+        <out>/<YYYY-MM-DD>.jsonl, one line per (day, project, session, agent,
+        model, item). Incremental and idempotent -- see tools/worklog.py.
+
+    worklog day [--date D] [--out DIR] [--html FILE]
+        Render one day's page as a self-contained HTML file (default
+        <out>/<date>.html) and print a plain-text summary to stdout.
+
+    worklog yesterday-line [--out DIR]
+        Print `yesterday: <tokens> tokens · $<cost> · <h>h active ·
+        <n> tasks` for yesterday's date. Meant for a /warmup card to shell
+        out to -- this command does not edit bin/warmup itself.
+
+Sponsor decisions, proposal 27 (D1-D6): a folder revisioned under
+common-rules, daily JSON-lines files, updated incrementally after each
+session turn plus nightly (the nightly/Stop-hook wiring is W-03, not this
+file), task named from the brief tag then the branch then the session,
+active time with gaps over five minutes left out, an evening page and a
+/warmup line, bin/spend's gaps (W-01) fixed first.
+
+Never writes transcript prose anywhere -- see tools/worklog.py's docstring.
+
+Exit codes follow the rest of bin/: 0 fine, 1 a finding, 2 could not check.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime
+import os
+import sys
+from pathlib import Path
+
+RULES_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RULES_DIR))
+from tools import worklog  # noqa: E402  (needs sys.path set first)
+
+
+def cmd_collect(argv):
+    p = argparse.ArgumentParser(prog="worklog collect")
+    p.add_argument("--projects", default=None)
+    p.add_argument("--out", default=None)
+    p.add_argument("--state", default=None)
+    args = p.parse_args(argv)
+
+    projects = os.path.expanduser(args.projects) if args.projects else None
+    out = os.path.expanduser(args.out) if args.out else None
+    state = os.path.expanduser(args.state) if args.state else None
+
+    result = worklog.collect(projects=projects, out=out, state_file=state)
+    out_dir = out or worklog.DEFAULT_OUT
+    if result["days"]:
+        print(f"worklog collect: {result['lines']} line(s) across "
+              f"{len(result['days'])} day file(s) in {out_dir} "
+              f"({result['transcripts']} transcript(s) with new records)")
+    else:
+        print(f"worklog collect: nothing new ({result['transcripts']} "
+              f"transcript(s) scanned, no new complete records)")
+    return 0
+
+
+def cmd_day(argv):
+    p = argparse.ArgumentParser(prog="worklog day")
+    p.add_argument("--date", default=None)
+    p.add_argument("--out", default=None)
+    p.add_argument("--html", default=None)
+    args = p.parse_args(argv)
+
+    date = args.date or datetime.date.today().isoformat()
+    out_dir = os.path.expanduser(args.out) if args.out else worklog.DEFAULT_OUT
+    rows = worklog.load_day(out_dir, date)
+
+    html_path = (os.path.expanduser(args.html) if args.html
+                 else os.path.join(out_dir, f"{date}.html"))
+    os.makedirs(os.path.dirname(html_path) or ".", exist_ok=True)
+    with open(html_path, "w") as fh:
+        fh.write(worklog.render_day_html(date, rows))
+
+    print(worklog.format_day_text(date, rows))
+    print(f"page: {html_path}")
+    return 0
+
+
+def cmd_yesterday_line(argv):
+    p = argparse.ArgumentParser(prog="worklog yesterday-line")
+    p.add_argument("--out", default=None)
+    args = p.parse_args(argv)
+
+    out_dir = os.path.expanduser(args.out) if args.out else worklog.DEFAULT_OUT
+    date = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    rows = worklog.load_day(out_dir, date)
+    print(worklog.format_yesterday_line(rows))
+    return 0
+
+
+def main(argv):
+    if not argv or argv[0] in ("-h", "--help"):
+        print(__doc__)
+        return 0
+    cmd, rest = argv[0], argv[1:]
+    if cmd == "collect":
+        return cmd_collect(rest)
+    if cmd == "day":
+        return cmd_day(rest)
+    if cmd == "yesterday-line":
+        return cmd_yesterday_line(rest)
+    print(f"worklog: unknown command {cmd!r}", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
