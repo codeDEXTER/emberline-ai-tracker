@@ -23,6 +23,7 @@ MUST NOT
 {{MUST_NOT_1}}
 Size the work yourself: this brief never carries the item's points (proposal 25, D3); `tracker route` is the lead's.
 Hand-append AGENT-LOG.md or HANDOFF.md -- use `bin/spend agentlog --write` and `bin/remember`.
+Run `tracker apply-staged` yourself, for any ledger, ever -- staging is as far as you go; applying staged changes is the lead's alone, even when no one else appears to be touching the same ledger right now (proposal 23, M-04).
 
 OUTPUT
 {{OUTPUT_1}}
