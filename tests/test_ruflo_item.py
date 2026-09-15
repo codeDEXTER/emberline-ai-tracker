@@ -277,6 +277,43 @@ class TestDone(RufloItemCase):
         self.assertEqual(calls[-1], ["daemon", "stop"])
         self.assertEqual(len(calls), 4)
 
+    def test_several_ids_run_the_gate_once_not_once_per_item(self):
+        """proposal 26, C-03: `ruflo-item done` accepts several item ids and
+        runs the merge gate once for the whole bundle. The gate here counts
+        its own invocations to a file -- if it ran per id, the file would
+        show 3, not 1."""
+        counter = self.proj / "gate-runs.txt"
+        self.declare_gate(f"printf x >> {counter}")
+        r = self.run_item("done", "M-08", "C-03", "R-04", "bundle-k shipped")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(counter.read_text(), "x", "the gate ran more than once for one bundle")
+
+    def test_several_ids_each_get_their_own_post_task_and_store_call(self):
+        self.declare_gate("true")
+        r = self.run_item("done", "M-08", "C-03", "R-04", "bundle-k shipped")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        post_tasks = [c for c in calls if c[:2] == ["hooks", "post-task"]]
+        stores = [c for c in calls if c[:2] == ["memory", "store"]]
+        self.assertEqual([flag(c, "--task-id") for c in post_tasks], ["M-08", "C-03", "R-04"])
+        self.assertEqual([flag(c, "--key") for c in stores],
+                          ["item:M-08:done", "item:C-03:done", "item:R-04:done"])
+        for s in stores:
+            self.assertIn("bundle-k shipped", flag(s, "--value"))
+        # testgaps runs once at the end of the call, not once per id.
+        testgaps = [c for c in calls if c[:3] == ["hooks", "worker", "dispatch"]]
+        self.assertEqual(len(testgaps), 1)
+        self.assertEqual(calls[-1], ["daemon", "stop"])
+        self.assertEqual(len(calls), 3 + 3 + 1 + 1)  # 3 post-task, 3 store, 1 testgaps, 1 daemon stop
+
+    def test_a_single_id_still_works_exactly_as_before(self):
+        self.declare_gate("true")
+        r = self.run_item("done", "V-06", "shipped, 12 OK")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        self.assertEqual(flag(calls[0], "--task-id"), "V-06")
+        self.assertEqual(flag(calls[1], "--key"), "item:V-06:done")
+
     def test_failing_gate_skips_post_task_and_exits_nonzero(self):
         self.declare_gate("exit 3")
         r = self.run_item("done", "V-06", "shipped")

@@ -1,5 +1,101 @@
 # Changelog — common-rules
 
+## 2026-09-15 · The dispatcher starts the next item lead itself, no click needed (P28 R-04)
+
+`templates/lead-prompt.md`'s Dispatcher form now says explicitly what
+happens the moment an item lead passes its own closing check
+(`bin/handover --check`, proposal 24 H-01): the dispatcher starts the next
+unblocked item lead itself, `claude --bg -p "<substituted lead prompt>"
+--worktree <name> --name "bg · <project> · lead · P<nn> <item ids>"` (the
+mechanism proposal 24's H-03 research recommended, and the naming
+`bin/handover --check`'s H-04 check already enforces), whose first message
+is `/warmup <item id> [context]`. The session id is recorded in the ledger
+against the bundle it started, the same place every other running agent is
+recorded. Not a restructure — the Dispatcher/Item-lead form headings and
+the bullets other bundles already added are untouched; this adds one
+bullet.
+
+Not a Standard change: this describes the dispatcher's own behaviour, not
+something a project must declare or implement.
+
+## 2026-09-15 · One gate per bundle, not per item: `ruflo-item done` takes several ids (P26 C-03)
+
+**Standard change (mandatory):** `bin/ruflo-item done` now takes one or more
+item ids followed by one shared summary —
+`ruflo-item done ID1 ID2 ID3 "<summary>"` — and runs the project's merge
+gate exactly once for the whole call, not once per id. `hooks post-task`
+and the `item:<ID>:done` memory store still run once per id (each item
+still needs its own done record), and `hooks worker dispatch --trigger
+testgaps` now runs once per call rather than once per id. A single-id call
+still works exactly as it did before this change. Every project that calls
+`ruflo-item done` from more than one item in a bundle should now make one
+call naming every id, not one call per id — the old one-call-per-id
+pattern still works item by item but re-runs the gate once per item, which
+is exactly what this change and `templates/brief.md`'s "one gate run" per
+bundle exist to stop paying for.
+
+`templates/lead-prompt.md` §2 and `templates/brief.md` now say explicitly
+that a bundle or batch gets one full suite and at most one review, and that
+a `restricted` item is never bundled — it goes alone, on its own branch,
+with its own reviewer and its own gate run (the same rule
+`tools/tracker/lanes.py`'s `ALONE` threshold already enforces for risk 9
+and over, proposal 26 C-02).
+
+## 2026-09-15 · The six-category review list is gone: `tracker route` decides now (P23 M-08)
+
+CLAUDE-workflow.md's "Ceremony is opt-in" section and `templates/lead-prompt.md`
+§3 used to carry the same fixed list twice — "money or financial data; real
+user data stores; authentication, credentials or secrets; release, install
+or packaging; cross-cutting changes to shared modules; and any change to
+common-rules itself" — deciding by hand what proposal 25's Z-02 and proposal
+26's C-02 (`tracker route`, `tracker lanes`) now decide from each project's
+own `.common-rules.json` (`risk_paths`, `risk_always`) plus `value` and
+`points`. Both files now name `tracker route` as the one place that
+decision is made, instead of duplicating the list beside it. Nothing about
+what actually gets reviewed changes for a project already declaring
+`risk_paths`/`risk_always` — the mechanism was already live from proposal
+26's C-02; this closes the gap between what the tool decides and what the
+prose still told a reader by hand.
+
+Not a Standard change: no project's `.common-rules.json` needs to change —
+`tracker route` already reads what proposal 26 required projects to
+declare, and a project that has not declared `risk_paths` still gets
+`standard` risk for everything but `risk_always`, exactly as before this
+bundle.
+## 2026-09-15 · The Stop hook's worklog collect, and its separate nightly commit (P27 W-03)
+
+`hooks/stop` now also runs `tools.worklog.collect()` on every turn --
+best-effort telemetry, not a gate: any exception (including
+`worklog.StateTrustError`) is caught inside `_collect_worklog` itself, and
+the call never blocks the hook past `WORKLOG_COLLECT_TIMEOUT` seconds
+(default 5) -- it runs in a daemon thread the hook does not wait out past
+that budget, since `collect` scans every transcript on the machine and a
+first pass (or heavy concurrent activity) can run long; an abandoned run's
+un-persisted offset can cause a later run to re-add the same bytes once,
+a self-correcting over-count, never a hang or corruption. **A session never
+commits `worklog/` itself** -- that is the new, separate `bin/worklog-nightly`
+script's job: a fuller collect, then at most one commit of `worklog/` per
+calendar day however many times it runs that day (`worklog/.nightly-state.json`
+records the last date committed). Not wired into any system cron or
+launchd on this machine -- that scheduling is an operational step for
+whoever administers the host, left undone here on purpose.
+
+## 2026-09-15 · Point-class cost calibration (P25 Z-05)
+
+`bin/spend calibrate`: after every 20 closed (done) ledger items across
+every ledger under a project, groups their measured cost (from
+`tools/worklog.py`'s transcript-derived totals, keyed by item id) by the
+item's `points` class (proposal 25's Z-01 field) and flags any item costing
+over 2x its class's median -- `tools/calibrate.py`, with
+`worklog/.calibration-state.json` tracking the closed-item count as of the
+last calibration (same atomic-write shape as `worklog/.state.json`) and
+`worklog/calibration-log.jsonl` recording one line per run, naming every
+item flagged. Deliberately does not auto-stage a change into a flagged
+item's own ledger: this can run unattended, on ledgers several other
+bundles own at once, and the ledger stays single-writer (proposal 23,
+M-04) -- a lead who acts on a flagged item stages that decision itself,
+quoting the log.
+
 ## 2026-09-15 · The rules-file cluster: dedupe, a merged mandatory read, the light path named, and published titles never move (P23 M-05, M-06, M-07, M-09, M-11; P22 T-06)
 
 A rules-conflict review this session ran across HANDOFF.md,

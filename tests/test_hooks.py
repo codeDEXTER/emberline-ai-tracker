@@ -231,6 +231,47 @@ class TestStopHook(ScratchProject):
         self.assertEqual(0, r.returncode, r.stderr)
         self.assertNotIn("rules moved", r.stdout)
 
+    def _stop_module(self):
+        """Load hooks/stop in-process (same pattern as `_warmup_module`
+        above), so `worklog.collect` can be monkeypatched directly rather
+        than needing a subprocess to somehow inject a failure into a real
+        machine-wide transcript scan."""
+        import importlib.machinery
+        import importlib.util
+        loader = importlib.machinery.SourceFileLoader("stop_for_test_hooks", str(STOP))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        module = importlib.util.module_from_spec(spec)
+        loader.exec_module(module)
+        return module
+
+    def test_collect_worklog_never_raises(self):
+        """W-03: the Stop hook's fast `worklog.collect()` call is
+        best-effort telemetry, never a gate -- a raising `collect` must not
+        escape `_collect_worklog` at all."""
+        S = self._stop_module()
+        from tools import worklog
+        from unittest import mock
+        with mock.patch.object(worklog, "collect", side_effect=RuntimeError("boom")):
+            S._collect_worklog()  # must not raise
+
+    def test_stop_hook_survives_collect_failure_and_still_checkpoints(self):
+        """The rest of the hook (the checkpoint write, the rules-moved
+        check) must run exactly as if `collect` had succeeded -- one
+        best-effort call failing must not skip or short-circuit anything
+        after it."""
+        S = self._stop_module()
+        from tools import worklog
+        from unittest import mock
+        import io as _io
+
+        payload = json.dumps({"cwd": str(self.proj)})
+        with mock.patch.object(worklog, "collect", side_effect=RuntimeError("boom")), \
+             mock.patch.object(S.sys, "stdin", _io.StringIO(payload)):
+            rc = S.main()
+
+        self.assertEqual(0, rc)
+        self.checkpoint_path()  # still written -- the failure did not stop it
+
     def test_rules_moved_check_timeout_never_fails_the_hook(self):
         W = self._warmup_module()
         state_path = W.default_state_path(self.proj)

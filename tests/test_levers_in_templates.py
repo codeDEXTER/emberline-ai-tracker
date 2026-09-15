@@ -229,17 +229,27 @@ class TestWorkflowRules(unittest.TestCase):
     def setUp(self):
         self.text = read(ROOT / "CLAUDE-workflow.md")
 
-    def test_risky_work_list_named(self):
-        for phrase in (
-            "money",
-            "authentication",
-            "release",
-            "cross-cutting",
-            "common-rules",
-        ):
+    def test_risky_work_routed_via_tracker_route(self):
+        """L-02, superseded by proposal 26 C-02 / proposal 23 M-08: the
+        fixed risky-work category list this test used to pin word-for-word
+        is gone by design -- `tracker route` (reading each project's own
+        `risk_paths`/`risk_always`) decides now, not a list repeated here in
+        prose. See tests/test_review_routing_pointer.py for the full check
+        that the old list is gone; this only keeps L-02's original intent
+        (risky work is named and routed to a reviewer) alive under the new
+        mechanism."""
+        self.assertIn(
+            "tracker route", self.text,
+            "CLAUDE-workflow.md: risky-work decision no longer names tracker route",
+        )
+        self.assertIn(
+            "restricted", self.text,
+            "CLAUDE-workflow.md: risky-work section no longer names the restricted class",
+        )
+        for phrase in ("money", "common-rules"):
             self.assertIn(
                 phrase, self.text.lower(),
-                f"CLAUDE-workflow.md: risky-work list missing {phrase!r}",
+                f"CLAUDE-workflow.md: risky-work examples missing {phrase!r}",
             )
 
     def test_review_only_risky_work_stated(self):

@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 19:28
+# Checkpoint — 2026-09-15 22:46
 
-Reason: manual · branch: backlog-wave2 · HEAD: b2f842b
+Reason: manual · branch: backlog-wave3 · HEAD: 72ef5ce
 
-<!-- ledger-digest: 82ccf87dc6ccff307262ec7666ba564975c12022c2b94937e37549c624ef570b -->
+<!-- ledger-digest: 925f2b6208918390cbabfd86f1dae0912dda2e62d45c6b5ad6b6eb5e51ab2e86 -->
 
 ## Proposal 19 · Warm-up
 
@@ -64,109 +64,6 @@ Reason: manual · branch: backlog-wave2 · HEAD: b2f842b
 ### Next unblocked
 
 - T-05 · [ruflo · low · haiku] · PhotoVault app and engine move to one tracker
-
-## Proposal 23 · Eight levers for token spend
-
-19 done / 0 in progress / 0 blocked / 2 not started
-
-### In progress
-
-- none
-
-### Blocked, and why
-
-- none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- M-03 · [ruflo · medium · sonnet] · Trim Ruflo's tool loading
-- M-08 · [ruflo · medium · sonnet] · Six-category review list in CLAUDE-workflow.md gets replaced, not duplicated, when P26 routing lands
-
-## Proposal 25 · Sizing items by value, points and risk
-
-4 done / 0 in progress / 0 blocked / 2 not started
-
-### In progress
-
-- none
-
-### Blocked, and why
-
-- none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- Z-05 · [ruflo · medium · sonnet] · Calibrate points every 20 items
-- Z-06 · [ruflo · medium · sonnet] · Issue catalogue clustered by files touched
-
-## Proposal 26 · Cluster work by contribution and risk
-
-4 done / 0 in progress / 0 blocked / 2 not started
-
-### In progress
-
-- none
-
-### Blocked, and why
-
-- none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- C-03 · [ruflo · medium · sonnet] · One gate and review per bundle or batch
-- C-04 · [ruflo · medium · sonnet] · Board shows lanes and the 14-day re-score
-
-## Proposal 27 · Time and tokens per task, in one place
-
-3 done / 0 in progress / 0 blocked / 1 not started
-
-### In progress
-
-- none
-
-### Blocked, and why
-
-- none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- W-03 · [ruflo · medium · sonnet] · Stop hook after each turn and a nightly run with one commit
-
-## Proposal 28 · Two commands: warmup and reheat
-
-5 done / 0 in progress / 0 blocked / 1 not started
-
-### In progress
-
-- none
-
-### Blocked, and why
-
-- none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- R-04 · [ruflo · medium · sonnet] · Dispatcher starts a new lead with /warmup <item> [context]
 
 ## Proposal 29 · Taking over the Common Rules chat v1 work
 

@@ -62,6 +62,24 @@ ask), never from the summary.
   it. For every item: `memory search` and `hooks route` before, `hooks
   post-task` and `memory store` after, run from the project root, then
   `daemon stop` for the daemon your calls started. Never kill it by name.
+  **Never register Ruflo's full MCP tool set for this reason.** `bin/ruflo-item`
+  is a CLI wrapper, not an MCP client — it shells out to the `claude-flow`/
+  `ruflo` binary for `hooks pre-task`, `memory search`, `hooks route`,
+  `memory store`, `hooks post-task`, `hooks worker dispatch --trigger
+  testgaps`, `memory list` and `daemon stop`, so a session that only uses
+  `bin/ruflo-item` (every item lead and builder, per this section) pays zero
+  MCP tool-definition tokens: nothing here needs the 333-tool `claude-flow`
+  MCP server on this project's `.claude.json`/`.mcp.json` at all (proposal 19's
+  own finding was the same — the MCP server it tried once "connected but its
+  tools [were] not exposed in the lead session[; it] fell back to the CLI").
+  common-rules does not register that MCP server for itself today. If a
+  session's `~/.claude.json` registers it anyway (for another project, or a
+  future need this CLI wrapper doesn't cover), load only the tools this
+  section already names above — `memory_store`, `memory_search`,
+  `hooks_route`, plus `hooks post-task` and `daemon stop` — one call each via
+  `ToolSearch`, batched, never the full 333-tool set, per proposal 23 M-03
+  ("Ruflo's 333 MCP tools cost ~61.5k tokens of tool definitions per session
+  ... load only the tools the item wrapper uses, or defer loading").
 - **`RULES/bin/recall <words>`** searches every project's memory, LESSONS and
   operating rules. Put the hits for an item under CONTEXT in its brief.
 - **`page changed since last publish: docs/proposals/tracker/index.html → <url>`**
