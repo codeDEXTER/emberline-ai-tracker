@@ -21,6 +21,7 @@ In a bundle: one commit per issue, naming its id, one gate run, one PR closing a
 
 MUST NOT
 {{MUST_NOT_1}}
+Size the work yourself: this brief never carries the item's points (proposal 25, D3); `tracker route` is the lead's.
 Hand-append AGENT-LOG.md or HANDOFF.md -- use `bin/spend agentlog --write` and `bin/remember`.
 
 OUTPUT
