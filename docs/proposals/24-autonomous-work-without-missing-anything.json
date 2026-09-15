@@ -165,12 +165,20 @@
       "depends": [
         "H-03"
       ],
-      "status": "not started",
+      "status": "done",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
-      "issue": null
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T17:16:46+02:00",
+          "event": "bin/handover check 5 (check_background_names) added, naming convention documented in docs/research/starting-item-leads.md follow-up; 27/27 test_handover.py green, full suite OK 1360 tests",
+          "by": "session:bundle-j",
+          "evidence": "commit 95caed6, branch p24-h04, worktree .claude/worktrees/agent-a81d5212a9d639f2f"
+        }
+      ]
     }
   ],
   "asks": [
