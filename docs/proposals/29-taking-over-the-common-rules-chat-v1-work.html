@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>29 · accepted · Taking over the Common Rules chat v1 work</title>
+<meta name="proposal-id" content="29">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-15">
+<meta name="common-rules-template" content="proposal/21">
+<!--
+  Written by common-rules bin/new-proposal from templates/proposal.html
+  (proposal 21, S-02). Replace every highlighted passage; delete none of
+  the sections. The status appears in four places that must agree: the
+  proposal-status meta above, the <title>, the <h1>, and the
+  "Proposal NN · proposed DATE" line under the heading. The Decided
+  section below says exactly what to change when the sponsor answers.
+-->
+<style>
+  :root {
+    --ground: #F1F2F4; --surface: #FFFFFF; --ink: #16191D; --dim: #5E6873;
+    --border: #D3D8DE; --accent: #C2521F; --accent-soft: #F7E3D8;
+    --fill: #FFF3BF; --fill-ink: #5C4400;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #111417; --surface: #1A1F24; --ink: #E5E8EB; --dim: #939DA7;
+      --border: #2F3841; --accent: #EE7A45; --accent-soft: #3A2419;
+      --fill: #3B3313; --fill-ink: #F2DC8C;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 90px; }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.01em; margin: 0; }
+  h1 .num, h1 .status { color: var(--accent); }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 40px 0 10px; }
+  .sub { color: var(--dim); margin: 10px 0 0; max-width: 72ch; }
+  .card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; margin-top: 12px; }
+  blockquote { margin: 0; padding: 14px 20px; background: var(--surface); border-left: 3px solid var(--accent); font-size: 17px; }
+  blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--dim); }
+  .opt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .opt .card h3 { margin: 0 0 6px; font-size: 16px; }
+  ol.decisions { background: var(--surface); border: 1px solid var(--border); margin: 12px 0 0; padding: 14px 20px 14px 44px; }
+  ol.decisions li + li { margin-top: 6px; }
+  .slot { border: 1px dashed var(--border); padding: 14px 20px; margin-top: 12px; color: var(--dim); }
+  .slot li + li { margin-top: 8px; }
+  .m { font-family: var(--mono); font-size: .9em; }
+  pre.m { background: var(--surface); color: var(--ink); border: 1px solid var(--border); padding: 8px 12px; margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .fill { background: var(--fill); color: var(--fill-ink); padding: 0 3px; }
+  .src { font-size: 13px; color: var(--dim); margin-top: 36px; }
+  .opt .card p { margin: 0 0 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--dim); font-weight: 600; font-size: 13px; }
+  .tbl { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="num">29</span> · <span class="status">accepted</span> · Taking over the Common Rules chat v1 work</h1>
+<p class="sub">Proposal 29 · accepted 2026-09-15. The sponsor moved the Common Rules chat v1 session's unfinished work to the Common Rules rework session and wants that chat deleted. This proposal lists everything it left open, so each piece is landed, handed to its owner or closed before the chat goes.</p>
+
+<h2>The ask</h2>
+<blockquote>
+  Also check what the other session was working on, common rules, chat, v1, and take it over in this session and create a different proposal of the pending work so we can track it.
+  <cite>The sponsor, 15 September 2026, in the Common Rules rework session; ask A-01.</cite>
+</blockquote>
+<blockquote>
+  then I would like to delete the other chat.
+  <cite>The sponsor, the same conversation; ask A-02.</cite>
+</blockquote>
+<blockquote>
+  Please maintain a single tracker for common rules. And also add that as a common rule to maintain a single tracker up until I have asked to create another tracker. Per project.
+  <cite>The sponsor, 15 September 2026 about 12:05 CEST, said directly in the Common Rules rework session; ask A-03.</cite>
+</blockquote>
+
+<h2>What was found</h2>
+<div class="card">
+  <ul>
+    <li>Open in that session's ledgers (read from origin/p22): proposal 22 T-04 in progress (wording only started), T-05 not started; proposal 21 S-07 and S-08 not started, owned by the PhotoVault sessions; proposal 19 W-10 in progress (exit conditions not measured).</li>
+    <li>origin/p22 holds proposal 22's finished T-01 to T-03 but is not on main: 21 commits, 24 files, +2,614/−228, last commit 9ae271f about 11 hours old. origin/p22-t02 and origin/p22-t03 are its merged-in agent branches.</li>
+    <li>Two of its agent worktrees hold uncommitted work: agent-acf3f21931e1d70f8 (10 staged files from the proposal 21 S-04/S-10 period; three match p22, one matches main, four differ, plus a tmp/ folder) and agent-a6cbd5b0dfbe31b3e (an untracked one-line LESSONS.md bug note on the session-start card).</li>
+    <li>That session is on a break the sponsor asked for, has a question waiting for him, and declined to act on a relayed ruling under its own HANDOFF rule. On 15 September it was asked to stand down on p22 and its worktrees.</li>
+    <li>The engine's own ledger records the standard at 12 of 12 (proposal 71 Q-02, 4863eec), so S-08 may only need closing; the app is unchecked.</li>
+    <li>Not verified: its transcript beyond the last 40 of 12,952 messages; anything it knew but did not write into ledgers 19 to 22 or HANDOFF.md.</li>
+  </ul>
+</div>
+
+<h2>Options</h2>
+<div class="opt">
+  <div class="card"><h3>A · Take over, track here, delete last</h3><p>This session owns ledgers 19 to 22 from now; every open piece is an item below; the chat is deleted only after K-01 to K-06 are recorded and its question is closed.</p></div>
+  <div class="card"><h3>B · Delete now</h3><p>Faster, but loses its waiting question and anything unrecorded, and leaves p22 and two worktrees with no owner.</p></div>
+</div>
+<p><b>Recommended:</b> A. Nothing is lost, and the sponsor still gets the chat deleted.</p>
+
+<div class="card">
+  <b>The pending work</b>
+  <div class="tbl"><table>
+    <tr><th>Item</th><th>What</th><th>After</th><th>Owner</th></tr>
+    <tr><td class="m">K-01</td><td>Land p22 on main</td><td>–</td><td>lead</td></tr>
+    <tr><td class="m">K-02</td><td>One tracker per project until the sponsor asks for another (P22 T-04)</td><td>K-01</td><td>lead</td></tr>
+    <tr><td class="m">K-03</td><td>PhotoVault app and engine on one tracker (P22 T-05)</td><td>K-02</td><td>lead</td></tr>
+    <tr><td class="m">K-04</td><td>PhotoVault app and engine on the standard (P21 S-07, S-08)</td><td>–</td><td>lead</td></tr>
+    <tr><td class="m">K-05</td><td>Proposal 19 pilot exit conditions (W-10)</td><td>–</td><td>lead</td></tr>
+    <tr><td class="m">K-06</td><td>Check the two worktrees with uncommitted work, then clean up</td><td>K-01</td><td>lead</td></tr>
+    <tr><td class="m">K-07</td><td>Delete the Common Rules chat v1 session</td><td>K-01, K-02, K-06</td><td>sponsor</td></tr>
+  </table></div>
+</div>
+
+<h2>Decisions</h2>
+<p class="sub">Each numbered line is one thing the sponsor answers. Keep the numbers stable once shown: answers and ledger items cite them.</p>
+<ol class="decisions">
+  <li><b>D1.</b> Should the Common Rules rework session take over and track the other session's pending work?</li>
+  <li><b>D2.</b> Should the Common Rules chat v1 session be deleted?</li>
+  <li><b>D3.</b> Should common-rules keep one tracker per project until the sponsor asks for another, as a rule?</li>
+</ol>
+
+<h2>Decided</h2>
+<section class="slot" id="decided">
+  <p>Decided by the sponsor on 15 September 2026 in the Common Rules rework session, in his words quoted above.</p>
+  <ul>
+    <li><b>D1:</b> Yes: take it over here and track it as this proposal (A-01). → K-01 to K-06</li>
+    <li><b>D2:</b> Yes, delete it (A-02), after the takeover is recorded; he confirms the deletion himself. → K-07</li>
+    <li><b>D3:</b> Yes: one tracker per project until he asks for another (A-03). → K-02</li>
+  </ul>
+</section>
+
+<p class="src">Sources: the sponsor's three messages (asks A-01 to A-03); git show origin/p22:docs/proposals/19-, 21-, 22-*.json; git diff --stat origin/main...origin/p22; bin/whoelse --project common-rules; git status and hash comparisons in the two agent worktrees; the Common Rules chat v1 transcript (last 40 messages, via the session tools) and its reply to this session; PhotoVault engine proposal 71 Q-02 via bin/recall. Not verified: older parts of its transcript.</p>
+
+</div>
+</body>
+</html>

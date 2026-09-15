@@ -1,0 +1,229 @@
+{
+  "proposal": 29,
+  "title": "Taking over the Common Rules chat v1 work",
+  "status": "accepted",
+  "updated": "2026-09-15",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "opus",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "lead model",
+      "effort": "-",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "K",
+      "name": "Takeover",
+      "goal": "Everything the Common Rules chat v1 session left open is tracked here, landed or handed to its owner, so that session can be deleted without losing work.",
+      "exit": "K-01 to K-06 done or blocked with an owner; K-07 decided by the sponsor."
+    },
+    {
+      "id": "X",
+      "name": "Research",
+      "goal": "Questions that need reading, not writing, before they become items, a proposal, or a decline.",
+      "exit": "Every X row is done only when it becomes items, a numbered proposal, or a recorded decline with the reason -- never a report nobody acted on."
+    }
+  ],
+  "items": [
+    {
+      "id": "K-01",
+      "phase": "K",
+      "cx": "C4",
+      "title": "Land p22 on main",
+      "what": "origin/p22 carries proposal 22's T-01 to T-03 (21 commits, 24 files, +2614/-228, last commit 9ae271f). Merge origin/main into it: keep set and ask in bin/tracker's COMMANDS; regenerate the handover checkpoint and tracker pages. Full suite through bin/quiet, a reviewer (common-rules is restricted), merge once. Afterwards ledger 22 is owned by this session.",
+      "files": [],
+      "tests": [],
+      "done": "p22 merged to main; ledger 22 shows T-01 to T-03 merged with the merge sha.",
+      "depends": [],
+      "status": "in progress",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T12:02:54+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Branch p22-land cut from origin/p22 (9ae271f) in its own worktree .worktrees/p22-land; merging origin/main into it. The other session's p22 worktree is not touched; it was asked to stand down on p22."
+        }
+      ]
+    },
+    {
+      "id": "K-02",
+      "phase": "K",
+      "cx": "C2",
+      "title": "One tracker per project until the sponsor asks for another (P22 T-04)",
+      "what": "Write the sponsor's ruling (ask A-03) into CLAUDE-workflow.md, skills/standard, skills/warmup and templates/lead-prompt.md: one tracker per project, docs/proposals/tracker/index.html published at one stable URL, until the sponsor asks for another. Ledger 22 already carries the exception (tracker.own, D2). Standard change line in the CHANGELOG. Record the ruling as a proposal 22 ask.",
+      "files": [],
+      "tests": [],
+      "done": "Wording merged with a Standard change line; tests assert the exception clause in each file; T-04 done in ledger 22.",
+      "depends": [
+        "K-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "K-03",
+      "phase": "K",
+      "cx": "C4",
+      "title": "PhotoVault app and engine on one tracker (P22 T-05)",
+      "what": "A requests entry to each PhotoVault session to move to one tracker page, after K-02 lands.",
+      "files": [],
+      "tests": [],
+      "done": "Both PhotoVault ledgers answer the request; T-05 done or blocked with the PhotoVault session as owner.",
+      "depends": [
+        "K-02"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "K-04",
+      "phase": "K",
+      "cx": "C4",
+      "title": "PhotoVault app and engine on the standard (P21 S-07, S-08)",
+      "what": "Owners are session:PhotoVault App and session:PhotoVault Engine. The engine's ledger (proposal 71 Q-02) records standard 12 of 12 at 4863eec; the app is unchecked. Measure both with bin/conformance, then close S-07 and S-08 with the numbers, or send requests for what does not hold.",
+      "files": [],
+      "tests": [],
+      "done": "conformance output recorded for both; S-07 and S-08 done or blocked with owners.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "K-05",
+      "phase": "K",
+      "cx": "C4",
+      "title": "Proposal 19 pilot exit conditions (W-10)",
+      "what": "W-10's last log says both PhotoVault projects are migrated and their cards read ready; what remains is measuring proposal 19's exit conditions on the engine. Measure them read-only and close W-10, or record what is missing.",
+      "files": [],
+      "tests": [],
+      "done": "W-10 done with the measurements, or blocked with the reason and an owner.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "K-06",
+      "phase": "K",
+      "cx": "C2",
+      "title": "Check the two worktrees with uncommitted work, then clean up",
+      "what": "agent-acf3f21931e1d70f8 (base 257d87d, 18 hours old): 10 staged files; CLAUDE-workflow.md, tests/test_templates.py and docs/workflow.html match p22, README.md matches main; CHANGELOG.md, ledger 21, lead-prompt.md and docs/workflow.png differ, plus a tmp/ folder. agent-a6cbd5b0dfbe31b3e: an untracked LESSONS.md with one bug note on hooks/sessionstart dropping the whole parent-folder card when one child is unreadable; its base commit 28e2784 is titled 'unreadable siblings', so it may already be fixed. Compare each difference with main after K-01; carry anything still true into docs/OPERATING-RULES.md or a test. Removing worktrees deletes local work, so it waits for the sponsor's yes.",
+      "files": [],
+      "tests": [],
+      "done": "A per-file verdict (superseded or carried) in the log; worktrees removed only after the sponsor agrees.",
+      "depends": [
+        "K-01"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "K-07",
+      "phase": "K",
+      "cx": "C4",
+      "title": "Delete the Common Rules chat v1 session",
+      "what": "The sponsor wants it deleted (ask A-02). Only after K-01 to K-06 are recorded here, its pending question to the sponsor is answered or closed, and its transcript has been checked for anything not in ledgers 19 to 22 or HANDOFF.md. Deletion is permanent; archiving is the reversible alternative. The sponsor confirms it himself.",
+      "files": [],
+      "tests": [],
+      "done": "Session deleted or archived by the sponsor's choice, recorded with the date.",
+      "depends": [
+        "K-01",
+        "K-02",
+        "K-06"
+      ],
+      "status": "not started",
+      "owner": "sponsor",
+      "tier": "lead",
+      "model": "lead model",
+      "tag": "[ruflo · lead · lead model]",
+      "issue": null,
+      "log": []
+    }
+  ],
+  "asks": [
+    {
+      "id": "A-01",
+      "at": "2026-09-15T12:01:34+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "Also check what the other session was working on, common rules, chat, v1, and take it over in this session and create a different proposal of the pending work so we can track it.",
+      "became": "K-01",
+      "state": "became-item",
+      "source": "Common Rules rework session transcript"
+    },
+    {
+      "id": "A-02",
+      "at": "2026-09-15T12:01:34+02:00",
+      "by": "sponsor",
+      "kind": "decision",
+      "quote": "then I would like to delete the other chat.",
+      "became": "K-07",
+      "state": "became-item",
+      "source": "Common Rules rework session transcript"
+    },
+    {
+      "id": "A-03",
+      "at": "2026-09-15T12:05:00+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "Please maintain a single tracker for common rules. And also add that as a common rule to maintain a single tracker up until I have asked to create another tracker. Per project.",
+      "became": "K-02",
+      "state": "became-item",
+      "source": "Common Rules rework session transcript (said directly in this session)"
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {
+    "started": "2026-09-15T12:25:00+02:00",
+    "integration_branch": "p29-takeover",
+    "taken_over_from": "session:Common Rules chat v1 (local_bd66c5cc)"
+  }
+}

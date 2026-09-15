@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 09:59
+# Checkpoint — 2026-09-15 12:09
 
-Reason: manual · branch: p26-cluster-by-risk · HEAD: 4f1de4c
+Reason: manual · branch: p29-takeover · HEAD: 560e1bd
 
-<!-- ledger-digest: 0aff387a00b90cda7fca7eac3a301443a84610be78ad7c90a7b122be0619ad58 -->
+<!-- ledger-digest: d4ba34b28e91000c48f5e16bb7d781c402b581e90d660c8cb9e46354e2867c83 -->
 
 ## Proposal 19 · Warm-up
 
@@ -145,6 +145,27 @@ Reason: manual · branch: p26-cluster-by-risk · HEAD: 4f1de4c
 ### Next unblocked
 
 - W-01 · [ruflo · medium · sonnet] · Fix bin/spend: subagents, once per response, all token kinds
+
+## Proposal 29 · Taking over the Common Rules chat v1 work
+
+0 done / 1 in progress / 0 blocked / 6 not started
+
+### In progress
+
+- K-01 · [ruflo · lead · lead model] · Land p22 on main · started
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- K-04 · [ruflo · lead · lead model] · PhotoVault app and engine on the standard (P21 S-07, S-08)
+- K-05 · [ruflo · lead · lead model] · Proposal 19 pilot exit conditions (W-10)
 
 ## Exact next action
 
