@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 18:37
+# Checkpoint — 2026-09-15 18:53
 
-Reason: manual · branch: worktree-agent-aacb85b8e7b9e6bf3 · HEAD: 0904b62
+Reason: manual · branch: backlog · HEAD: 9cc0bb4
 
-<!-- ledger-digest: dcf48551575f355bfe45ec540d53b4514129b621718f20c7a5875a883f2d087a -->
+<!-- ledger-digest: 82ccf87dc6ccff307262ec7666ba564975c12022c2b94937e37549c624ef570b -->
 
 ## Proposal 19 · Warm-up
 
@@ -47,7 +47,7 @@ Reason: manual · branch: worktree-agent-aacb85b8e7b9e6bf3 · HEAD: 0904b62
 
 ## Proposal 22 · One tracker per project
 
-4 done / 0 in progress / 0 blocked / 2 not started
+5 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -64,11 +64,10 @@ Reason: manual · branch: worktree-agent-aacb85b8e7b9e6bf3 · HEAD: 0904b62
 ### Next unblocked
 
 - T-05 · [ruflo · low · haiku] · PhotoVault app and engine move to one tracker
-- T-06 · [ruflo · low · haiku] · A published page's name is set once and never changes -- tracker, board, cookbook, any of them
 
 ## Proposal 23 · Eight levers for token spend
 
-13 done / 0 in progress / 0 blocked / 8 not started
+19 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
@@ -85,12 +84,7 @@ Reason: manual · branch: worktree-agent-aacb85b8e7b9e6bf3 · HEAD: 0904b62
 ### Next unblocked
 
 - M-03 · [ruflo · medium · sonnet] · Trim Ruflo's tool loading
-- M-05 · [ruflo · medium · sonnet] · A light path for tiny items
-- M-06 · [ruflo · low · haiku] · Say where lead-prompt §4 stands on hand-editing ledgers
-- M-07 · [ruflo · low · haiku] · CLAUDE-workflow.md names the quick/merge two-gate exception
 - M-08 · [ruflo · medium · sonnet] · Six-category review list in CLAUDE-workflow.md gets replaced, not duplicated, when P26 routing lands
-- M-09 · [ruflo · medium · sonnet] · Dedupe five rules stated in more than one file
-- M-10 · [ruflo · medium · sonnet] · Move dated rationale out of CLAUDE-workflow.md into CHANGELOG
 
 ## Proposal 25 · Sizing items by value, points and risk
 
