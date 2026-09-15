@@ -11,5 +11,6 @@
     "handover": "high",
     "worklog": "medium",
     "docs": "low"
-  }
+  },
+  "risk_always": "restricted"
 }

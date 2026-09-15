@@ -37,6 +37,11 @@ module does not know is ignored, because later proposals add keys.
   "value_defaults": {"tracker": "high", "docs": "low"}
       Proposal 25, Z-03: the value (high|medium|low) an item takes from its
       `cluster` when it has no `value` of its own. Default: {}.
+  "risk_paths":   {"restricted": ["finance_data/*"], "elevated": ["shared/*"]}
+  "risk_always":  "restricted"
+      Proposal 25, Z-04: path globs that set an item's risk class, and a
+      floor no path lowers (common-rules declares restricted, D4). Read by
+      tools/tracker/risk.py. Defaults: {} and None.
 
 EVERY VALUE IS UNTRUSTED. A path is relative to the project root: an absolute
 path, a `..` part, or a path that resolves (through a symlink) outside the
@@ -105,9 +110,13 @@ DEFAULTS: dict = {
     "plan_page": None,
     "proposal_series": [],
     "value_defaults": {},
+    "risk_paths": {},
+    "risk_always": None,
 }
 
 VALUES = ("high", "medium", "low")  # tools/tracker/ledger.py VALUES, proposal 25
+RISKS = ("standard", "elevated", "restricted")  # tools/tracker/ledger.py RISKS
+RISK_PATH_CLASSES = ("restricted", "elevated")
 
 INVALID, NOT_OBJECT = "invalid", "not an object"
 
@@ -340,6 +349,20 @@ def _checked(data: dict) -> tuple[dict, list[str]]:
             bad.append(f"{FILE}: value_defaults values must be one of {', '.join(VALUES)}")
         else:
             ok["value_defaults"] = dict(v)
+    if "risk_paths" in data:
+        v = data["risk_paths"]
+        if not isinstance(v, dict) or not set(v) <= set(RISK_PATH_CLASSES):
+            bad.append(f'{FILE}: risk_paths must be an object with "restricted" and/or "elevated" glob lists')
+        elif not all(isinstance(g, list) and all(isinstance(x, str) and x.strip() and _utf8(x) and _one_line(x)
+                                                 for x in g) for g in v.values()):
+            bad.append(f"{FILE}: risk_paths entries must be lists of path globs, one line each")
+        else:
+            ok["risk_paths"] = {k: list(g) for k, g in v.items()}
+    if "risk_always" in data:
+        if data["risk_always"] in RISKS:
+            ok["risk_always"] = data["risk_always"]
+        else:
+            bad.append(f"{FILE}: risk_always must be one of {', '.join(RISKS)}")
     for key in COMMANDS:
         if key in data:
             cmd, why = _command(key, data[key])
