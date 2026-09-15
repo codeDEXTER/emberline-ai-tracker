@@ -61,8 +61,8 @@ ask), never from the summary.
      `docs/proposals/tracker/index.published.json`, with nothing else in that
      commit.
 
-  **A proposal the sponsor asked to track separately** — its ledger records
-  `"tracker": {"own": true, ...}` — keeps a page and a record of its own:
+  **A proposal the sponsor asked to track separately** — its ledger's
+  `tracker` key records `{"own": true, ...}` — keeps a page and a record of its own:
   publish `docs/proposals/tracker/<stem>.html` and record it with
   `RULES/bin/tracker published docs/proposals/<stem>.json --url <url>`, then
   commit that sidecar on its own. For a ledger without that key the per-ledger
