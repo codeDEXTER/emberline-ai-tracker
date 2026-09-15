@@ -116,7 +116,14 @@ class Project:
         self.write(LEDGER, json.dumps(data, indent=2))
 
     def render(self):
+        """The project page (proposal 22, T-02), and the per-ledger page the
+        publish tests below still record (T-03 moves publishing)."""
         subprocess.run([sys.executable, str(TRACKER), "render", str(self.root / LEDGER)],
+                       capture_output=True, check=True)
+        self.board()
+
+    def board(self):
+        subprocess.run([sys.executable, str(TRACKER), "board", "--project", str(self.root)],
                        capture_output=True, check=True)
 
     def checkpoint(self):
@@ -200,6 +207,99 @@ class TestCheckOnASeededProject(Case):
         self.p.commit("all done")
         r = self.p.warmup("--check")
         self.assertEqual(0, r.returncode, r.stdout)
+
+
+BOARD = "docs/proposals/tracker/index.html"
+OWN_PAGE = "docs/proposals/tracker/19-proposal-warmup.html"
+OWN_TRACKER = {"own": True, "by": "sponsor", "at": "2026-09-14T21:00:00+02:00",
+               "quote": "this one gets a tracker of its own"}
+
+
+class TestOneProjectPage(Case):
+    """Proposal 22, T-02. The sponsor (A-01): "per project, there should be one
+    tracker unless and until specified for a proposal if I need another
+    tracker." The chain shows the project page once; a per-ledger page only
+    for a ledger that records its own tracker, and --check fails on nothing
+    else."""
+
+    def test_the_chain_names_the_project_page_once(self):
+        out = self.p.warmup().stdout
+        self.assertEqual(1, out.count(f"page {BOARD} · matches the ledgers"), out)
+        self.assertNotIn(OWN_PAGE, out)
+
+    def test_a_missing_project_page_fails_check_and_says_how(self):
+        (self.p.root / BOARD).unlink()
+        self.p.commit("page lost")
+        r = self.p.warmup("--check")
+        self.assertEqual(1, r.returncode, r.stdout)
+        self.assertIn(f"✗ page {BOARD} · missing", r.stdout)
+        self.assertIn("run: tracker board --project .", r.stdout)
+
+    def test_a_stale_project_page_fails_check_and_the_per_ledger_page_is_not_named(self):
+        self.p.set_ledger(ledger_data(w02="blocked"))
+        self.p.checkpoint()
+        self.p.commit("W-02 blocked, project page not rendered")
+        r = self.p.warmup("--check")
+        self.assertEqual(1, r.returncode, r.stdout)
+        self.assertIn(f"✗ page {BOARD} · stale", r.stdout)
+        self.assertIn("run: tracker board --project .", r.stdout)
+        self.assertNotIn(OWN_PAGE, r.stdout)
+        self.assertIn("warmup --check: 1 problem(s)", r.stdout)
+
+    def test_a_per_ledger_page_without_an_own_tracker_is_never_failed(self):
+        for body in (None, "an old per-proposal page\n"):
+            with self.subTest(page="missing" if body is None else "stale"):
+                page = self.p.root / OWN_PAGE
+                if body is None:
+                    page.unlink(missing_ok=True)
+                else:
+                    page.write_text(body)
+                self.p.commit("old per-ledger page")
+                r = self.p.warmup("--check")
+                self.assertEqual(0, r.returncode, r.stdout)
+                self.assertIn("warmup --check: ready", r.stdout)
+                self.assertNotIn(OWN_PAGE, r.stdout)
+
+    def test_a_ledger_with_its_own_tracker_has_its_page_checked(self):
+        d = ledger_data()
+        d["tracker"] = OWN_TRACKER
+        self.p.set_ledger(d)
+        self.p.board()
+        self.p.checkpoint()
+        (self.p.root / OWN_PAGE).unlink()
+        self.p.commit("own tracker, page not rendered")
+        r = self.p.warmup("--check")
+        self.assertEqual(1, r.returncode, r.stdout)
+        self.assertIn(f"✗ page {OWN_PAGE} · missing", r.stdout)
+        self.assertIn(f"run: tracker render {LEDGER}", r.stdout)
+        self.assertIn(f"✓ page {BOARD} · matches the ledgers", r.stdout)
+        self.p.render()
+        self.p.commit("own page rendered")
+        r = self.p.warmup("--check")
+        self.assertEqual(0, r.returncode, r.stdout)
+        self.assertIn(f"✓ page {OWN_PAGE} · matches the ledger (its own tracker)", r.stdout)
+        self.assertIn(f"✓ page {BOARD} · matches the ledgers", r.stdout)
+
+    def test_json_says_which_ledgers_have_their_own_tracker(self):
+        self.assertIs(False, json.loads(self.p.warmup("--json").stdout)["ledgers"][LEDGER]["own_tracker"])
+        d = ledger_data()
+        d["tracker"] = OWN_TRACKER
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.checkpoint()
+        self.p.commit("own tracker")
+        self.assertIs(True, json.loads(self.p.warmup("--json").stdout)["ledgers"][LEDGER]["own_tracker"])
+
+
+class TestNoLedgersNoProjectPage(Case):
+    seeded = False
+
+    def test_no_ledger_no_page_line(self):
+        r = self.p.warmup("--check")
+        self.assertEqual(1, r.returncode)
+        self.assertIn("ledger · none under docs/proposals", r.stdout)
+        self.assertNotIn("index.html", r.stdout)
+        self.assertNotIn("tracker board", r.stdout)
 
 
 class TestNotARepo(unittest.TestCase):
@@ -755,13 +855,32 @@ SIDECAR = "docs/proposals/tracker/19-proposal-warmup.published.json"
 LINE = f"page changed since last publish: 19-proposal-warmup → {URL}"
 
 
+def own_ledger(**kw):
+    """The ledger the sponsor asked to track separately (proposal 22, T-02):
+    from T-03 on, only such a ledger has a per-ledger page and a per-ledger
+    publish record."""
+    d = ledger_data(**kw)
+    d["tracker"] = dict(OWN_TRACKER)
+    return d
+
+
 class TestPageChangedSincePublish(Case):
     """Proposal 20, V-09 (D1): a session's Artifact tool is the only way to
     publish, so `tracker published` records what went out, and the card
     names the page when it has moved since -- a to-do, never a failed
     standard, so --check does not fail on it. No sidecar (a project that
     never publishes) and a ledger that switches publishing off both print
-    nothing; a sidecar that cannot be read is a named problem."""
+    nothing; a sidecar that cannot be read is a named problem.
+
+    Proposal 22, T-03: this is the per-ledger flow, so the ledger records a
+    tracker of its own."""
+
+    def setUp(self):
+        super().setUp()
+        self.p.set_ledger(own_ledger())
+        self.p.render()
+        self.p.checkpoint()
+        self.p.commit("a ledger with its own tracker")
 
     def published(self):
         r = subprocess.run([sys.executable, str(TRACKER), "published", str(self.p.root / LEDGER), "--url", URL],
@@ -769,7 +888,7 @@ class TestPageChangedSincePublish(Case):
         self.assertEqual(0, r.returncode, r.stdout + r.stderr)
 
     def move_the_ledger(self, data=None):
-        self.p.set_ledger(data or ledger_data(w02="blocked"))
+        self.p.set_ledger(data or own_ledger(w02="blocked"))
         self.p.render()
         self.p.checkpoint()
         self.p.commit("ledger moved, page rendered")
@@ -804,7 +923,7 @@ class TestPageChangedSincePublish(Case):
     def test_switched_off_no_line(self):
         self.published()
         self.p.commit("published")
-        d = ledger_data(w02="blocked")
+        d = own_ledger(w02="blocked")
         d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00",
                                      "quote": "stop publishing"}}
         self.move_the_ledger(d)
@@ -892,7 +1011,7 @@ class TestPageChangedSincePublish(Case):
         self.assertIn("no change since the last warm-up", again)
 
     def test_switched_off_with_a_malformed_sidecar_reads_nothing(self):
-        d = ledger_data(w02="blocked")
+        d = own_ledger(w02="blocked")
         d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00",
                                      "quote": "stop publishing"}}
         self.p.write(SIDECAR, "{not json")
@@ -916,10 +1035,16 @@ class TestPageChangedSincePublish(Case):
             text = " ".join(text.split())   # wrapped prose: compare across line breaks
             with self.subTest(file=name):
                 self.assertIn("tracker published", text)
+                # Proposal 22, T-03: one flow -- the project's one page,
+                # recorded with --project; the per-ledger command is for a
+                # ledger the sponsor asked to track separately.
+                self.assertIn("tracker published --project", text)
+                self.assertIn("docs/proposals/tracker/index.html", text)
+                self.assertIn("docs/proposals/tracker/index.published.json", text)
+                self.assertIn("tracker of its own", text)
                 # Round 2, finding 1: nothing else creates the first sidecar.
                 self.assertIn("published for the first time", text)
-                self.assertIn("with no `<stem>.published.json`", text)
-                self.assertIn("record it at once with `tracker published`", text)
+                self.assertIn("record it at once with `tracker published", text)
                 # Round 2, finding 2: ledger first, the sidecar on its own, no log entry.
                 self.assertIn("commit ledger edits first", text)
                 self.assertIn("commit the sidecar on its own", text)
@@ -1026,6 +1151,19 @@ class TestDeclaredPlanPageSincePublish(Case):
         self.assertEqual(recorded_ledger, pub["ledger_digest"])
         self.assertTrue(pub["changed"])
         self.assertEqual(URL, pub["url"])
+
+    def test_a_plan_page_record_is_read_whatever_the_declaration_says_now(self):
+        """Proposal 22, T-03: a per-ledger record is read for a ledger with a
+        tracker of its own and for a declared plan_page's record. The
+        declaration can be edited after the record was made, so the record's
+        own shape decides too -- a real publish never goes silent because a
+        key moved in .common-rules.json."""
+        self.published()
+        self.assertNotIn("tracker", json.loads((self.p.root / LEDGER).read_text()))
+        self.p.write(".common-rules.json", json.dumps({"read_order": ["HANDOFF.md"]}))
+        self.p.commit("the declaration no longer names plan_page")
+        self.move_the_ledger()
+        self.assertIn(f"  {PAGE_LINE}\n", self.p.warmup().stdout)
 
     def test_a_missing_page_is_a_named_problem(self):
         self.published()
@@ -1495,3 +1633,166 @@ class TestMandatoryStandardChanges(Case):
         r = self.warm("--check")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("warmup --check: ready", r.stdout)
+
+
+INDEX = "docs/proposals/tracker/index.html"
+INDEX_SIDECAR = "docs/proposals/tracker/index.published.json"
+INDEX_LINE = f"page changed since last publish: {INDEX} → {URL}"
+
+
+class TestTheProjectPageChangedSincePublish(Case):
+    """Proposal 22, T-03. The sponsor asked for one tracker per project, so
+    what is published is docs/proposals/tracker/index.html and what the card
+    names is that page: `page changed since last publish: <the page> → <url>`
+    until the project page is republished and recorded with
+    `tracker published --project`."""
+
+    def published(self, *args):
+        r = subprocess.run([sys.executable, str(TRACKER), "published", "--project", str(self.p.root),
+                            "--url", URL, *args], capture_output=True, text=True, check=False)
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+
+    def move_the_ledger(self, data=None):
+        self.p.set_ledger(data or ledger_data(w02="blocked"))
+        self.p.render()
+        self.p.checkpoint()
+        self.p.commit("ledger moved, pages rendered")
+
+    def write_sidecar(self, record):
+        self.p.write(INDEX_SIDECAR, record if isinstance(record, str) else json.dumps(record))
+        self.p.commit("sidecar by hand")
+
+    def test_no_sidecar_no_line(self):
+        self.move_the_ledger()
+        self.assertNotIn("since last publish", self.p.warmup().stdout)
+
+    def test_a_page_just_published_has_no_line(self):
+        self.published()
+        self.p.commit("published")
+        self.assertNotIn("since last publish", self.p.warmup().stdout)
+
+    def test_a_changed_page_is_named_until_the_publish_is_recorded(self):
+        self.published()
+        self.p.commit("published")
+        self.move_the_ledger()
+        self.assertIn(f"  {INDEX_LINE}\n", self.p.warmup().stdout)
+        self.published()
+        self.p.commit("republished")
+        self.assertNotIn("since last publish", self.p.warmup().stdout)
+
+    def test_a_changed_page_does_not_fail_check(self):
+        self.published()
+        self.p.commit("published")
+        self.move_the_ledger()
+        r = self.p.warmup("--check")
+        self.assertEqual(0, r.returncode, r.stdout)
+        self.assertIn("warmup --check: ready", r.stdout)
+
+    def test_switched_off_in_a_ledger_no_line(self):
+        self.published()
+        self.p.commit("published")
+        d = ledger_data(w02="blocked")
+        d["switches"] = {"publish": {"on": False, "by": "sponsor", "at": "2026-09-14T10:00:00+02:00",
+                                     "quote": "stop publishing"}}
+        self.move_the_ledger(d)
+        out = self.p.warmup().stdout
+        self.assertNotIn("since last publish", out)
+        self.assertEqual(0, self.p.warmup("--check").returncode)
+
+    def test_json_carries_the_record_only_when_there_is_one(self):
+        self.assertNotIn("published", json.loads(self.p.warmup("--json").stdout))
+        self.published()
+        self.p.commit("published")
+        self.move_the_ledger()
+        pub = json.loads(self.p.warmup("--json").stdout)["published"]
+        self.assertEqual(URL, pub["url"])
+        self.assertTrue(pub["changed"])
+        self.assertEqual(INDEX, pub["page"])
+        self.assertRegex(pub["digest"], r"^[0-9a-f]{64}$")
+        self.assertNotEqual(pub["digest"], pub["page_digest"])
+        self.assertIn("19-proposal-warmup.json", pub["ledgers"])
+
+    def test_since_names_it_only_when_it_is_news(self):
+        self.published()
+        self.p.commit("published")
+        state = self.p.root / ".claude" / "warmup" / "last.json"
+        self.p.warmup("--state", str(state))
+        self.move_the_ledger()
+        self.assertIn(INDEX_LINE, self.p.warmup("--since", str(state)).stdout)
+        self.p.warmup("--json", "--state", str(state))
+        again = self.p.warmup("--since", str(state)).stdout
+        self.assertNotIn("since last publish", again)
+
+    def test_a_malformed_sidecar_is_a_named_problem_not_a_traceback(self):
+        good = {"url": URL, "digest": "0" * 64, "ledgers": '[["19-proposal-warmup.json","' + "0" * 64 + '"]]',
+                "at": "2026-09-14T10:00:00+02:00", "by": None}
+        variants = {
+            "not json": "{not json",
+            "a list": "[]",
+            "http url": json.dumps(dict(good, url="http://claude.ai/x")),
+            "forged url": json.dumps(dict(good, url=URL + "\nwarmup --check: ready")),
+            "short digest": json.dumps(dict(good, digest="abc")),
+            "no url": json.dumps({k: v for k, v in good.items() if k != "url"}),
+            "no ledgers": json.dumps({k: v for k, v in good.items() if k != "ledgers"}),
+            "ledgers not a string": json.dumps(dict(good, ledgers=["19-proposal-warmup.json"])),
+            "ledgers two lines": json.dumps(dict(good, ledgers="a\nwarmup --check: ready")),
+            "a page key": json.dumps(dict(good, page="docs/proposals/19-proposal-warmup.html")),
+            "at without offset": json.dumps(dict(good, at="2026-09-14T10:00:00")),
+            "by not a string": json.dumps(dict(good, by=7)),
+            "deeply nested": "[" * 100000,
+        }
+        for name, body in variants.items():
+            with self.subTest(sidecar=name):
+                self.write_sidecar(body)
+                card = self.p.warmup()
+                self.assertEqual(0, card.returncode, card.stderr)
+                self.assertNotIn("Traceback", card.stderr)
+                self.assertNotIn("since last publish", card.stdout)
+                self.assertIn("index.published.json", card.stdout)
+                check = self.p.warmup("--check")
+                self.assertEqual(1, check.returncode, check.stdout)
+                self.assertIn("index.published.json", check.stdout)
+                self.assertNotIn("warmup --check: ready", [l.strip() for l in check.stdout.splitlines()])
+
+    def test_a_symlinked_sidecar_is_a_problem_and_never_read(self):
+        outside = Path(self.p.tmp.name) / "outside.published.json"
+        outside.write_text("{not json")
+        (self.p.root / INDEX_SIDECAR).symlink_to(outside)
+        self.p.commit("sidecar symlinked out")
+        check = self.p.warmup("--check")
+        self.assertEqual(1, check.returncode, check.stdout)
+        self.assertTrue(any("index.published.json" in l and "outside the project" in l
+                            for l in check.stdout.splitlines()), check.stdout)
+        self.assertNotIn("malformed", check.stdout)
+        self.assertIn(f"{INDEX_SIDECAR} · outside the project", self.p.warmup().stdout)
+
+    def test_a_leftover_per_ledger_sidecar_prints_nothing(self):
+        """T-03: the per-ledger sidecar of a ledger without its own tracker is
+        not read at all -- not for a line, and not for a problem. bin/conformance
+        item 10 is where a leftover is named."""
+        self.published()
+        self.p.commit("published")
+        self.p.write(SIDECAR, json.dumps({"url": URL, "digest": "0" * 64,
+                                          "at": "2026-09-14T10:00:00+02:00", "by": None}))
+        self.p.commit("a leftover per-ledger sidecar")
+        card = self.p.warmup()
+        self.assertEqual(0, card.returncode, card.stderr)
+        self.assertNotIn("19-proposal-warmup.published.json", card.stdout)
+        self.assertNotIn("since last publish", card.stdout)
+        check = self.p.warmup("--check")
+        self.assertEqual(0, check.returncode, check.stdout)
+        self.assertIsNone(json.loads(self.p.warmup("--json").stdout)["ledgers"][LEDGER]["published"])
+        # and a malformed one is not read either
+        self.p.write(SIDECAR, "{not json")
+        self.p.commit("a malformed leftover")
+        self.assertEqual(0, self.p.warmup("--check").returncode)
+        self.assertNotIn("19-proposal-warmup.published.json", self.p.warmup().stdout)
+
+    def test_a_missing_project_page_is_not_also_changed(self):
+        self.published()
+        self.p.commit("published")
+        (self.p.root / INDEX).unlink()
+        self.p.commit("page lost")
+        card = self.p.warmup()
+        self.assertNotIn("since last publish", card.stdout)
+        self.assertIn(f"page {INDEX} · missing", card.stdout)

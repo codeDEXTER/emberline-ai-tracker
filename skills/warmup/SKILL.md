@@ -46,20 +46,28 @@ ask), never from the summary.
   `daemon stop` for the daemon your calls started. Never kill it by name.
 - **`RULES/bin/recall <words>`** searches every project's memory, LESSONS and
   operating rules. Put the hits for an item under CONTEXT in its brief.
-- **`page changed since last publish: <stem> → <url>`** means the rendered
-  page (`docs/proposals/tracker/<stem>.html`) no longer matches what was last
-  published to that URL. Republish it yourself, in the same turn, in this
-  order:
-  1. Finish and commit ledger edits first. Committing the ledger re-renders
-     the page (derecord's pre-commit hook does it); if the card still shows
-     the page as stale, run `tracker render` and commit that.
+- **`page changed since last publish: docs/proposals/tracker/index.html → <url>`**
+  means the project's one tracker page — every ledger on one page — no longer
+  matches what was last published to that URL. Republish it yourself, in the
+  same turn, in this order:
+  1. Finish and commit ledger edits first. Committing a ledger re-renders the
+     page (derecord's pre-commit hook does it); if the card still shows the
+     page as stale, run `tracker board --project .` and commit that.
   2. Publish that committed page file with your Artifact tool **to the same
      URL** the line names — update the existing artifact in place, never
      create a new one.
-  3. Record it: `RULES/bin/tracker published docs/proposals/<stem>.json --url <url>`
+  3. Record it: `RULES/bin/tracker published --project . --url <url>`
      (add `--by <your session's name>`), then commit the sidecar on its own:
-     `docs/proposals/tracker/<stem>.published.json`, with nothing else in
-     that commit.
+     `docs/proposals/tracker/index.published.json`, with nothing else in that
+     commit.
+
+  **A proposal the sponsor asked to track separately** — its ledger records
+  `"tracker": {"own": true, ...}` — keeps a page and a record of its own:
+  publish `docs/proposals/tracker/<stem>.html` and record it with
+  `RULES/bin/tracker published docs/proposals/<stem>.json --url <url>`, then
+  commit that sidecar on its own. For a ledger without that key the per-ledger
+  command refuses and names `tracker published --project`: one tracker per
+  project unless the sponsor asked for another.
 
   **When `.common-rules.json` declares `plan_page`**, the page of record is
   the file that project's generator writes, not the tracker page, and the
@@ -72,10 +80,14 @@ ask), never from the summary.
   3. Record it: `RULES/bin/tracker published docs/proposals/<stem>.json --url <url> --page <path>`,
      `<path>` being the committed file the generator wrote, relative to the
      project root; then commit the sidecar on its own. Without `--page`,
-     `tracker published` refuses on such a project.
+     `tracker published` refuses on such a project, and so does
+     `tracker published --project`: the declared page is that project's
+     tracker. The project page is still rendered and checked beside it — it is
+     simply not the page that is published.
 
-  `tracker published` refuses while the ledger has uncommitted changes, and,
-  with `--page`, when the page was last committed before the ledger changed
+  `tracker published` refuses while the ledger it records has uncommitted
+  changes — every ledger, for `--project` — and, with `--page`, when the
+  page was last committed before the ledger changed
   — an old page recorded as current would keep the card silent for good.
   Only when a committed ledger change leaves the page's bytes identical, pass
   `--page-unchanged`; the sidecar records that you did.
@@ -85,21 +97,24 @@ ask), never from the summary.
   gets a log entry": a log entry would itself move the page, and the line
   would come straight back.
 
-  A republish needs no sponsor prompt: when the ledger's `switches.publish`
-  is on (the default), republishing a changed page is part of keeping the
-  ledger current, like rendering it. When `switches.publish` is switched off,
-  nothing is published — the card prints no such line and `tracker published`
-  refuses to record. The line never fails `warmup --check`; it is a to-do,
-  not a broken standard. Only a session's Artifact tool can publish; no hook
-  or script does it for you.
-- **A page published before it was recorded.** When a tracker page is
-  published for the first time, or you find one already published (a URL in
-  the handover, lead prompt or log) with no `<stem>.published.json`, record
-  it at once with `tracker published`; from then on the card tells you when
-  it moves. When the project declares `plan_page`, the page is the committed
-  file its generator writes: record it with
-  `RULES/bin/tracker published docs/proposals/<stem>.json --url <url> --page <path>`. The card gives no hint for a missing sidecar, because a project
-  that never publishes must see nothing.
+  A republish needs no sponsor prompt: when `switches.publish` is on (the
+  default) — every ledger's, for the project page — republishing a changed
+  page is part of keeping the ledger current, like rendering it. When any is
+  switched off, nothing is published — the card prints no such line and
+  `tracker published` refuses to record, naming that ledger. The line never
+  fails `warmup --check`; it is a to-do, not a broken standard. Only a
+  session's Artifact tool can publish; no hook or script does it for you.
+- **A page published before it was recorded.** When the project's tracker page
+  is published for the first time, or you find one already published (a URL in
+  the handover, lead prompt or log) with no
+  `docs/proposals/tracker/index.published.json`, record it at once with
+  `tracker published --project . --url <url>`; from then on the card
+  tells you when it moves. When the project declares `plan_page`, the page is
+  the committed file its generator writes: record it with
+  `RULES/bin/tracker published docs/proposals/<stem>.json --url <url> --page <path>`;
+  for a proposal with a tracker of its own, `RULES/bin/tracker published docs/proposals/<stem>.json --url <url>`.
+  The card gives no hint for a missing sidecar, because a project that never
+  publishes must see nothing.
 
 ## 4. The first message to the sponsor
 

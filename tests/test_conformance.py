@@ -460,13 +460,55 @@ class TestItem1AgainstRulecheck(unittest.TestCase):
         self.assertNotIn("CLAUDE-workflow.md", r.fix)
 
 
+OWN_TRACKER = {"own": True, "by": "sponsor", "at": "2026-09-14T21:00:00+02:00",
+               "quote": "this one gets a tracker of its own"}
+INDEX = "docs/proposals/tracker/index.html"
+URL = "https://claude.ai/code/artifact/00000000-0000-0000-0000-000000000000"
+
+
 class TestItem2Migrated(Copy):
+    """Proposal 22, T-02: item 2 reads the project's one tracker page, and a
+    per-ledger page only for a ledger that records its own tracker."""
+
+    def tracker(self, *args):
+        return run([sys.executable, ROOT / "bin" / "tracker", *args])
 
     def test_a_stale_tracker_page_does_not_hold(self):
         edit_ledger(self.p, lambda d: d.update(title="Demo plan, renamed"))
         # The card fails on the same stale page and checkpoint.
         data = self.assert_breaks({2}, also={12})
+        self.assertIn(f"page {INDEX} is stale", self.item(data, 2)["why"])
+        self.assertIn("tracker board", self.item(data, 2)["fix"])
+
+    def test_a_missing_project_page_does_not_hold(self):
+        (self.p / INDEX).unlink()
+        data = self.assert_breaks({2}, also={12})
+        self.assertIn(f"page {INDEX} is missing", self.item(data, 2)["why"])
+        self.assertIn("tracker board --project", self.item(data, 2)["fix"])
+
+    def test_the_conforming_project_holds_on_its_project_page(self):
+        data, _ = report(self.p)
+        self.assertEqual(HOLDS, self.item(data, 2)["state"])
+        self.assertIn("the project page matching", self.item(data, 2)["why"])
+
+    def test_a_per_ledger_page_of_a_ledger_without_its_own_tracker_is_not_read(self):
+        write(self.p, f"docs/proposals/tracker/{ledger_path(self.p).stem}.html", "an old per-proposal page\n")
+        data, code = report(self.p)
+        self.assertEqual(states_of(data), expected_base(), json.dumps(data, indent=2, ensure_ascii=False))
+        self.assertEqual(code, 0)
+
+    def test_a_ledger_with_its_own_tracker_needs_its_own_page(self):
+        edit_ledger(self.p, lambda d: d.update(tracker=OWN_TRACKER))
+        self.tracker("board", "--project", self.p)
+        own_page = self.p / "docs" / "proposals" / "tracker" / f"{ledger_path(self.p).stem}.html"
+        own_page.unlink(missing_ok=True)
+        data = self.assert_breaks({2}, also={12})
+        self.assertIn(f"page docs/proposals/tracker/{own_page.name} is missing", self.item(data, 2)["why"])
         self.assertIn("tracker render", self.item(data, 2)["fix"])
+        self.tracker("render", ledger_path(self.p))
+        data, _ = report(self.p)
+        self.assertEqual(HOLDS, self.item(data, 2)["state"], self.item(data, 2))
+        self.assertIn("1 own tracker page(s) matching", self.item(data, 2)["why"])
 
 
 class TestItem3Declared(Copy):
@@ -761,13 +803,60 @@ class TestItem9Ruflo(Copy):
 
 
 class TestItem10Publishing(Copy):
+    """Proposal 22, T-03: the sidecar of record is the project page's,
+    docs/proposals/tracker/index.published.json. A per-ledger sidecar is read
+    only for a ledger that records its own tracker (or a declared plan_page);
+    a leftover one does not hold, and the fix is to remove it."""
 
-    def test_a_malformed_sidecar_does_not_hold(self):
+    def tracker(self, *args):
+        return run([sys.executable, ROOT / "bin" / "tracker", *args])
+
+    def published_project(self):
+        return run([sys.executable, ROOT / "bin" / "tracker", "published", "--project", self.p,
+                    "--url", URL, "--by", "lead"])
+
+    def test_a_leftover_per_ledger_sidecar_does_not_hold(self):
+        stem = ledger_path(self.p).stem
+        write(self.p, f"docs/proposals/tracker/{stem}.published.json",
+              json.dumps({"url": URL, "digest": "0" * 64, "at": NOW, "by": None}) + "\n")
+        # The card is silent about it (T-03), so item 12 still holds.
+        data = self.assert_breaks({10})
+        self.assertIn(f"{stem}.published.json", self.item(data, 10)["why"])
+        self.assertIn("git rm", self.item(data, 10)["fix"])
+        self.assertIn("tracker published --project", self.item(data, 10)["fix"])
+
+    def test_a_malformed_leftover_is_not_read_either(self):
         stem = ledger_path(self.p).stem
         write(self.p, f"docs/proposals/tracker/{stem}.published.json", "{\"url\": 1}\n")
-        # The card names the same unreadable sidecar.
+        data = self.assert_breaks({10})
+        self.assertIn(f"{stem}.published.json", self.item(data, 10)["why"])
+
+    def test_an_own_tracker_ledgers_sidecar_is_still_read(self):
+        edit_ledger(self.p, lambda d: d.update(tracker=OWN_TRACKER))
+        self.tracker("board", "--project", self.p)
+        self.tracker("render", ledger_path(self.p))
+        self.tracker("checkpoint", "--project", self.p)
+        stem = ledger_path(self.p).stem
+        write(self.p, f"docs/proposals/tracker/{stem}.published.json", "{\"url\": 1}\n")
+        commit(self.p, "own tracker, a malformed sidecar")
+        # The card reads this one, so item 12 sees the same fault.
         data = self.assert_breaks({10}, also={12})
         self.assertIn(f"{stem}.published.json", self.item(data, 10)["why"])
+
+    def test_the_recorded_project_page_holds(self):
+        r = self.published_project()
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        commit(self.p, "record the project page")
+        data, code = report(self.p)
+        self.assertEqual(states_of(data), expected_base(), json.dumps(data, indent=2, ensure_ascii=False))
+        self.assertEqual(0, code)
+        self.assertIn("1 publish record(s)", self.item(data, 10)["why"])
+
+    def test_a_malformed_project_sidecar_does_not_hold(self):
+        write(self.p, "docs/proposals/tracker/index.published.json", "{\"url\": 1}\n")
+        # The card names the same unreadable sidecar.
+        data = self.assert_breaks({10}, also={12})
+        self.assertIn("index.published.json", self.item(data, 10)["why"])
 
 
 class TestItem11Pointer(Copy):

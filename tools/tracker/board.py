@@ -40,6 +40,7 @@ from tools.tracker import ledger as L
 from tools.tracker import render as R
 
 OUT_NAME = "index.html"
+PUBLISHED_NAME = "index.published.json"
 # Attention order: what is moving, what is stuck, what is next, what is done.
 COLUMNS = ("in progress", "blocked", "not started", "done")
 LABEL = {"in progress": "In progress", "blocked": "Blocked", "not started": "Not started", "done": "Done"}
@@ -94,11 +95,45 @@ def digests(paths: list[Path]) -> str:
                        for p in sorted(paths, key=lambda p: p.name)], ensure_ascii=True, separators=(",", ":"))
 
 
+def page_digests(page: Path) -> str | None:
+    """The ledger digests the page itself carries, or None when there is no
+    page or it is not one this tool wrote (proposal 22, T-03). `tracker
+    published --project` records exactly this string, so the record says which
+    ledgers the published page showed, and nothing re-derives the markup."""
+    try:
+        text = Path(page).read_text(errors="replace")
+    except OSError:
+        return None
+    m = re.search(r'<meta name="ledger-digests" content="([^"]*)">', text)
+    return html.unescape(m.group(1)) if m else None
+
+
 def freshness(paths: list[Path], page: Path) -> str:
     if not page.exists():
         return "missing"
-    m = re.search(r'<meta name="ledger-digests" content="([^"]*)">', page.read_text(errors="replace"))
-    return "ok" if m and html.unescape(m.group(1)) == digests(paths) else "stale"
+    carried = page_digests(page)
+    return "ok" if carried is not None and carried == digests(paths) else "stale"
+
+
+def published_path(project) -> Path:
+    """The project page's publish record, beside the page (proposal 22, T-03)."""
+    return default_out(Path(project)).with_name(PUBLISHED_NAME)
+
+
+def ledger_paths(project: Path) -> list[Path]:
+    """The ledgers the project page is rendered from, in file-name order."""
+    return sorted(L.find(project), key=lambda p: p.name)
+
+
+def project_page_state(project: Path) -> tuple[str, Path]:
+    """("none" | "ok" | "missing" | "stale", the project page). "none": the
+    project has no ledger, so it has no page to check (proposal 22, T-02 --
+    one answer for bin/warmup, bin/conformance and bin/new-proposal)."""
+    page = default_out(Path(project))
+    paths = ledger_paths(Path(project))
+    if not paths:
+        return "none", page
+    return freshness(paths, page), page
 
 
 # ---------------------------------------------------------------------------

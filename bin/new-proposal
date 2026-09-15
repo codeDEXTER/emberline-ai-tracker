@@ -15,7 +15,16 @@ directory):
 
   docs/proposals/NN-slug.html           from templates/proposal.html
   docs/proposals/NN-slug.json           from templates/ledger.json, no items
-  docs/proposals/tracker/NN-slug.html   tracker render of that ledger
+
+and regenerates the project's one tracker page (proposal 22, T-02):
+
+  docs/proposals/tracker/index.html     tracker board, every ledger in the project
+
+Most projects already have index.html, so it is regenerated in place, never
+created per proposal. A per-ledger page (tracker render) is not written: the
+pre-commit hook renders one only for a ledger that records its own tracker.
+An index.html, or tracker folder, that is a symlink or not a regular file is
+refused before anything is written.
 
 NN is the next number free across every docs/proposals entry whose name
 starts with one to three digits, an optional letter and a hyphen (02a-,
@@ -26,13 +35,16 @@ The slug is the title in lowercase ASCII with hyphens. A title that is
 empty, spans lines or carries control characters is refused.
 
 --page-for LEDGER writes only the page, for a ledger that already exists
-under docs/proposals without one. The title and number come from the ledger,
-so it takes no title and no --number. It is refused when any page already
-holds that number.
+under docs/proposals without one, and regenerates index.html as above. The
+title and number come from the ledger, so it takes no title and no --number.
+It is refused when any page already holds that number.
 
-After writing it runs bin/tracker validate, bin/tracker render and
-bin/proposalcheck. If any of them rejects what was written, everything this
-run wrote is removed and the failure is named: all of it, or none. A
+After writing it runs bin/tracker validate, bin/tracker board and
+bin/proposalcheck. If any of them rejects what was written -- tracker board
+included, which refuses when any ledger in the project is not well-formed --
+or cannot run, everything this run created is removed, index.html is put back
+byte for byte (or removed, if this run created it), and the failure is named:
+all of it, or none. A
 violation proposalcheck reports in some other document is mentioned but does
 not block. Nothing is ever overwritten; if another session claims the number
 while this runs, it says so -- run it again.
@@ -41,6 +53,8 @@ Exit codes: 0 written and checked. 1 refused: a bad title or number, a number
 already in use, or a checker rejecting the result. 2 could not run: not
 inside a git repository, a proposal_series that cannot be used, a template
 missing, a file that could not be read or written, or a checker that crashed.
+128+N stopped by signal N -- 143 for SIGTERM, 129 for SIGHUP -- after the
+same rollback: the created files removed, index.html put back.
 """
 from __future__ import annotations
 
@@ -50,6 +64,7 @@ import html
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import unicodedata
@@ -59,6 +74,7 @@ RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
 from tools import project as P  # noqa: E402
+from tools.tracker import board as B  # noqa: E402
 
 PAGE_TEMPLATE = RULES_DIR / "templates" / "proposal.html"
 LEDGER_TEMPLATE = RULES_DIR / "templates" / "ledger.json"
@@ -219,6 +235,20 @@ class Writes:
         self.top = top
         self.files: list[Path] = []
         self.dirs: list[Path] = []
+        # Files this run regenerates rather than creates (the project page):
+        # their bytes before the run, or None when they did not exist.
+        self.kept: list[tuple[Path, bytes | None]] = []
+
+    def keep(self, path: Path) -> None:
+        """A file a tool is about to regenerate: rollback puts its bytes back
+        exactly, or removes it if this run is what made it."""
+        if any(p == path for p, _ in self.kept):
+            return
+        try:
+            before = path.read_bytes() if path.exists() else None
+        except OSError as exc:
+            raise CannotRun(f"could not read {self.show(path)}: {exc.strerror or exc}") from None
+        self.kept.append((path, before))
 
     def show(self, path: Path) -> str:
         try:
@@ -255,15 +285,18 @@ class Writes:
         except OSError as exc:
             raise CannotRun(f"could not write {self.show(path)}: {exc.strerror or exc}") from None
 
-    def adopt(self, path: Path) -> None:
-        """A file a tool wrote for this run: it goes if the run fails."""
-        if path.exists() and path not in self.files:
-            self.files.append(path)
-
     def rollback(self) -> None:
         for path in reversed(self.files):
             try:
                 path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        for path, before in reversed(self.kept):
+            try:
+                if before is None:
+                    path.unlink(missing_ok=True)
+                elif not path.is_file() or path.read_bytes() != before:
+                    path.write_bytes(before)
             except OSError:
                 pass
         for d in sorted(self.dirs, key=lambda p: len(p.parts), reverse=True):
@@ -321,19 +354,37 @@ def validate_ledger(ledger: Path) -> str:
     return "tracker validate: well-formed"
 
 
-def render_tracker(writes: Writes, ledger: Path, out: Path) -> None:
+def project_page(writes: Writes, top: Path) -> Path:
+    """docs/proposals/tracker/index.html, the project's one tracker page
+    (proposal 22, T-02). Refused before anything is written when it, or its
+    folder, is a symlink or not a regular file: regenerating it would write
+    wherever the link points, and rollback could not put that back."""
+    index = B.default_out(top)
+    folder = index.parent
+    if folder.is_symlink() or (folder.exists() and not folder.is_dir()):
+        raise Refused(f"{writes.show(folder)} is a symlink or not a folder; the project page is regenerated "
+                      "in place -- nothing written")
+    if index.is_symlink() or (index.exists() and not index.is_file()):
+        raise Refused(f"{writes.show(index)} is a symlink or not a regular file; the project page is "
+                      "regenerated in place -- nothing written")
+    return index
+
+
+def render_board(writes: Writes, top: Path, out: Path) -> str:
+    """Regenerate the project page. It usually exists already: its bytes are
+    kept first, so a failure anywhere in the run puts them back."""
     if out.parent.exists() and not os.access(out.parent, os.W_OK):
         raise CannotRun(f"could not write {writes.show(out.parent)}: Permission denied")
     writes.note_missing_dirs(out.parent)
-    try:
-        r = run_tool("tracker render", [str(TRACKER), "render", str(ledger)])
-    finally:
-        writes.adopt(out)
+    writes.keep(out)
+    r = run_tool("tracker board", [str(TRACKER), "board", "--project", str(top)])
     if r.returncode != 0 and "Traceback (most recent call last)" in r.stderr:
-        last = (r.stderr.strip().splitlines() or ["tracker render failed"])[-1]
+        last = (r.stderr.strip().splitlines() or ["tracker board failed"])[-1]
         raise CannotRun(f"could not write {writes.show(out)}: {last}")
     if r.returncode != 0:
-        raise Refused("tracker render rejects the ledger:\n  " + "\n  ".join((r.stdout + r.stderr).splitlines()))
+        raise Refused("tracker board rejects the project's ledgers:\n  "
+                      + "\n  ".join((r.stdout + r.stderr).splitlines()))
+    return f"tracker  {out}  (tracker board: the project's one tracker page)"
 
 
 # -- the two modes -----------------------------------------------------------
@@ -362,10 +413,8 @@ def create(top: Path, number_arg: str | None, title_arg: str) -> int:
     number = f"{n:02d}"
     stem = f"{number}-{slugify(title)}"
     page, ledger = proposals / f"{stem}.html", proposals / f"{stem}.json"
-    tracker_page = proposals / "tracker" / f"{stem}.html"
     writes = Writes(top)
-    if tracker_page.exists():
-        raise Refused(f"{writes.show(tracker_page)} already exists; nothing overwritten")
+    index = project_page(writes, top)
     date = datetime.date.today().isoformat()
     page_text = render_page(PAGE_TEMPLATE.read_text(encoding="utf-8"), number, title, date)
     ledger_text = render_ledger(LEDGER_TEMPLATE.read_text(encoding="utf-8"), n, title, date)
@@ -377,7 +426,7 @@ def create(top: Path, number_arg: str | None, title_arg: str) -> int:
         writes.create(ledger, ledger_text)
         claimed_meanwhile(top, series, n, {writes.show(page), writes.show(ledger)}, set(used.get(n, [])))
         notes = [validate_ledger(ledger)]
-        render_tracker(writes, ledger, tracker_page)
+        tracker_note = render_board(writes, top, index)
         notes.insert(0, check_page(top, page))
         done = True
     finally:
@@ -387,7 +436,7 @@ def create(top: Path, number_arg: str | None, title_arg: str) -> int:
     print(f"new-proposal: proposal {number} · proposed · {title}")
     print(f"  page     {page}")
     print(f"  ledger   {ledger}")
-    print(f"  tracker  {tracker_page}  (tracker render of the ledger)")
+    print(f"  {tracker_note}")
     for note in notes:
         print(f"  {note}")
     print("Next: fill the page -- the ask in the sponsor's words, what was found, the options,")
@@ -450,7 +499,7 @@ def page_for(top: Path, ledger_arg: str) -> int:
     if other_ledgers:
         raise Refused(f"proposal {n:02d} has another ledger too: {', '.join(other_ledgers)}; "
                       "one number, one ledger -- nothing written")
-    tracker_page = proposals / "tracker" / f"{ledger.stem}.html"
+    index = project_page(writes, top)
 
     number = m.group(1)
     page_text = render_page(PAGE_TEMPLATE.read_text(encoding="utf-8"), number, title,
@@ -459,13 +508,9 @@ def page_for(top: Path, ledger_arg: str) -> int:
     try:
         writes.create(page, page_text)
         claimed_meanwhile(top, series, n, {writes.show(page), shown}, set(existing))
-        if tracker_page.exists():
-            r = run_tool("tracker render --check", [str(TRACKER), "render", "--check", str(ledger)])
-            verdict = ((r.stdout + r.stderr).strip().splitlines() or ["no output"])[-1]
-            tracker_note = f"tracker  {tracker_page} exists, left alone; render --check: {verdict}"
-        else:
-            render_tracker(writes, ledger, tracker_page)
-            tracker_note = f"tracker  {tracker_page}  (tracker render of the ledger)"
+        # Proposal 22, T-02: the project page, regenerated; a per-ledger page
+        # already there is left alone and not checked.
+        tracker_note = render_board(writes, top, index)
         notes = [check_page(top, page), tracker_note]
         done = True
     finally:
@@ -486,6 +531,42 @@ def page_for(top: Path, ledger_arg: str) -> int:
     return 0
 
 
+STOP_SIGNALS = (signal.SIGTERM, signal.SIGHUP)
+
+
+class Stopped(Exception):
+    """SIGTERM or SIGHUP during a run (T-02 review round 1). Raised wherever the
+    run is, so the rollback in its `finally` runs as for any other failure."""
+
+    def __init__(self, signum: int):
+        super().__init__(signum)
+        self.signum = signum
+
+
+def _stopped(signum, _frame):
+    # A second signal must not cut the rollback short: ignored from here on,
+    # until main() restores what was installed before the run.
+    for sig in STOP_SIGNALS:
+        signal.signal(sig, signal.SIG_IGN)
+    raise Stopped(signum)
+
+
+def _install_stop_handlers() -> dict:
+    previous = {}
+    for sig in STOP_SIGNALS:
+        try:
+            previous[sig] = signal.signal(sig, _stopped)
+        except ValueError:            # not the main thread: nothing can be installed
+            break
+    return previous
+
+
+def _restore_handlers(previous: dict) -> None:
+    for sig, handler in previous.items():
+        if handler is not None:
+            signal.signal(sig, handler)
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="new-proposal", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -500,6 +581,7 @@ def main(argv: list[str]) -> int:
         ap.error("--page-for takes its title and number from the ledger; give no title and no --number")
     if a.page_for is None and a.title is None:
         ap.error("a title is required, or --page-for LEDGER")
+    previous = _install_stop_handlers()
     try:
         top = git_top(Path(a.project) if a.project else Path.cwd())
         if a.page_for is not None:
@@ -515,6 +597,13 @@ def main(argv: list[str]) -> int:
         print(f"new-proposal: could not read or write {exc.filename or ''}: {exc.strerror or exc}",
               file=sys.stderr)
         return 2
+    except Stopped as exc:
+        name = signal.Signals(exc.signum).name
+        print(f"new-proposal: stopped by {name}; what this run wrote is removed and index.html put back",
+              file=sys.stderr)
+        return 128 + exc.signum
+    finally:
+        _restore_handlers(previous)
 
 
 if __name__ == "__main__":

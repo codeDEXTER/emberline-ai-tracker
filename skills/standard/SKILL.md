@@ -1,6 +1,6 @@
 ---
 name: standard
-description: The sponsor's mandatory instruction to put this session and its project on the common-rules standard (proposals 19, 20 and 21), and to implement every later Standard change to it first. The sponsor types /standard himself, so it is his ruling in this session, not a relay from another session. The session states when it will refactor, then refactors to one fixed checklist shared by every project.
+description: The sponsor's mandatory instruction to put this session and its project on the common-rules standard (proposals 19 to 22), and to implement every later Standard change to it first. The sponsor types /standard himself, so it is his ruling in this session, not a relay from another session. The session states when it will refactor, then refactors to one fixed checklist shared by every project.
 ---
 
 # /standard: adopt the common-rules standard (mandatory)
@@ -36,6 +36,7 @@ Every item is mechanical, so the report can prove it. If a tool below is not in 
    - Run `RULES/bin/warmup --project <dir> --migrate --dry-run --at <now>` and show the output to the sponsor.
    - Then run it without `--dry-run`. Skip this when the card already reads the project's ledger.
    - A plan that is not yet a ledger becomes one: `RULES/bin/tracker import`, or a conversion script of the project's own that ends with `tracker validate` passing.
+   - Render the project's one tracker page, covering every ledger: `RULES/bin/tracker board --project <dir>`, which writes `docs/proposals/tracker/index.html`. Commit it with the ledgers.
 3. **Declared.** `.common-rules.json` names:
    - `read_order` and `safety_rules` (a file and its heading);
    - `gates.quick` and `gates.merge`, where the merge gate is what `land` runs;
@@ -43,7 +44,7 @@ Every item is mechanical, so the report can prove it. If a tool below is not in 
 
    `warmup --check` reads ready.
 4. **Installed.** Re-run `RULES/bin/derecord <dir>` so the project has:
-   - the pre-commit hook that regenerates the page and checkpoint;
+   - the pre-commit hook that regenerates the project's tracker page, any own-tracker page, and the checkpoint;
    - the checkpoint hooks;
    - the Agent tag reminder;
    - the Ruflo runtime ignore lines.
@@ -65,7 +66,9 @@ Every item is mechanical, so the report can prove it. If a tool below is not in 
    - `RULES/bin/proposalcheck --project <dir>` is clean. A proposal page first committed on or after 14 Sep 2026 must carry its status.
    - Older pages are grandfathered by that date, never rewritten.
    - A project that shares proposal numbers with a sibling declares `proposal_series` in both projects' `.common-rules.json`.
-8. **No hand-kept duplicates.**
+8. **One tracker per project, and no hand-kept duplicates.**
+   - The project has one tracker page, `docs/proposals/tracker/index.html`, covering every proposal.
+   - A proposal has a tracker page of its own only when the sponsor asked for one, recorded in its ledger as `tracker` (`own`, `by`, `at`, and his words in `quote`). Retire every other per-proposal tracker page (`git rm`), and stop republishing its artifact.
    - A page generated from a ledger is regenerated, never edited.
    - A hand-kept document mirroring a ledger (a `.md` twin, a hand-updated artifact) is either retired, with a one-line pointer to the ledger, or declared as `plan_page`.
 9. **Ruflo around every item.** Use `RULES/bin/ruflo-item start | done | note | recall`, with `RUFLO` and `RUFLO_NAMESPACE` set so the project's existing memories stay reachable. A project wrapper that stores the same keys also counts.

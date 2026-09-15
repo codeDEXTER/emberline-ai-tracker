@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 12:17
+# Checkpoint — 2026-09-15 12:32
 
-Reason: manual · branch: p29-takeover · HEAD: 6997402
+Reason: manual · branch: p22-land · HEAD: a202087
 
-<!-- ledger-digest: 801e705770c1a007445946a3bbdc1cc10ed3adc5f84c6fda4c6ecb8328d0df1c -->
+<!-- ledger-digest: 9d9635f02d79e8ed7904d2f475024ab7eccef25c6f174aef3b92e902e3d3606b -->
 
 ## Proposal 19 · Warm-up
 
@@ -10,7 +10,7 @@ Reason: manual · branch: p29-takeover · HEAD: 6997402
 
 ### In progress
 
-- W-10 · [ruflo · lead · lead model] · Pilot on the PhotoVault engine; measure the exit conditions · what remains
+- W-10 · [ruflo · low · haiku] · Pilot on the PhotoVault engine; measure the exit conditions · re-tiered
 
 ### Blocked, and why
 
@@ -42,16 +42,16 @@ Reason: manual · branch: p29-takeover · HEAD: 6997402
 
 ### Next unblocked
 
-- S-07 · [ruflo · lead · lead model] · PhotoVault app on the standard
-- S-08 · [ruflo · lead · lead model] · PhotoVault engine on the standard
+- S-07 · [ruflo · low · haiku] · PhotoVault app on the standard
+- S-08 · [ruflo · low · haiku] · PhotoVault engine on the standard
 
 ## Proposal 22 · One tracker per project
 
-1 done / 0 in progress / 0 blocked / 4 not started
+3 done / 1 in progress / 0 blocked / 1 not started
 
 ### In progress
 
-- none
+- T-04 · [ruflo · medium · sonnet] · common-rules on one tracker · re-tiered
 
 ### Blocked, and why
 
@@ -63,7 +63,7 @@ Reason: manual · branch: p29-takeover · HEAD: 6997402
 
 ### Next unblocked
 
-- T-02 · [ruflo · high · opus] · The chain reads the project page, not one page per proposal
+- none
 
 ## Proposal 24 · Autonomous work without missing anything
 
@@ -173,7 +173,7 @@ Reason: manual · branch: p29-takeover · HEAD: 6997402
 
 ### In progress
 
-- K-01 · [ruflo · lead · lead model] · Land p22 on main · started
+- K-01 · [ruflo · lead · lead model] · Land p22 on main · review: fix-first
 
 ### Blocked, and why
 
@@ -181,7 +181,7 @@ Reason: manual · branch: p29-takeover · HEAD: 6997402
 
 ### Open asks
 
-- A-04 · "Also in the board, refactor to utilize lower agents as much as possible."
+- none
 
 ### Next unblocked
 
@@ -190,4 +190,4 @@ Reason: manual · branch: p29-takeover · HEAD: 6997402
 
 ## Exact next action
 
-W-10 · [ruflo · lead · lead model] · Pilot on the PhotoVault engine; measure the exit conditions
+W-10 · [ruflo · low · haiku] · Pilot on the PhotoVault engine; measure the exit conditions
