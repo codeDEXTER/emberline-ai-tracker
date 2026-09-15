@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>26 · accepted · Cluster work by contribution and risk</title>
+<meta name="proposal-id" content="26">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-15">
+<meta name="common-rules-template" content="proposal/21">
+<!--
+  Written by common-rules bin/new-proposal from templates/proposal.html
+  (proposal 21, S-02). Replace every highlighted passage; delete none of
+  the sections. The status appears in four places that must agree: the
+  proposal-status meta above, the <title>, the <h1>, and the
+  "Proposal NN · proposed DATE" line under the heading. The Decided
+  section below says exactly what to change when the sponsor answers.
+-->
+<style>
+  :root {
+    --ground: #F1F2F4; --surface: #FFFFFF; --ink: #16191D; --dim: #5E6873;
+    --border: #D3D8DE; --accent: #C2521F; --accent-soft: #F7E3D8;
+    --fill: #FFF3BF; --fill-ink: #5C4400;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #111417; --surface: #1A1F24; --ink: #E5E8EB; --dim: #939DA7;
+      --border: #2F3841; --accent: #EE7A45; --accent-soft: #3A2419;
+      --fill: #3B3313; --fill-ink: #F2DC8C;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 90px; }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.01em; margin: 0; }
+  h1 .num, h1 .status { color: var(--accent); }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 40px 0 10px; }
+  .sub { color: var(--dim); margin: 10px 0 0; max-width: 72ch; }
+  .card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; margin-top: 12px; }
+  blockquote { margin: 0; padding: 14px 20px; background: var(--surface); border-left: 3px solid var(--accent); font-size: 17px; }
+  blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--dim); }
+  .opt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .opt .card h3 { margin: 0 0 6px; font-size: 16px; }
+  ol.decisions { background: var(--surface); border: 1px solid var(--border); margin: 12px 0 0; padding: 14px 20px 14px 44px; }
+  ol.decisions li + li { margin-top: 6px; }
+  .slot { border: 1px dashed var(--border); padding: 14px 20px; margin-top: 12px; color: var(--dim); }
+  .slot li + li { margin-top: 8px; }
+  .m { font-family: var(--mono); font-size: .9em; }
+  pre.m { background: var(--surface); color: var(--ink); border: 1px solid var(--border); padding: 8px 12px; margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .fill { background: var(--fill); color: var(--fill-ink); padding: 0 3px; }
+  .src { font-size: 13px; color: var(--dim); margin-top: 36px; }
+  .opt .card p { margin: 0 0 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--dim); font-weight: 600; font-size: 13px; }
+  .tbl { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="num">26</span> · <span class="status">accepted</span> · Cluster work by contribution and risk</h1>
+<p class="sub">Proposal 26 · accepted 2026-09-15. Every queued change gets a contribution share and a risk score. The changes that together make up 90% of the value are built now; the last 10% is batched daily, weekly or when its surface is next touched, and stays tracked. Reviews and full test runs happen once per cluster, not once per item. Amends proposal 25, which is accepted but not built.</p>
+
+<h2>The ask</h2>
+<blockquote>
+  So if the reviews and all that can be also done in clusters so reviews and main testing, so can you think of some kind of a formula where we can analyse and see what is the percentage of contribution by these changes in the overall changes, what might be the impact what might be the risk? Is it a user visible risk, or is it a pack and risk? Does it completely stop working? Everything? Does it improve something and based on the different priorities and different percentage of contribution and percentage of risk it prioritise how to cluster these tasks. So lower ones can be done like once in a day or once in a week or when something else is done, can be deferred for later. At least I want to get the 90% of the work done rather than focusing on the last 10% and the majority is completed, but things are tracked.
+  <cite>The sponsor, 15 September 2026, in the Common Rules rework session; proposal 26 ask A-01.</cite>
+</blockquote>
+
+<h2>What was found</h2>
+<div class="card">
+  <ul>
+    <li>Not implemented anywhere. Proposal 25 (accepted 15 September, not built) adds value, points and a risk class to each item and routes review depth and bundling from them. It has no contribution share, no failure-impact scale, no 90% cut line and no deferral cadence.</li>
+    <li>Reviews and gates run per item today. Proposal 23's seven levers landed as one bundle but got one merge gate and one review, then <span class="m">ruflo-item done</span> ran the full suite seven more times, about 45 minutes, in a checkout 14 commits behind main.</li>
+    <li>Change sizes are uneven. Proposal 23 by lines changed: <span class="m">tracker set/ask</span> 551 (37%), <span class="m">bin/quiet</span> 388 (26%), rules and templates 315 (21%), lead fixes 232 (16%). Two changes carried 63% of the work.</li>
+    <li>Not verified: that 90% of value sits in a minority of items for every project. Lines are a stand-in here; the formula uses value times points.</li>
+  </ul>
+</div>
+
+<h2>Options</h2>
+<div class="opt">
+  <div class="card">
+    <h3>A · Score, cut at 90%, batch the tail</h3>
+    <p>Each change: <b>share</b> = value × points ÷ the queue's total; <b>impact</b> if it fails, 1–4; <b>likelihood</b>, 1–3; <b>risk</b> = impact × likelihood. Sort by share; the changes reaching 90% cumulative are built now, the rest go to daily, weekly or when-touched batches by risk. Costs: two fields and a scorer on top of proposal 25.</p>
+  </div>
+  <div class="card">
+    <h3>B · Risk-only lanes</h3>
+    <p>No contribution share. High risk now, medium daily, low weekly. Costs: least. Rules out: finishing the valuable 90% first; a large valuable change with low risk waits a week.</p>
+  </div>
+  <div class="card">
+    <h3>C · Sponsor ranks, fixed cadence</h3>
+    <p>You order the queue; the top ten each day are built, everything else goes weekly. Costs: your time daily. Rules out: risk shaping when things get reviewed.</p>
+  </div>
+</div>
+<p><b>Recommended:</b> A. It is the only option that uses both numbers you asked for, share of the work and risk, and it keeps every deferred change on the board with a date.</p>
+<div class="card">
+  <b>The formula under option A</b>
+  <div class="tbl"><table>
+    <tr><th>Field</th><th>Scale</th></tr>
+    <tr><td>share</td><td>value (high 3, medium 2, low 1) × points (1, 2, 3, 5, 8, 13) ÷ the same for every open change</td></tr>
+    <tr><td>impact if it breaks</td><td>4 stops everything (app will not start, data lost, every session blocked) · 3 a user-visible feature breaks · 2 user-visible but still works (looks wrong, slower) · 1 back-end only, invisible, recoverable</td></tr>
+    <tr><td>likelihood</td><td>1 small and covered by tests · 2 medium or partly covered · 3 large, new, or an untested path</td></tr>
+    <tr><td>risk</td><td>impact × likelihood, 1–12; money, user data, secrets, releases and common-rules count as at least 9</td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>Lane</th><th>Who</th><th>Review and full suite</th></tr>
+    <tr><td>Now · risk 9+</td><td>in the top 90% of share</td><td>own branch, reviewer, full suite</td></tr>
+    <tr><td>Now · risk under 9</td><td>in the top 90%</td><td>bundled by surface; one full suite per bundle; reviewer only if the bundle's highest risk is 6+</td></tr>
+    <tr><td>Daily batch</td><td>the last 10%, risk 6+</td><td>one agent, one suite, one review of the combined diff, once a day</td></tr>
+    <tr><td>Weekly batch</td><td>the last 10%, risk 3–5</td><td>one agent, one suite, once a week; reviewer only for the batch's riskiest change</td></tr>
+    <tr><td>When touched</td><td>the last 10%, risk 1–2</td><td>done when a bundle next touches that surface; re-scored after 30 days</td></tr>
+  </table></div>
+</div>
+<h2>Decisions</h2>
+<p class="sub">Each numbered line is one thing the sponsor answers. Keep the numbers stable once shown: answers and ledger items cite them.</p>
+<ol class="decisions">
+  <li><b>D1.</b> Scheme: A (share, impact × likelihood, 90% cut, batched tail), B (risk-only lanes) or C (you rank, fixed cadence)?</li>
+  <li><b>D2.</b> Share of the work: value × points (from proposal 25), lines changed, or your own ranking?</li>
+  <li><b>D3.</b> Cut line for "now": 90%, 80% or 95% of the queue's share?</li>
+  <li><b>D4.</b> Tail cadence: risk 6+ daily, 3–5 weekly, 1–2 when touched; or the whole tail weekly; or the whole tail when touched?</li>
+  <li><b>D5.</b> Reviews and the full test suite once per bundle or batch, including one <span class="m">ruflo-item done</span> for several items, with risk-9+ changes still alone; or keep per item?</li>
+  <li><b>D6.</b> Deferred changes re-scored after 30 days, 14 days, or never automatically?</li>
+</ol>
+
+<h2>Decided</h2>
+<section class="slot" id="decided">
+  <p>Decided by the sponsor on 15 September 2026, 09:17–09:18 CEST, on the Clusters &amp; Costs Decisions page (database collection <span class="m">answers</span>, documents P26-D1 to P26-D6), recorded as asks A-02 to A-07. No notes.</p>
+  <ul>
+    <li><b>D1:</b> A · Share and risk, cut, batch the tail. → C-02</li>
+    <li><b>D2:</b> A · Share is value × points. → C-01</li>
+    <li><b>D3:</b> B · The cut line is <b>80%</b>, not 90%. → C-02</li>
+    <li><b>D4:</b> A · Tail by risk: 6+ daily, 3–5 weekly, 1–2 when touched. → C-02</li>
+    <li><b>D5:</b> A · One review and one full suite per bundle or batch; restricted changes alone. → C-03</li>
+    <li><b>D6:</b> B · Deferred changes re-scored after <b>14 days</b>. → C-04</li>
+  </ul>
+</section>
+
+<p class="src">Sources: the sponsor's message (proposal 26 ask A-01); proposal 25 ledger and page; proposal 23 ledger and PR 173 (git diff --numstat per commit: 2b0bfc3, 58ad5da, 6eab815, bd0d4eb..7b73296); bin/ruflo-item source (done runs the project's merge gate before post-task) and its 15 September run. Not verified: the 90/10 split on other projects' queues.</p>
+
+</div>
+</body>
+</html>

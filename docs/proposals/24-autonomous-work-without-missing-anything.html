@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>24 · accepted · Autonomous work without missing anything</title>
+<meta name="proposal-id" content="24">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-15">
+<meta name="common-rules-template" content="proposal/21">
+<!--
+  Written by common-rules bin/new-proposal from templates/proposal.html
+  (proposal 21, S-02), then filled in by the Common Rules rework session.
+-->
+<style>
+  :root {
+    --ground: #F1F2F4; --surface: #FFFFFF; --ink: #16191D; --dim: #5E6873;
+    --border: #D3D8DE; --accent: #C2521F; --accent-soft: #F7E3D8;
+    --fill: #FFF3BF; --fill-ink: #5C4400;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #111417; --surface: #1A1F24; --ink: #E5E8EB; --dim: #939DA7;
+      --border: #2F3841; --accent: #EE7A45; --accent-soft: #3A2419;
+      --fill: #3B3313; --fill-ink: #F2DC8C;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 90px; }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.01em; margin: 0; }
+  h1 .num, h1 .status { color: var(--accent); }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 40px 0 10px; }
+  .sub { color: var(--dim); margin: 10px 0 0; max-width: 72ch; }
+  .card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; margin-top: 12px; }
+  blockquote { margin: 0; padding: 14px 20px; background: var(--surface); border-left: 3px solid var(--accent); font-size: 17px; }
+  blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--dim); }
+  .opt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .opt .card h3 { margin: 0 0 6px; font-size: 16px; }
+  .opt .card p { margin: 0 0 6px; }
+  ol.decisions { background: var(--surface); border: 1px solid var(--border); margin: 12px 0 0; padding: 14px 20px 14px 44px; }
+  ol.decisions li + li { margin-top: 6px; }
+  .slot { border: 1px dashed var(--border); padding: 14px 20px; margin-top: 12px; color: var(--dim); }
+  .slot li + li { margin-top: 8px; }
+  .m { font-family: var(--mono); font-size: .9em; }
+  pre.m { background: var(--surface); color: var(--ink); border: 1px solid var(--border); padding: 8px 12px; margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .src { font-size: 13px; color: var(--dim); margin-top: 36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="num">24</span> · <span class="status">accepted</span> · Autonomous work without missing anything</h1>
+<p class="sub">Proposal 24 · accepted 2026-09-15. Proposal 23 makes lead sessions short-lived (lever L1). The sponsor accepted that on one condition: nothing important is missed when a lead ends, and work keeps moving without him. This proposal asks how.</p>
+
+<h2>The ask</h2>
+<blockquote>
+  how we will ensure nothing important is missed. make a separate proposal. also the work needs to continue autonomsly.
+  <cite>The sponsor, 14 September 2026 at 23:53 CEST, as his note on lever L1 of the Eight Levers page (database collection picks, document L1); recorded as proposal 23, ask A-10.</cite>
+</blockquote>
+
+<h2>What was found</h2>
+<div class="card">
+  <ul>
+    <li>What a lead holds that a fresh lead must not lose: sponsor messages not yet recorded as asks, agents still running and their worktrees, findings in agent reports, notes left on published pages, and the next action.</li>
+    <li>The standard already carries most of it on disk: HANDOFF.md, the ledger, <span class="m">tracker checkpoint</span>, and <span class="m">/warmup</span>, which reads them in a fixed order. The gap is the moment of ending: nothing checks those files are complete before a lead stops.</li>
+    <li>Compaction summaries are paraphrase. On 4 September a summary's wording was quoted as the sponsor's words ten times in photo-vault. A handover must be the files, not the summary.</li>
+    <li>Agents report back to the session that started them. If a lead ends while an agent runs, the report arrives nowhere unless the handover names the agent and its worktree and the next lead reads the branch.</li>
+    <li>Not verified: whether a lead can start the next lead session without a click from the sponsor. The desktop app offers messages to existing sessions and scheduled tasks; neither has been tried for this.</li>
+  </ul>
+</div>
+
+<h2>Options</h2>
+<div class="opt">
+  <div class="card">
+    <h3>A · Closing check, then a new lead</h3>
+    <p>A lead may end only after <span class="m">bin/handover --check</span> passes: every sponsor message since it started has an ask row, every running agent is in the ledger with its worktree, the checkpoint matches the ledger, and <span class="m">warmup --check</span> reads ready. The next lead starts from <span class="m">/warmup</span>.</p>
+    <p>Costs: one new tool with tests. Rules out: ending a lead mid-item without a record.</p>
+  </div>
+  <div class="card">
+    <h3>B · Thin dispatcher, short item leads</h3>
+    <p>One long-lived dispatcher holds only the queue: ledger, asks, and which bundle runs where. It never reads diffs, logs or images, so its context stays small. Each bundle gets its own short lead that merges and ends. The closing check from A runs when each item lead ends.</p>
+    <p>Costs: a new role and brief. Rules out: the dispatcher doing review or checks itself.</p>
+  </div>
+  <div class="card">
+    <h3>C · Same session, clear and warm up</h3>
+    <p>No new session. At about 150k context the lead writes the checkpoint, clears its context and runs <span class="m">/warmup</span>. Autonomy is untouched because the session never ends.</p>
+    <p>Costs: little. Rules out nothing, but depends on the lead being able to clear itself, which is not verified.</p>
+  </div>
+</div>
+<p><b>Recommended:</b> B with A's closing check. The dispatcher is the one thing that never ends, so work keeps moving, and every short lead is checked before it stops, so nothing is dropped.</p>
+
+<h2>Decisions</h2>
+<p class="sub">Each numbered line is one thing the sponsor answers. Keep the numbers stable once shown: answers and ledger items cite them.</p>
+<ol class="decisions">
+  <li><b>D1.</b> Which shape: A (closing check, new lead), B (thin dispatcher with short item leads) or C (one session that clears and warms up)?</li>
+  <li><b>D2.</b> Is the closing check list complete: asks recorded, running agents named with worktrees, checkpoint matches ledger, warmup ready? What else must a lead prove before it ends?</li>
+  <li><b>D3.</b> Who starts the next lead: the dispatcher or a scheduled task, without asking you; or you, with one click?</li>
+  <li><b>D4.</b> When running unattended, does the stop list stay as today (destructive or irreversible work, work outside the plan, a decision the plan records as yours), with nothing added?</li>
+</ol>
+
+<h2>Decided</h2>
+<section class="slot" id="decided">
+  <p>Decided by the sponsor on 15 September 2026, 00:11 CEST, by tapping one answer per decision on the Autonomy &amp; Sizing Decisions page. His answers are stored in that page's database (collection <span class="m">answers</span>, documents P24-D1 to P24-D4) and copied into this proposal's ledger as asks A-02 to A-05. He added no notes.</p>
+  <ul>
+    <li><b>D1:</b> B · Thin dispatcher and short item leads. → H-02</li>
+    <li><b>D2:</b> A · The four checks (asks recorded, running agents named with worktrees, checkpoint matches ledger, warmup ready). → H-01</li>
+    <li><b>D3:</b> A · The dispatcher starts the next lead, without asking. → H-03</li>
+    <li><b>D4:</b> A · Keep today's three stops, nothing added.</li>
+  </ul>
+</section>
+
+<p class="src">Sources: the sponsor's L1 note, Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip (database collection picks, document L1, 2026-09-14T21:53:32Z); proposal 23 ledger ask A-10 and item X-03; common-rules HANDOFF.md, docs/OPERATING-RULES.md section 7 (summaries are paraphrase), CLAUDE-workflow.md "The accepted plan is the queue" (the current stop list). Not verified: whether a lead can start or clear a session without the sponsor's click.</p>
+
+</div>
+</body>
+</html>

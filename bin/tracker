@@ -16,6 +16,12 @@
                                        record a page of its own: a ledger that       (P20 V-09;
                                        records `tracker.own`, or the declared         V-11;
                                        plan_page with --page                          P22 T-03)
+  tracker set LEDGER ITEM_ID [--status S] [--owner O] [--field K=V ...]
+                              [--event TEXT] [--evidence TEXT] [--by NAME] [--at ISO]
+                                       change one item, log it, re-render the page (P23 L-04)
+  tracker ask LEDGER --kind KIND --quote TEXT [--state S] [--by NAME] [--at ISO]
+                      [--owner O] [--became ITEM] [--source TEXT] [--note TEXT]
+                                       record a sponsor ask as the next A-nn (P23 L-04)
 
 Each command is a module in tools/tracker/ with a `main(argv) -> int`, so
 commands built in parallel never edit the same file.
@@ -29,7 +35,7 @@ from pathlib import Path
 RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
-COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import", "published", "board")
+COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import", "published", "board", "set", "ask")
 
 
 def validate(argv):
