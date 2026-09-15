@@ -24,6 +24,8 @@
                                        record a sponsor ask as the next A-nn (P23 L-04)
   tracker route LEDGER ITEM_ID [--project DIR] [--json]
                                        how one item is reviewed and bundled   (P25 Z-02)
+  tracker lanes LEDGER... [--project DIR] [--json]
+                                       share, risk, the 80% cut, each item's lane (P26 C-02)
 
 Each command is a module in tools/tracker/ with a `main(argv) -> int`, so
 commands built in parallel never edit the same file.
@@ -37,7 +39,7 @@ from pathlib import Path
 RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
-COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import", "published", "board", "set", "ask", "route")
+COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import", "published", "board", "set", "ask", "route", "lanes")
 
 
 def validate(argv):
