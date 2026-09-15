@@ -24,6 +24,34 @@ second time. `--queue` writes to the project's first ledger under
 `docs/proposals`; a project with several ledgers keeps everything else about
 them untouched.
 
+## 2026-09-15 · SessionStart and Stop hooks dispatch to warmup/reheat (P28 R-03)
+
+Proposal 28, R-03 (decided, option A). `hooks/sessionstart` now runs
+`bin/warmup` (plain card, no `--queue`: a hook never writes) on `startup`,
+and `bin/warmup --reheat` on `compact` or `resume` -- always with
+`--no-pull`, keeping this hook's own read-only, no-network contract even
+though warmup's plain card and `--reheat` otherwise fast-forward the rules
+checkout (R-05). `clear`, or no source at all, keeps the pre-R-03 one-line-
+per-ledger summary outright. Every dispatch is bounded by a hard timeout
+(`WARMUP_TIMEOUT`, default 8s, overridable only via
+`COMMON_RULES_HOOK_TIMEOUT` for tests) and falls back to that same one-line
+summary on any failure or timeout -- never to a failed session.
+`hooks/stop` now also compares the shared rules checkout's current HEAD
+(`git rev-parse`, never a fetch) against the `rules_head` warmup's own state
+file recorded, and prints `rules moved -- run /reheat` when they differ; the
+same timeout override applies to that check.
+
+Measured end to end (subprocess start to exit): common-rules' own checkout,
+startup/resume/compact ~2.0s each; a small fixture project, ~1.6s each;
+`hooks/stop`'s rules-moved check, ~0.4s. All well under the 8s default and
+the 10s ceiling this item asked for.
+
+**Behaviour change:** a SessionStart hook that used to print one line per
+open ledger on `startup` and `resume` now prints warmup's or reheat's full
+card/delta instead (more text, more subprocess and git work per session
+start) -- bounded by the timeout above, and unchanged for `clear` or a
+missing source.
+
 ## 2026-09-15 · /standard folds into /warmup; /reheat is new (P28 R-02)
 
 Proposal 28, R-02 (decided, option A). New `skills/reheat/SKILL.md` for a

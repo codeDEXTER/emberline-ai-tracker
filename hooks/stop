@@ -10,6 +10,14 @@ is true (Claude Code re-invoking Stop hooks on a hook-triggered continuation
 would otherwise recurse the same write). Never fails the session: every
 exception is swallowed, the exit code is always 0, and nothing is printed
 on success.
+
+RULES MOVED (proposal 28, R-03). warmup's own state file (the one --state or
+--reheat writes, at bin/warmup's default_state_path) carries the shared
+rules checkout's HEAD as of that run. If this project has such a state file
+and the checkout has moved past it since -- read with `git rev-parse`, never
+a fetch -- this hook prints one line: `rules moved -- run /reheat`. No state
+file, or a checkout that has not moved, prints nothing. Hard-timed the same
+as the checkpoint write below; still exits 0 on any failure.
 """
 from __future__ import annotations
 
@@ -22,6 +30,39 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
+
+RULES_MOVED_TIMEOUT = float(os.environ.get("COMMON_RULES_HOOK_TIMEOUT", "5"))
+
+
+def _load_warmup():
+    import importlib.machinery
+    import importlib.util
+    loader = importlib.machinery.SourceFileLoader("warmup_for_stop", str(REPO / "bin" / "warmup"))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def _rules_moved_line(project: Path) -> str | None:
+    try:
+        import subprocess
+        W = _load_warmup()
+        state_path = W.default_state_path(project)
+        if not state_path.is_file():
+            return None
+        old = json.loads(state_path.read_text())
+        saved = old.get("rules_head")
+        if not saved:
+            return None
+        r = subprocess.run(["git", "-C", str(W.RULES_DIR), "rev-parse", "HEAD"],
+                           capture_output=True, text=True, timeout=RULES_MOVED_TIMEOUT, check=False)
+        current = r.stdout.strip() if r.returncode == 0 else None
+        if current and current != saved:
+            return "rules moved -- run /reheat"
+    except Exception:
+        return None
+    return None
 
 
 def _read_payload() -> dict:
@@ -47,6 +88,9 @@ def main() -> int:
         from tools.tracker import checkpoint
         with contextlib.redirect_stdout(io.StringIO()):
             checkpoint.main(["--project", str(project), "--reason", "stop", "--if-changed"])
+        line = _rules_moved_line(Path(project))
+        if line:
+            print(line)
     except Exception:
         pass
     return 0
