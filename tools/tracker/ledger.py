@@ -51,6 +51,12 @@ SWITCHES = ("issues", "publish", "ruflo")                     # D5
 REQUEST_ID = re.compile(r"^RQ-\d{2,}\Z")                       # D7
 REQUEST_STATES = ("open", "in progress", "answered", "declined")
 
+# Proposal 25 (Z-01): what an item is worth, how big it is, how carefully it
+# is reviewed and which surface it is bundled with. Optional, like the above.
+VALUES = ("high", "medium", "low")
+POINTS = (1, 2, 3, 5, 8, 13)
+RISKS = ("standard", "elevated", "restricted")
+
 
 def load(path) -> dict:
     """Read a ledger. Raises ValueError naming the file when it is not JSON."""
@@ -180,6 +186,7 @@ def validate(ledger: dict) -> list[str]:
             problems.append(f"{name}: no `quote` -- an ask is recorded in the sponsor's words")
         if a.get("state") == "became-item" and not a.get("became"):
             problems.append(f"{name}: became-item but `became` names nothing")
+    problems.extend(_validate_sizing(ledger))
     problems.extend(_validate_v2(ledger, ids, ask_ids))
     problems.extend(_validate_tracker(ledger))
     # A message can quote a malformed id; every problem is printed as one line
@@ -235,6 +242,27 @@ def _not_a_number(value) -> str:
 def _evident(value) -> bool:
     """The PhotoVault app's rule (tools/build_plan.py): true, or a declared "n/a"."""
     return value is True or value == "n/a"
+
+
+def _int_in(value, allowed) -> bool:
+    """An int from `allowed` -- not a bool, not a float that equals one."""
+    return type(value) is int and value in allowed
+
+
+def _validate_sizing(ledger: dict) -> list[str]:
+    """Proposal 25's value, points, risk and cluster, each checked only when present."""
+    problems: list[str] = []
+    for n, i in enumerate(items(ledger)):
+        name = i.get("id") or f"items[{n}]"
+        if "value" in i and i["value"] not in VALUES:
+            problems.append(f"{name}: value {i['value']!r} is not one of {', '.join(VALUES)}")
+        if "points" in i and not _int_in(i["points"], POINTS):
+            problems.append(f"{name}: points {i['points']!r} is not one of {', '.join(map(str, POINTS))}")
+        if "risk" in i and i["risk"] not in RISKS:
+            problems.append(f"{name}: risk {i['risk']!r} is not one of {', '.join(RISKS)}")
+        if "cluster" in i and not (_one_line(i["cluster"]) and i["cluster"].strip()):
+            problems.append(f"{name}: cluster must be a surface name, one line of text")
+    return problems
 
 
 def _validate_v2(ledger: dict, ids: set, ask_ids: set) -> list[str]:
