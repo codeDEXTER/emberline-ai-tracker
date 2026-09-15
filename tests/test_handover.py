@@ -135,6 +135,35 @@ class CheckAsksTests(unittest.TestCase):
         mark, detail = H.check_asks(self.root, t, datetime(2026, 1, 1, 9, tzinfo=timezone.utc))
         self.assertEqual(H.PASS, mark, detail)
 
+    def test_two_messages_three_minutes_apart_need_two_ask_rows(self):
+        """Regression (bundle-d review, MEDIUM-HIGH): matching used to be
+        many-to-one -- any ask within +/-10 minutes covered any message,
+        so two distinct sponsor messages three minutes apart both counted
+        as covered by the same single ask row. One ask can cover only one
+        message; the second, unrelated message here must still fail."""
+        write_ledger(self.root, "90-fixture.json", base_ledger(asks=[
+            {"id": "A-01", "at": "2026-01-01T10:00:00+00:00", "by": "sponsor", "kind": "instruction",
+             "quote": "an ask that matches neither message by text", "state": "open", "became": None},
+        ]))
+        t = self.write_transcript([
+            self.user_entry("first unrelated sponsor message", "2026-01-01T10:01:00+00:00"),
+            self.user_entry("second unrelated sponsor message", "2026-01-01T10:04:00+00:00"),
+        ])
+        mark, detail = H.check_asks(self.root, t, None)
+        self.assertEqual(H.FAIL, mark, detail)
+        self.assertIn("1 sponsor message", detail)
+
+    def test_quote_match_ignores_case_and_collapsed_whitespace(self):
+        write_ledger(self.root, "90-fixture.json", base_ledger(asks=[
+            {"id": "A-01", "at": "2026-01-01T10:00:00+00:00", "by": "sponsor", "kind": "instruction",
+             "quote": "Please   RENAME the\nwidget to gadget", "state": "open", "became": None},
+        ]))
+        t = self.write_transcript([
+            self.user_entry("please rename the widget to gadget", "2026-01-01T12:00:00+00:00"),
+        ])
+        mark, detail = H.check_asks(self.root, t, None)
+        self.assertEqual(H.PASS, mark, detail)
+
 
 class CheckWorktreesTests(unittest.TestCase):
     def setUp(self):
