@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 12:12
+# Checkpoint — 2026-09-15 12:32
 
-Reason: manual · branch: p22-land · HEAD: 9ae271f
+Reason: manual · branch: p22-land · HEAD: a202087
 
-<!-- ledger-digest: 8bf9f1a351cfbbe31429d929f07d24794024d14fe668b3b2459200dd22d369ba -->
+<!-- ledger-digest: 9d9635f02d79e8ed7904d2f475024ab7eccef25c6f174aef3b92e902e3d3606b -->
 
 ## Proposal 19 · Warm-up
 
@@ -10,7 +10,7 @@ Reason: manual · branch: p22-land · HEAD: 9ae271f
 
 ### In progress
 
-- W-10 · [ruflo · lead · lead model] · Pilot on the PhotoVault engine; measure the exit conditions · what remains
+- W-10 · [ruflo · low · haiku] · Pilot on the PhotoVault engine; measure the exit conditions · re-tiered
 
 ### Blocked, and why
 
@@ -42,8 +42,8 @@ Reason: manual · branch: p22-land · HEAD: 9ae271f
 
 ### Next unblocked
 
-- S-07 · [ruflo · lead · lead model] · PhotoVault app on the standard
-- S-08 · [ruflo · lead · lead model] · PhotoVault engine on the standard
+- S-07 · [ruflo · low · haiku] · PhotoVault app on the standard
+- S-08 · [ruflo · low · haiku] · PhotoVault engine on the standard
 
 ## Proposal 22 · One tracker per project
 
@@ -51,7 +51,7 @@ Reason: manual · branch: p22-land · HEAD: 9ae271f
 
 ### In progress
 
-- T-04 · [ruflo · lead · lead model] · common-rules on one tracker · started, wording only
+- T-04 · [ruflo · medium · sonnet] · common-rules on one tracker · re-tiered
 
 ### Blocked, and why
 
@@ -123,7 +123,7 @@ Reason: manual · branch: p22-land · HEAD: 9ae271f
 
 ### Next unblocked
 
-- C-01 · [ruflo · medium · sonnet] · Impact and likelihood on items
+- C-01 · [ruflo · low · haiku] · Impact and likelihood on items
 - C-03 · [ruflo · medium · sonnet] · One gate and review per bundle or batch
 
 ## Proposal 27 · Time and tokens per task, in one place
@@ -146,6 +146,48 @@ Reason: manual · branch: p22-land · HEAD: 9ae271f
 
 - W-01 · [ruflo · medium · sonnet] · Fix bin/spend: subagents, once per response, all token kinds
 
+## Proposal 28 · Two commands: warmup and reheat
+
+0 done / 0 in progress / 0 blocked / 5 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- R-01 · [ruflo · medium · sonnet] · bin/warmup runs the standard every time, in both modes
+- R-05 · [ruflo · medium · sonnet] · Fast-forward the shared common-rules checkout when behind
+
+## Proposal 29 · Taking over the Common Rules chat v1 work
+
+0 done / 1 in progress / 0 blocked / 6 not started
+
+### In progress
+
+- K-01 · [ruflo · lead · lead model] · Land p22 on main · review: fix-first
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- K-04 · [ruflo · low · haiku] · PhotoVault app and engine on the standard (P21 S-07, S-08)
+- K-05 · [ruflo · low · haiku] · Proposal 19 pilot exit conditions (W-10)
+
 ## Exact next action
 
-W-10 · [ruflo · lead · lead model] · Pilot on the PhotoVault engine; measure the exit conditions
+W-10 · [ruflo · low · haiku] · Pilot on the PhotoVault engine; measure the exit conditions

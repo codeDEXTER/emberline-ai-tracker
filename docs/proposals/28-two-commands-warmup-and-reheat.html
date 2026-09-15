@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>28 · accepted · Two commands: warmup and reheat</title>
+<meta name="proposal-id" content="28">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-15">
+<meta name="common-rules-template" content="proposal/21">
+<!--
+  Written by common-rules bin/new-proposal from templates/proposal.html
+  (proposal 21, S-02). Replace every highlighted passage; delete none of
+  the sections. The status appears in four places that must agree: the
+  proposal-status meta above, the <title>, the <h1>, and the
+  "Proposal NN · proposed DATE" line under the heading. The Decided
+  section below says exactly what to change when the sponsor answers.
+-->
+<style>
+  :root {
+    --ground: #F1F2F4; --surface: #FFFFFF; --ink: #16191D; --dim: #5E6873;
+    --border: #D3D8DE; --accent: #C2521F; --accent-soft: #F7E3D8;
+    --fill: #FFF3BF; --fill-ink: #5C4400;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #111417; --surface: #1A1F24; --ink: #E5E8EB; --dim: #939DA7;
+      --border: #2F3841; --accent: #EE7A45; --accent-soft: #3A2419;
+      --fill: #3B3313; --fill-ink: #F2DC8C;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 90px; }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.01em; margin: 0; }
+  h1 .num, h1 .status { color: var(--accent); }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 40px 0 10px; }
+  .sub { color: var(--dim); margin: 10px 0 0; max-width: 72ch; }
+  .card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; margin-top: 12px; }
+  blockquote { margin: 0; padding: 14px 20px; background: var(--surface); border-left: 3px solid var(--accent); font-size: 17px; }
+  blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--dim); }
+  .opt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .opt .card h3 { margin: 0 0 6px; font-size: 16px; }
+  ol.decisions { background: var(--surface); border: 1px solid var(--border); margin: 12px 0 0; padding: 14px 20px 14px 44px; }
+  ol.decisions li + li { margin-top: 6px; }
+  .slot { border: 1px dashed var(--border); padding: 14px 20px; margin-top: 12px; color: var(--dim); }
+  .slot li + li { margin-top: 8px; }
+  .m { font-family: var(--mono); font-size: .9em; }
+  pre.m { background: var(--surface); color: var(--ink); border: 1px solid var(--border); padding: 8px 12px; margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .fill { background: var(--fill); color: var(--fill-ink); padding: 0 3px; }
+  .src { font-size: 13px; color: var(--dim); margin-top: 36px; }
+  .opt .card p { margin: 0 0 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--dim); font-weight: 600; font-size: 13px; }
+  .tbl { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="num">28</span> · <span class="status">accepted</span> · Two commands: warmup and reheat</h1>
+<p class="sub">Proposal 28 · accepted 2026-09-15. Two commands replace three names: <span class="m">/warmup</span> for a fresh lead, <span class="m">/reheat</span> for a running one. The standard's checks run inside both. Hooks run the right one when a lead starts, resumes or compacts, and the dispatcher starts a new lead with <span class="m">/warmup &lt;item&gt;</span>, so nobody has to type. Both accept free-text context.</p>
+
+<h2>The ask</h2>
+<blockquote>
+  So currently there are standard, warmup and reheat… I want to keep just two warmup and reheat. Standard should always be included. Also if the lead needs to be created again then how will it work with these two or it happens automatically. Show me a visual proposal
+  <cite>The sponsor, 15 September 2026, in the Common Rules rework session; proposal 28 ask A-01.</cite>
+</blockquote>
+
+<h2>What was found</h2>
+<div class="card">
+  <ul>
+    <li>Two commands exist today, <span class="m">/warmup</span> and <span class="m">/standard</span> (skills/warmup, skills/standard). "Reheat" is not a command: it is the sponsor's word for re-warming a running session (proposal 20, ask A-02, "reheat the photovault app and engine"). <span class="m">/warmup</span> already has a mid-session mode (<span class="m">bin/warmup --since</span>).</li>
+    <li><span class="m">/standard</span> is typed once per project by the sponsor: conformance, a 12-item refactor, and every later Standard change queued first.</li>
+    <li>Nothing runs by itself. <span class="m">hooks/sessionstart</span> only nudges toward <span class="m">/warmup</span>; <span class="m">hooks/precompact</span> writes the checkpoint before a compaction.</li>
+    <li>The shared checkout projects read rules from, <span class="m">/Users/aashish/apps/common-rules</span>, sat 14 commits behind <span class="m">origin/main</span> on 15 September, so no project saw proposal 23's Standard change until it was pulled by hand.</li>
+    <li>Proposal 24 (accepted) already decided a thin dispatcher, short item leads, a closing check before a lead ends, and that the dispatcher starts the next lead without asking.</li>
+    <li>Not verified: that a SessionStart hook can run a full warm-up within Claude Code's hook time limit. R-03 measures it first.</li>
+  </ul>
+</div>
+
+<h2>Options</h2>
+<div class="opt">
+  <div class="card">
+    <h3>A · Two commands, standard inside, hooks run them</h3>
+    <p><span class='m'>/warmup</span> for a fresh lead (full read and card), <span class='m'>/reheat</span> for a running one (what changed). Conformance and new Standard changes are checked and queued in both. SessionStart runs warmup on startup and reheat on compact or resume; a rules change mid-session triggers reheat at the next stop.</p>
+  </div>
+  <div class="card">
+    <h3>B · Keep three commands</h3>
+    <p><span class='m'>/warmup</span>, <span class='m'>/reheat</span> and <span class='m'>/standard</span> side by side. Rules out: the one-name habit the sponsor asked for.</p>
+  </div>
+  <div class="card">
+    <h3>C · One command that decides</h3>
+    <p><span class='m'>/warmup</span> detects a fresh or running session and does the right amount. Rules out: asking for a short refresh on purpose.</p>
+  </div>
+</div>
+<p><b>Recommended:</b> A. It keeps the two names the sponsor asked for, folds the standard in, and removes typing from a lead's whole life.</p>
+
+<div class="card">
+  <b>What each one runs</b>
+  <div class="tbl"><table>
+    <tr><th>Step</th><th>warmup</th><th>reheat</th></tr>
+    <tr><td>Read HANDOFF, rules, ledgers, checkpoint in order</td><td>all</td><td>changed only</td></tr>
+    <tr><td>Warm card</td><td>full</td><td>delta lines</td></tr>
+    <tr><td>Conformance, 12 items</td><td>yes</td><td>if rules moved</td></tr>
+    <tr><td>New Standard changes queued as ledger items</td><td>yes</td><td>yes</td></tr>
+    <tr><td>Fast-forward the shared common-rules checkout when behind</td><td>yes</td><td>yes</td></tr>
+    <tr><td>Free-text context shown on the card and carried into the first steps</td><td>yes</td><td>yes</td></tr>
+  </table></div>
+</div>
+
+<h2>Decisions</h2>
+<p class="sub">Each numbered line is one thing the sponsor answers. Keep the numbers stable once shown: answers and ledger items cite them.</p>
+<ol class="decisions">
+  <li><b>D1.</b> How many commands: two (/warmup and /reheat, standard folded in), three, or one that decides?</li>
+  <li><b>D2.</b> Standard inside them: checked and queued as ledger items every time, or shown on the card only?</li>
+  <li><b>D3.</b> Should they run by themselves from the hooks, or should the hook only nudge?</li>
+  <li><b>D4.</b> When a lead must be created again: the dispatcher starts it with /warmup &lt;item&gt;, or the sponsor starts it?</li>
+  <li><b>D5.</b> /standard: a shortcut to /warmup for one release then removed, or removed now?</li>
+  <li><b>D6.</b> Pull the shared common-rules checkout automatically (fast-forward only, when behind), or warn on the card?</li>
+</ol>
+
+<h2>Decided</h2>
+<section class="slot" id="decided">
+  <p>Decided by the sponsor on 15 September 2026 (D1–D2 at 09:25 CEST, D3–D6 at 11:54–11:55 CEST) on the Warmup &amp; Reheat page (database collection <span class="m">answers</span>, documents P28-D1 to P28-D6), recorded as asks A-02 to A-07.</p>
+  <ul>
+    <li><b>D1:</b> A · Two commands, <span class="m">/warmup</span> and <span class="m">/reheat</span>. His note: “Also there should be a possibility to give some context”. → R-02 (both take free-text context)</li>
+    <li><b>D2:</b> A · Standard checked and queued every time. → R-01</li>
+    <li><b>D3:</b> A · Run by themselves from the hooks. → R-03</li>
+    <li><b>D4:</b> A · The dispatcher starts a new lead with <span class="m">/warmup &lt;item&gt;</span>. → R-04</li>
+    <li><b>D5:</b> A · <span class="m">/standard</span> is a shortcut to <span class="m">/warmup</span> for one release, then removed. → R-02</li>
+    <li><b>D6:</b> A · The shared checkout is fast-forwarded automatically when behind. → R-05</li>
+  </ul>
+</section>
+
+<p class="src">Sources: the sponsor's message (ask A-01) and answers (Warmup &amp; Reheat page, collection answers); skills/warmup/SKILL.md and skills/standard/SKILL.md; hooks/sessionstart and hooks/precompact docstrings; proposal 20 ask A-02; proposal 24 decisions; git -C /Users/aashish/apps/common-rules rev-list --count HEAD..origin/main = 14 on 15 September 2026. Not verified: hook time limits for a full warm-up.</p>
+
+</div>
+</body>
+</html>
