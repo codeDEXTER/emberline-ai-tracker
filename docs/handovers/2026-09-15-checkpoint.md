@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 16:47
+# Checkpoint — 2026-09-15 17:18
 
-Reason: manual · branch: backlog · HEAD: 38c4c3e
+Reason: manual · branch: backlog · HEAD: 6fc5bc8
 
-<!-- ledger-digest: 159e1b8d6ce625ecc311c51a0d104eb5bb9da68a961abd327bae558d96b992e9 -->
+<!-- ledger-digest: a55089a0c171b022e658b7e4ec9fb4a630ab9e81c846e9718c1023e906a26755 -->
 
 ## Proposal 19 · Warm-up
 
@@ -93,26 +93,6 @@ Reason: manual · branch: backlog · HEAD: 38c4c3e
 - M-08 · [ruflo · medium · sonnet] · Six-category review list in CLAUDE-workflow.md gets replaced, not duplicated, when P26 routing lands
 - M-09 · [ruflo · medium · sonnet] · Dedupe five rules stated in more than one file
 - M-10 · [ruflo · medium · sonnet] · Move dated rationale out of CLAUDE-workflow.md into CHANGELOG
-
-## Proposal 24 · Autonomous work without missing anything
-
-3 done / 0 in progress / 0 blocked / 1 not started
-
-### In progress
-
-- none
-
-### Blocked, and why
-
-- none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- H-04 · [ruflo · medium · sonnet] · Background leads are visible and named apart from chat sessions
 
 ## Proposal 25 · Sizing items by value, points and risk
 
