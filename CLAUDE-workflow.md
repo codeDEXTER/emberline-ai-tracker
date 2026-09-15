@@ -62,8 +62,9 @@ and almost nothing else. Do not trade them away.
 2. **Tool grants, not instructions.** Only `code-engineer` holds Edit and Write
    over code. The other roles are structurally unable to change it, so no rule
    is needed to stop them.
-3. **A gate that reads the diff before merge.** `quality-manager` verifies
-   against acceptance criteria. It reports; it never fixes and never merges.
+3. **A gate before merge.** Every change passes the tests and the project
+   gate; risky work (see Ceremony) also gets `quality-manager` reading the diff
+   against the acceptance criteria. It reports; it never fixes and never merges.
 4. **Tests, run before landing.** `bin/land` refuses to merge a red branch.
 
 ---
@@ -448,7 +449,7 @@ Agent(subagent_type: "code-engineer", prompt: "...")
 | `design-engineer` | one locked direction turned into a buildable spec |
 | `code-engineer` | building it — the only role that may write code |
 | `test-engineer` | validating against the criteria, raising bug reports |
-| `quality-manager` | the pre-merge gate; reports, never fixes, never merges |
+| `quality-manager` | the pre-merge review for risky work; reports, never fixes, never merges |
 | `proposal-auditor` | how far requirements and design drifted from the proposal |
 
 A role never certifies its own work. The code engineer does not decide it is
