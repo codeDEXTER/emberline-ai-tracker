@@ -54,13 +54,26 @@
       "tests": [],
       "done": "Tool in common-rules bin/ with tests, each of the four checks shown failing on a broken fixture first; OPERATING-RULES names it.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle D (new bin/handover, templates/lead-prompt.md dispatcher and item-lead forms, the session-start spike): one Sonnet builder after a Haiku scout, branch bundle-d from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "bin/handover --check, new; tests/test_handover.py 17 tests; full suite OK · 1243 tests; PR bundle-d"
+        }
+      ]
     },
     {
       "id": "H-02",
@@ -74,7 +87,7 @@
       "depends": [
         "H-01"
       ],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -86,6 +99,18 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C4/lead model -> C2/sonnet: dispatcher and item-lead forms of the lead prompt, with tests; bounded build with tests: a Sonnet builder, briefed with a Haiku scout's context pack; the lead only reviews and merges. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle D (new bin/handover, templates/lead-prompt.md dispatcher and item-lead forms, the session-start spike): one Sonnet builder after a Haiku scout, branch bundle-d from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "templates/lead-prompt.md dispatcher/item-lead forms; tests/test_templates.py updated; PR bundle-d"
         }
       ]
     },
@@ -101,7 +126,7 @@
       "depends": [
         "H-02"
       ],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -113,8 +138,39 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C4/lead model -> C2/sonnet: spike: prove how one session starts another, recorded; bounded build with tests: a Sonnet builder, briefed with a Haiku scout's context pack; the lead only reviews and merges. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle D (new bin/handover, templates/lead-prompt.md dispatcher and item-lead forms, the session-start spike): one Sonnet builder after a Haiku scout, branch bundle-d from af3dbc8, integration branch backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "docs/research/starting-item-leads.md; recommends claude --bg -p; proof run still open (D)"
         }
       ]
+    },
+    {
+      "id": "H-04",
+      "phase": "H",
+      "cx": "C2",
+      "title": "Background leads are visible and named apart from chat sessions",
+      "what": "Every session the dispatcher starts in the background is started with `claude --bg --name <name>` so it shows by that name in `claude agents` and the desktop session list. Names follow a convention distinct from interactive chats: `bg · <project> · dispatcher` for the dispatcher and `bg · <project> · lead · P<nn> <item ids>` for an item lead (e.g. `bg · common-rules · lead · P26 C-03`). bin/handover --check and the tracker page list running background leads by name with their session id.",
+      "files": [],
+      "tests": [],
+      "done": "A background lead started by the dispatcher appears under its convention name in `claude agents --json`; a test pins the name format; the lead-prompt dispatcher form and H-03 proof run use it.",
+      "depends": [
+        "H-03"
+      ],
+      "status": "not started",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "owner": "lead",
+      "issue": null
     }
   ],
   "asks": [
@@ -171,6 +227,26 @@
       "source": "Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, database collection answers",
       "state": "answered",
       "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
+    },
+    {
+      "id": "A-06",
+      "at": "2026-09-15T14:10:17+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "implement the backlog",
+      "became": null,
+      "state": "answered",
+      "source": "Common Rules rework session transcript",
+      "note": "Applies to every accepted, not-built item in proposals 24-28; built in surface bundles on integration branch backlog."
+    },
+    {
+      "id": "A-07",
+      "at": "2026-09-15T15:49:35+02:00",
+      "by": "lead",
+      "kind": "feature",
+      "quote": "add an amendment I would like to see when uh, is it possible to see the leads in background tasks if so they should follow a different naming convention",
+      "became": "H-04",
+      "state": "became-item"
     }
   ],
   "proposed_changes": [],

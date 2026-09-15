@@ -19,7 +19,9 @@ ROOT = Path(__file__).resolve().parent.parent
 
 FILES = {
     "CLAUDE-workflow.md": ROOT / "CLAUDE-workflow.md",
-    "skills/standard/SKILL.md": ROOT / "skills" / "standard" / "SKILL.md",
+    # skills/standard/SKILL.md dropped here (proposal 28, R-02): it is now a
+    # short shortcut pointing at skills/warmup/SKILL.md, which still carries
+    # this rule -- a session following /standard reads it there.
     "skills/warmup/SKILL.md": ROOT / "skills" / "warmup" / "SKILL.md",
     "templates/lead-prompt.md": ROOT / "templates" / "lead-prompt.md",
 }

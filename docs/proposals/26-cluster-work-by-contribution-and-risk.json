@@ -54,7 +54,7 @@
       "tests": [],
       "done": "Validator accepts and checks both; tests red first.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "low",
       "model": "haiku",
@@ -66,6 +66,18 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C2/sonnet -> C1/haiku: two validator fields following Z-01's pattern; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T14:10:18+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle A (tools/tracker ledger fields, route and lanes): one Sonnet builder after a Haiku scout, one commit per item, branch bundle-a from origin/main af3dbc8, integration branch backlog; sponsor: implement the backlog. Tier stays haiku in the ledger; built inside the Sonnet bundle because it edits the same file as Z-01."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "tools/tracker/ledger.py impact/likelihood; tests/test_tracker_sizing.py; PR bundle-a"
         }
       ]
     },
@@ -81,13 +93,45 @@
       "depends": [
         "C-01"
       ],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle A (tools/tracker ledger fields, route and lanes): one Sonnet builder after a Haiku scout, one commit per item, branch bundle-a from origin/main af3dbc8, integration branch backlog; sponsor: implement the backlog."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "tools/tracker/lanes.py, bin/tracker lanes; tests/test_tracker_lanes.py; PR bundle-a"
+        }
+      ]
+    },
+    {
+      "id": "C-05",
+      "phase": "C",
+      "cx": "C2",
+      "title": "Findings are catalogued, lane-sorted, triaged into batches and light-pathed",
+      "what": "A finding -- from a review (quality-manager, any reviewer) or from testing (test-engineer bug reports, a failing or red-first test not yet fixed) -- is recorded as a row in the ledger, not only prose in a report or a chat message: an id, its source (`review`|`test`), file:line, severity, and `state` catalogued|decided|deferred|declined. Both kinds share one formula and one queue with items (C-01, C-02): share = value weight x points, risk = impact x likelihood (raised to 9 for anything restricted). `tracker lanes` sorts items, review findings and test findings together by share; the top 80% cumulative is Now, the rest fall to Daily/Weekly/When touched by risk, same cut line as C-02. A low-severity finding of either kind stays `catalogued` -- visible on the tracker page, not lost, not worked alone -- until the sponsor decides it (an ask, `state` decided). Once decided, if it is small (points 1-3, risk standard), it takes the light path (proposal 23 M-05) in a batch with other decided-small findings of either kind from the same cluster: one commit, one gate run, one log line, no separate reviewer, no per-item ceremony. A restricted or high-risk finding, from either source, is never light and never batched, same as C-02's alone rule. Before a batch of decided-small findings is worked, it is triaged, not just concatenated: findings that share a root cause, a file, or a pattern (the same missing check repeated, the same wrong default) are grouped and named as one cause with its own list of the findings it covers, so the batch fixes the cause once rather than patching each symptom separately. A finding that turns out to be a duplicate of, or subsumed by, another is marked `state: declined` with `duplicate_of` naming the survivor, not worked twice. Triage output is one line per group in the batch's log entry: the cause, the findings it covers, and the fix.",
+      "files": [],
+      "tests": [],
+      "done": "`tracker route`/`lanes` accept findings from both sources alongside items (a `kind: finding`, `source: review|test` row, or a light `findings` list on the ledger); a catalogued finding of either kind survives a `tracker lanes` run unworked until decided; decided-small findings from review and test both land in one batch on the light path; tests on a fixture mixing catalogued, decided-small (both sources) and decided-restricted findings, confirming they sort into one shared queue, not two. Triage: a fixture batch with three findings sharing one root cause groups to one line and one fix, not three; a duplicate finding is marked declined with duplicate_of and excluded from the count; the batch's log entry names each group's cause and coverage.",
+      "depends": [
+        "C-02"
+      ],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null
     },
     {
       "id": "C-03",
@@ -126,6 +170,23 @@
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
       "log": []
+    },
+    {
+      "id": "C-06",
+      "phase": "C",
+      "cx": "C2",
+      "title": "Two more statuses: in review, in testing",
+      "what": "`tools/tracker/ledger.py`'s STATUSES gains two values between `in progress` and `done`: `in review` (with a reviewer, quality-manager or a review agent per C-05) and `in testing` (with test-engineer, or a red-first test not yet green). Purely additive -- every existing ledger using only the original four statuses stays valid and unaffected; nothing is renamed or removed. `counts()`/`status_line()` report both new buckets; `bin/tracker set --status` accepts them; `render.py`'s pill gets a colour for each, distinct from `blocked` (a stopped item) and `in progress` (a builder actively editing) -- these two mean the code is written and it is now elsewhere, waiting. C-05's catalogued/decided/deferred/declined states are for *findings*; this is for *items*, and the two are shown together on the board so a glance says who has what.",
+      "files": [],
+      "tests": [],
+      "done": "STATUSES, counts(), status_line(), render.py's pill and colour all updated; a ledger with only the four original statuses validates and renders exactly as before (regression test); tracker set --status in_review / --status in_testing works end to end on a fixture; the board shows both counts.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null
     }
   ],
   "asks": [
@@ -198,6 +259,55 @@
       "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
       "state": "became-item",
       "became": "C-04"
+    },
+    {
+      "id": "A-08",
+      "at": "2026-09-15T14:10:17+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "implement the backlog",
+      "became": null,
+      "state": "answered",
+      "source": "Common Rules rework session transcript",
+      "note": "Applies to every accepted, not-built item in proposals 24-28; built in surface bundles on integration branch backlog."
+    },
+    {
+      "id": "A-09",
+      "at": "2026-09-15T15:57:13+02:00",
+      "by": "lead",
+      "kind": "feature",
+      "quote": "Also, I think reviews can have in groups. And the low priority findings are still getting cataloged. And they can have a light path once I decide or once it's decided based on the decisions uh, to implement them. So they don't need the full-fledged implementation. But still, they need to be cataloged and not worked immediately. Eighty percent is the threshold.",
+      "became": "C-05",
+      "state": "became-item"
+    },
+    {
+      "id": "A-10",
+      "at": "2026-09-15T15:58:12+02:00",
+      "by": "lead",
+      "kind": "feature",
+      "quote": "So review findings and test findings can have similar uh, you know mathematical formula for priority deciding and then both low priority things can be handled later in batches",
+      "became": null,
+      "state": "answered",
+      "note": "amends C-05: test findings share the same formula and queue as review findings, batched together once decided"
+    },
+    {
+      "id": "A-11",
+      "at": "2026-09-15T15:58:30+02:00",
+      "by": "lead",
+      "kind": "feature",
+      "quote": "and those batches can be triaged to you know find common issues and concise and make things more effective so triaging is also a thing that needs to be considered",
+      "became": null,
+      "state": "answered",
+      "note": "amends C-05: batches of decided-small findings are triaged for a shared root cause and duplicates before being worked"
+    },
+    {
+      "id": "A-12",
+      "at": "2026-09-15T16:20:16+02:00",
+      "by": "lead",
+      "kind": "feature",
+      "quote": "Can you also create in the tracker something like in review or in testing?",
+      "became": "C-06",
+      "state": "became-item"
     }
   ],
   "proposed_changes": [],

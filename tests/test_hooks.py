@@ -94,10 +94,11 @@ class ScratchProject(unittest.TestCase):
         self.assertEqual(1, len(found), found)
         return found[0]
 
-    def run_hook(self, hook: Path, payload: dict | None, cwd=None, raw_stdin: str | None = None):
+    def run_hook(self, hook: Path, payload: dict | None, cwd=None, raw_stdin: str | None = None, env=None):
         stdin = raw_stdin if raw_stdin is not None else json.dumps(payload or {})
+        run_env = {**os.environ, **env} if env else None
         return subprocess.run([sys.executable, str(hook)], input=stdin, capture_output=True,
-                              text=True, cwd=cwd, timeout=15, check=False)
+                              text=True, cwd=cwd, timeout=15, check=False, env=run_env)
 
 
 class TestCheckpointContent(ScratchProject):
@@ -193,27 +194,102 @@ class TestStopHook(ScratchProject):
         self.assertEqual(0, r.returncode, r.stderr)
         self.checkpoint_path()
 
+    def _warmup_module(self):
+        import importlib.machinery
+        import importlib.util
+        loader = importlib.machinery.SourceFileLoader("warmup_for_test_hooks", str(ROOT / "bin" / "warmup"))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        module = importlib.util.module_from_spec(spec)
+        loader.exec_module(module)
+        return module
+
+    def test_rules_moved_prints_the_notice(self):
+        """Proposal 28, R-03. A state file recording a rules HEAD that is not
+        the checkout's current one (never faked by actually moving the real
+        checkout -- only the state file's own recorded value) makes the Stop
+        hook print one line."""
+        W = self._warmup_module()
+        state_path = W.default_state_path(self.proj)
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({"rules_head": "0" * 40}))
+        r = self.run_hook(STOP, {"cwd": str(self.proj)})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("rules moved -- run /reheat", r.stdout)
+
+    def test_no_state_file_prints_nothing_extra(self):
+        r = self.run_hook(STOP, {"cwd": str(self.proj)})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertNotIn("rules moved", r.stdout)
+
+    def test_a_matching_rules_head_prints_nothing(self):
+        W = self._warmup_module()
+        state_path = W.default_state_path(self.proj)
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        current = W.git(W.RULES_DIR, "rev-parse", "HEAD")
+        state_path.write_text(json.dumps({"rules_head": current}))
+        r = self.run_hook(STOP, {"cwd": str(self.proj)})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertNotIn("rules moved", r.stdout)
+
+    def test_rules_moved_check_timeout_never_fails_the_hook(self):
+        W = self._warmup_module()
+        state_path = W.default_state_path(self.proj)
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({"rules_head": "0" * 40}))
+        r = self.run_hook(STOP, {"cwd": str(self.proj)}, env={"COMMON_RULES_HOOK_TIMEOUT": "0.0001"})
+        self.assertEqual(0, r.returncode, r.stderr)
+
 
 class TestSessionStartHook(ScratchProject):
+    """Proposal 28, R-03: startup runs bin/warmup's plain card; compact and
+    resume run --reheat. Every dispatch passes --no-pull (this hook is
+    read-only) and is bounded by WARMUP_TIMEOUT; a failure or timeout falls
+    back to the pre-R-03 one-line-per-ledger summary, never to a failed hook.
+    """
 
-    def test_compact_prints_the_rewarm_reminder(self):
+    def test_compact_prints_the_rewarm_reminder_then_reheats(self):
         r = self.run_hook(SESSIONSTART, {"cwd": str(self.proj), "source": "compact"})
         self.assertEqual(0, r.returncode, r.stderr)
         self.assertIn("Context was compacted.", r.stdout)
         self.assertIn("the ledger is the record", r.stdout)
+        self.assertIn("Quote rulings from disk, never from the summary.", r.stdout)
+        # No saved warmup state yet in this scratch project, so --reheat
+        # falls back to printing the full card.
+        self.assertIn("WARM ·", r.stdout)
         self.assertIn("HANDOFF.md", r.stdout)
         self.assertIn("OPERATING-RULES.md", r.stdout)
         self.assertIn("19-x.json", r.stdout)
-        self.assertIn("Quote rulings from disk, never from the summary.", r.stdout)
-        self.assertIn("Proposal 19:", r.stdout)
+        self.assertIn("Proposal 19 ·", r.stdout)
 
-    def test_startup_prints_one_line_per_open_ledger(self):
+    def test_startup_runs_the_plain_card(self):
         r = self.run_hook(SESSIONSTART, {"cwd": str(self.proj), "source": "startup"})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("WARM ·", r.stdout)
+        self.assertIn("Proposal 19 ·", r.stdout)
+        self.assertNotIn("compacted", r.stdout)
+        # A hook never writes: no --queue, so nothing is added to the ledger.
+        self.assertNotIn("queue", r.stdout.lower())
+
+    def test_resume_reheats(self):
+        r = self.run_hook(SESSIONSTART, {"cwd": str(self.proj), "source": "resume"})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("WARM ·", r.stdout)  # no saved state yet -- full card
+        self.assertNotIn("compacted", r.stdout)
+
+    def test_clear_source_keeps_the_plain_one_line_fallback(self):
+        r = self.run_hook(SESSIONSTART, {"cwd": str(self.proj), "source": "clear"})
         self.assertEqual(0, r.returncode, r.stderr)
         self.assertEqual(1, len([ln for ln in r.stdout.splitlines() if ln.strip()]))
         self.assertIn("Proposal 19:", r.stdout)
         self.assertIn("run /warmup", r.stdout)
-        self.assertNotIn("compacted", r.stdout)
+
+    def test_a_warmup_timeout_falls_back_to_the_one_line_summary(self):
+        r = self.run_hook(SESSIONSTART, {"cwd": str(self.proj), "source": "startup"},
+                          env={"COMMON_RULES_HOOK_TIMEOUT": "0.0001"})
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertNotIn("WARM ·", r.stdout)
+        self.assertIn("Proposal 19:", r.stdout)
+        self.assertIn("run /warmup", r.stdout)
 
     def test_no_open_ledger_prints_nothing(self):
         self.write_ledger(all_done())

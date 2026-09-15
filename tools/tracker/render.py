@@ -106,6 +106,24 @@ def last_log(item: dict) -> str:
     return cell
 
 
+def size_line(item: dict) -> str:
+    """Proposal 25 and 26 sizing, one quiet line; nothing when none is set."""
+    parts = []
+    if item.get("value") is not None:
+        parts.append(f"value {item['value']}")
+    if item.get("points") is not None:
+        parts.append(f"{item['points']} pts")
+    if item.get("risk") is not None:
+        parts.append(f"risk {item['risk']}")
+    if item.get("cluster") is not None:
+        parts.append(f"cluster {item['cluster']}")
+    if item.get("impact") is not None:
+        parts.append(f"impact {item['impact']}")
+    if item.get("likelihood") is not None:
+        parts.append(f"likelihood {item['likelihood']}")
+    return f'<div class="dep size">{e(" · ".join(parts))}</div>' if parts else ""
+
+
 def item_row(item: dict, repo, merged_waiting_ids=frozenset()) -> str:
     status = item.get("status", "")
     deps = L.as_list(item.get("depends"))
@@ -115,9 +133,10 @@ def item_row(item: dict, repo, merged_waiting_ids=frozenset()) -> str:
              if status == "blocked" and item.get("owner") else "")
     merged = ('<div class="dep">merged, awaiting evidence</div>'
               if item.get("id") in merged_waiting_ids else "")
+    size = size_line(item)
     return (f'<tr class="item" data-id="{e(item.get("id"))}" data-status="{e(status)}">'
             f'<td class="id">{e(item.get("id"))}</td>'
-            f'<td>{e(item.get("title"))}{dep}{found}{owner}{merged}</td>'
+            f'<td>{e(item.get("title"))}{dep}{found}{owner}{merged}{size}</td>'
             f'<td class="tag">{e(item.get("tag") or item.get("cx"))}</td>'
             f'<td><span class="pill {slug(status)}">{e(status)}</span></td>'
             f'<td class="issue">{issue_cell(item.get("issue"), repo)}</td>'

@@ -60,6 +60,45 @@ def _parse_field(raw: str) -> tuple[str, object, str] | None:
     return key, parsed, value
 
 
+def apply_change(data: dict, item_id: str, *, status: str | None = None, owner: str | None = None,
+                  fields: list[tuple[str, object, str]] = (), event: str | None = None,
+                  evidence: str = "", by: str = "lead", at: str | None = None) -> list[str] | None:
+    """Apply one change to an already-loaded ledger `data` in place. Returns
+    the human-readable parts on success, or None (nothing changed) when
+    `item_id` is not in `data` -- the caller decides how to report that.
+    Shared by `tracker set` (applies straight to a checked-out ledger) and
+    `tracker apply-staged` (proposal 23, M-04 -- applies a builder's staged
+    change on the dispatcher's behalf), so both take one path to a written
+    ledger."""
+    item = L.by_id(data).get(item_id)
+    if item is None:
+        return None
+
+    parts = []
+    if status is not None:
+        item["status"] = status
+        parts.append(f"status {status}")
+    if owner is not None:
+        item["owner"] = owner
+        parts.append(f"owner {owner}")
+    for key, value, shown in fields:
+        item[key] = value
+        parts.append(f"field {key}={shown}")
+
+    event_text = event if event is not None else status
+    if event_text is not None:
+        item.setdefault("log", []).append({
+            "at": at or _now(),
+            "event": event_text,
+            "by": by,
+            "evidence": evidence,
+        })
+        parts.append(f'log "{event_text}"')
+
+    data["updated"] = datetime.date.today().isoformat()
+    return parts
+
+
 def _render(data: dict, path: Path) -> None:
     out = R.default_out(path)
     repo = R.infer_repo(path)
@@ -101,33 +140,11 @@ def main(argv) -> int:
         print(f"{say} {exc}", file=sys.stderr)
         return 2
 
-    item = L.by_id(data).get(args.item_id)
-    if item is None:
+    parts = apply_change(data, args.item_id, status=args.status, owner=args.owner, fields=fields,
+                          event=args.event, evidence=args.evidence, by=args.by, at=args.at)
+    if parts is None:
         print(f"{say} {args.item_id} is not an item in {args.ledger} -- nothing written", file=sys.stderr)
         return 1
-
-    parts = []
-    if args.status is not None:
-        item["status"] = args.status
-        parts.append(f"status {args.status}")
-    if args.owner is not None:
-        item["owner"] = args.owner
-        parts.append(f"owner {args.owner}")
-    for key, value, shown in fields:
-        item[key] = value
-        parts.append(f"field {key}={shown}")
-
-    event_text = args.event if args.event is not None else args.status
-    if event_text is not None:
-        item.setdefault("log", []).append({
-            "at": args.at or _now(),
-            "event": event_text,
-            "by": args.by,
-            "evidence": args.evidence,
-        })
-        parts.append(f'log "{event_text}"')
-
-    data["updated"] = datetime.date.today().isoformat()
 
     problems = L.validate(data)
     if problems:

@@ -391,7 +391,10 @@ class TestIdempotentAndDry(Case):
 
     def test_the_card_shows_what_was_superseded(self):
         self.migrated()
-        card = subprocess.run([sys.executable, str(WARMUP), "--project", str(self.p.root), "--no-recall"],
+        # --no-pull: bin/warmup's RULES_DIR is the real common-rules checkout
+        # in a test run -- R-05's fetch/pull must never touch it.
+        card = subprocess.run([sys.executable, str(WARMUP), "--project", str(self.p.root),
+                               "--no-recall", "--no-pull"],
                               capture_output=True, text=True, check=False).stdout
         self.assertIn("Superseded", card)
         self.assertIn("One plan, updated in place", card)

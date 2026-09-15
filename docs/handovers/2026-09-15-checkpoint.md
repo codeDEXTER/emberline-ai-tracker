@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 13:31
+# Checkpoint — 2026-09-15 16:47
 
-Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
+Reason: manual · branch: backlog · HEAD: 38c4c3e
 
-<!-- ledger-digest: 6bf2d7506edcb963fc09f039edbe9d81ee685699c9f260118af56aaf0f0a0c97 -->
+<!-- ledger-digest: 159e1b8d6ce625ecc311c51a0d104eb5bb9da68a961abd327bae558d96b992e9 -->
 
 ## Proposal 19 · Warm-up
 
@@ -47,7 +47,7 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ## Proposal 22 · One tracker per project
 
-4 done / 0 in progress / 0 blocked / 1 not started
+4 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
@@ -64,10 +64,39 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 ### Next unblocked
 
 - T-05 · [ruflo · low · haiku] · PhotoVault app and engine move to one tracker
+- T-06 · [ruflo · low · haiku] · A published page's name is set once and never changes -- tracker, board, cookbook, any of them
+
+## Proposal 23 · Eight levers for token spend
+
+11 done / 0 in progress / 0 blocked / 10 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- M-01 · [ruflo · medium · sonnet] · Parallel test suite
+- M-02 · [ruflo · medium · sonnet] · Builders run only affected tests; one full suite at merge
+- M-03 · [ruflo · medium · sonnet] · Trim Ruflo's tool loading
+- M-05 · [ruflo · medium · sonnet] · A light path for tiny items
+- M-06 · [ruflo · low · haiku] · Say where lead-prompt §4 stands on hand-editing ledgers
+- M-07 · [ruflo · low · haiku] · CLAUDE-workflow.md names the quick/merge two-gate exception
+- M-08 · [ruflo · medium · sonnet] · Six-category review list in CLAUDE-workflow.md gets replaced, not duplicated, when P26 routing lands
+- M-09 · [ruflo · medium · sonnet] · Dedupe five rules stated in more than one file
+- M-10 · [ruflo · medium · sonnet] · Move dated rationale out of CLAUDE-workflow.md into CHANGELOG
 
 ## Proposal 24 · Autonomous work without missing anything
 
-0 done / 0 in progress / 0 blocked / 3 not started
+3 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -83,11 +112,11 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ### Next unblocked
 
-- H-01 · [ruflo · medium · sonnet] · Closing check: bin/handover --check
+- H-04 · [ruflo · medium · sonnet] · Background leads are visible and named apart from chat sessions
 
 ## Proposal 25 · Sizing items by value, points and risk
 
-0 done / 0 in progress / 0 blocked / 6 not started
+4 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
@@ -103,11 +132,12 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ### Next unblocked
 
-- Z-01 · [ruflo · medium · sonnet] · Ledger fields: value, points, risk, cluster
+- Z-05 · [ruflo · medium · sonnet] · Calibrate points every 20 items
+- Z-06 · [ruflo · medium · sonnet] · Issue catalogue clustered by files touched
 
 ## Proposal 26 · Cluster work by contribution and risk
 
-0 done / 0 in progress / 0 blocked / 4 not started
+2 done / 0 in progress / 0 blocked / 4 not started
 
 ### In progress
 
@@ -123,12 +153,14 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ### Next unblocked
 
-- C-01 · [ruflo · low · haiku] · Impact and likelihood on items
+- C-05 · [ruflo · medium · sonnet] · Findings are catalogued, lane-sorted, triaged into batches and light-pathed
 - C-03 · [ruflo · medium · sonnet] · One gate and review per bundle or batch
+- C-04 · [ruflo · medium · sonnet] · Board shows lanes and the 14-day re-score
+- C-06 · [ruflo · medium · sonnet] · Two more statuses: in review, in testing
 
 ## Proposal 27 · Time and tokens per task, in one place
 
-0 done / 0 in progress / 0 blocked / 4 not started
+3 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -144,11 +176,11 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ### Next unblocked
 
-- W-01 · [ruflo · medium · sonnet] · Fix bin/spend: subagents, once per response, all token kinds
+- W-03 · [ruflo · medium · sonnet] · Stop hook after each turn and a nightly run with one commit
 
 ## Proposal 28 · Two commands: warmup and reheat
 
-0 done / 0 in progress / 0 blocked / 5 not started
+5 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -164,12 +196,11 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ### Next unblocked
 
-- R-01 · [ruflo · medium · sonnet] · bin/warmup runs the standard every time, in both modes
-- R-05 · [ruflo · medium · sonnet] · Fast-forward the shared common-rules checkout when behind
+- R-04 · [ruflo · medium · sonnet] · Dispatcher starts a new lead with /warmup <item> [context]
 
 ## Proposal 29 · Taking over the Common Rules chat v1 work
 
-4 done / 0 in progress / 1 blocked / 2 not started
+6 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -177,7 +208,7 @@ Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
 ### Blocked, and why
 
-- K-06 · Haiku agent compared both worktrees with origin/main; lead verified: agent-acf3f21931e1d70f8 has no CHANGELOG heading or line absent from main, its other staged files match main or are superseded, tmp/ is scratch; agent-a6cbd5b0dfbe31b3e's LESSONS.md bug (parent-folder card) is fixed on main in hooks/sessionstart _safe_open_ledgers and _is_child_project (lines 77-91). Nothing unique would be lost. Removing them deletes local files, so it waits for the sponsor's yes.
+- none
 
 ### Open asks
 

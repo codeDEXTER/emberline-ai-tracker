@@ -54,13 +54,26 @@
       "tests": [],
       "done": "Tests red first on a fixture with a subagent file and a response written three times.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle B (bin/spend, new bin/worklog): one Sonnet builder after a Haiku scout, branch bundle-b from af3dbc8, integration branch backlog; the Stop hook install (W-03) and the /warmup line (W-04) come in wave 2 because bin/derecord and bin/warmup belong to bundle C."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "bin/spend subagent glob + message.id dedupe; tests/test_spend.py; PR bundle-b, commit d032380"
+        }
+      ]
     },
     {
       "id": "W-02",
@@ -74,13 +87,26 @@
       "depends": [
         "W-01"
       ],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle B (bin/spend, new bin/worklog): one Sonnet builder after a Haiku scout, branch bundle-b from af3dbc8, integration branch backlog; the Stop hook install (W-03) and the /warmup line (W-04) come in wave 2 because bin/derecord and bin/warmup belong to bundle C."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "bin/worklog collect, tools/worklog.py; tests/test_worklog.py; PR bundle-b, commit 6f38ac1; state-trust and unpriced-model fixes 78283b4/a7983ff"
+        }
+      ]
     },
     {
       "id": "W-03",
@@ -114,13 +140,26 @@
       "depends": [
         "W-02"
       ],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-15T14:10:19+02:00",
+          "event": "started",
+          "by": "lead",
+          "evidence": "Bundle B (bin/spend, new bin/worklog): one Sonnet builder after a Haiku scout, branch bundle-b from af3dbc8, integration branch backlog; the Stop hook install (W-03) and the /warmup line (W-04) come in wave 2 because bin/derecord and bin/warmup belong to bundle C. Page part only in this bundle."
+        },
+        {
+          "at": "2026-09-15T18:35:00+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "bin/worklog day/yesterday-line; tests/test_worklog.py render tests; PR bundle-b, commit 6f38ac1"
+        }
+      ]
     }
   ],
   "asks": [
@@ -193,6 +232,17 @@
       "source": "Clusters & Costs Decisions page https://claude.ai/artifact/RR9hgZuuV5dzswjv9sGHJu, database collection answers",
       "state": "became-item",
       "became": "W-01"
+    },
+    {
+      "id": "A-08",
+      "at": "2026-09-15T14:10:17+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "implement the backlog",
+      "became": null,
+      "state": "answered",
+      "source": "Common Rules rework session transcript",
+      "note": "Applies to every accepted, not-built item in proposals 24-28; built in surface bundles on integration branch backlog."
     }
   ],
   "proposed_changes": [],

@@ -16,11 +16,12 @@ MUST
 Reach {{VERIFY_LEVEL}} from the project's verification ladder ({{VERIFY_TOOL}}).
 Read a file with the Read tool (`offset`/`limit`), never `cat` or `sed -n`.
 Run the gate with `bin/quiet -- {{TEST_COMMAND}}`, never a raw test runner.
-Update the ledger with `tracker set` / `tracker ask`, never by hand-editing its JSON.
+Stage ledger updates with `tracker stage` -- never `tracker set`, never `tracker ask`, never hand-editing its JSON. You never write the ledger or its page directly; the lead applies every staged change with `tracker apply-staged` when it merges your branch in (proposal 23, M-04).
 In a bundle: one commit per issue, naming its id, one gate run, one PR closing all of them.
 
 MUST NOT
 {{MUST_NOT_1}}
+Size the work yourself: this brief never carries the item's points (proposal 25, D3); `tracker route` is the lead's.
 Hand-append AGENT-LOG.md or HANDOFF.md -- use `bin/spend agentlog --write` and `bin/remember`.
 
 OUTPUT

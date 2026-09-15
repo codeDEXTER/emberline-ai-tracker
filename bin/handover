@@ -1,0 +1,368 @@
+#!/usr/bin/env python3
+"""handover -- the four checks an item lead runs before it ends a turn
+(proposal 24, H-01).
+
+  handover --check --project DIR [--transcript FILE] [--since ISO]
+
+Four checks, each printed with a mark and what is missing:
+
+  1. every sponsor message since the session started has an ask row.
+     Read from `--transcript` -- a Claude Code transcript JSONL -- matched
+     one to one against some ledger's `asks` rows: first by quote
+     substring (either direction, case- and whitespace-insensitive), then,
+     on what is left, by `at` within +/-10 minutes -- one ask credits at
+     most one message, so two distinct messages near the same ask do not
+     both pass on its say-so. Tool results, sidechain turns, and
+     system/command/notification wrappers (a message whose text starts
+     with "<task-notification", "<system-reminder", "<local-command" or
+     "[SYSTEM NOTIFICATION") are never sponsor messages and are skipped.
+     Without `--transcript` this check cannot be run at all -- it prints
+     "not checked: no transcript" and is neither a pass nor a failure: it
+     does not block exit 0, because there is nothing on disk that could
+     answer it, and a hard fail here would make every lead that forgets
+     `--transcript` unable to ever close cleanly.
+  2. every running agent worktree of the project (`git worktree list`,
+     paths under the *main checkout's* `.claude/worktrees/` or
+     `.worktrees/` -- found from `--project` via `git rev-parse
+     --git-common-dir`, so this still works when `--project` is itself a
+     linked worktree, as the item-lead form runs it) that carries commits
+     not on `origin/main` (or, with no remote, `main`) is named -- by path
+     basename or branch name -- in some ledger item's log (its `by` or
+     `evidence` field, where the agent evidence this project already
+     writes looks like `"by": "subagent sonnet, worktree"` or `"evidence":
+     "worktree .worktrees/p19-w05 from ..."`). This includes the caller's
+     own worktree, when it is itself under that directory.
+  3. the latest docs/handovers/*-checkpoint.md's `<!-- ledger-digest: ... -->`
+     equals `tools.tracker.checkpoint.digest_of()` of the project's
+     currently open ledgers -- the same comparison bin/warmup's card makes.
+     No open ledger: "not needed", the same neutral state warmup gives it.
+  4. `bin/warmup --project DIR --check` exits 0. The warmup binary run is
+     `bin/warmup` beside this script unless `HANDOVER_WARMUP_BIN` names
+     another one (for tests against a fixture project).
+
+Each check prints one line, marked:
+  (tick)  passed
+  (cross) failed -- what is missing follows, indented
+  ...     could not be checked at all (no transcript, or nothing to check) --
+          not a failure, but never printed as a pass either
+
+Exit codes: 0 every check that ran passed (an uncheckable one does not
+block this), 1 at least one check failed.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+RULES_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RULES_DIR))
+
+from tools.tracker import checkpoint as CP  # noqa: E402
+from tools.tracker import ledger as L  # noqa: E402
+
+PASS, FAIL, SKIP = "✓", "✗", "…"  # tick, cross, ellipsis
+
+NOTICE_PREFIXES = ("<task-notification", "<system-reminder", "<local-command", "[SYSTEM NOTIFICATION")
+
+WORKTREE_DIRS = (".claude/worktrees/", ".worktrees/")
+
+
+def _parse_iso(value) -> datetime.datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    s = value.strip()
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    try:
+        dt = datetime.datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+    return dt
+
+
+def git(project: Path, *args: str) -> str | None:
+    r = subprocess.run(["git", "-C", str(project), *args], capture_output=True, text=True, check=False)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+# ---------------------------------------------------------------- check 1 --
+
+def sponsor_messages(transcript: Path, since: datetime.datetime | None) -> list[dict]:
+    """Every sponsor (user, non-tool-result, non-sidechain, non-wrapper)
+    message in the transcript, each `{"text", "at"}`. `at` is None when the
+    entry carries no readable timestamp; such a message is kept (never
+    silently dropped by `--since`) rather than assumed out of range."""
+    out: list[dict] = []
+    for line in transcript.read_text(errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("isSidechain"):
+            continue
+        if entry.get("type") != "user":
+            continue
+        message = entry.get("message")
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        content = message.get("content")
+        texts: list[str] = []
+        if isinstance(content, str):
+            texts = [content]
+        elif isinstance(content, list):
+            if any(isinstance(b, dict) and b.get("type") == "tool_result" for b in content):
+                continue
+            texts = [b["text"] for b in content
+                     if isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str)]
+        text = "\n".join(texts).strip()
+        if not text or any(text.startswith(p) for p in NOTICE_PREFIXES):
+            continue
+        at = _parse_iso(entry.get("timestamp"))
+        if since is not None and at is not None and at < since:
+            continue
+        out.append({"text": text, "at": at})
+    return out
+
+
+def all_asks(project: Path) -> list[dict]:
+    out: list[dict] = []
+    for p in L.find(project):
+        try:
+            data = L.load(p)
+        except ValueError:
+            continue
+        out.extend(data.get("asks") or [])
+    return out
+
+
+def _normalized(text: str) -> str:
+    """Case- and whitespace-insensitive, for the quote-substring match: a
+    quote stored with a wrapped line or different casing should still match
+    the same words in a transcript message."""
+    return re.sub(r"\s+", " ", text.strip().lower())
+
+
+def _match_one_to_one(msgs: list[dict], asks: list[dict]) -> list[dict]:
+    """Every message paired with at most one ask, every ask used for at
+    most one message -- never many messages crediting the same row (bundle-
+    d review, MEDIUM-HIGH). Pass 1: quote substring, either direction,
+    case/whitespace-insensitive. Pass 2, on what pass 1 left unmatched:
+    nearest available ask within +/-10 minutes. Returns the messages still
+    left over after both passes -- the ones with no ask row of their own."""
+    unused = list(asks)
+
+    def take_by_quote(msg: dict) -> bool:
+        mn = _normalized(msg["text"])
+        if not mn:
+            return False
+        for i, a in enumerate(unused):
+            quote = a.get("quote")
+            if isinstance(quote, str) and quote.strip():
+                qn = _normalized(quote)
+                if qn and (qn in mn or mn in qn):
+                    unused.pop(i)
+                    return True
+        return False
+
+    def take_by_time(msg: dict) -> bool:
+        if msg["at"] is None:
+            return False
+        for i, a in enumerate(unused):
+            a_at = _parse_iso(a.get("at"))
+            if a_at is not None and abs((a_at - msg["at"]).total_seconds()) <= 600:
+                unused.pop(i)
+                return True
+        return False
+
+    remaining = [m for m in msgs if not take_by_quote(m)]
+    return [m for m in remaining if not take_by_time(m)]
+
+
+def check_asks(project: Path, transcript: Path | None, since: datetime.datetime | None) -> tuple[str, str]:
+    if transcript is None:
+        return SKIP, "not checked: no transcript"
+    if not transcript.is_file():
+        return FAIL, f"transcript not found: {transcript}"
+    asks = all_asks(project)
+    msgs = sponsor_messages(transcript, since)
+    missing = _match_one_to_one(msgs, asks)
+    if missing:
+        shown = "; ".join(repr(m["text"][:80]) for m in missing[:5])
+        more = f" (+{len(missing) - 5} more)" if len(missing) > 5 else ""
+        return FAIL, f"{len(missing)} sponsor message(s) with no ask row: {shown}{more}"
+    return PASS, f"{len(msgs)} sponsor message(s), all with an ask row" if msgs else "no sponsor messages to cover"
+
+
+# ---------------------------------------------------------------- check 2 --
+
+def worktrees(project: Path) -> list[dict]:
+    out = git(project, "worktree", "list", "--porcelain")
+    if out is None:
+        return []
+    trees: list[dict] = []
+    cur: dict = {}
+    for line in out.splitlines():
+        if line.startswith("worktree "):
+            if cur:
+                trees.append(cur)
+            cur = {"path": line[9:], "branch": None}
+        elif line.startswith("branch "):
+            cur["branch"] = line[7:].replace("refs/heads/", "")
+        elif line == "detached":
+            cur["branch"] = "(detached)"
+    if cur:
+        trees.append(cur)
+    return trees
+
+
+def _under_worktree_dir(path: Path, base: Path) -> bool:
+    try:
+        rel = path.resolve().relative_to(base.resolve()).as_posix() + "/"
+    except ValueError:
+        return False
+    return any(rel.startswith(d) for d in WORKTREE_DIRS)
+
+
+def main_checkout_root(project: Path) -> Path | None:
+    """The main checkout's own root -- `.claude/worktrees/` and
+    `.worktrees/` always sit here, never inside a linked worktree, so a
+    lead running from its own worktree (the item-lead form's own
+    instruction) has to look here too, not under `--project`. `git
+    rev-parse --git-common-dir` names the one `.git` every worktree of a
+    repo shares; its parent is the main checkout. None outside a git repo,
+    or on any git failure."""
+    common = git(project, "rev-parse", "--git-common-dir")
+    if common is None:
+        return None
+    p = Path(common)
+    if not p.is_absolute():
+        p = project / p
+    p = p.resolve()
+    return p.parent if p.name == ".git" else p
+
+
+def _ahead_of_main(path: str) -> int | None:
+    for base in ("origin/main", "main"):
+        if git(path, "rev-parse", "--verify", base) is not None:
+            n = git(path, "rev-list", "--count", f"{base}..HEAD")
+            return int(n) if n and n.isdigit() else None
+    return None
+
+
+def ledger_evidence_text(project: Path) -> str:
+    parts: list[str] = []
+    for p in L.find(project):
+        try:
+            data = L.load(p)
+        except ValueError:
+            continue
+        for item in L.items(data):
+            for entry in (item.get("log") or []):
+                if not isinstance(entry, dict):
+                    continue
+                parts.append(str(entry.get("by") or ""))
+                parts.append(str(entry.get("evidence") or ""))
+                parts.append(str(entry.get("event") or ""))
+    return "\n".join(parts)
+
+
+def check_worktrees(project: Path) -> tuple[str, str]:
+    trees = worktrees(project)
+    base = main_checkout_root(project) or project
+    candidates = [t for t in trees if _under_worktree_dir(Path(t["path"]), base)]
+    active = []
+    for t in candidates:
+        ahead = _ahead_of_main(t["path"])
+        if ahead:
+            active.append(t)
+    if not active:
+        return SKIP, "no running agent worktree ahead of main"
+    blob = ledger_evidence_text(project)
+    missing = [t for t in active
+               if Path(t["path"]).name not in blob and (t.get("branch") or "\0") not in blob]
+    if missing:
+        names = ", ".join(Path(t["path"]).name for t in missing)
+        return FAIL, f"{len(missing)} worktree(s) not named in any ledger log: {names}"
+    return PASS, f"{len(active)} running agent worktree(s), all named in a ledger log"
+
+
+# ---------------------------------------------------------------- check 3 --
+
+def check_checkpoint(project: Path) -> tuple[str, str]:
+    open_ = CP.open_ledgers(project)
+    if not open_:
+        return SKIP, "not needed, no open ledger"
+    latest = CP.latest_checkpoint(project)
+    if latest is None:
+        return FAIL, "no docs/handovers/*-checkpoint.md found"
+    text = latest.read_text(errors="replace")
+    m = CP.DIGEST_RE.search(text)
+    if not m:
+        return FAIL, f"{latest.name} has no ledger-digest marker (hand-written)"
+    current = CP.digest_of([p for p, _ in open_])
+    if m.group(1) != current:
+        return FAIL, f"{latest.name} digest is stale -- run: tracker checkpoint --project {project}"
+    return PASS, f"{latest.name} matches the open ledgers"
+
+
+# ---------------------------------------------------------------- check 4 --
+
+def check_warmup(project: Path) -> tuple[str, str]:
+    warmup_bin = os.environ.get("HANDOVER_WARMUP_BIN") or str(RULES_DIR / "bin" / "warmup")
+    r = subprocess.run([sys.executable, warmup_bin, "--project", str(project), "--check"],
+                       capture_output=True, text=True, check=False)
+    if r.returncode == 0:
+        return PASS, "warmup --check: ready"
+    detail = (r.stdout or r.stderr or "").strip().splitlines()
+    return FAIL, "warmup --check: " + (detail[-1] if detail else f"exit {r.returncode}")
+
+
+# ------------------------------------------------------------------ main --
+
+def run(project: Path, transcript: Path | None, since: datetime.datetime | None) -> tuple[list[tuple], bool]:
+    checks = [
+        ("every sponsor message has an ask row", check_asks(project, transcript, since)),
+        ("every running agent worktree is named in a ledger log", check_worktrees(project)),
+        ("the latest checkpoint matches the open ledgers", check_checkpoint(project)),
+        ("warmup --check is ready", check_warmup(project)),
+    ]
+    ok = all(mark != FAIL for _, (mark, _) in checks)
+    return checks, ok
+
+
+def main(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser(prog="handover", description=__doc__.splitlines()[0])
+    ap.add_argument("--check", action="store_true", required=True)
+    ap.add_argument("--project", type=Path, default=Path("."))
+    ap.add_argument("--transcript", type=Path)
+    ap.add_argument("--since")
+    args = ap.parse_args(argv)
+
+    project = args.project.resolve()
+    since = _parse_iso(args.since) if args.since else None
+    if args.since and since is None:
+        print(f"handover: --since {args.since!r} is not a readable ISO 8601 timestamp", file=sys.stderr)
+        return 2
+
+    checks, ok = run(project, args.transcript, since)
+    for label, (mark, detail) in checks:
+        print(f"{mark} {label}: {detail}")
+    print(f"handover --check: {'ready' if ok else 'not ready'}")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
