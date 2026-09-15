@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 16:05
+# Checkpoint — 2026-09-15 16:06
 
-Reason: manual · branch: backlog · HEAD: 74a48ab
+Reason: manual · branch: backlog · HEAD: d731c10
 
-<!-- ledger-digest: 7aef1545801abf0d21d912bdbe09d42852db469d8d6454af7fe3035a1ca9a1ce -->
+<!-- ledger-digest: 6d82ad1d9b46a94be7fc6996d0b0f61bb4954fb4eb6230b03a881db526342143 -->
 
 ## Proposal 19 · Warm-up
 
@@ -185,7 +185,7 @@ Reason: manual · branch: backlog · HEAD: 74a48ab
 
 ## Proposal 28 · Two commands: warmup and reheat
 
-0 done / 5 in progress / 0 blocked / 1 not started
+1 done / 4 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -193,7 +193,6 @@ Reason: manual · branch: backlog · HEAD: 74a48ab
 - R-02 · [ruflo · medium · sonnet] · /warmup and /reheat skills with context; /standard becomes a shortcut · started
 - R-03 · [ruflo · medium · sonnet] · Hooks run warmup and reheat by themselves · started
 - R-05 · [ruflo · medium · sonnet] · Fast-forward the shared common-rules checkout when behind · started
-- R-06 · [ruflo · lead · lead model] · A visual cookbook page: how warmup and reheat work, the standard's features, constraints and rules · no log entry yet
 
 ### Blocked, and why
 

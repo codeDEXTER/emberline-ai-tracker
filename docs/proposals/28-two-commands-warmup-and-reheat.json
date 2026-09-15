@@ -186,12 +186,20 @@
       "tests": [],
       "done": "First version published as an artifact, its URL recorded (tracker published-style sidecar, or a line in docs/README.md); a rule in docs/OPERATING-RULES.md or CLAUDE-workflow.md says a Standard change touching warmup/reheat/rules regenerates it; the page renders the real card/hook behaviour, not a mockup.",
       "depends": [],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "lead",
       "model": "lead model",
       "tag": "[ruflo · lead · lead model]",
-      "issue": null
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-15T18:20:00+02:00",
+          "event": "published",
+          "by": "lead",
+          "evidence": "https://claude.ai/artifact/HYFVRfjemufZH1C83xCxPF -- built from HANDOFF.md, docs/OPERATING-RULES.md, CLAUDE-workflow.md, skills/warmup, skills/reheat on branch backlog"
+        }
+      ]
     }
   ],
   "asks": [
