@@ -530,7 +530,12 @@ class TestCardV2Lines(Case):
     without any of it (the base fixture) prints today's card, unchanged."""
 
     def test_base_fixture_shows_none_of_the_new_lines(self):
-        out = self.p.warmup().stdout
+        # Scoped to warmup's own ledger rendering, above "standard:" --
+        # conformance item 6's own advice text (proposal 28, R-01) legitimately
+        # says "tiers or model_routing" regardless of what the ledger declares,
+        # which is a different thing than ledger_v2_lines() printing a routing
+        # table that was never declared.
+        out = self.p.warmup().stdout.split("\nstandard:", 1)[0]
         self.assertNotIn("readiness", out)
         self.assertNotIn("merged, awaiting evidence", out)
         self.assertNotIn("yours", out)
@@ -1808,7 +1813,8 @@ class TestTheProjectPageChangedSincePublish(Case):
         self.p.write(SIDECAR, "{not json")
         self.p.commit("a malformed leftover")
         self.assertEqual(0, self.p.warmup("--check").returncode)
-        self.assertNotIn("19-proposal-warmup.published.json", self.p.warmup().stdout)
+        card2 = self.p.warmup().stdout.split("\nstandard:", 1)[0]
+        self.assertNotIn("19-proposal-warmup.published.json", card2)
 
     def test_a_missing_project_page_is_not_also_changed(self):
         self.published()
