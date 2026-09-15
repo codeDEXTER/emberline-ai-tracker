@@ -345,7 +345,7 @@ class TestNoTranscriptText(WorklogHarness):
         self.assertEqual(set(rows[0]), set(worklog.GROUP_FIELDS) |
                           {"input_tokens", "cache_write_tokens",
                            "cache_read_tokens", "output_tokens",
-                           "active_seconds", "cost_usd"})
+                           "active_seconds", "cost_usd", "priced"})
 
         page = worklog.render_day_html("2026-09-15", rows)
         self.assertNotIn(secret, page)
@@ -385,6 +385,55 @@ class TestSummaryFormatting(WorklogHarness):
         self.assertIn("1.0h active", line)
         self.assertIn("1 tasks", line)
         self.assertIn("$0.01", line)
+
+
+class TestUnpricedModel(WorklogHarness):
+    """Bundle B review, 15 Sep 2026 (MEDIUM): price_family() priced any
+    unmatched model id as Sonnet with no signal. A real transcript carries
+    `claude-fable-5-1` -- not a known family, and Sonnet's price for it is a
+    guess dressed up as a measurement."""
+
+    def test_price_family_refuses_to_guess_an_unknown_model(self):
+        self.assertIsNone(worklog.price_family("claude-fable-5-1"))
+        self.assertEqual(worklog.price_family("claude-sonnet-5"), "sonnet")
+        self.assertEqual(worklog.price_family("claude-opus-4-1"), "opus")
+        self.assertEqual(worklog.price_family("claude-haiku-4-5"), "haiku")
+
+    def test_list_price_is_none_for_an_unknown_model(self):
+        self.assertIsNone(worklog.list_price("claude-fable-5-1", 100, 0, 0, 50))
+
+    def test_collected_row_for_an_unknown_model_is_unpriced_not_guessed(self):
+        session = "sess-fable"
+        main = self.projects / "-proj" / f"{session}.jsonl"
+        write_jsonl(main, [
+            user_rec("hi", "2026-09-15T15:00:00Z", branch="claude/fable"),
+            assistant_rec("2026-09-15T15:00:01Z", "m1",
+                          {"input_tokens": 100, "output_tokens": 50,
+                           "cache_read_input_tokens": 0,
+                           "cache_creation_input_tokens": 0},
+                          model="claude-fable-5-1"),
+        ])
+        result = self.collect()
+        self.assertIn("claude-fable-5-1", result["unpriced_models"])
+        rows = worklog.load_day(str(self.out), "2026-09-15")
+        self.assertEqual(len(rows), 1)
+        self.assertIsNone(rows[0]["cost_usd"])
+        self.assertFalse(rows[0]["priced"])
+
+    def test_day_page_and_yesterday_line_show_unpriced(self):
+        rows = [{
+            "day": "2026-09-15", "project": "-proj", "session": "s1",
+            "agent": "lead", "model": "claude-fable-5-1", "item": "W-99",
+            "input_tokens": 100, "cache_write_tokens": 0,
+            "cache_read_tokens": 0, "output_tokens": 50,
+            "active_seconds": 60, "cost_usd": None, "priced": False,
+        }]
+        line = worklog.format_yesterday_line(rows)
+        self.assertIn("unpriced", line)
+        text = worklog.format_day_text("2026-09-15", rows)
+        self.assertIn("unpriced", text)
+        page = worklog.render_day_html("2026-09-15", rows)
+        self.assertIn("unpriced", page)
 
 
 if __name__ == "__main__":
