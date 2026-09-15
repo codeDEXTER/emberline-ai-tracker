@@ -321,6 +321,12 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C4/lead model -> C2/sonnet: rule wording in four files plus tests; bounded build with tests: a Sonnet builder, briefed with a Haiku scout's context pack; the lead only reviews and merges. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-15T13:01:48+02:00",
+          "event": "wording written",
+          "by": "lead",
+          "evidence": "Taken over under P29 K-02: the sponsor's ruling of 15 Sep ('maintain a single tracker up until I have asked to create another tracker. Per project.') stated in CLAUDE-workflow.md, skills/standard, skills/warmup and templates/lead-prompt.md with tests (d39d66a). Done when merged to main."
         }
       ]
     },

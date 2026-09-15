@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 12:46
+# Checkpoint — 2026-09-15 13:18
 
-Reason: manual · branch: p29-k02 · HEAD: 32cd0b9
+Reason: manual · branch: p29-k02 · HEAD: b4c4f21
 
-<!-- ledger-digest: da6603e0145287884c8f3c8ebc7580c94386fc35d0feec005bd1cba890c0a872 -->
+<!-- ledger-digest: 5f847a3272e1d1d21a90dafb1b3a67a9bf34a2c06f8335fc01708f5621ec3522 -->
 
 ## Proposal 19 · Warm-up
 
@@ -10,7 +10,7 @@ Reason: manual · branch: p29-k02 · HEAD: 32cd0b9
 
 ### In progress
 
-- W-10 · [ruflo · low · haiku] · Pilot on the PhotoVault engine; measure the exit conditions · re-tiered
+- W-10 · [ruflo · low · haiku] · Pilot on the PhotoVault engine; measure the exit conditions · exit conditions re-measured
 
 ### Blocked, and why
 
@@ -51,7 +51,7 @@ Reason: manual · branch: p29-k02 · HEAD: 32cd0b9
 
 ### In progress
 
-- T-04 · [ruflo · medium · sonnet] · common-rules on one tracker · re-tiered
+- T-04 · [ruflo · medium · sonnet] · common-rules on one tracker · wording written
 
 ### Blocked, and why
 
@@ -169,15 +169,15 @@ Reason: manual · branch: p29-k02 · HEAD: 32cd0b9
 
 ## Proposal 29 · Taking over the Common Rules chat v1 work
 
-1 done / 0 in progress / 0 blocked / 6 not started
+3 done / 1 in progress / 1 blocked / 2 not started
 
 ### In progress
 
-- none
+- K-02 · [ruflo · medium · sonnet] · One tracker per project until the sponsor asks for another (P22 T-04) · reported and merged into branch
 
 ### Blocked, and why
 
-- none
+- K-06 · Haiku agent compared both worktrees with origin/main; lead verified: agent-acf3f21931e1d70f8 has no CHANGELOG heading or line absent from main, its other staged files match main or are superseded, tmp/ is scratch; agent-a6cbd5b0dfbe31b3e's LESSONS.md bug (parent-folder card) is fixed on main in hooks/sessionstart _safe_open_ledgers and _is_child_project (lines 77-91). Nothing unique would be lost. Removing them deletes local files, so it waits for the sponsor's yes.
 
 ### Open asks
 
@@ -185,10 +185,7 @@ Reason: manual · branch: p29-k02 · HEAD: 32cd0b9
 
 ### Next unblocked
 
-- K-02 · [ruflo · medium · sonnet] · One tracker per project until the sponsor asks for another (P22 T-04)
-- K-04 · [ruflo · low · haiku] · PhotoVault app and engine on the standard (P21 S-07, S-08)
-- K-05 · [ruflo · low · haiku] · Proposal 19 pilot exit conditions (W-10)
-- K-06 · [ruflo · low · haiku] · Check the two worktrees with uncommitted work, then clean up
+- none
 
 ## Exact next action
 
