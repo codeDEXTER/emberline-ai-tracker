@@ -144,7 +144,12 @@ python3 -m unittest discover -s tests -q
 `bin/land` runs it before landing and CI runs the identical string, so a test
 written once is enforced in both without anybody wiring anything up. Do not
 invent a second command, a second directory, or a second runner: two commands
-wearing one name is how a test passes locally and never runs in CI.
+wearing one name is how a test passes locally and never runs in CI. The one
+sanctioned exception is a project's own declared `gates.quick`/`gates.merge`
+split in its `.common-rules.json` (proposal 23, L-03) — a fast command for
+routine work and a fuller one before landing, both named once in that file and
+run through `bin/quiet -- {{TEST_COMMAND}}` (`templates/brief.md`), never
+invented ad hoc inside a task.
 
 **Verification you performed lands as a test.** Measured on 2026-08-10:
 **29% of every Bash call a session makes is a one-off verification probe** —
