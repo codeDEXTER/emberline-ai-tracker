@@ -167,6 +167,13 @@ the destination differs.
 genuinely cannot be tested, say why and re-run with `LAND_ALLOW_UNTESTED=1` —
 recorded either way.
 
+**A builder's own gate runs only the tests its changed files touch** —
+`python3 tools/affected_tests.py [--base REF]` prints them; `bin/quiet --jobs
+N -- python3 -m unittest discover -s tests -q` shards the full suite across N
+processes for the times you do want all of it locally. Either way, the one
+full sequential run at integration (`bin/land`, CI) stays the gate that
+decides a merge (proposal 23, M-01/M-02).
+
 **A guard nobody has watched fail is not known to be a guard.** Run a new test
 against the broken state first and see it fail, then fix. Two tests written
 this week passed against the very bug they existed to catch: one because a
