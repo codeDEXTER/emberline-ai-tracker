@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-15 13:18
+# Checkpoint — 2026-09-15 13:31
 
-Reason: manual · branch: p29-k02 · HEAD: b4c4f21
+Reason: manual · branch: p29-k02-close · HEAD: 8aa1f55
 
-<!-- ledger-digest: 5f847a3272e1d1d21a90dafb1b3a67a9bf34a2c06f8335fc01708f5621ec3522 -->
+<!-- ledger-digest: 6bf2d7506edcb963fc09f039edbe9d81ee685699c9f260118af56aaf0f0a0c97 -->
 
 ## Proposal 19 · Warm-up
 
@@ -47,11 +47,11 @@ Reason: manual · branch: p29-k02 · HEAD: b4c4f21
 
 ## Proposal 22 · One tracker per project
 
-3 done / 1 in progress / 0 blocked / 1 not started
+4 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
-- T-04 · [ruflo · medium · sonnet] · common-rules on one tracker · wording written
+- none
 
 ### Blocked, and why
 
@@ -63,7 +63,7 @@ Reason: manual · branch: p29-k02 · HEAD: b4c4f21
 
 ### Next unblocked
 
-- none
+- T-05 · [ruflo · low · haiku] · PhotoVault app and engine move to one tracker
 
 ## Proposal 24 · Autonomous work without missing anything
 
@@ -169,11 +169,11 @@ Reason: manual · branch: p29-k02 · HEAD: b4c4f21
 
 ## Proposal 29 · Taking over the Common Rules chat v1 work
 
-3 done / 1 in progress / 1 blocked / 2 not started
+4 done / 0 in progress / 1 blocked / 2 not started
 
 ### In progress
 
-- K-02 · [ruflo · medium · sonnet] · One tracker per project until the sponsor asks for another (P22 T-04) · reported and merged into branch
+- none
 
 ### Blocked, and why
 
@@ -185,7 +185,7 @@ Reason: manual · branch: p29-k02 · HEAD: b4c4f21
 
 ### Next unblocked
 
-- none
+- K-03 · [ruflo · low · haiku] · PhotoVault app and engine on one tracker (P22 T-05)
 
 ## Exact next action
 

@@ -93,7 +93,7 @@
       "depends": [
         "K-01"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -105,6 +105,12 @@
           "event": "reported and merged into branch",
           "by": "lead",
           "evidence": "origin/k-02-one-tracker = d39d66a (from git), based on 32cd0b9: CLAUDE-workflow.md +4/-4 (folded into the lead-boundary bullet; section stays within its 25-line test cap), skills/standard and skills/warmup, templates/lead-prompt.md, docs/workflow.html stamp 484 plus a bullet, tests/test_one_tracker_rule.py (3 of 4 failed before the edits). Agent suite: quiet: OK · 1225 tests. Merged into p29-k02 as a92d487; docs/workflow.png regenerated. Review (restricted: common-rules) and merge next."
+        },
+        {
+          "at": "2026-09-15T13:23:21+02:00",
+          "event": "done",
+          "by": "lead",
+          "evidence": "PR 180 merged to main as 8aa1f55 (from gh). Suite on 9989c53: quiet: OK · 1225 tests. CI: only the known Linux test_a_long_branch_says_how_many_it_did_not_print. Review (haiku, checklist): merge; its CHANGELOG check read an older entry, the lead verified the newest entry quotes the sponsor exactly with no new Standard change line."
         }
       ]
     },
