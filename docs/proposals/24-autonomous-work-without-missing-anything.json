@@ -134,6 +134,25 @@
           "evidence": "Bundle D (new bin/handover, templates/lead-prompt.md dispatcher and item-lead forms, the session-start spike): one Sonnet builder after a Haiku scout, branch bundle-d from af3dbc8, integration branch backlog."
         }
       ]
+    },
+    {
+      "id": "H-04",
+      "phase": "H",
+      "cx": "C2",
+      "title": "Background leads are visible and named apart from chat sessions",
+      "what": "Every session the dispatcher starts in the background is started with `claude --bg --name <name>` so it shows by that name in `claude agents` and the desktop session list. Names follow a convention distinct from interactive chats: `bg · <project> · dispatcher` for the dispatcher and `bg · <project> · lead · P<nn> <item ids>` for an item lead (e.g. `bg · common-rules · lead · P26 C-03`). bin/handover --check and the tracker page list running background leads by name with their session id.",
+      "files": [],
+      "tests": [],
+      "done": "A background lead started by the dispatcher appears under its convention name in `claude agents --json`; a test pins the name format; the lead-prompt dispatcher form and H-03 proof run use it.",
+      "depends": [
+        "H-03"
+      ],
+      "status": "not started",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "owner": "lead",
+      "issue": null
     }
   ],
   "asks": [
@@ -201,6 +220,15 @@
       "state": "answered",
       "source": "Common Rules rework session transcript",
       "note": "Applies to every accepted, not-built item in proposals 24-28; built in surface bundles on integration branch backlog."
+    },
+    {
+      "id": "A-07",
+      "at": "2026-09-15T15:49:35+02:00",
+      "by": "lead",
+      "kind": "feature",
+      "quote": "add an amendment I would like to see when uh, is it possible to see the leads in background tasks if so they should follow a different naming convention",
+      "became": "H-04",
+      "state": "became-item"
     }
   ],
   "proposed_changes": [],
