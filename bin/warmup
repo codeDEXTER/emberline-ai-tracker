@@ -6,7 +6,25 @@
   warmup --json                              the card's state as JSON
   warmup --state PATH                        also save the state (for a later --since)
   warmup --since PATH                        print only what moved since that state
+  warmup --reheat                            delta since the last warmup/reheat, plus the standard (proposal 28, R-01)
+  warmup --queue                             with the plain card or --reheat: record what is pending as ledger items
+  warmup --context TEXT                      one free-text line, carried into the state file
+  warmup --no-pull                           never fast-forward the shared rules checkout (proposal 28, R-05)
   warmup --no-recall | --recall-corpus GLOB  control the recall step
+
+RUNNING VS FRESH (proposal 28, R-01). A fresh lead runs the plain card;
+a lead already running asks only what moved -- `--reheat` is `--since` against
+a state file warmup itself keeps (default: inside the project's own .git/, so
+nothing here is committed), with the standard's own status appended every
+time rather than only when it changed, since a running lead needs to be told
+what it did not just ask about. Both the plain card and --reheat run
+conformance (bin/conformance's twelve items) and rulecheck's mandatory-pending
+check, and show every item that does not hold. `--queue` writes: each
+non-holding conformance item and each pending mandatory Standard change
+becomes a ledger item (tools/tracker/queue.py), owner lead, status not
+started, placed first in that ledger's own item list -- idempotent, so running
+it again adds nothing for what is already queued. Without --queue only the
+card lines are printed; nothing is written.
 
 A cold session and a running one ask the same question -- what is the state,
 and what do I read -- and before this they were answered by the sponsor
@@ -161,7 +179,21 @@ def _load_rulecheck():
     return module
 
 
+def _load_conformance():
+    """bin/conformance as a module: the same twelve-item measure() `warmup
+    --queue` reads from, and `standard: N of 12 hold` on the card is its own
+    count, never re-derived here (proposal 28, R-01)."""
+    import importlib.machinery
+    import importlib.util
+    loader = importlib.machinery.SourceFileLoader("conformance", str(RULES_DIR / "bin" / "conformance"))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
 RC = _load_rulecheck()
+CF = _load_conformance()
 
 
 def rules_status(project: Path) -> tuple[str, list[str]]:
@@ -543,6 +575,28 @@ def checkpoint_state(project: Path) -> tuple[str, Path | None]:
     return ("ok" if m.group(1) == current else "stale"), latest
 
 
+def conformance_state(project: Path) -> dict | None:
+    """bin/conformance's measure(project), or None when it could not run
+    (not a git repository -- gather() has already raised by the time this is
+    called from a real project, but a bare/broken checkout can still fail
+    inside conformance's own checks). Proposal 28, R-01: both the plain card
+    and --reheat show this, and it is what `--queue` reads from."""
+    try:
+        return CF.measure(project)
+    except CF.CouldNotRun:
+        return None
+
+
+def mandatory_pending_entries(project: Path) -> list[str]:
+    """Every mandatory Standard change heading still pending, regardless of
+    what rules_status()'s card text currently says -- `--queue` reads this
+    directly rather than re-parsing the card's own lines."""
+    p = RC.mandatory_pending(project)
+    if p.state in ("behind", "unresolvable"):
+        return [e.heading for e in p.entries]
+    return []
+
+
 def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
     top = git(project, "rev-parse", "--show-toplevel")
     if top is None:
@@ -565,6 +619,17 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
         "merge_gate_declared": bool(own.get("gates", {}).get("merge")),
         "rules": rules, "ruflo": ruflo_cli(),
         "session": None,  # proposal 20, V-02: named by a ledger's or the declaration's own `session`
+        # Proposal 28, R-01: conformance item 12 runs `warmup --project DIR
+        # --check` as a subprocess -- computing conformance unconditionally
+        # here would make that subprocess compute it again, recursing without
+        # end. main() fills these in only for the plain card and --reheat,
+        # never for --check itself (or --json, --since, --migrate).
+        "conformance": None,
+        "mandatory_pending": [],
+        # Proposal 28, R-03: the shared rules checkout's own HEAD, saved in
+        # every state file so the Stop hook can notice it moved (read-only --
+        # this is `git rev-parse`, never a fetch or pull) and say "run /reheat".
+        "rules_head": git(RULES_DIR, "rev-parse", "HEAD"),
     }
     read: list[Path] = []
 
@@ -820,8 +885,68 @@ def ledger_v2_lines(led: dict, session: str | None) -> list[str]:
     return lines
 
 
+def standard_report(s: dict) -> str:
+    """`standard: N of 12 hold`, then one line per item that does not hold --
+    the same wording bin/conformance's own text() uses. Empty when
+    conformance could not run (not a git repository -- gather() would already
+    have raised by the time this can happen from a real card)."""
+    c = s.get("conformance")
+    if not c:
+        return ""
+    lines = [f"standard: {c['hold']} of {c['total']} hold"]
+    for i in c["items"]:
+        if i["state"] == CF.HOLDS:
+            continue
+        mark = "…" if i["state"] == CF.WAITING else "✗"
+        lines.append(f"  {mark} {i['n']} {i['name']}: {i['why']}" + (f" -- fix: {i['fix']}" if i["fix"] else ""))
+    return "\n".join(lines)
+
+
+def default_state_path(project: Path) -> Path:
+    """Where `--reheat` reads its baseline and saves its own, with no
+    `--state` given: inside the project's own git directory (per-worktree,
+    matching `checkout` above), so nothing here is ever committed."""
+    gitdir = git(project, "rev-parse", "--git-dir") or ".git"
+    p = Path(gitdir)
+    if not p.is_absolute():
+        p = project / p
+    return p / "common-rules-warmup-state.json"
+
+
+def do_queue(project: Path, s: dict) -> str:
+    """`--queue`'s report: one line per item actually written, or a single
+    line saying there was nothing new. Writes to the first ledger under
+    docs/proposals (tools/tracker/ledger.find's own order) -- the "least
+    invasive" target the bundle's brief asked for; a project with more than
+    one ledger keeps everything else about them untouched."""
+    from tools.tracker import queue as Q
+    ledgers = L.find(project)
+    if not ledgers:
+        return "queue: no ledger under docs/proposals -- nothing to queue into"
+    target = ledgers[0]
+    lines: list[str] = []
+    for i in (s.get("conformance") or {}).get("items", []):
+        if i["state"] == CF.HOLDS:
+            continue
+        key = f"conformance:{i['n']}"
+        title = f"standard item {i['n']} {i['name']}: {i['why']}"
+        if Q.queue(target, title, key):
+            lines.append(f"  queued {key}: {title}")
+    for heading in s.get("mandatory_pending") or []:
+        digest = hashlib.sha256(heading.encode("utf-8", "surrogatepass")).hexdigest()[:12]
+        key = f"standard:{digest}"
+        title = f"mandatory Standard change: {heading}"
+        if Q.queue(target, title, key):
+            lines.append(f"  queued {key}: {title}")
+    if not lines:
+        return f"queue: nothing new ({target.name})"
+    return f"queue ({target.name}):\n" + "\n".join(lines)
+
+
 def card(s: dict) -> str:
     out = [f"WARM · {s['name']} · {s['branch']} @ {s['head']} · {s['checkout']}"]
+    if s.get("context"):
+        out.append(f"Context: {shown(s['context'])}")
     where = ", ".join(s.get("prohibitions_from") or ["HANDOFF.md"])
     if s["prohibitions"]:
         out.append(f"Prohibitions ({where}, verbatim):")
@@ -869,10 +994,15 @@ def card(s: dict) -> str:
     for r in s["recall"]:
         out.append(f"Recall for {shown(r['item'])} ({' '.join(r['words'])}): {len(r['hits'])} hit(s)")
         out += [f"  {h}" for h in r["hits"]]
+    report = standard_report(s)
+    if report:
+        out.append(report)
     out.append("Read in order: " + " → ".join(s["read_order"]))
     if s["problems"]:
         out.append(f"{len(s['problems'])} problem(s) -- fix first, or record each in the ledger as blocked with the reason")
     out.append(f"warm-up read {s['read_bytes']:,} bytes (~{s['read_bytes'] // 4:,} tokens)")
+    if s.get("queue_report"):
+        out.append(s["queue_report"])
     return "\n".join(out)
 
 
@@ -946,6 +1076,8 @@ def main(argv) -> int:
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--json", action="store_true")
     mode.add_argument("--since", type=Path)
+    mode.add_argument("--reheat", action="store_true",
+                      help="delta since the last warmup/reheat, plus the standard (proposal 28, R-01)")
     mode.add_argument("--migrate", action="store_true",
                       help="move a running project onto the standard (seed, import, supersede, CLAUDE.md)")
     ap.add_argument("--dry-run", action="store_true", help="with --migrate: say what would change, write nothing")
@@ -955,6 +1087,9 @@ def main(argv) -> int:
     ap.add_argument("--recall-corpus", action="append", default=[])
     ap.add_argument("--no-pull", action="store_true",
                     help="never fast-forward the shared rules checkout (proposal 28, R-05)")
+    ap.add_argument("--queue", action="store_true",
+                    help="with the plain card or --reheat: record pending standard/rules items as ledger items")
+    ap.add_argument("--context", help="one free-text line, printed on the card and saved to the state file")
     args = ap.parse_args(argv)
 
     if args.migrate:
@@ -968,16 +1103,25 @@ def main(argv) -> int:
         return code
 
     try:
-        s = gather(args.project, recall=not args.no_recall and not args.check, corpus=args.recall_corpus)
+        s = gather(args.project, recall=not args.no_recall and not args.check and not args.reheat,
+                  corpus=args.recall_corpus)
     except SystemExit:
         print(f"warmup: {args.project} is not inside a git repository -- could not check", file=sys.stderr)
         return 2
 
-    # R-05: only the plain card fast-forwards the shared rules checkout --
-    # --check, --json, --since and --migrate are queries, not the moment to
-    # move the checkout under whoever is reading it.
+    if args.context:
+        s["context"] = shown(args.context)
+
+    # R-05: only the plain card and --reheat fast-forward the shared rules
+    # checkout -- --check, --json, --since and --migrate are queries, not the
+    # moment to move the checkout under whoever is reading it.
+    # R-01: for the same reason (and to break the recursion noted in
+    # gather()) conformance and the mandatory-pending list are also computed
+    # only here, never for --check.
     if not args.check and not args.json and not args.since and not args.migrate:
         s["rules_pull"] = RP.check_and_pull(RULES_DIR, no_pull=args.no_pull)
+        s["conformance"] = conformance_state(Path(s["project"]))
+        s["mandatory_pending"] = mandatory_pending_entries(Path(s["project"]))
 
     if args.check:
         print(check_report(s))
@@ -994,7 +1138,27 @@ def main(argv) -> int:
         else:
             print(delta(old, s))
         code = 0
+    elif args.reheat:
+        state_path = args.state or default_state_path(Path(s["project"]))
+        try:
+            old = json.loads(state_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            print(f"warmup --reheat: no earlier state at {state_path}; the full card follows\n")
+            print(card(s))
+        else:
+            print(delta(old, s))
+            report = standard_report(s)
+            if report:
+                print()
+                print(report)
+        if args.queue:
+            print()
+            print(do_queue(Path(s["project"]), s))
+        args.state = state_path  # always saved, so the next --reheat has a baseline
+        code = 0
     else:
+        if args.queue:
+            s["queue_report"] = do_queue(Path(s["project"]), s)
         print(card(s))
         code = 0
 

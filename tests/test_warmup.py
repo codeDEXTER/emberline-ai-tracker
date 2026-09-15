@@ -1552,12 +1552,21 @@ class TestMandatoryStandardChanges(Case):
     def test_a_heading_with_control_characters_is_escaped(self):
         self.stamp(self.rules.version())
         self.rules.add("2026-09-14 · evil\x1b[31m\x0bforged\x0c\u202eend\x85", "x")
-        for args in ((), ("--check",)):
-            with self.subTest(args=args):
-                r = self.warm(*args)
-                self.assertEqual(self.raw_controls(r.stdout), [], repr(r.stdout))
-                self.assertIn("evil\\x1b[31m\\x0bforged\\x0c\\u202eend\\x85", r.stdout)
-                self.assertEqual(sum("evil" in l for l in r.stdout.splitlines()), 1)
+        # --check never computes conformance (bin/warmup's own gather() would
+        # otherwise recurse into conformance item 12's own `warmup --check`
+        # subprocess), so it stays the one place this heading is guaranteed
+        # to appear exactly once.
+        r = self.warm("--check")
+        self.assertEqual(self.raw_controls(r.stdout), [], repr(r.stdout))
+        self.assertIn("evil\\x1b[31m\\x0bforged\\x0c\\u202eend\\x85", r.stdout)
+        self.assertEqual(sum("evil" in l for l in r.stdout.splitlines()), 1)
+        # The plain card (proposal 28, R-01) also runs conformance, which can
+        # legitimately quote the same heading again (its own item 1, and item
+        # 12's own "first: ..." line lifted from a nested `--check`) -- never
+        # unescaped, however many times it appears.
+        card = self.warm()
+        self.assertEqual(self.raw_controls(card.stdout), [], repr(card.stdout))
+        self.assertIn("evil\\x1b[31m\\x0bforged\\x0c\\u202eend\\x85", card.stdout)
 
     # --- round 2 (reviewer fix-first on a040c1e) ---------------------------
 
@@ -1776,8 +1785,12 @@ class TestTheProjectPageChangedSincePublish(Case):
 
     def test_a_leftover_per_ledger_sidecar_prints_nothing(self):
         """T-03: the per-ledger sidecar of a ledger without its own tracker is
-        not read at all -- not for a line, and not for a problem. bin/conformance
-        item 10 is where a leftover is named."""
+        not read at all by warmup's own publish-state logic -- not for a
+        line, and not for a problem. bin/conformance item 10 is where a
+        leftover is named -- and (proposal 28, R-01) the plain card now runs
+        conformance too, so the leftover legitimately appears there; the
+        assertion below is scoped to everything above that section, which is
+        warmup's own reading of the ledger and its sidecars."""
         self.published()
         self.p.commit("published")
         self.p.write(SIDECAR, json.dumps({"url": URL, "digest": "0" * 64,
@@ -1785,8 +1798,9 @@ class TestTheProjectPageChangedSincePublish(Case):
         self.p.commit("a leftover per-ledger sidecar")
         card = self.p.warmup()
         self.assertEqual(0, card.returncode, card.stderr)
-        self.assertNotIn("19-proposal-warmup.published.json", card.stdout)
-        self.assertNotIn("since last publish", card.stdout)
+        own_reading = card.stdout.split("\nstandard:", 1)[0]
+        self.assertNotIn("19-proposal-warmup.published.json", own_reading)
+        self.assertNotIn("since last publish", own_reading)
         check = self.p.warmup("--check")
         self.assertEqual(0, check.returncode, check.stdout)
         self.assertIsNone(json.loads(self.p.warmup("--json").stdout)["ledgers"][LEDGER]["published"])

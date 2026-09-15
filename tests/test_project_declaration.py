@@ -718,6 +718,11 @@ class TestTheStateKeysWithNoDeclaration(unittest.TestCase):
                 # added by proposal 20, V-02: the project's own session name,
                 # when a ledger or the declaration names one (else None).
                 "session",
+                # added by proposal 28, R-01/R-03: always present, but only
+                # filled in for the plain card and --reheat (never --json,
+                # to avoid recursing into conformance's own `warmup --check`
+                # subprocess -- see bin/warmup's gather()).
+                "conformance", "mandatory_pending", "rules_head",
             }, set(json.loads(r.stdout)))
         finally:
             p.close()

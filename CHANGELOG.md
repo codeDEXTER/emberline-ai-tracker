@@ -1,5 +1,29 @@
 # Changelog — common-rules
 
+## 2026-09-15 · warmup gains --reheat and --queue; both run the standard (P28 R-01)
+
+Proposal 28, R-01 (decided, option A). Two commands now cover the whole lead
+lifecycle: `warmup` for a fresh lead, `warmup --reheat` for one already
+running -- `--reheat` is `--since` against a state file warmup keeps for
+itself (default: inside the project's own git directory), with the
+standard's own status (conformance's twelve items, plus every pending
+mandatory Standard change) appended every time, not only when it changed.
+Both now run conformance and the mandatory-pending check on every call; with
+`--queue`, each item that does not hold becomes a ledger item -- owner
+`lead`, status `not started`, first in that ledger's own `items` list
+(`tools/tracker/queue.py`, new) -- idempotent, so a second `--queue` adds
+nothing for a source already queued.
+
+**Behaviour change:** a plain `warmup` (no flags) now also runs
+`bin/conformance`'s twelve checks and rulecheck's mandatory-pending check in
+process every time, which is measurably slower than the card alone
+(conformance item 12 itself spawns a nested `warmup --check`) -- gather()
+computes conformance only for the plain card and `--reheat`, never for
+`--check` itself, to avoid that nested call recursing into conformance a
+second time. `--queue` writes to the project's first ledger under
+`docs/proposals`; a project with several ledgers keeps everything else about
+them untouched.
+
 ## 2026-09-15 · warmup fast-forwards the shared rules checkout when it is safe (P28 R-05)
 
 Proposal 28, R-05 (decided, option A). `bin/warmup`'s plain card now checks the
