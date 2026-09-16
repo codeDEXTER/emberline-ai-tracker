@@ -633,14 +633,76 @@ class MandatoryStandardChanges(unittest.TestCase):
                 self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
                 self.assertEqual(sorted(p.name for p in self.tmp.iterdir() if p.name.startswith("pwned")), [])
 
-    def test_align_still_just_records_the_version(self):
-        """--align's semantics are not changed: the docs forbid aligning past an
-        unimplemented entry, and the card is what makes that visible."""
-        self.stamp(self.rules.version())
+    def test_align_refuses_a_pending_mandatory_entry_and_writes_nothing(self):
+        """P21 F-01: --align used to write the stamp unconditionally, so nothing
+        technically stopped a session aligning past an unimplemented mandatory
+        Standard change. Now it refuses by itself."""
+        before = self.rules.version()
+        self.stamp(before)
         self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
         r = run(self.proj, "--align", rules_dir=self.rules.root)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("Reheat is mandatory", r.stdout)
+        self.assertIn("--implemented", r.stdout)
+        self.assertEqual((self.proj / STAMP).read_text().strip(), before,
+                          "align must write nothing while a mandatory entry is pending")
+
+    def test_align_implemented_aligns_and_names_what_it_declared(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
+        cur = self.rules.version()
+        r = run(self.proj, "--align", "--implemented", rules_dir=self.rules.root)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertEqual((self.proj / STAMP).read_text().strip(), self.rules.version())
+        self.assertEqual((self.proj / STAMP).read_text().strip(), cur)
+        self.assertIn("aligned past 1 mandatory change(s)", r.stdout)
+        self.assertIn("declared implemented", r.stdout)
+        self.assertIn("Reheat is mandatory", r.stdout)
+
+    def test_align_with_only_informational_entries_needs_no_flag(self):
+        self.stamp(self.rules.version())
+        self.rules.add("2026-09-14 · A wording fix")
+        cur = self.rules.version()
+        r = run(self.proj, "--align", rules_dir=self.rules.root)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual((self.proj / STAMP).read_text().strip(), cur)
+        self.assertNotIn("declared implemented", r.stdout)
+
+    def test_align_already_aligned_needs_no_flag(self):
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
+        self.stamp(self.rules.version())
+        r = run(self.proj, "--align", rules_dir=self.rules.root)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_align_with_no_stamp_and_a_pending_entry_refuses_too(self):
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
+        r = run(self.proj, "--align", rules_dir=self.rules.root)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertFalse((self.proj / STAMP).exists())
+        self.assertIn("Reheat is mandatory", r.stdout)
+
+    def test_align_refuses_on_an_unresolvable_stamp_even_with_implemented(self):
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
+        self.stamp("3-deadbee")
+        for args in (("--align",), ("--align", "--implemented")):
+            with self.subTest(args=args):
+                r = run(self.proj, *args, rules_dir=self.rules.root)
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("cannot be resolved", r.stdout + r.stderr)
+                self.assertEqual((self.proj / STAMP).read_text().strip(), "3-deadbee")
+
+    def test_implemented_without_align_is_an_error(self):
+        r = run(self.proj, "--implemented", rules_dir=self.rules.root)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_align_refuses_when_it_could_not_check_even_with_implemented(self):
+        self.stamp(self.rules.version())
+        self.rules.git("rm", "-q", "CHANGELOG.md")
+        self.rules.commit()
+        for args in (("--align",), ("--align", "--implemented")):
+            with self.subTest(args=args):
+                r = run(self.proj, *args, rules_dir=self.rules.root)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("could not check", r.stdout + r.stderr)
 
     def test_no_stamp_lists_every_mandatory_entry_in_the_changelog(self):
         self.rules.add("2026-09-14 · First", "do one")

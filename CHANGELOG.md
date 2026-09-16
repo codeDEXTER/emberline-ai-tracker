@@ -32,6 +32,24 @@ sizing must add `--value`/`--points` or `--unsized`.
 `tests/test_tracker_findings.py` and `tests/test_tracker_cluster.py` were
 red on the old code (bare `F-01` colliding across ledgers, and `add`
 succeeding with nothing to rank) and are green on the new.
+## 2026-09-16 · `rulecheck --align` refuses while a mandatory Standard change is pending (P21 F-01)
+
+**Standard change (mandatory):** `rulecheck --align` wrote the stamp
+unconditionally -- it never called `mandatory_pending()` first, so nothing
+technically stopped a session aligning past an unimplemented mandatory
+Standard change. Only the card's own failure (and the docs saying not to)
+made that visible, and neither one is a refusal. Now, with a pending
+mandatory entry (`mandatory_pending()` state "behind" or "no stamp" with
+entries), `--align` alone writes nothing, prints each entry's title, and
+exits 1. Once they are implemented, `rulecheck --align --implemented` aligns
+and prints what was acknowledged ("aligned past N mandatory change(s),
+declared implemented: ..."), so the declaration is on record in the session
+output. `--align` with only information entries pending, or none, needs no
+flag and behaves as before. A stamp that is "unresolvable" or that "could not
+check" still refuses, `--implemented` included -- rulecheck cannot tell what
+is pending in those states, so it cannot let the flag through them either.
+Projects: after implementing a pending mandatory Standard change, align with
+`rulecheck --align --implemented`, not `rulecheck --align` alone.
 
 ## 2026-09-16 · Rows `warmup --queue` writes are routed, and common-rules holds 12 of 12 again
 

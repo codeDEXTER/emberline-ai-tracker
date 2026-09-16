@@ -52,10 +52,16 @@ every mandatory entry in the CHANGELOG counts. A stamp that cannot be resolved
 -- not a sha, or a commit this rules repo does not have (a force-push removed
 it) -- counts every one too, and always exits 1: it used to read "could not
 check" and let a project past the gate. `mandatory_pending()` is the same
-answer for bin/warmup's card and bin/conformance. `--align` is unchanged: it
-records the version and nothing else. Aligning past an unimplemented entry is
-forbidden by /standard, and the card failing is what makes that visible, not a
-refusal here.
+answer for bin/warmup's card and bin/conformance. `--align` now refuses by
+itself when a mandatory Standard change is pending (state "behind" or "no
+stamp" with entries): it writes nothing, lists each pending entry's title, and
+says to rerun with `--align --implemented` once they are done. That declares
+the entries implemented and moves the stamp, printing what was acknowledged so
+the declaration is on record in the session output. `--align` with no
+mandatory entry pending (aligned, ahead, or behind on information only) needs
+no flag and behaves as before. A stamp that is "unresolvable" or that "could
+not check" refuses too -- `--implemented` does not override either, since
+rulecheck cannot tell what is actually pending in those states.
 
 A stamp is a committed file in the project, not something this tool wrote, so
 its sha part reaches git only when it is a hex sha (lowercased). It used to go
@@ -573,6 +579,8 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--project", default=None, help="default: nearest project above cwd")
     ap.add_argument("--align", action="store_true", help="record the current version")
+    ap.add_argument("--implemented", action="store_true",
+                    help="with --align: declare pending mandatory Standard change(s) implemented")
     ap.add_argument("--mandatory", action="store_true",
                     help="list the Standard change entries since the stamp; exit 1 while any is pending")
     ap.add_argument("--version", action="store_true", help="print current version, exit")
@@ -580,6 +588,8 @@ def main():
     a = ap.parse_args()
     if a.align and a.mandatory:
         ap.error("--mandatory reads; --align writes. Run them separately.")
+    if a.implemented and not a.align:
+        ap.error("--implemented only means something with --align.")
 
     cur = current_version()
     if not cur:
@@ -627,8 +637,33 @@ def main():
         return 2
 
     if a.align:
+        pending = mandatory_pending(proj)
+        if pending.state == "could not check":
+            print(f"{proj.name}: could not check for mandatory Standard changes -- {shown(pending.why)}. "
+                  f"Not aligning: not guessing whether one is pending.", file=sys.stderr)
+            return 2
+        if pending.state == "unresolvable":
+            print(f"{proj.name}: {unresolvable_line(pending.stamp)}. Not aligning.", file=sys.stderr)
+            if pending.entries:
+                print(f"{len(pending.entries)} mandatory Standard change(s) in the rules CHANGELOG -- "
+                      f"implement each, then re-read the rules in full and `rulecheck --align`:",
+                      file=sys.stderr)
+                for e in pending.entries:
+                    print(f"  {shown(e.heading)}", file=sys.stderr)
+            return 1
+        if pending.entries and not a.implemented:
+            print(f"{proj.name}: {len(pending.entries)} mandatory Standard change(s) pending -- "
+                  f"implement these, then rerun with `rulecheck --align --implemented`:")
+            for e in pending.entries:
+                print(f"  {shown(e.heading)}")
+            return 1
         stamp.write_text(cur + "\n")
-        print(f"aligned {proj.name} with common-rules {cur}")
+        if pending.entries and a.implemented:
+            titles = "; ".join(shown(e.heading) for e in pending.entries)
+            print(f"aligned {proj.name} with common-rules {cur} -- aligned past {len(pending.entries)} "
+                  f"mandatory change(s), declared implemented: {titles}")
+        else:
+            print(f"aligned {proj.name} with common-rules {cur}")
         return 0
 
     if not stamp.exists():

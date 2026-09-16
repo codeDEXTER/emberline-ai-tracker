@@ -144,7 +144,10 @@ def build_conforming(root: Path):
     run([sys.executable, NEW_PROPOSAL, "--project", root, "Demo plan"])          # item 7
     edit_ledger(root, plan)                                                      # items 2, 6, 9
     run([sys.executable, WARMUP, "--project", root, "--migrate", "--at", NOW, "--no-recall"])  # item 11
-    run([sys.executable, RULECHECK, "--project", root, "--align"])               # item 1
+    # --implemented: the real CHANGELOG.md this reads against (no
+    # COMMON_RULES_DIR override here) carries mandatory Standard change
+    # entries, and P21 F-01 makes plain `--align` refuse past those.
+    run([sys.executable, RULECHECK, "--project", root, "--align", "--implemented"])  # item 1
     prompt = root / "docs" / "handovers" / "lead-prompt.md"                      # item 5
     if MARKER not in prompt.read_text():
         # Until S-06 puts the marker in the template, derecord seeds a prompt
