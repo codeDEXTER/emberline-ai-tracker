@@ -14,6 +14,14 @@ third on "Login expired · Please run /login". Haiku also has no auto mode, so
 an unattended lead must run on a model that does. H-03 is blocked on the
 sponsor's sign-in; see its ledger log.
 
+**Proven, 2026-09-16 after the sponsor signed the CLI in:** session
+9a77f7f0 (`claude --bg --model opus --worktree h03-proof4 "<task>"`) started
+with no click, ran `bin/conformance --project .` itself in auto mode with no
+permission prompt, replied `standard: 12 of 12 hold`, reached state `done`,
+and was removed with `claude rm 9a77f7f0`. The CLI keeps its own sign-in,
+separate from the desktop app's: check `claude auth status` before a
+dispatcher relies on this.
+
 ## Mechanism 1: `claude --bg -p "<prompt>"`
 
 - **Click needed:** none. `claude --bg` "start[s] the session in the
