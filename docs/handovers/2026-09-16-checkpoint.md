@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-16 21:34
+# Checkpoint — 2026-09-16 22:07
 
-Reason: manual · branch: w10-measure · HEAD: 7e6e7ba
+Reason: manual · branch: h03-record · HEAD: 54676df
 
-<!-- ledger-digest: d068b8a32ac3487e02a464bc3805e472f76e9a07dac4d10498d5dd826759ae2a -->
+<!-- ledger-digest: 4133d097e6cf216eb59e1806b3cd62fbd2f475e1ea85226c8171f69af8006e66 -->
 
 ## Proposal 19 · Warm-up
 
@@ -67,7 +67,7 @@ Reason: manual · branch: w10-measure · HEAD: 7e6e7ba
 
 ## Proposal 24 · Autonomous work without missing anything
 
-2 done / 1 in progress / 1 blocked / 0 not started
+3 done / 1 in progress / 0 blocked / 0 not started
 
 ### In progress
 
@@ -75,7 +75,7 @@ Reason: manual · branch: w10-measure · HEAD: 7e6e7ba
 
 ### Blocked, and why
 
-- H-03 · transcripts under ~/.agent-data/projects/-Users-the-sponsor-apps-common-rules--claude-worktrees-h03-proof*/
+- none
 
 ### Open asks
 
