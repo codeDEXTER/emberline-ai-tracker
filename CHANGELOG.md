@@ -1,5 +1,33 @@
 # Changelog — common-rules
 
+## 2026-09-16 · `tracker published` refuses a changed title -- T-06's missing half (P22 T-06)
+
+**Standard change (mandatory):** T-06 ("a published page's name is set once
+and never changes") was closed with only half its done-when built: the rule
+stated in CLAUDE-workflow.md, and a test pinning that `render.py`'s own
+`<title>` is a pure function of the project name -- but no runtime check.
+`tracker published` recorded `{url, digest, ledgers, by, at}` (or the
+per-ledger equivalent) and never read, stored or compared a page's
+`<title>` at all, so a session could republish a page under a different
+name and nothing would refuse it.
+
+`tools/tracker/render.py`'s `published_project_main` and `published_main`
+now extract the page's `<title>` (via the new `page_title()`) and record it
+in the sidecar. A later publish of the same URL whose page's `<title>`
+differs from what the sidecar last recorded is refused, naming both
+titles and proposal 22 T-06, unless `--title-changed` says the rename is
+deliberate (recorded as `title_changed: true`, mirroring `--page-unchanged`'s
+precedent for a recorded override). A sidecar with no recorded title --
+every one committed before this change -- has nothing to compare: it is
+accepted and gains a title going forward, so no existing sidecar under
+`docs/proposals/tracker/` is invalidated. A page with no `<title>` at all
+(a declared `plan_page` generator need not emit one) has nothing to record
+or compare either.
+
+Every project on the standard that calls `tracker published` should expect
+this refusal the first time a page's title actually moves between publishes,
+and pass `--title-changed` only when the rename is intentional.
+
 ## 2026-09-15 · The dispatcher starts the next item lead itself, no click needed (P28 R-04)
 
 `templates/lead-prompt.md`'s Dispatcher form now says explicitly what
