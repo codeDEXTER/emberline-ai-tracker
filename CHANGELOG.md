@@ -27,6 +27,38 @@ or compare either.
 Every project on the standard that calls `tracker published` should expect
 this refusal the first time a page's title actually moves between publishes,
 and pass `--title-changed` only when the rename is intentional.
+## 2026-09-16 · The lead runs on Opus, at low or medium effort (P23 A-22)
+
+**Standard change (mandatory):** the `C4` row of every project's `tiers`
+table now reads `"model": "opus", "effort": "low or medium"`, replacing the
+`"lead model"` placeholder that named no model at all. At your next
+`/warmup`, update your ledger's own `tiers` table to match, and retag any
+`C4` item still carrying `model: "lead model"` (its `tag` becomes
+`[ruflo · lead · opus]`). A ledger-wide tier change invalidates every `C4`
+item at once, so `tracker set` cannot repair them one at a time — each
+intermediate state fails validation. Change the tier and its items in one
+write, then validate.
+
+The sponsor's ruling, in his words: *"and i think leads should be atleact
+Opus with low of medium effort"*, with the reason he gave in the same
+breath: *"we are finding too many gaps if sonnet is the lead"*.
+
+The reason is the rule's scope. It followed a review of proposals 19-29 by
+five independent reviewers, which found the build work broadly sound — the
+80% cut maths, C-06's byte-identical additive rendering, the worklog
+double-counting and mis-pricing fixes, warmup's recursion fix, and
+`rules_pull`'s three conditions all held up under verification — while nine
+items had been closed with the measurement or proof half of their own
+`done` criteria never performed. Those were judgment calls made at the
+moment of closing an item, which is lead work, not defects in what the
+subagents built.
+
+This does not touch the older ruling above it in `HANDOFF.md`, that no
+subagent a lead dispatches uses Opus (proposal 21, A-12). The two now read
+as one rule with two halves: subagents stay Haiku and Sonnet by tier; the
+lead or dispatcher session that plans, merges, reconciles and closes runs
+on Opus. Where a session cannot run Opus, it says so rather than silently
+closing items on a lower model.
 
 ## 2026-09-15 · The dispatcher starts the next item lead itself, no click needed (P28 R-04)
 

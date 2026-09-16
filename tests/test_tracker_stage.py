@@ -115,6 +115,38 @@ class TestApplyStaged(StagingCase):
         self.assertEqual("in progress", self.item("W-01")["status"])
         self.assertEqual(1, len(list(self.staging.glob("*.json"))))
 
+    def test_a_validation_failure_does_not_block_a_later_valid_file(self):
+        """The cheap failure (unknown item) returns before touching the ledger
+        dict; this is the expensive one, which mutates an item and only then
+        fails validate(). Applying it to `data` itself left every later file
+        validating against the poisoned copy, so the whole run failed on one
+        bad file -- the opposite of what this command promises."""
+        self.stage("W-01", "--status", "wip", "--at", "2026-01-01T10:00:00+00:00")
+        self.stage("W-02", "--status", "done", "--at", "2026-01-01T11:00:00+00:00")
+        r = self.apply_staged()
+        self.assertEqual(1, r.returncode)
+        self.assertEqual("done", self.item("W-02")["status"])
+        self.assertEqual("not started", self.item("W-01")["status"])
+        left = [p.name for p in self.staging.glob("*.json")]
+        self.assertEqual(1, len(left), left)
+        self.assertIn("W-01", left[0])
+
+    def test_a_failed_file_leaves_none_of_its_own_changes_in_the_ledger(self):
+        """The severe case: the failed file's OTHER mutations (its owner, its
+        log entry) must not ride into the written ledger on the back of a
+        later file that happens to make the ledger valid again."""
+        self.stage("W-01", "--status", "wip", "--owner", "session:ghost",
+                   "--event", "should never appear", "--at", "2026-01-01T10:00:00+00:00")
+        self.stage("W-01", "--status", "done", "--at", "2026-01-01T11:00:00+00:00")
+        r = self.apply_staged()
+        self.assertEqual(1, r.returncode)
+        item = self.item("W-01")
+        self.assertEqual("done", item["status"])
+        self.assertNotEqual("session:ghost", item.get("owner"))
+        events = [e["event"] for e in item.get("log") or []]
+        self.assertNotIn("should never appear", events)
+        self.assertEqual(["done"], events)
+
     def test_nothing_staged_is_a_clean_no_op(self):
         r = self.apply_staged()
         self.assertEqual(0, r.returncode, r.stderr)

@@ -2,7 +2,7 @@
   "proposal": 19,
   "title": "Warm-up",
   "status": "accepted",
-  "updated": "2026-09-15",
+  "updated": "2026-09-16",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -24,8 +24,8 @@
     },
     "C4": {
       "tier": "lead",
-      "model": "lead model",
-      "effort": "-",
+      "model": "opus",
+      "effort": "low or medium",
       "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
     }
   },
@@ -681,8 +681,8 @@
       "discovered_from": "A-08",
       "status": "done",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -714,6 +714,12 @@
           "event": "findings for proposal 20",
           "by": "lead",
           "evidence": "(1) The warm-up pointer migrate appended to the app's CLAUDE.md gives the standard read order (HANDOFF.md first) directly below the app's own 'Read this first, then SPONSOR-CONSTRAINTS.md', with HANDOFF.md marked Historical: a live contradiction, flagged to the sponsor through the app session before he commits (proposal 20 D9). (2) Every ledger commit leaves the checkpoint stale on the card until tracker checkpoint reruns, so leads make separate checkpoint commits (the app observed it). (3) 31 Ruflo runtime files (.claude-flow state and metrics, .swarm memory databases) are tracked in the app's git, so every Ruflo call dirties the tree, the problem PR #149 fixed in common-rules. (4) The app is on common-rules 187-5a62e87 and main is 236-2fa8552, so the card correctly says rules STALE; aligning is the app's step."
+        },
+        {
+          "at": "2026-09-16T07:46:24+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": ""
         }
       ]
     },

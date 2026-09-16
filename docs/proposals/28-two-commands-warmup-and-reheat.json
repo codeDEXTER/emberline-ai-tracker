@@ -2,7 +2,7 @@
   "proposal": 28,
   "title": "Two commands: warmup and reheat",
   "status": "accepted",
-  "updated": "2026-09-15",
+  "updated": "2026-09-16",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -24,8 +24,8 @@
     },
     "C4": {
       "tier": "lead",
-      "model": "lead model",
-      "effort": "-",
+      "model": "opus",
+      "effort": "low or medium",
       "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
     }
   },
@@ -225,8 +225,8 @@
       "status": "done",
       "owner": "lead",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -234,6 +234,12 @@
           "event": "published",
           "by": "lead",
           "evidence": "https://claude.ai/artifact/HYFVRfjemufZH1C83xCxPF -- built from HANDOFF.md, docs/OPERATING-RULES.md, CLAUDE-workflow.md, skills/warmup, skills/reheat on branch backlog"
+        },
+        {
+          "at": "2026-09-16T07:46:24+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": ""
         }
       ]
     }
@@ -334,5 +340,23 @@
   "execution": {
     "started": "2026-09-15T12:00:00+02:00",
     "integration_branch": "p28-warmup-reheat"
-  }
+  },
+  "findings": [
+    {
+      "id": "F-01",
+      "source": "review",
+      "file": "docs/cookbook.html",
+      "severity": "high",
+      "state": "catalogued",
+      "title": "R-06 closed with both its rule and its currency unmet: no regeneration rule was ever written, and the page went stale when waves 2-3 restructured its own source files",
+      "log": [
+        {
+          "at": "2026-09-16T07:54:22+02:00",
+          "event": "catalogued",
+          "by": "session:review-19-29",
+          "evidence": ""
+        }
+      ]
+    }
+  ]
 }
