@@ -381,7 +381,7 @@
       "source": "review",
       "file": "tools/tracker/sizing.py",
       "severity": "high",
-      "state": "catalogued",
+      "state": "decided",
       "title": "Zero of 97 real items carry value or points, so the whole sizing apparatus is inert on real data: tracker lanes returns an empty table, tracker route says unsized, spend calibrate finds 0 points classes. The maths is correct and tested on fixtures; it has never run on a real item",
       "log": [
         {
@@ -389,6 +389,12 @@
           "event": "catalogued",
           "by": "session:review-19-29",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T20:13:29+02:00",
+          "event": "decided",
+          "by": "lead",
+          "evidence": "fixed 2026-09-16: all 97 items sized blind to cost by a Sonnet agent (388 points), applied in PR #195; first real calibration recorded on Z-05"
         }
       ]
     },
@@ -397,7 +403,7 @@
       "source": "review",
       "file": "tools/calibrate.py",
       "severity": "medium",
-      "state": "catalogued",
+      "state": "deferred",
       "title": "Calibration sees 41 of 88 closed items: bundle briefs carry no item id, so their tokens attribute to no item; 8/13-point medians fall below 5-point",
       "value": "high",
       "points": 3,
@@ -407,6 +413,12 @@
           "event": "catalogued",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T20:13:30+02:00",
+          "event": "deferred",
+          "by": "lead",
+          "evidence": "deferred 2026-09-16: past bundle tokens cannot be re-attributed; the brief template's first line already tags one item id. Rerun bin/spend calibrate at the next 20 closed items and check coverage rises"
         }
       ]
     }
