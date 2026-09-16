@@ -531,7 +531,7 @@
       ],
       "done": "Brief template MUST lines added with a Standard change line; a rerun of the mining script shows each cluster down by half.",
       "depends": [],
-      "status": "in progress",
+      "status": "in testing",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -573,6 +573,18 @@
           "event": "measured 2026-09-16: FAIL. Mining script reconstructed and rerun, 8-14 Sep vs 16 Sep, all apps transcripts: cat/sed -n reads 12.80 -> 7.67 per 100 tool calls (-40%, not halved); hand-appended HANDOFF/AGENT-LOG 2 -> 1 (too thin to judge); raw flutter test not measurable (no Flutter sessions after). Reconstruction does not reproduce the original 15 Sep magnitudes, so the original script's window differed",
           "by": "lead",
           "evidence": "/private/tmp/claude-501/-Users-the-sponsor-apps/3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure.py, /private/tmp/claude-501/-Users-the-sponsor-apps/3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure-B-2026-09-16.json"
+        },
+        {
+          "at": "2026-09-16T19:43:07+02:00",
+          "event": "lead decision 2026-09-16: no blocking hook. A PreToolUse hook refusing cat/sed -n would also refuse legitimate small reads and pipes in every project, a heavier change than the lever is worth; the -40% after one day is movement in the right direction on one day's data. Re-measure with the same script ( measure.py, preserved at docs/research) once 7 days of sessions follow the 15 Sep rule (from 2026-09-23); if cat/sed reads are not halved then, reopen with a hook proposal for the sponsor",
+          "by": "lead",
+          "evidence": "measure-B-2026-09-16.json"
+        },
+        {
+          "at": "2026-09-16T19:43:20+02:00",
+          "event": "correction to the entry above: the script is docs/research/l07-m03-measure.py (the scratch path did not expand)",
+          "by": "lead",
+          "evidence": ""
         }
       ],
       "points": 2,
@@ -642,7 +654,7 @@
       "tests": [],
       "done": "Measured tool-definition tokens per session before and after; bin/ruflo-item still works.",
       "depends": [],
-      "status": "in progress",
+      "status": "done",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
@@ -678,6 +690,12 @@
           "event": "measured 2026-09-16: build half questioned. M-03 landed as dcc3c1b, 18 lines of skills/warmup/SKILL.md only -- no .mcp.json or loading change, so nothing can move tool-definition tokens. Before: first-request context median 52,795 tokens over 10 ruflo-project sessions (4-5 Sep, thin); after: 0 ruflo-project sessions exist. bin/ruflo-item --help exits 0",
           "by": "lead",
           "evidence": "/private/tmp/claude-501/-Users-the-sponsor-apps/3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure-B-2026-09-16.json"
+        },
+        {
+          "at": "2026-09-16T19:43:07+02:00",
+          "event": "measured 2026-09-16, closed: the cost M-03 set out to trim is not paid. Ruflo's MCP server (claude-flow) reaches sessions as deferred tool names only -- PhotoVault/engine session 18ce8954 (7 Sep) records a deferred_tools_delta attachment listing 334 mcp__claude-flow__* names, full definitions are fetched only through ToolSearch. First-request context (input+cache_write+cache_read, first assistant turn, sessions from 1 Sep): ruflo projects median 53,144-53,541 on 5-6 Sep (n=38) against 61,006-76,051 for non-ruflo project sessions over the same days (n=17) -- no ~61.5k tool-definition overhead. Claude Code's deferred loading removed it, not dcc3c1b's doc change; no .mcp.json edit is warranted, and none would be ours to make (other projects' files). bin/ruflo-item --help exits 0",
+          "by": "lead",
+          "evidence": "~/.agent-data/projects/-Users-the-sponsor-apps-PhotoVault-engine/18ce8954-3e82-422b-87be-ec0ac22c9f6b.jsonl; worklog.usage_tokens over ~/.agent-data/projects/-Users-the-sponsor-apps*/*.jsonl"
         }
       ],
       "points": 3,
