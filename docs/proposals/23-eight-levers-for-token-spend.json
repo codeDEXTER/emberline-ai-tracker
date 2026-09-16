@@ -1166,7 +1166,7 @@
       "source": "review",
       "file": "docs/workflow.html",
       "severity": "high",
-      "state": "catalogued",
+      "state": "decided",
       "title": "main has been red since the first wave merged: the rules-version stamp says 589 but main is at 495. The stamp was computed on the long-lived backlog branch and squash-merging collapsed the count. Every suite run was on the branch, never on the merge result -- the exact failure ci.yml was written to catch, undetected because Actions has created no runs since the billing stop",
       "log": [
         {
@@ -1174,6 +1174,12 @@
           "event": "catalogued",
           "by": "session:review-19-29",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T20:13:29+02:00",
+          "event": "decided",
+          "by": "lead",
+          "evidence": "fixed 2026-09-16: workflow.html stamp recomputed for main's post-merge commit count and workflow.png regenerated; full suite on main OK (1563, later 1569 tests after #193/#194). Lesson recorded: verify the merge result, not the branch"
         }
       ]
     },
@@ -1182,7 +1188,7 @@
       "source": "review",
       "file": "docs/proposals/23-eight-levers-for-token-spend.json",
       "severity": "medium",
-      "state": "catalogued",
+      "state": "decided",
       "title": "Nine items across five proposals were closed with the measurement or proof half of their own done criteria never performed (H-02 150k, H-03 proof run, Z-05 first calibration, M-03 before/after tokens, L-01/L-02/L-06/L-07 rerun measurements, T-06 title refusal). The build half was done in every case; the verification half was skipped and the item closed anyway",
       "log": [
         {
@@ -1190,6 +1196,12 @@
           "event": "catalogued",
           "by": "session:review-19-29",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T20:13:29+02:00",
+          "event": "decided",
+          "by": "lead",
+          "evidence": "acted on 2026-09-16: every item named was reopened (PR #192) and then measured or proved: Z-05 closed on a real calibration (#195); T-06 closed with the title refusal (#189); L-01, H-02, L-07 measured failing, M-03 closed on measurement (#197, #199); L-02, L-06 not measurable yet; H-03 blocked on sponsor sign-in"
         }
       ]
     }

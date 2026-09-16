@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-16 19:43
+# Checkpoint — 2026-09-16 20:13
 
-Reason: manual · branch: m03-l07 · HEAD: 8ef333a
+Reason: manual · branch: findings-triage · HEAD: 3a9fc80
 
-<!-- ledger-digest: bee9635a9145404115cb5913957efbb015acb626b89795cb9876a9c10cf886a9 -->
+<!-- ledger-digest: cf78a264bdc0739d58e17aa8e2226f7b11ba23690eb46ee59e1902cc5bca4d98 -->
 
 ## Proposal 19 · Warm-up
 
