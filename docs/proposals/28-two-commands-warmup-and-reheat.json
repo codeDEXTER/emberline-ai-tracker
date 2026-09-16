@@ -371,7 +371,7 @@
       "source": "review",
       "file": "docs/cookbook.html",
       "severity": "high",
-      "state": "catalogued",
+      "state": "decided",
       "title": "R-06 closed with both its rule and its currency unmet: no regeneration rule was ever written, and the page went stale when waves 2-3 restructured its own source files",
       "log": [
         {
@@ -379,6 +379,12 @@
           "event": "catalogued",
           "by": "session:review-19-29",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T20:13:29+02:00",
+          "event": "decided",
+          "by": "lead",
+          "evidence": "fixed 2026-09-16: docs/cookbook.html rebuilt against current rules, version-controlled, with a regeneration rule in CLAUDE-workflow.md and tests/test_cookbook_current.py (PR #190)"
         }
       ]
     }

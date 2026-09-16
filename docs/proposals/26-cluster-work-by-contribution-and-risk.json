@@ -375,7 +375,7 @@
       "source": "review",
       "file": "tools/tracker/findings.py",
       "severity": "medium",
-      "state": "catalogued",
+      "state": "decided",
       "title": "First real use of C-05 exposed two defects: finding ids are per-ledger so four different findings are all F-01 and are indistinguishable in the cross-ledger queue the feature exists to provide (items avoid this with per-proposal prefixes); and value/points are optional on findings add, so every finding lands unsized and the lane ranking it was built for cannot rank them",
       "log": [
         {
@@ -383,6 +383,12 @@
           "event": "catalogued",
           "by": "session:review-19-29",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T20:13:35+02:00",
+          "event": "decided",
+          "by": "lead",
+          "evidence": "fixed 2026-09-16 (PR #200): cross-ledger queue and clustering use proposal-qualified ids (26/F-01), which also fixed clustering silently unioning different ledgers' F-01s; findings add refuses without --value and --points unless --unsized"
         }
       ]
     }
