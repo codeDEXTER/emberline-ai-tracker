@@ -240,6 +240,18 @@
           "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T07:49:10+02:00",
+          "event": "Repair: committed docs/cookbook.html to version control (was only in an ephemeral scratchpad), rewrote it as a visual/scannable reference against the CURRENT rules (docs/OPERATING-RULES.md folded into HANDOFF.md per M-11, six-category list replaced by tracker route per M-08), added the missing regeneration rule to CLAUDE-workflow.md next to T-06, and added tests/test_cookbook_current.py as a real drift guard. Left in progress: lead must publish the page to its existing URL before this can honestly close.",
+          "by": "session:r06-repair",
+          "evidence": ""
+        },
+        {
+          "at": "2026-09-16T08:42:02+02:00",
+          "event": "published the rebuilt cookbook to its existing URL, title unchanged per T-06; mermaid syntax verified to render by loading real mermaid against the committed file, not assumed",
+          "by": "lead",
+          "evidence": "https://claude.ai/artifact/HYFVRfjemufZH1C83xCxPF · docs/cookbook.html now version-controlled · regeneration rule in CLAUDE-workflow.md · tests/test_cookbook_current.py"
         }
       ]
     }

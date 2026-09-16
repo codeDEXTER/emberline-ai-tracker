@@ -1,6 +1,6 @@
-# Checkpoint — 2026-09-16 08:20
+# Checkpoint — 2026-09-16 08:42
 
-Reason: manual · branch: lead-model · HEAD: 50446b9
+Reason: manual · branch: ledger-catchup · HEAD: ce2aa95
 
 <!-- ledger-digest: 8e4f01bfa101168948204ff052776156954101231317c7dc4fc64a4a7466fdfc -->
 
