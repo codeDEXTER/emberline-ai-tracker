@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-16 23:36
+# Checkpoint — 2026-09-16 23:56
 
-Reason: manual · branch: worktree-lead-session-record · HEAD: ba48e66
+Reason: manual · branch: worktree-lead-session-record · HEAD: 4df32de
 
-<!-- ledger-digest: 966f2529890bb15144b6d484b943f7458ff6603a58692370e94aafdbfb046ed8 -->
+<!-- ledger-digest: adf4a0e2d0d62202d65578d049950204dedaf3e7d2670ba649fa0e3267077873 -->
 
 ## Proposal 19 · Warm-up
 
@@ -51,7 +51,7 @@ Reason: manual · branch: worktree-lead-session-record · HEAD: ba48e66
 
 ### In progress
 
-- L-01 · [ruflo · lead · opus] · Fresh lead per milestone or day · measured: this fresh lead session passes the criterion; the day's other lead session does not, so L-01 stays open
+- L-01 · [ruflo · lead · opus] · Fresh lead per milestone or day · correction: final figures are 95 requests / 10.4M tokens / 0.0% above 500k / peak 157,059
 
 ### Blocked, and why
 
@@ -71,7 +71,7 @@ Reason: manual · branch: worktree-lead-session-record · HEAD: ba48e66
 
 ### In progress
 
-- H-02 · [ruflo · medium · sonnet] · Thin dispatcher and short item leads · measured: the first dispatcher-form session stayed under the 150k cap
+- H-02 · [ruflo · medium · sonnet] · Thin dispatcher and short item leads · correction: this session finished at 157,059 peak context and BREACHED the 150k cap; one artifact read caused it
 
 ### Blocked, and why
 
