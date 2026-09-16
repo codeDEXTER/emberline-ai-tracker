@@ -1,0 +1,581 @@
+{
+  "project": "/Users/the-sponsor/apps/common-rules",
+  "name": "common-rules",
+  "branch": "main",
+  "head": "aaa8e84",
+  "checkout": "main checkout",
+  "prohibitions": [
+    "**1. Never change common-rules on your own initiative.** Every edit, merge and",
+    "**2. Never write into another project or its data, and never kill a process by"
+  ],
+  "prohibitions_from": [
+    "HANDOFF.md"
+  ],
+  "prose": [
+    "CLAUDE.md",
+    "HANDOFF.md",
+    "docs/OPERATING-RULES.md"
+  ],
+  "problems": [],
+  "chain": [
+    [
+      "✓",
+      ".common-rules.json · declares read_order, safety_rules, gates"
+    ],
+    [
+      "✓",
+      "CLAUDE.md · 7 commits behind HEAD"
+    ],
+    [
+      "✓",
+      "HANDOFF.md · 10 commits behind HEAD"
+    ],
+    [
+      "✓",
+      "docs/OPERATING-RULES.md · 10 commits behind HEAD"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/19-proposal-warmup.json · well-formed"
+    ],
+    [
+      "✓",
+      "page docs/proposals/tracker/19-proposal-warmup.html · matches the ledger"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/20-proposal-warmup-from-the-app.json · well-formed"
+    ],
+    [
+      "✓",
+      "page docs/proposals/tracker/20-proposal-warmup-from-the-app.html · matches the ledger"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/21-standard-is-mandatory.json · well-formed"
+    ],
+    [
+      "✓",
+      "page docs/proposals/tracker/21-standard-is-mandatory.html · matches the ledger"
+    ],
+    [
+      "✓",
+      "checkpoint docs/handovers/2026-09-14-checkpoint.md · matches the open ledgers"
+    ]
+  ],
+  "ledgers": {
+    "docs/proposals/19-proposal-warmup.json": {
+      "proposal": 19,
+      "title": "Warm-up",
+      "status_line": "13 done / 1 in progress / 0 blocked / 0 not started",
+      "items": {
+        "W-00": {
+          "status": "done",
+          "title": "The ledger contract: tools/tracker/ledger.py, bin/tracker validate",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        },
+        "W-01": {
+          "status": "done",
+          "title": "templates/ — the six seeds and the brief",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "W-02": {
+          "status": "done",
+          "title": "bin/tracker render — ledger.json to the proposal page",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        },
+        "W-03": {
+          "status": "done",
+          "title": "bin/tracker check — land refuses a commit whose ledger row did not move",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        },
+        "W-04": {
+          "status": "done",
+          "title": "bin/tracker sync — GitHub issues mirror the ledger one way",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "W-05": {
+          "status": "done",
+          "title": "/warmup skill and bin/warmup --check",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        },
+        "W-06": {
+          "status": "done",
+          "title": "bin/recall and bin/remember",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "W-07": {
+          "status": "done",
+          "title": "Stop, PreCompact and SessionStart hooks; checkpoint writer",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "W-08": {
+          "status": "done",
+          "title": "derecord seeds the templates and installs the hooks",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "W-11": {
+          "status": "done",
+          "title": "derecord installs the /warmup skill into a project",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "W-09": {
+          "status": "done",
+          "title": "tracker import — an existing milestone plan becomes a ledger",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        },
+        "W-12": {
+          "status": "done",
+          "title": "/warmup --migrate — a running project moves onto the standard",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        },
+        "W-13": {
+          "status": "done",
+          "title": "Migrate the PhotoVault app onto the standard",
+          "tag": "[ruflo · lead · lead model]",
+          "next": false
+        },
+        "W-10": {
+          "status": "in progress",
+          "title": "Pilot on the PhotoVault engine; measure the exit conditions",
+          "tag": "[ruflo · lead · lead model]",
+          "next": false
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "Can we somehow integrate kit issues here or does that not make sense?"
+        },
+        "A-02": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "Can it also handle if new items need to be researched and the research and add to the tracker and the proposals?"
+        },
+        "A-03": {
+          "state": "became-item",
+          "kind": "question",
+          "quote": "how can we ensure that a chat session does not forget this when, uh, compact happens?"
+        },
+        "A-04": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "Can we have something like memory, which can be something similar to what ruflo does"
+        },
+        "A-05": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "if I'm already running a chat session, can I somehow warm it up, like, reheat with the new rules"
+        },
+        "A-06": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "i want ruflo to be mandatory"
+        },
+        "A-07": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "merge 148 and wait for the engine"
+        },
+        "A-08": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "Migrate Photovoltaic app as well."
+        },
+        "A-09": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Do a dry run first."
+        },
+        "A-10": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "merge 152, option 1 for the app"
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "opus"
+          ],
+          [
+            "C4",
+            "lead model"
+          ]
+        ],
+        0
+      ],
+      "published": null
+    },
+    "docs/proposals/20-proposal-warmup-from-the-app.json": {
+      "proposal": 20,
+      "title": "Warm-up, from the app",
+      "status_line": "12 done / 0 in progress / 0 blocked / 0 not started",
+      "items": {
+        "V-00": {
+          "status": "done",
+          "title": "Project declaration: .common-rules.json (D9)",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        },
+        "V-01": {
+          "status": "done",
+          "title": "Ledger contract v2 (D2, D4, D5, D6, D7, D8)",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        },
+        "V-02": {
+          "status": "done",
+          "title": "Card v2",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "V-03": {
+          "status": "done",
+          "title": "Tracker page v2",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "V-04": {
+          "status": "done",
+          "title": "sync honours switches.issues (D5)",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "V-05": {
+          "status": "done",
+          "title": "Agent tag hook (D3)",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "V-06": {
+          "status": "done",
+          "title": "bin/ruflo-item (D11)",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "V-07": {
+          "status": "done",
+          "title": "derecord v2 (D12, D13)",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "V-08": {
+          "status": "done",
+          "title": "Templates: parallel high tier, reviewer, verify level (D10)",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "V-09": {
+          "status": "done",
+          "title": "Publish (D1)",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        },
+        "V-10": {
+          "status": "done",
+          "title": "Reheat the PhotoVault engine and app, then measure",
+          "tag": "[ruflo · lead · lead model]",
+          "next": false
+        },
+        "V-11": {
+          "status": "done",
+          "title": "Publish the declared plan page (D1 with D9)",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "proposal 20 accepted"
+        },
+        "A-02": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "reheat the photovault app and engine"
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "opus"
+          ],
+          [
+            "C4",
+            "lead model"
+          ]
+        ],
+        0
+      ],
+      "published": null
+    },
+    "docs/proposals/21-standard-is-mandatory.json": {
+      "proposal": 21,
+      "title": "The standard is mandatory",
+      "status_line": "9 done / 0 in progress / 0 blocked / 2 not started",
+      "items": {
+        "S-01": {
+          "status": "done",
+          "title": "/standard: the sponsor's mandatory command",
+          "tag": "[ruflo · lead · lead model]",
+          "next": false
+        },
+        "S-02": {
+          "status": "done",
+          "title": "Proposal template and bin/new-proposal",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        },
+        "S-03": {
+          "status": "done",
+          "title": "proposalcheck: no unchecked proposal pages above the legacy floor",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "S-04": {
+          "status": "done",
+          "title": "bin/conformance: the 12-item checklist, measured",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        },
+        "S-05": {
+          "status": "done",
+          "title": "Hooks from a parent start folder",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "S-06": {
+          "status": "done",
+          "title": "Templates and CLAUDE-workflow name the standard",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false
+        },
+        "S-07": {
+          "status": "not started",
+          "title": "PhotoVault app on the standard",
+          "tag": "[ruflo · lead · lead model]",
+          "next": true
+        },
+        "S-08": {
+          "status": "not started",
+          "title": "PhotoVault engine on the standard",
+          "tag": "[ruflo · lead · lead model]",
+          "next": true
+        },
+        "S-09": {
+          "status": "done",
+          "title": "Unimplemented Standard changes fail the card",
+          "tag": "[ruflo · high · opus]",
+          "next": false
+        },
+        "S-10": {
+          "status": "done",
+          "title": "common-rules on its own standard",
+          "tag": "[ruflo · lead · lead model]",
+          "next": false
+        },
+        "S-11": {
+          "status": "done",
+          "title": "/standard in the common-rules session",
+          "tag": "[ruflo · lead · lead model]",
+          "next": false
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Yes. This is mandatory. It's not optional. I want them to follow the same structure, and they should refactor once they reach the... they should tell me, okay, at what stage when the current tasks are finished, they will refactor it. And I want every... both of those sessions to speak the common language and handle things in the same way. It's mandatory. It's not optional."
+        },
+        "A-02": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "And I want this to be a standard way of proceeding ahead for other projects as well whenever I create a session at a user level. I want the... once I use the command, I want the sessions to accept it and do whatever needs to be done to follow the standard way."
+        },
+        "A-03": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "and make it in such a way if I improve something in the common rules in the future regarding warm up or reheat. Then the project should prioritize that and implement it. It's not optional. It needs to be implemented always, mandatory."
+        },
+        "A-04": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Common rules also works with the same workflow. So I would like you to maintain the same processes what we are implementing in other projects."
+        },
+        "A-05": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Asked: \"May I commit the warm-up pointer block to common-rules' CLAUDE.md? It is the only part of CLAUDE.md that changes, and it takes common-rules from 11 to 12 of 12.\" Answered: \"Commit it (Recommended)\""
+        },
+        "A-06": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Asked: \"May I install the start card on the PhotoVault folder with derecord --parent /Users/the-sponsor/apps/PhotoVault? It writes only a SessionStart hook in PhotoVault/.claude/settings.json.\" Answered: \"Install it (Recommended)\""
+        },
+        "A-07": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Asked: \"May I install the same start card on /Users/the-sponsor/apps, where this session, MacExplorer and most of your other sessions start?\" Answered: \"Not now (Recommended)\""
+        },
+        "A-08": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "/standard: the common-rules standard is mandatory"
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "opus"
+          ],
+          [
+            "C4",
+            "lead model"
+          ]
+        ],
+        0
+      ],
+      "published": {
+        "stem": "21-standard-is-mandatory",
+        "url": "https://claude.ai/code/artifact/c6e49aeb-6470-4d8a-90d4-4b9f293f17ee",
+        "digest": "bea2f8b89f2f47847bb1575438c7105c0cb2a160851735323ed4accb2f2fa755",
+        "at": "2026-09-14T19:15:05+02:00",
+        "by": "common-rules lead",
+        "page_digest": "bea2f8b89f2f47847bb1575438c7105c0cb2a160851735323ed4accb2f2fa755",
+        "changed": false,
+        "ledger_digest": "aac663b16cca1f994363b571e86f73f2cc6d59710757d890934e845dfcccbf83"
+      }
+    }
+  },
+  "files": {
+    "CLAUDE.md": "910fee09af9671fc4f17b2431a21d3bd0bd667ce04904791bbd3dcb706763e04",
+    "HANDOFF.md": "9ccbd916e83ef94742f412b199d735e4d5ffb118aadc588def501a9489213c7a",
+    "docs/OPERATING-RULES.md": "342638926256340c14b59f0eeea25998f520ad568981fac4097462dbdfd744c9",
+    "docs/proposals/19-proposal-warmup.json": "69935e6a171f66b27f8bd31fa63980fd4bf380eb290c15d8a5058ea6ceed78fe",
+    "docs/proposals/20-proposal-warmup-from-the-app.json": "4a1c8d5fb8fcddbe165e43c50d4fb4d3a6ecaf2be0c3a6f82334edc3490980a3",
+    "docs/proposals/21-standard-is-mandatory.json": "aac663b16cca1f994363b571e86f73f2cc6d59710757d890934e845dfcccbf83",
+    "docs/handovers/2026-09-14-checkpoint.md": "1f98fe9d1afd6f5cfc50229aa703a7d0abc2f1ed3914e262cefa6f90b118fa9d"
+  },
+  "test_command": "python3 -m unittest discover -s tests -q",
+  "quick_gate": "python3 -m unittest discover -s tests -q -p 'test_tracker*.py'",
+  "merge_gate_declared": true,
+  "rules": "not adopted (.common-rules-version absent) · 2 mandatory Standard change(s) in the rules CHANGELOG",
+  "ruflo": "/Users/the-sponsor/.npm/_npx/85fb20e3e7e3a233/node_modules/.bin/claude-flow",
+  "session": null,
+  "checkpoint": "ok",
+  "superseded": [
+    "2026-09-14 · superseded by proposal 19: “One plan, updated in place” → the ledger, docs/proposals/NN-*.json, is the plan of record; its page is generated by tracker render"
+  ],
+  "read_order": [
+    "CLAUDE.md",
+    "HANDOFF.md",
+    "docs/OPERATING-RULES.md",
+    "docs/proposals/19-proposal-warmup.json",
+    "docs/proposals/20-proposal-warmup-from-the-app.json",
+    "docs/proposals/21-standard-is-mandatory.json",
+    "docs/handovers/2026-09-14-checkpoint.md",
+    "CLAUDE-workflow.md"
+  ],
+  "read_bytes": 194644,
+  "recall": [
+    {
+      "item": "W-10",
+      "words": [
+        "pilot",
+        "photovault",
+        "engine",
+        "measure"
+      ],
+      "hits": [
+        "4  2026-09-14T01:31:11+02:00  /Users/the-sponsor/apps/common-rules/docs/proposals/19-proposal-warmup.json#W-10.log[8]  what remains Both PhotoVault projects are migrated and their cards read ready (engine 7cb0448/79151e3, app 941b479/36aa2dd/14d5e71). W-10's done-when is each of",
+        "3  2026-09-13T21:55:07+02:00  /Users/the-sponsor/apps/common-rules/docs/proposals/19-proposal-warmup.json#W-12.log[2]  dry runs on the real projects, read-only git status unchanged on all three. PhotoVault engine: ledger 71 present, nothing to import; would supersede 2 rules ('O",
+        "3  2026-09-13T21:32:37+02:00  /Users/the-sponsor/apps/common-rules/docs/proposals/19-proposal-warmup.json#W-05.log[2]  pilot, read-only bin/warmup run on /Users/the-sponsor/apps/PhotoVault/engine with git status porcelain 0 lines before and after. First card printed three wrong line"
+      ]
+    },
+    {
+      "item": "S-07",
+      "words": [
+        "photovault",
+        "standard"
+      ],
+      "hits": [
+        "2  2026-09-14T16:40:58+02:00  /Users/the-sponsor/apps/common-rules/docs/proposals/21-standard-is-mandatory.json#S-04.log[1]  reported origin/p21-s04 = 2d15234834651ed9edae01449bce733cda854274 (from git). bin/conformance: 'standard: N of 12 hold', one line per item (✓ holds, ✗ does not",
+        "2  2026-09-14T19:22:41+02:00  /Users/the-sponsor/apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json#Q-02.log[2]  done standard: 12 of 12 hold (common-rules bin/conformance --project ., at 4863eec); warmup --check: ready; rulecheck stamp aligned 422-0bd48e6. Commits: 6bc9b5",
+        "2  2026-09-14T19:21:16+02:00  /Users/the-sponsor/apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json#Q-02.log[1]  refactor under way Item 1: the two mandatory Standard change entries since no stamp (P21 S-02 bin/new-proposal and proposal_series; Later changes to the standar"
+      ]
+    },
+    {
+      "item": "S-08",
+      "words": [
+        "photovault",
+        "engine",
+        "standard"
+      ],
+      "hits": [
+        "3  2026-09-14T16:40:58+02:00  /Users/the-sponsor/apps/common-rules/docs/proposals/21-standard-is-mandatory.json#S-04.log[1]  reported origin/p21-s04 = 2d15234834651ed9edae01449bce733cda854274 (from git). bin/conformance: 'standard: N of 12 hold', one line per item (✓ holds, ✗ does not",
+        "3  2026-09-14T19:21:16+02:00  /Users/the-sponsor/apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json#Q-02.log[1]  refactor under way Item 1: the two mandatory Standard change entries since no stamp (P21 S-02 bin/new-proposal and proposal_series; Later changes to the standar",
+        "3  14 Sep 2026  /Users/the-sponsor/.claude/projects/-Users-the-sponsor-apps/memory/photovault-common-structure-mandatory.md:11  Sponsor ruling, 14 Sep 2026 (in the common-rules session): the common-rules warm-up standard (proposals 19 and 20) is **mandatory, not optional** for the PhotoV"
+      ]
+    }
+  ]
+}

@@ -390,6 +390,12 @@
           "event": "done",
           "by": "session:bundle-g",
           "evidence": "Rule stated once in CLAUDE-workflow.md Talking-to-the-user, covers every maintained page not just tracker; skills/warmup points back. tests/test_published_title_stable.py pins render.py title stability across two renders. Commit e09d50f."
+        },
+        {
+          "at": "2026-09-16T07:52:02+02:00",
+          "event": "T-06 repair: the missing runtime check built",
+          "by": "session:t06-repair",
+          "evidence": "tools/tracker/render.py: page_title(), _recorded_title(), _title_check() -- published_project_main and published_main now record the page's <title> in the sidecar and refuse a later publish whose <title> differs from what was recorded, unless --title-changed overrides (recorded as title_changed:true); a sidecar with no recorded title (every one committed before this) has nothing to compare and gains one. Backward compatible: no existing sidecar invalidated. Tests: tests/test_tracker_render.py TestPublishedTitleGuard (per-ledger) and TestPublishedProjectTitleGuard (--project), tests/test_published_title_stable.py TestTitleCheckHelper -- all red-first, drive the real tracker published CLI/functions and can fail if the check regresses (the reviewer's complaint about the original render()-only test no longer applies to these). Full suite: see checkpoint."
         }
       ]
     }
