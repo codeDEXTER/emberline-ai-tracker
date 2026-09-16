@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-16 22:07
+# Checkpoint — 2026-09-16 23:07
 
-Reason: manual · branch: h03-record · HEAD: 54676df
+Reason: manual · branch: worktree-lead-session-record · HEAD: 40dbb43
 
-<!-- ledger-digest: 4133d097e6cf216eb59e1806b3cd62fbd2f475e1ea85226c8171f69af8006e66 -->
+<!-- ledger-digest: c2eb27c9d34d16c02fde9f6f644092a46712865586a5acb9fdcd1170384ed297 -->
 
 ## Proposal 19 · Warm-up
 
@@ -51,7 +51,7 @@ Reason: manual · branch: h03-record · HEAD: 54676df
 
 ### In progress
 
-- L-01 · [ruflo · lead · opus] · Fresh lead per milestone or day · measured 2026-09-16: FAIL. The common-rules lead session itself (3cff917f, main transcript, deduped by message id) spent 76.1% of its 16 Sep tokens (165.5M over 348 requests) on requests above 500k context; max context 671k; 15 Sep 39.3%. No other lead session exists after the rule landed. The rule is written but not followed: this lead ran one session across 14-16 Sep instead of starting fresh per milestone
+- L-01 · [ruflo · lead · opus] · Fresh lead per milestone or day · fresh lead started by the previous lead via claude --bg (H-03)
 
 ### Blocked, and why
 
@@ -71,7 +71,7 @@ Reason: manual · branch: h03-record · HEAD: 54676df
 
 ### In progress
 
-- H-02 · [ruflo · medium · sonnet] · Thin dispatcher and short item leads · measured 2026-09-16: FAIL. The session that dispatched bundles K/L (3cff917f) reached 671k context on 16 Sep and 843k on 15 Sep, against a 150k dispatcher cap. No session has run in the dispatcher form yet
+- H-02 · [ruflo · medium · sonnet] · Thin dispatcher and short item leads · fresh lead started by the previous lead via claude --bg (H-03)
 
 ### Blocked, and why
 
