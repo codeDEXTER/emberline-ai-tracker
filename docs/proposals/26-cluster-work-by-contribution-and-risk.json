@@ -79,7 +79,9 @@
           "by": "lead",
           "evidence": "tools/tracker/ledger.py impact/likelihood; tests/test_tracker_sizing.py; PR bundle-a"
         }
-      ]
+      ],
+      "points": 2,
+      "value": "medium"
     },
     {
       "id": "C-02",
@@ -112,7 +114,9 @@
           "by": "lead",
           "evidence": "tools/tracker/lanes.py, bin/tracker lanes; tests/test_tracker_lanes.py; PR bundle-a"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "C-05",
@@ -139,7 +143,9 @@
           "by": "session:bundle-i",
           "evidence": "tools/tracker/ledger.py findings array + _validate_findings; tools/tracker/findings.py (catalogue/decide/defer/decline, shared queue()/lanes() reusing lanes.py's lanes() unchanged, light_eligible() for proposal 23 M-05, triage()/triage_log_lines()); bin/tracker findings dispatch; tests/test_tracker_findings.py (30 tests: validation, lifecycle, shared lane sort incl. 80% cut across items+findings, light path, triage grouping+duplicate exclusion, CLI round trip); full suite 1353 tests OK (skipped=1); branch worktree-agent-a5bc11a707fd64d66"
         }
-      ]
+      ],
+      "points": 13,
+      "value": "high"
     },
     {
       "id": "C-03",
@@ -170,7 +176,9 @@
           "by": "session:bundle-k",
           "evidence": "commit bbe3647 on branch bundle-k-m08-c03-r04"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "high"
     },
     {
       "id": "C-04",
@@ -203,7 +211,9 @@
           "by": "session:bundle-m",
           "evidence": "tools/tracker/rescore.py (assign/overdue/overdue_items, direct-write like tools/tracker/findings.py); tools/tracker/ledger.py next_check validation (_validate_sizing pattern); tools/tracker/board.py 'Lanes' section (Now/Daily/Weekly/When touched, 80% cut line marked, overdue flagged); bin/warmup overdue_tail card line; bin/tracker rescore subcommand added to COMMANDS; tests/test_tracker_rescore.py (15) + tests/test_tracker_board_lanes.py (5) + test_warmup.py TestOverdueTailOnTheCard (3); full suite green after commit 8a6fd20; branch worktree-agent-ac1bad8b278b2dcc2"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     },
     {
       "id": "C-06",
@@ -228,7 +238,9 @@
           "by": "session:bundle-h",
           "evidence": "commit 0a32f90 on worktree-agent-abab12fdf4ec367ae; tests/test_tracker_ledger.py, tests/test_tracker_render.py, tests/test_tracker_board.py cover the regression and the new buckets"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     }
   ],
   "asks": [

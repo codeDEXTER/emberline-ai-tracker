@@ -73,7 +73,9 @@
           "by": "lead",
           "evidence": "bin/warmup --reheat --queue, tools/tracker/queue.py; tests/test_warmup_reheat.py; PR bundle-c, commit 7d9bc45"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "R-02",
@@ -106,7 +108,9 @@
           "by": "lead",
           "evidence": "skills/warmup, skills/reheat (new), skills/standard shortcut; tests updated; PR bundle-c, commit 0188b49"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "R-03",
@@ -139,7 +143,9 @@
           "by": "lead",
           "evidence": "hooks/sessionstart, hooks/stop; tests/test_hooks.py; PR bundle-c, commit a3a54a0"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "R-04",
@@ -179,7 +185,9 @@
           "by": "session:bundle-k",
           "evidence": "commit a7a6c6f on branch bundle-k-m08-c03-r04"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "high"
     },
     {
       "id": "R-05",
@@ -210,7 +218,9 @@
           "by": "lead",
           "evidence": "tools/rules_pull.py, bin/warmup fast-forward; tests/test_rules_pull.py; PR bundle-c, commit 86fa882"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     },
     {
       "id": "R-06",
@@ -253,7 +263,9 @@
           "by": "lead",
           "evidence": "https://claude.ai/artifact/HYFVRfjemufZH1C83xCxPF · docs/cookbook.html now version-controlled · regeneration rule in CLAUDE-workflow.md · tests/test_cookbook_current.py"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "medium"
     }
   ],
   "asks": [

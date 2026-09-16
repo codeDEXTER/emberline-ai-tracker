@@ -73,7 +73,9 @@
           "by": "lead",
           "evidence": "bin/handover --check, new; tests/test_handover.py 17 tests; full suite OK · 1243 tests; PR bundle-d"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "H-02",
@@ -118,7 +120,9 @@
           "by": "lead",
           "evidence": ""
         }
-      ]
+      ],
+      "points": 3,
+      "value": "high"
     },
     {
       "id": "H-03",
@@ -163,7 +167,9 @@
           "by": "lead",
           "evidence": ""
         }
-      ]
+      ],
+      "points": 8,
+      "value": "high"
     },
     {
       "id": "H-04",
@@ -190,7 +196,9 @@
           "by": "session:bundle-j",
           "evidence": "commit 95caed6, branch p24-h04, worktree .claude/worktrees/agent-a81d5212a9d639f2f"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     }
   ],
   "asks": [
