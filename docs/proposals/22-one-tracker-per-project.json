@@ -2,7 +2,7 @@
   "proposal": 22,
   "title": "One tracker per project",
   "status": "accepted",
-  "updated": "2026-09-15",
+  "updated": "2026-09-16",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -340,15 +340,15 @@
       "id": "T-05",
       "phase": "T",
       "cx": "C1",
-      "title": "PhotoVault app and engine move to one tracker",
-      "what": "Both sessions implement the Standard change at their next /warmup; the engine's hand-kept artifact 32e06e90 and the app's declared plan_page are named in the entry.",
+      "title": "Deprecated -- app and engine each keep their own tracker, never shared",
+      "what": "Originally assumed PhotoVault app and engine should move to one shared tracker page -- a misreading of this proposal's own rule. 'One tracker per project' means exactly that: each project gets exactly one tracker of its own, not one tracker combined across sibling projects. App and engine are two separate projects and each keeps its own.",
       "files": [],
       "tests": [],
-      "done": "Both projects' conformance reads 12 of 12 on the new rule.",
+      "done": "No action needed: S-07/S-08 (each project's own standard adoption) already gives each its own tracker under proposal 22 as originally written. Deprecated by the sponsor's correction, A-04: \"I don't want photovault app and engine on one tracker. I just said one tracker per project. So app will have its own tracker and engine will have its own tracker.\"",
       "depends": [
         "T-04"
       ],
-      "status": "not started",
+      "status": "done",
       "tier": "low",
       "model": "haiku",
       "tag": "[ruflo · low · haiku]",
@@ -359,6 +359,12 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C4/lead model -> C1/haiku: draft the requests to the two PhotoVault sessions; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-16T06:49:39+02:00",
+          "event": "deprecated -- sponsor corrected the premise (A-04): app and engine each keep their own tracker, never shared",
+          "by": "lead",
+          "evidence": "A-04"
         }
       ]
     },
@@ -419,6 +425,15 @@
       "state": "answered",
       "owner": "lead",
       "note": "broadens T-06 to every maintained page (cookbook included), not only the tracker"
+    },
+    {
+      "id": "A-04",
+      "at": "2026-09-16T06:49:23+02:00",
+      "by": "sponsor",
+      "kind": "decision",
+      "quote": "I don't want photovault app and engine on one tracker. I just said one tracker per project. So app will have its own tracker and engine will have its own tracker. Please correct or deprecate the tickets accordingly.",
+      "became": null,
+      "state": "answered"
     }
   ],
   "requests": [],

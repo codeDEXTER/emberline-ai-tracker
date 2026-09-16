@@ -2,7 +2,7 @@
   "proposal": 29,
   "title": "Taking over the Common Rules chat v1 work",
   "status": "accepted",
-  "updated": "2026-09-15",
+  "updated": "2026-09-16",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -118,15 +118,15 @@
       "id": "K-03",
       "phase": "K",
       "cx": "C1",
-      "title": "PhotoVault app and engine on one tracker (P22 T-05)",
-      "what": "A requests entry to each PhotoVault session to move to one tracker page, after K-02 lands.",
+      "title": "Deprecated -- app and engine each keep their own tracker, never shared (P22 T-05)",
+      "what": "Was going to draft requests to the two PhotoVault sessions to move to one shared tracker page. That premise was a misreading of proposal 22's own rule -- 'one tracker per project' means each project keeps exactly one tracker of its own, not one combined across app and engine.",
       "files": [],
       "tests": [],
-      "done": "Both PhotoVault ledgers answer the request; T-05 done or blocked with the PhotoVault session as owner.",
+      "done": "No action needed: superseded by the same correction that closed P22 T-05 (A-04). Each project's own standard adoption (S-07/S-08) already gives it its own tracker; no request to either session is needed.",
       "depends": [
         "K-02"
       ],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "low",
       "model": "haiku",
@@ -138,6 +138,12 @@
           "event": "re-tiered",
           "by": "lead",
           "evidence": "C4/lead model -> C1/haiku: draft the requests to the two PhotoVault sessions; read-only or mechanical: a Haiku agent runs it and reports; the lead records the result. Sponsor: \"refactor to utilize lower agents as much as possible\" (15 Sep 2026)."
+        },
+        {
+          "at": "2026-09-16T06:49:45+02:00",
+          "event": "deprecated -- same premise correction as P22 T-05 (A-04)",
+          "by": "lead",
+          "evidence": "P22 A-04, T-05"
         }
       ]
     },
