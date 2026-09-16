@@ -46,8 +46,8 @@ LEDGER_STATUS = {"done": "done", "built": "in progress", "now": "in progress",
 DEFAULT_TIERS = {
     "C1": {"tier": "low", "model": "haiku", "effort": "low", "rule": "Mechanical, one owned file, fully specified"},
     "C2": {"tier": "medium", "model": "sonnet", "effort": "medium", "rule": "Bounded implementation or tests, one or two owned files"},
-    "C3": {"tier": "high", "model": "opus", "effort": "high", "rule": "Cross-module design; wrong loses data or trust"},
-    "C4": {"tier": "lead", "model": "lead model", "effort": "-", "rule": "Planning, merging, reconciling, a sponsor decision"},
+    "C3": {"tier": "high", "model": "sonnet", "effort": "high", "rule": "Cross-module design; wrong loses data or trust"},
+    "C4": {"tier": "lead", "model": "opus", "effort": "low or medium", "rule": "Planning, merging, reconciling, a sponsor decision"},
 }
 
 
@@ -137,7 +137,7 @@ def build(rows: list[dict], source: str, proposal: int, title: str, at: str) -> 
             "what": f"Proves: {plain(r.get('pv'))}. You get: {plain(r.get('gt'))}.",
             "files": [], "tests": [], "done": plain(r.get("pv")), "depends": [],
             "status": LEDGER_STATUS.get(r["s"], "not started"),
-            "tier": "lead", "model": "lead model", "tag": "[ruflo · lead · lead model]", "issue": None,
+            "tier": "lead", "model": "opus", "tag": "[ruflo · lead · opus]", "issue": None,
             "log": [{"at": at, "event": "imported", "by": "tracker import", "evidence": evidence}],
         })
     tiers = DEFAULT_TIERS

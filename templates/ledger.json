@@ -7,7 +7,7 @@
     "C1": {"tier": "low", "model": "haiku", "effort": "low", "rule": "Mechanical, one owned file, fully specified, no design choice"},
     "C2": {"tier": "medium", "model": "sonnet", "effort": "medium", "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"},
     "C3": {"tier": "high", "model": "sonnet", "effort": "high", "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"},
-    "C4": {"tier": "lead", "model": "lead model", "effort": "-", "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"}
+    "C4": {"tier": "lead", "model": "opus", "effort": "low or medium", "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"}
   },
   "phases": [
     {"id": "B", "name": "{{PHASE_NAME}}", "goal": "{{PHASE_GOAL}}", "exit": "{{PHASE_EXIT}}"},

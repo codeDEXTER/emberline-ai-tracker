@@ -24,6 +24,7 @@ read.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
@@ -77,8 +78,16 @@ def main(argv) -> int:
             failed.append(f.name)
             continue
 
+        # Apply to a copy, never to `data` itself: a change that mutates an item
+        # and only then fails validation must leave nothing behind, or the rest
+        # of this run validates against a ledger the failed file already
+        # poisoned -- every later staged file would then be refused on its
+        # problem, and any of its own mutations a later file happened to make
+        # valid again would land in the written ledger under a name this run
+        # reported as "left in place".
+        candidate = copy.deepcopy(data)
         fields = [(k, v, shown) for k, v, shown in rec.get("fields") or []]
-        parts = apply_change(data, rec["item_id"], status=rec.get("status"), owner=rec.get("owner"),
+        parts = apply_change(candidate, rec["item_id"], status=rec.get("status"), owner=rec.get("owner"),
                               fields=fields, event=rec.get("event"), evidence=rec.get("evidence", ""),
                               by=rec.get("by", "lead"), at=rec.get("at"))
         if parts is None:
@@ -87,7 +96,7 @@ def main(argv) -> int:
             failed.append(f.name)
             continue
 
-        problems = L.validate(data)
+        problems = L.validate(candidate)
         if problems:
             print(f"{say} {f.name}: would not be well-formed after this change -- left in place:", file=sys.stderr)
             for p in problems:
@@ -95,6 +104,7 @@ def main(argv) -> int:
             failed.append(f.name)
             continue
 
+        data = candidate
         f.unlink()
         applied.append(f"{rec['item_id']} (" + " · ".join(parts) + ")")
 

@@ -611,7 +611,8 @@ class TestPublished(RenderCase):
         self.assertEqual(0, r.returncode, r.stdout + r.stderr)
         record = json.loads(self.sidecar.read_text())
         # V-11: ledger_digest joins every record; digest keeps its V-09 meaning.
-        self.assertEqual({"url", "digest", "at", "by", "ledger_digest"}, set(record))
+        # T-06 repair: title joins every record whose page carries a <title>.
+        self.assertEqual({"url", "digest", "at", "by", "ledger_digest", "title"}, set(record))
         self.assertEqual(URL, record["url"])
         self.assertEqual(hashlib.sha256(self.p.page.read_bytes()).hexdigest(), record["digest"])
         self.assertEqual(hashlib.sha256(self.p.ledger.read_bytes()).hexdigest(), record["ledger_digest"])
@@ -754,6 +755,99 @@ class TestPublished(RenderCase):
         self.assertEqual(1, r.returncode, r.stdout + r.stderr)
         self.assertIn("no plan_page is declared; the tracker page is recorded by default", r.stderr)
         self.assertFalse(self.sidecar.exists())
+
+
+class TestPublishedTitleGuard(TestPublished):
+    """T-06 repair (proposal 22): `published_project_main`'s recorder gained a
+    'title' field; `published_main` (no --project, the own-tracker flow here)
+    refuses a page whose <title> differs from what the sidecar last recorded,
+    unless --title-changed says the rename is deliberate. The reviewer's
+    complaint about test_published_title_stable.py was that its render()-only
+    test can never fail against a regressed runtime check -- these drive the
+    real `tracker published` CLI and can."""
+
+    def edit_title(self, new_title):
+        text = self.p.page.read_text()
+        new_text = re.sub(r"<title>.*?</title>", f"<title>{new_title}</title>", text, count=1, flags=re.S)
+        self.assertNotEqual(text, new_text, "the fixture's page had no <title> to edit")
+        self.p.page.write_text(new_text)
+
+    def test_a_changed_title_is_refused_naming_both_titles(self):
+        self.render()
+        self.assertEqual(0, self.published("--url", URL).returncode)
+        before = json.loads(self.sidecar.read_text())
+        old_title = before["title"]
+        self.edit_title("a totally different name")
+        self.commit("hand-edited title")
+        r = self.published("--url", URL)
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn(old_title, r.stderr)
+        self.assertIn("a totally different name", r.stderr)
+        self.assertIn("proposal 22 T-06", r.stderr)
+        self.assertIn("--title-changed", r.stderr)
+        self.assertIn("nothing recorded", r.stderr)
+        self.assertEqual(before, json.loads(self.sidecar.read_text()), "a refusal changed the record")
+
+    def test_an_unchanged_title_passes(self):
+        self.render()
+        self.assertEqual(0, self.published("--url", URL).returncode)
+        first_title = json.loads(self.sidecar.read_text())["title"]
+        d = own_sample(); d["items"][3]["status"] = "in progress"   # item status moves, ledger status does not
+        self.p.ledger.write_text(json.dumps(d, indent=2))
+        self.commit("ledger moved")
+        self.render()
+        r = self.published("--url", URL)
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        second = json.loads(self.sidecar.read_text())
+        self.assertEqual(first_title, second["title"])
+        self.assertNotIn("title_changed", second)
+
+    def test_a_sidecar_with_no_recorded_title_is_accepted_and_gains_one(self):
+        """Backward compatibility, mandatory: every sidecar committed before
+        this check existed has no 'title' key. It must not be invalidated."""
+        self.render()
+        self.assertEqual(0, self.published("--url", URL).returncode)
+        record = json.loads(self.sidecar.read_text())
+        self.assertIn("title", record)
+        del record["title"]                     # simulate a pre-T-06-repair sidecar
+        self.sidecar.write_text(json.dumps(record, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
+        self.commit("sidecar rolled back to its pre-T-06 shape")
+        self.edit_title("renamed with nothing recorded to compare")
+        self.commit("title changed against an old-style sidecar")
+        r = self.published("--url", URL)
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        self.assertEqual("renamed with nothing recorded to compare",
+                         json.loads(self.sidecar.read_text())["title"])
+
+    def test_title_changed_override_records_the_new_title_and_that_it_changed(self):
+        self.render()
+        self.assertEqual(0, self.published("--url", URL).returncode)
+        self.edit_title("renamed on purpose")
+        self.commit("deliberate rename")
+        self.assertEqual(1, self.published("--url", URL).returncode,
+                         "the override should be required -- without it this should have been refused")
+        r = self.published("--url", URL, "--title-changed")
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        record = json.loads(self.sidecar.read_text())
+        self.assertEqual("renamed on purpose", record["title"])
+        self.assertIs(True, record["title_changed"])
+
+    def test_title_changed_with_an_unchanged_title_is_harmless(self):
+        self.render()
+        self.assertEqual(0, self.published("--url", URL, "--title-changed").returncode)
+        record = json.loads(self.sidecar.read_text())
+        self.assertNotIn("title_changed", record, "--title-changed recorded a change that never happened")
+
+    def test_a_page_with_no_title_at_all_has_nothing_to_compare(self):
+        """A declared plan_page's own generator may not emit a <title> --
+        nothing to record or compare, and no refusal."""
+        self.render()
+        text = re.sub(r"<title>.*?</title>", "", self.p.page.read_text(), count=1, flags=re.S)
+        self.p.page.write_text(text)
+        self.commit("page has no title tag")
+        r = self.published("--url", URL)
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        self.assertNotIn("title", json.loads(self.sidecar.read_text()))
 
 
 GENERATOR = '''\
@@ -1117,7 +1211,7 @@ class TestPublishedTrackerPageInAGitProject(unittest.TestCase):
         r = self.p.published()
         self.assertEqual(0, r.returncode, r.stdout + r.stderr)
         record = json.loads(self.p.sidecar.read_text())
-        self.assertEqual({"url", "digest", "at", "by", "ledger_digest"}, set(record))
+        self.assertEqual({"url", "digest", "at", "by", "ledger_digest", "title"}, set(record))
         tracker_page = self.p.proposals / "tracker" / "70-r9-delivery-plan.html"
         self.assertEqual(hashlib.sha256(tracker_page.read_bytes()).hexdigest(), record["digest"])
         self.assertEqual(hashlib.sha256(self.p.ledger.read_bytes()).hexdigest(), record["ledger_digest"])
@@ -1272,7 +1366,7 @@ class TestPublishedProject(ProjectCase):
         after = datetime.datetime.now(datetime.timezone.utc)
         self.assertEqual(0, r.returncode, r.stdout + r.stderr)
         record = json.loads(self.p.sidecar.read_text())
-        self.assertEqual({"url", "digest", "ledgers", "at", "by"}, set(record))
+        self.assertEqual({"url", "digest", "ledgers", "at", "by", "title"}, set(record))
         self.assertEqual(URL, record["url"])
         self.assertEqual(hashlib.sha256(self.p.page.read_bytes()).hexdigest(), record["digest"])
         self.assertEqual("lead", record["by"])
@@ -1484,6 +1578,74 @@ class TestPublishedProject(ProjectCase):
         self.assertTrue(self.p.sidecar.is_file())
 
 
+class TestPublishedProjectTitleGuard(ProjectCase):
+    """T-06 repair (proposal 22): `tracker published --project` refuses a
+    project page whose <title> differs from what the sidecar last recorded,
+    unless --title-changed says the rename is deliberate. Same rule as the
+    per-ledger flow (TestPublishedTitleGuard), exercised through the
+    --project code path (published_project_main), which builds its own
+    record separately."""
+
+    def edit_title(self, new_title):
+        text = self.p.page.read_text()
+        new_text = re.sub(r"<title>.*?</title>", f"<title>{new_title}</title>", text, count=1, flags=re.S)
+        self.assertNotEqual(text, new_text, "the fixture's project page had no <title> to edit")
+        self.p.page.write_text(new_text)
+
+    def test_a_changed_title_is_refused_naming_both_titles(self):
+        self.assertEqual(0, self.p.published().returncode)
+        before = json.loads(self.p.sidecar.read_text())
+        old_title = before["title"]
+        self.edit_title("a whole different project name")
+        self.p.commit("hand-edited the project page's title")
+        r = self.p.published()
+        self.assertEqual(1, r.returncode, r.stdout + r.stderr)
+        self.assertIn(old_title, r.stderr)
+        self.assertIn("a whole different project name", r.stderr)
+        self.assertIn("proposal 22 T-06", r.stderr)
+        self.assertIn("--title-changed", r.stderr)
+        self.assertEqual(before, json.loads(self.p.sidecar.read_text()), "a refusal changed the record")
+
+    def test_an_unchanged_title_passes(self):
+        self.assertEqual(0, self.p.published().returncode)
+        first_title = json.loads(self.p.sidecar.read_text())["title"]
+        d = sample(); d["items"][3]["status"] = "in progress"
+        self.p.set_ledger(d)
+        self.p.board()
+        self.p.commit("ledger moved, page re-rendered")
+        r = self.p.published()
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        second = json.loads(self.p.sidecar.read_text())
+        self.assertEqual(first_title, second["title"])
+        self.assertNotIn("title_changed", second)
+
+    def test_a_sidecar_with_no_recorded_title_is_accepted_and_gains_one(self):
+        self.assertEqual(0, self.p.published().returncode)
+        record = json.loads(self.p.sidecar.read_text())
+        self.assertIn("title", record)
+        del record["title"]                      # simulate a pre-T-06-repair sidecar
+        self.p.sidecar.write_text(json.dumps(record, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
+        self.p.commit("sidecar rolled back to its pre-T-06 shape")
+        self.edit_title("renamed with nothing recorded to compare")
+        self.p.commit("title changed against an old-style sidecar")
+        r = self.p.published()
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        self.assertEqual("renamed with nothing recorded to compare",
+                         json.loads(self.p.sidecar.read_text())["title"])
+
+    def test_title_changed_override_records_the_new_title_and_that_it_changed(self):
+        self.assertEqual(0, self.p.published().returncode)
+        self.edit_title("renamed on purpose")
+        self.p.commit("deliberate rename")
+        self.assertEqual(1, self.p.published().returncode,
+                         "the override should be required -- without it this should have been refused")
+        r = self.p.published("--title-changed")
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        record = json.loads(self.p.sidecar.read_text())
+        self.assertEqual("renamed on purpose", record["title"])
+        self.assertIs(True, record["title_changed"])
+
+
 class TestPublishedProjectWithADeclaredPlanPage(unittest.TestCase):
     """Proposal 22, T-03, D5: a project that declares plan_page keeps
     publishing that page as its tracker (proposal 20, V-11, unchanged). The
@@ -1553,7 +1715,7 @@ class TestPerLedgerFlowNarrows(ProjectCase):
         r = self.published_ledger()
         self.assertEqual(0, r.returncode, r.stdout + r.stderr)
         record = json.loads(self.sidecar_for("19-proposal-warmup.json").read_text())
-        self.assertEqual({"url", "digest", "at", "by", "ledger_digest"}, set(record))
+        self.assertEqual({"url", "digest", "at", "by", "ledger_digest", "title"}, set(record))
 
     def test_the_switched_off_refusal_still_comes_first(self):
         d = sample()
