@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-16 20:13
+# Checkpoint — 2026-09-16 20:49
 
-Reason: manual · branch: findings-triage · HEAD: 3a9fc80
+Reason: manual · branch: l06-record · HEAD: 130f872
 
-<!-- ledger-digest: cf78a264bdc0739d58e17aa8e2226f7b11ba23690eb46ee59e1902cc5bca4d98 -->
+<!-- ledger-digest: dab1b17ef34b3c2509309993145e52a19427bdfb18b630c61798f5c11f85b874 -->
 
 ## Proposal 19 · Warm-up
 
@@ -47,7 +47,7 @@ Reason: manual · branch: findings-triage · HEAD: 3a9fc80
 
 ## Proposal 23 · Eight levers for token spend
 
-17 done / 1 in progress / 0 blocked / 0 not started / 3 in testing
+18 done / 1 in progress / 0 blocked / 0 not started / 2 in testing
 
 ### In progress
 
