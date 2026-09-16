@@ -111,6 +111,22 @@ def findings_by_id(ledger: dict) -> dict[str, dict]:
     return {f["id"]: f for f in findings(ledger) if "id" in f}
 
 
+def qualify_finding_id(ledger: dict, fid: str | None) -> str | None:
+    """A finding's id as it must read anywhere it can sit beside the same-
+    numbered finding from another ledger -- a cross-ledger queue, `tracker
+    findings lanes`, or the board's file-overlap clusters -- since `F-01` is
+    only unique within its own ledger's `findings` array. An item's id
+    already avoids this (its phase letter is picked per proposal); a
+    finding's plain F-NN does not, so any place that mixes findings from
+    more than one ledger must qualify the id itself, with the ledger's own
+    `proposal` number, e.g. "26/F-01" -- never by renumbering the stored
+    id."""
+    if fid is None:
+        return None
+    proposal = ledger.get("proposal")
+    return f"{proposal}/{fid}" if proposal is not None else fid
+
+
 def counts(ledger: dict) -> dict[str, int]:
     """done / in progress / in review / in testing / blocked / not started,
     always all six keys, in that order -- the one status vocabulary the card,
@@ -370,6 +386,8 @@ def _validate_findings(ledger: dict) -> list[str]:
             problems.append(f"{name}: likelihood {f['likelihood']!r} is not 1-3")
         if "cluster" in f and not (_one_line(f["cluster"]) and f["cluster"].strip()):
             problems.append(f"{name}: cluster must be a surface name, one line of text")
+        if "unsized" in f and not isinstance(f["unsized"], bool):
+            problems.append(f"{name}: unsized must be true/false")
         if "cause" in f and f["cause"] is not None and not _one_line(f["cause"]):
             problems.append(f"{name}: cause must be one line of text")
         if "fix" in f and f["fix"] is not None and not _one_line(f["fix"]):

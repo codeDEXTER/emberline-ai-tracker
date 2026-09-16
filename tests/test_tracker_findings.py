@@ -110,6 +110,20 @@ class TestLifecycle(FindingsCase):
         fid2 = F.add(d, source="test", file="b.py", severity="medium")
         self.assertEqual(fid2, "F-02")
 
+    def test_add_with_unsized_records_the_flag(self):
+        d = base_ledger()
+        fid = F.add(d, source="review", file="a.py", severity="low", unsized=True)
+        f = L.findings_by_id(d)["F-01"]
+        self.assertEqual(f["unsized"], True)
+        self.assertEqual(L.validate(d), [])
+        self.assertEqual(fid, "F-01")
+
+    def test_an_existing_unsized_finding_stays_valid(self):
+        # Findings catalogued before this fix, with no value/points and no
+        # `unsized` flag, must not be broken by validation.
+        d = base_ledger(findings=[finding("F-01")])
+        self.assertEqual(L.validate(d), [])
+
     def test_decide_moves_state_and_can_set_size(self):
         d = base_ledger(findings=[finding("F-01")])
         f = F.decide(d, "F-01", quote="ship it small", value="low", points=2, impact=1, likelihood=1)
@@ -136,7 +150,10 @@ class TestLifecycle(FindingsCase):
     def test_a_catalogued_finding_stays_a_catalogued_finding_until_decided(self):
         d = base_ledger(findings=[finding("F-01", value="low", points=1, impact=1, likelihood=1)])
         result = F.lanes([d], self.root)
-        row = {r["id"]: r for r in result["items"]}["F-01"]
+        # F.lanes()'s queue is cross-ledger, so the finding's id is
+        # proposal-qualified ("99/F-01") there -- the ledger's own row is
+        # still keyed by the bare "F-01".
+        row = {r["id"]: r for r in result["items"]}["99/F-01"]
         self.assertIn(row["lane"], ("Now", "Daily", "Weekly", "When touched", "Unscored"))
         self.assertEqual(L.findings_by_id(d)["F-01"]["state"], "catalogued")
 
@@ -171,17 +188,19 @@ class TestSharedLaneSort(FindingsCase):
         )
         result = F.lanes([d], self.root)
         ids = [r["id"] for r in result["items"]]
-        self.assertEqual(set(ids), {"I-09", "F-09"})
+        # A finding's id in F.lanes()'s cross-ledger queue is proposal-
+        # qualified ("99/F-09"); an item's is not.
+        self.assertEqual(set(ids), {"I-09", "99/F-09"})
         # Only two rows: they are trivially adjacent; assert their shares match.
         rows = {r["id"]: r for r in result["items"]}
-        self.assertAlmostEqual(rows["I-09"]["share"], rows["F-09"]["share"])
+        self.assertAlmostEqual(rows["I-09"]["share"], rows["99/F-09"]["share"])
 
     def test_finding_and_item_interleave_by_share_not_kind(self):
         d = self.ledger()
         result = F.lanes([d], self.root)
         ids = [r["id"] for r in result["items"]]
         # By raw share: I-01 39, I-02 24, F-01 10, I-03 5, F-02 2.
-        self.assertEqual(ids, ["I-01", "I-02", "F-01", "I-03", "F-02"])
+        self.assertEqual(ids, ["I-01", "I-02", "99/F-01", "I-03", "99/F-02"])
 
     def test_the_80_percent_cut_applies_across_both_kinds(self):
         d = self.ledger()
@@ -190,9 +209,9 @@ class TestSharedLaneSort(FindingsCase):
         # Cumulative: 48.75%, 78.75%, 91.25% (crosses -> Now), 97.5%, 100%.
         self.assertEqual(rows["I-01"]["lane"], "Now")
         self.assertEqual(rows["I-02"]["lane"], "Now")
-        self.assertEqual(rows["F-01"]["lane"], "Now")  # the finding that crosses 80%
+        self.assertEqual(rows["99/F-01"]["lane"], "Now")  # the finding that crosses 80%
         self.assertNotEqual(rows["I-03"]["lane"], "Now")
-        self.assertNotEqual(rows["F-02"]["lane"], "Now")
+        self.assertNotEqual(rows["99/F-02"]["lane"], "Now")
 
     def test_a_declined_finding_is_left_out_like_a_done_item(self):
         d = base_ledger(
@@ -206,9 +225,41 @@ class TestSharedLaneSort(FindingsCase):
         d = base_ledger(findings=[finding("F-01", state="decided", value="low", points=1,
                                            file="finance_data/book.json")])
         result = F.lanes([d], self.root)
-        row = {r["id"]: r for r in result["items"]}["F-01"]
+        row = {r["id"]: r for r in result["items"]}["99/F-01"]
         self.assertTrue(row["alone"])
         self.assertEqual(row["risk"], 9)
+
+
+# ---------------------------------------------------------------------------
+# Cross-ledger id collisions (proposal 26 C-05's own F-01): finding ids are
+# per-ledger, so two different ledgers each cataloguing their own "F-01" must
+# not render as one indistinguishable row in the shared queue this feature
+# exists to provide.
+
+class TestCrossLedgerIds(FindingsCase):
+    def test_two_ledgers_each_with_their_own_f01_stay_distinguishable(self):
+        left = {"proposal": 26, "title": "left", "status": "accepted",
+                "phases": [{"id": "Q", "name": "q"}], "items": [],
+                "findings": [finding("F-01", state="decided", value="low", points=1, impact=1, likelihood=1)],
+                "asks": []}
+        right = {"proposal": 30, "title": "right", "status": "accepted",
+                 "phases": [{"id": "Q", "name": "q"}], "items": [],
+                 "findings": [finding("F-01", state="decided", value="low", points=1, impact=1, likelihood=1)],
+                 "asks": []}
+        result = F.lanes([left, right], self.root)
+        ids = [r["id"] for r in result["items"]]
+        # Two rows, not one collapsed row -- and each names which proposal
+        # it came from.
+        self.assertEqual(len(ids), 2)
+        self.assertEqual(set(ids), {"26/F-01", "30/F-01"})
+
+    def test_triage_batch_for_one_ledger_is_unaffected_by_another_ledgers_f01(self):
+        # A single-ledger command (`tracker findings triage`) still names its
+        # own findings by their plain id -- qualification is only for a
+        # queue that actually mixes ledgers.
+        d = base_ledger(findings=[finding("F-01", state="decided", cause="c", fix="fix it")])
+        groups = F.triage(["F-01"], d)
+        self.assertEqual(groups[0]["findings"], ["F-01"])
 
 
 # ---------------------------------------------------------------------------
@@ -295,11 +346,39 @@ class TestCommand(FindingsCase):
 
     def test_add_writes_and_renders(self):
         path = self.ledger_path()
-        out = self.run_findings("add", path, "--source", "review", "--file", "a.py", "--severity", "low")
+        out = self.run_findings("add", path, "--source", "review", "--file", "a.py", "--severity", "low",
+                                 "--value", "low", "--points", "2")
         self.assertEqual(out.returncode, 0, out.stderr)
         data = json.loads(path.read_text())
         self.assertEqual(data["findings"][0]["id"], "F-01")
         self.assertTrue((path.parent / "tracker" / "99-q.html").exists())
+
+    def test_add_without_value_and_points_or_unsized_is_refused(self):
+        path = self.ledger_path()
+        before = path.read_text()
+        out = self.run_findings("add", path, "--source", "review", "--file", "a.py", "--severity", "low")
+        self.assertEqual(out.returncode, 1)
+        self.assertIn("--value", out.stderr)
+        self.assertIn("--points", out.stderr)
+        self.assertIn("--unsized", out.stderr)
+        self.assertEqual(path.read_text(), before)
+
+    def test_add_with_only_value_or_only_points_is_still_refused(self):
+        path = self.ledger_path()
+        out = self.run_findings("add", path, "--source", "review", "--file", "a.py", "--severity", "low",
+                                 "--value", "low")
+        self.assertEqual(out.returncode, 1)
+        self.assertIn("--points", out.stderr)
+
+    def test_add_with_unsized_flag_writes_and_records_it(self):
+        path = self.ledger_path()
+        out = self.run_findings("add", path, "--source", "review", "--file", "a.py", "--severity", "low",
+                                 "--unsized")
+        self.assertEqual(out.returncode, 0, out.stderr)
+        data = json.loads(path.read_text())
+        self.assertEqual(data["findings"][0]["unsized"], True)
+        self.assertNotIn("value", data["findings"][0])
+        self.assertNotIn("points", data["findings"][0])
 
     def test_decide_then_decline_round_trip(self):
         path = self.ledger_path(findings=[finding("F-01")])
@@ -323,7 +402,9 @@ class TestCommand(FindingsCase):
         out = self.run_findings("lanes", path, "--json")
         self.assertEqual(out.returncode, 0, out.stderr)
         ids = {r["id"] for r in json.loads(out.stdout)["items"]}
-        self.assertEqual(ids, {"I-01", "F-01"})
+        # A finding's id is proposal-qualified ("99/F-01") in this shared,
+        # cross-ledger queue; an item's is not.
+        self.assertEqual(ids, {"I-01", "99/F-01"})
 
     def test_triage_prints_one_line_per_group(self):
         path = self.ledger_path(findings=[

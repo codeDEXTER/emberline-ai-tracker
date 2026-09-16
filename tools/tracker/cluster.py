@@ -37,7 +37,14 @@ def not_taken_rows(ledger: dict) -> list[dict]:
     """Not-yet-taken items and findings, shaped for file_overlap_clusters():
     an item with status "not started", or a finding with state "catalogued"
     (proposal 26 C-05's still-open state, distinct from decided/deferred/
-    declined). A `declined` finding is never included -- not real work."""
+    declined). A `declined` finding is never included -- not real work.
+
+    A finding's id is proposal-qualified (`26/F-01`) since board.py's
+    cluster_state() calls this once per ledger and unions the rows from
+    every ledger by id -- two different ledgers' plain `F-01` would
+    otherwise collapse onto the same union-find key and silently cluster
+    findings that share nothing. An item's id is left as-is; it already
+    avoids the collision."""
     rows: list[dict] = []
     for item in L.items(ledger):
         if item.get("status") == "not started":
@@ -46,7 +53,8 @@ def not_taken_rows(ledger: dict) -> list[dict]:
     for finding in L.findings(ledger):
         if finding.get("state") == "catalogued" and finding.get("file"):
             title = finding.get("title") or f"{finding.get('source', 'finding')}: {finding['file']}"
-            rows.append({"id": finding.get("id"), "title": title, "files": [finding["file"]]})
+            rows.append({"id": L.qualify_finding_id(ledger, finding.get("id")), "title": title,
+                         "files": [finding["file"]]})
     return rows
 
 
