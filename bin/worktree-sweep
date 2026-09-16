@@ -1,0 +1,499 @@
+#!/usr/bin/env python3
+"""worktree-sweep -- remove finished worktrees so they stop piling up.
+
+  worktree-sweep --project DIR [--apply] [--json] [--idle-hours N]
+
+common-rules had ~54 worktrees on 16 Sep 2026: agent worktrees under
+.claude/worktrees/agent-* (the Agent tool's isolation:"worktree"), lead
+worktrees under .worktrees/<name>, and `claude --bg --worktree` sessions
+under .claude/worktrees/<name>. Most were squash-merged through GitHub PRs,
+so their branch commits are NOT ancestors of origin/main even though the
+work is merged -- ancestry alone cannot tell "merged" here, which is why
+this checks four different ways (see REMOVABLE below) rather than one.
+
+Dry-run by default: prints one line per worktree with a verdict and reason,
+changes nothing, always exits 0. `--apply` removes only the REMOVABLE ones
+(`git worktree remove`, then `git branch -D` of its branch) and exits 1 if
+any removal failed. The main checkout is never touched -- it is never a
+candidate in the first place.
+
+A worktree is REMOVABLE only if ALL of:
+
+  1. CLEAN       `git status --porcelain` is empty. Untracked files count
+                 as dirty -- a worktree can hold real, uncommitted work
+                 that git itself does not consider "changes to a tracked
+                 file", and sweeping that away would be exactly the
+                 destructive mistake this tool exists to avoid.
+  2. MERGED      any of:
+                   - its branch (or, detached, its HEAD) is an ancestor of
+                     origin/main;
+                   - its branch has committed nothing beyond
+                     `git merge-base origin/main <branch>`;
+                   - a GitHub PR for that head branch is MERGED
+                     (`gh pr list --state merged --head <branch>`); if `gh`
+                     is unavailable or errors, this check contributes
+                     nothing -- never guessed;
+                   - every commit's patch is already in origin/main
+                     (`git cherry origin/main <branch>` shows only '-'
+                     lines) -- this is what catches a squash merge, whose
+                     branch commits never become ancestors of main.
+  3. IDLE        nothing in it (tracked, untracked, or its own HEAD/index
+                 under .git/worktrees/<name>) was modified in the last
+                 --idle-hours (default 2), AND no running `claude`
+                 background session has its cwd inside it
+                 (`claude agents --json --all`; skipped, noted, if the
+                 command is unavailable), AND no OS process has its cwd
+                 inside it (`lsof`; if unavailable, this sub-check is
+                 conservative and treats the worktree as busy).
+
+Otherwise KEEP, with the first failing reason (checked in the order above:
+clean, then merged, then idle).
+
+`git worktree prune` also runs, reporting any administrative entries whose
+directory is already gone (dry-run uses `prune -n -v` -- lists, changes
+nothing; `--apply` uses `prune -v` for real).
+
+Exit codes: dry-run (no --apply) always exits 0. `--apply` exits 1 if any
+qualifying removal failed, 2 if `--project` is not a git repository or the
+pre-flight `git fetch origin` failed (fetch failure also refuses --apply
+outright; a dry-run still runs, marked stale, against whatever origin/main
+the last fetch left behind).
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+DEFAULT_IDLE_HOURS = 2
+
+
+def git(args, cwd):
+    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True)
+
+
+def git_out(args, cwd):
+    r = git(args, cwd)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+# ---------------------------------------------------------------------------
+# Worktree inventory
+# ---------------------------------------------------------------------------
+
+def list_worktrees(project):
+    """Every checkout `git worktree list` knows about, main one included, in
+    the order git reports them (the main checkout is always first)."""
+    r = git(["worktree", "list", "--porcelain"], project)
+    if r.returncode != 0:
+        return None
+    trees, cur = [], None
+    for line in r.stdout.splitlines():
+        if line.startswith("worktree "):
+            if cur is not None:
+                trees.append(cur)
+            cur = {"path": line[len("worktree "):], "branch": None,
+                   "detached": False, "locked": False, "lock_reason": "", "bare": False}
+        elif cur is None:
+            continue
+        elif line.startswith("branch "):
+            cur["branch"] = line[len("branch "):].replace("refs/heads/", "")
+        elif line == "detached":
+            cur["detached"] = True
+        elif line == "bare":
+            cur["bare"] = True
+        elif line.startswith("locked"):
+            cur["locked"] = True
+            cur["lock_reason"] = line[len("locked"):].strip()
+    if cur is not None:
+        trees.append(cur)
+    return trees
+
+
+def prune(project, apply_):
+    """`git worktree prune`, reporting entries whose directory is gone.
+    Dry-run only lists (`-n -v`); --apply actually prunes (`-v`)."""
+    args = ["worktree", "prune", "-v"] if apply_ else ["worktree", "prune", "-n", "-v"]
+    r = git(args, project)
+    # `git worktree prune -v` reports each removal on stderr, not stdout.
+    text = (r.stdout or "") + (r.stderr or "")
+    lines = [l for l in text.splitlines() if l.strip()] if r.returncode == 0 else []
+    return lines
+
+
+# ---------------------------------------------------------------------------
+# 1. clean
+# ---------------------------------------------------------------------------
+
+def check_clean(path):
+    r = git(["status", "--porcelain"], path)
+    if r.returncode != 0:
+        return False, "could not read git status"
+    n = len([l for l in r.stdout.splitlines() if l.strip()])
+    if n:
+        return False, f"{n} uncommitted/untracked file(s)"
+    return True, "clean"
+
+
+# ---------------------------------------------------------------------------
+# 2. merged
+# ---------------------------------------------------------------------------
+
+def gh_pr_merged(branch, project, runner=None):
+    """True/False/None (unknown -- gh unavailable or errored; never guessed)."""
+    run = runner or (lambda cmd: subprocess.run(cmd, cwd=project, capture_output=True, text=True, timeout=30))
+    if runner is None and shutil.which("gh") is None:
+        return None
+    try:
+        r = run(["gh", "pr", "list", "--state", "merged", "--head", branch, "--json", "number"])
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        data = json.loads(r.stdout)
+    except (ValueError, TypeError):
+        return None
+    return bool(data)
+
+
+def check_merged(ref, branch, project, gh_runner=None):
+    """ref is the branch name, or the detached HEAD sha when there is no
+    branch. Returns (merged: bool, detail: str)."""
+    if git(["merge-base", "--is-ancestor", ref, "origin/main"], project).returncode == 0:
+        return True, "ancestor of origin/main"
+
+    mb = git_out(["merge-base", "origin/main", ref], project)
+    if mb is not None:
+        count = git_out(["rev-list", "--count", f"{mb}..{ref}"], project)
+        if count == "0":
+            return True, "no commits beyond origin/main"
+
+    if branch:
+        pr = gh_pr_merged(branch, project, runner=gh_runner)
+        if pr is True:
+            return True, "merged PR on GitHub"
+
+    if mb is not None:
+        r = git(["cherry", "origin/main", ref], project)
+        if r.returncode == 0:
+            lines = [l for l in r.stdout.splitlines() if l.strip()]
+            if lines and all(l.startswith("-") for l in lines):
+                return True, "squash-merged (every patch already in origin/main)"
+
+    return False, "not merged into origin/main"
+
+
+# ---------------------------------------------------------------------------
+# 3. idle
+# ---------------------------------------------------------------------------
+
+def newest_mtime(path, project):
+    """Newest mtime among tracked+untracked files in the worktree, and its
+    own HEAD/index under the worktree's private git-dir."""
+    newest = 0.0
+    for root, dirs, files in os.walk(path):
+        if ".git" in dirs:
+            dirs.remove(".git")
+        for f in files:
+            fp = os.path.join(root, f)
+            try:
+                newest = max(newest, os.path.getmtime(fp))
+            except OSError:
+                pass
+    git_dir = git_out(["rev-parse", "--git-dir"], path)
+    if git_dir:
+        git_dir_path = Path(git_dir)
+        if not git_dir_path.is_absolute():
+            git_dir_path = Path(path) / git_dir_path
+        for name in ("HEAD", "index"):
+            fp = git_dir_path / name
+            try:
+                newest = max(newest, fp.stat().st_mtime)
+            except OSError:
+                pass
+    return newest
+
+
+def claude_running_cwds(runner=None):
+    """cwd of every non-done `claude` background session, or None if the
+    command is unavailable (caller then skips this sub-check, and says
+    so)."""
+    run = runner or (lambda cmd: subprocess.run(cmd, capture_output=True, text=True, timeout=15))
+    if runner is None and shutil.which("claude") is None:
+        return None
+    try:
+        r = run(["claude", "agents", "--json", "--all"])
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        data = json.loads(r.stdout)
+    except (ValueError, TypeError):
+        return None
+    cwds = []
+    for a in data if isinstance(data, list) else data.get("agents", []):
+        if not isinstance(a, dict):
+            continue
+        if str(a.get("state", "")).lower() == "done":
+            continue
+        cwd = a.get("cwd")
+        if cwd:
+            cwds.append(cwd)
+    return cwds
+
+
+def lsof_busy(runner=None):
+    """Resolved paths every OS process has as its cwd, or None if `lsof` is
+    unavailable -- caller then treats the idle sub-check as failed
+    (conservative: unknown means keep)."""
+    run = runner or (lambda cmd: subprocess.run(cmd, capture_output=True, text=True, timeout=20))
+    if runner is None and shutil.which("lsof") is None:
+        return None
+    try:
+        r = run(["lsof", "-a", "-d", "cwd", "-Fn"])
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode not in (0, 1):  # lsof exits 1 when some processes are inaccessible; still usable
+        return None
+    paths = []
+    for line in r.stdout.splitlines():
+        if line.startswith("n"):
+            paths.append(line[1:])
+    return paths
+
+
+def check_idle(path, newest, idle_hours, claude_cwds_fn, busy_paths_fn, notes):
+    """`newest` is the worktree's newest mtime, snapshotted by the caller
+    BEFORE any other git command ran against this worktree in this sweep.
+    `git status` (run by check_clean, always first) refreshes the index
+    file's own mtime even when nothing changed -- reading it fresh here
+    would make every worktree this sweep just looked at read as freshly
+    active, defeating the idle check for the one thing it exists to
+    detect: nothing having touched this worktree recently."""
+    age_secs = time.time() - newest
+    if age_secs < idle_hours * 3600:
+        h, m = int(age_secs // 3600), int((age_secs % 3600) // 60)
+        return False, f"modified {h}h{m:02d}m ago"
+
+    rp = str(Path(path).resolve())
+    claude_cwds = claude_cwds_fn()
+    if claude_cwds is None:
+        notes.append("claude CLI unavailable -- background-session check skipped")
+    else:
+        for c in claude_cwds:
+            try:
+                if str(Path(c).resolve()) == rp or str(Path(c).resolve()).startswith(rp + os.sep):
+                    return False, "a running claude background session has its cwd inside it"
+            except OSError:
+                continue
+
+    busy_paths = busy_paths_fn()
+    if busy_paths is None:
+        return False, "lsof unavailable -- kept conservatively (cannot rule out a running process)"
+    for p in busy_paths:
+        try:
+            rp2 = str(Path(p).resolve())
+        except OSError:
+            continue
+        if rp2 == rp or rp2.startswith(rp + os.sep):
+            return False, "a process has its cwd inside it"
+
+    h, m = int(age_secs // 3600), int((age_secs % 3600) // 60)
+    return True, f"idle {h}h{m:02d}m"
+
+
+# ---------------------------------------------------------------------------
+# Sweep
+# ---------------------------------------------------------------------------
+
+def sweep(project, idle_hours, gh_runner=None, claude_runner=None, lsof_runner=None):
+    """Returns (rows, fetch_ok, prune_lines). rows is a list of dicts, one
+    per non-main worktree. Never touches disk."""
+    if git(["fetch", "-q", "origin"], project).returncode != 0:
+        fetch_ok = False
+    else:
+        fetch_ok = True
+
+    prune_lines_dry = prune(project, apply_=False)
+
+    trees = list_worktrees(project)
+    if trees is None:
+        return None, fetch_ok, prune_lines_dry
+
+    main_path = str(Path(trees[0]["path"]).resolve()) if trees else None
+
+    # Fetched lazily, at most once each, and only if some worktree actually
+    # reaches the idle check -- a dirty or unmerged worktree, or a run with
+    # nothing to sweep, never needs to ask `claude` or `lsof` anything.
+    lazy = {}
+
+    def claude_cwds():
+        if "claude" not in lazy:
+            lazy["claude"] = claude_running_cwds(claude_runner)
+        return lazy["claude"]
+
+    def busy_paths():
+        if "lsof" not in lazy:
+            lazy["lsof"] = lsof_busy(lsof_runner)
+        return lazy["lsof"]
+
+    rows = []
+    for w in trees:
+        if w.get("bare"):
+            continue
+        path = w["path"]
+        if str(Path(path).resolve()) == main_path:
+            continue  # the main checkout -- never a candidate
+        if not Path(path).exists():
+            continue  # gone already; `prune` reports it separately
+
+        # Snapshotted before check_clean's `git status` gets anywhere near
+        # this worktree -- see check_idle's docstring for why the order
+        # matters.
+        newest = newest_mtime(path, project)
+
+        notes = []
+        clean_ok, clean_detail = check_clean(path)
+        if not clean_ok:
+            rows.append({"path": path, "branch": w["branch"], "detached": w["detached"],
+                         "locked": w["locked"], "verdict": "KEEP", "reason": f"dirty: {clean_detail}",
+                         "notes": notes})
+            continue
+
+        if w["detached"]:
+            ref = git_out(["rev-parse", "HEAD"], path)
+        else:
+            ref = w["branch"]
+        if ref is None:
+            rows.append({"path": path, "branch": w["branch"], "detached": w["detached"],
+                         "locked": w["locked"], "verdict": "KEEP", "reason": "could not resolve HEAD",
+                         "notes": notes})
+            continue
+
+        merged_ok, merged_detail = check_merged(ref, w["branch"] if not w["detached"] else None,
+                                                  project, gh_runner=gh_runner)
+        if not merged_ok:
+            rows.append({"path": path, "branch": w["branch"], "detached": w["detached"],
+                         "locked": w["locked"], "verdict": "KEEP", "reason": f"not merged: {merged_detail}",
+                         "notes": notes})
+            continue
+
+        idle_ok, idle_detail = check_idle(path, newest, idle_hours, claude_cwds, busy_paths, notes)
+        if not idle_ok:
+            rows.append({"path": path, "branch": w["branch"], "detached": w["detached"],
+                         "locked": w["locked"], "verdict": "KEEP", "reason": f"active: {idle_detail}",
+                         "notes": notes})
+            continue
+
+        rows.append({"path": path, "branch": w["branch"], "detached": w["detached"],
+                     "locked": w["locked"], "verdict": "REMOVABLE",
+                     "reason": f"{merged_detail}; {idle_detail}", "notes": notes})
+
+    return rows, fetch_ok, prune_lines_dry
+
+
+def apply_removals(project, rows):
+    """Remove every REMOVABLE row's worktree and branch. Returns
+    (removed_count, failures: list[str])."""
+    failures = []
+    removed = 0
+    for row in rows:
+        if row["verdict"] != "REMOVABLE":
+            continue
+        path = row["path"]
+        args = ["worktree", "remove"]
+        if row["locked"]:
+            args += ["-f", "-f"]
+        args.append(path)
+        r = git(args, project)
+        if r.returncode != 0:
+            failures.append(f"{path}: worktree remove failed -- {r.stderr.strip()}")
+            continue
+        removed += 1
+        branch = row["branch"]
+        if branch and not row["detached"]:
+            r2 = git(["branch", "-D", branch], project)
+            if r2.returncode != 0:
+                failures.append(f"{path}: removed, but branch -D {branch} failed -- {r2.stderr.strip()}")
+    return removed, failures
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def main(argv):
+    ap = argparse.ArgumentParser(prog="worktree-sweep", description=__doc__,
+                                  formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--project", required=True, help="project root (or any dir inside it)")
+    ap.add_argument("--apply", action="store_true", help="remove REMOVABLE worktrees (default: dry-run)")
+    ap.add_argument("--json", action="store_true", help="machine-readable output")
+    ap.add_argument("--idle-hours", type=float, default=DEFAULT_IDLE_HOURS)
+    a = ap.parse_args(argv)
+
+    project = str(Path(a.project).resolve())
+    if git(["rev-parse", "--git-dir"], project).returncode != 0:
+        print(f"worktree-sweep: {project} is not a git repository", file=sys.stderr)
+        return 2
+
+    rows, fetch_ok, prune_lines = sweep(project, a.idle_hours)
+    if rows is None:
+        print("worktree-sweep: could not list worktrees", file=sys.stderr)
+        return 2
+
+    if not fetch_ok:
+        if a.apply:
+            print("worktree-sweep: git fetch origin failed -- refusing --apply", file=sys.stderr)
+            if not a.json:
+                for line in prune_lines:
+                    print(f"prune: {line}")
+                for row in rows:
+                    print(f"{row['verdict']:<10} {row['path']}  branch={row['branch'] or '(detached)'}  "
+                          f"{row['reason']} [STALE -- fetch failed]")
+            return 2
+        print("worktree-sweep: git fetch origin failed -- results below are STALE", file=sys.stderr)
+
+    removed, failures = (0, [])
+    if a.apply:
+        removed, failures = apply_removals(project, rows)
+
+    if a.json:
+        out = {
+            "project": project,
+            "fetch_ok": fetch_ok,
+            "pruned": prune_lines,
+            "worktrees": rows,
+            "applied": a.apply,
+            "removed": removed,
+            "failures": failures,
+        }
+        print(json.dumps(out, indent=2))
+    else:
+        for line in prune_lines:
+            print(f"prune: {line}")
+        for row in rows:
+            print(f"{row['verdict']:<10} {row['path']}  branch={row['branch'] or '(detached)'}  {row['reason']}")
+            for note in row["notes"]:
+                print(f"           note: {note}")
+        removable = sum(1 for r in rows if r["verdict"] == "REMOVABLE")
+        keep = len(rows) - removable
+        print(f"\n{removable} removable, {keep} keep (of {len(rows)} worktree(s), main checkout excluded)")
+        if a.apply:
+            print(f"removed {removed} worktree(s)")
+            for f in failures:
+                print(f"FAILED: {f}", file=sys.stderr)
+
+    if a.apply and failures:
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

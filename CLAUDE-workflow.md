@@ -431,6 +431,13 @@ other one queues.
 A finding on another task's surface is a **handover**, not a note in a file: the
 session that found it tells the session that owns it, and stops.
 
+**A lead sweeps finished worktrees before they pile up.** Run
+`bin/worktree-sweep --project . --apply` when a session ends, and again after
+landing a batch. It removes only worktrees that are clean, merged (ancestry,
+a merged GitHub PR, or a squash merge caught by `git cherry`), and idle — it
+never touches uncommitted, unmerged, or active work, and it never touches the
+main checkout.
+
 ---
 
 ## The agent roles
