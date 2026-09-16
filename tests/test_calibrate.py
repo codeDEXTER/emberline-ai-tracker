@@ -244,3 +244,53 @@ class TestStatePersistence(CalibrateHarness):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAttributionDoesNotCollide(CalibrateHarness):
+    """Worklog rows name an item by bare id, and bare ids are not unique:
+    PhotoVault has its own S-06, and common-rules carries W-01 in two of its
+    own ledgers. Found 2026-09-16 when a real collection credited common-rules'
+    S-06 with PhotoVault's S-06 tokens as well."""
+
+    def test_rows_started_in_another_project_are_not_credited_here(self):
+        write_ledger(self.proj, "90-fixture.json",
+                     [make_item(f"Q-{i:02}", points=3) for i in range(1, 5)])
+        here = calibrate.project_slug(self.proj)
+        elsewhere = here + "-sibling-project"
+        write_day_file(self.out, "2026-09-01", [
+            {"item": "Q-01", "project": here, "output_tokens": 100},
+            {"item": "Q-02", "project": here, "output_tokens": 100},
+            {"item": "Q-03", "project": here, "output_tokens": 100},
+            {"item": "Q-04", "project": here, "output_tokens": 100},
+            # the same id, in another project -- would make Q-04 5x its class
+            {"item": "Q-04", "project": elsewhere, "output_tokens": 400},
+        ])
+        result = calibrate.calibrate(project=self.proj, out=self.out, force=True)
+        self.assertEqual([], result["flagged"])
+
+    def test_rows_started_in_a_directory_above_the_project_still_count(self):
+        write_ledger(self.proj, "90-fixture.json",
+                     [make_item(f"Q-{i:02}", points=3) for i in range(1, 5)])
+        parent = calibrate.project_slug(self.proj.parent)
+        write_day_file(self.out, "2026-09-01", [
+            {"item": "Q-01", "project": parent, "output_tokens": 100},
+            {"item": "Q-02", "project": parent, "output_tokens": 100},
+            {"item": "Q-03", "project": parent, "output_tokens": 100},
+            {"item": "Q-04", "project": parent, "output_tokens": 300},
+        ])
+        result = calibrate.calibrate(project=self.proj, out=self.out, force=True)
+        self.assertEqual({"Q-04"}, {f["item"] for f in result["flagged"]})
+
+    def test_an_id_in_two_of_this_projects_ledgers_is_left_out_and_named(self):
+        write_ledger(self.proj, "90-fixture.json",
+                     [make_item(f"Q-{i:02}", points=3) for i in range(1, 5)])
+        write_ledger(self.proj, "91-other.json", [make_item("Q-04", points=3)])
+        write_day_file(self.out, "2026-09-01", [
+            {"item": "Q-01", "output_tokens": 100},
+            {"item": "Q-02", "output_tokens": 100},
+            {"item": "Q-03", "output_tokens": 100},
+            {"item": "Q-04", "output_tokens": 900},
+        ])
+        result = calibrate.calibrate(project=self.proj, out=self.out, force=True)
+        self.assertNotIn("Q-04", {f["item"] for f in result["flagged"]})
+        self.assertEqual(["Q-04"], result["skipped_ambiguous"])
