@@ -24,8 +24,8 @@
     },
     "C4": {
       "tier": "lead",
-      "model": "lead model",
-      "effort": "-",
+      "model": "opus",
+      "effort": "low or medium",
       "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
     }
   },
@@ -57,8 +57,8 @@
       "status": "done",
       "owner": "lead",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -78,6 +78,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "PR 179 merged to main as 32cd0b9 (from gh). Suite on 7cf0f44: quiet: OK · 1221 tests. CI: only the known Linux test_a_long_branch_says_how_many_it_did_not_print. Review fix-first; both blocking findings fixed (CHANGELOG Standard change line; main merged again). Proposal 22 T-01 to T-03 on main."
+        },
+        {
+          "at": "2026-09-16T07:47:00+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": "proposal 23 A-22"
         }
       ]
     },
@@ -265,8 +271,8 @@
       "status": "done",
       "owner": "sponsor",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -280,6 +286,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "Deleted via mcp__ccd_session_mgmt__delete_session (local_bd66c5cc-8391-4b1c-ac37-d4f9a96b331d), the app's own approval card confirmed. Its work was taken over under this proposal and is merged (PR #103). Ask A-02 (\"then I would like to delete the other chat\") already directed this; today's \"make a decision yourself on the blocked items\" closed the deferred action."
+        },
+        {
+          "at": "2026-09-16T07:47:00+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": "proposal 23 A-22"
         }
       ]
     }

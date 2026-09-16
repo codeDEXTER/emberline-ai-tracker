@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-16 07:08
+# Checkpoint — 2026-09-16 08:00
 
-Reason: manual · branch: backlog-dep · HEAD: b61f332
+Reason: manual · branch: lead-model · HEAD: a9c1a4c
 
-<!-- ledger-digest: 9827c9230aad468046b018e10b6eaf6608da5f0d60e3396acdfe42b3ee57bd36 -->
+<!-- ledger-digest: 8e4f01bfa101168948204ff052776156954101231317c7dc4fc64a4a7466fdfc -->
 
 ## Proposal 19 · Warm-up
 

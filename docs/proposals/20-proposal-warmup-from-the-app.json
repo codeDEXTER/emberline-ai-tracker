@@ -2,7 +2,7 @@
   "proposal": 20,
   "title": "Warm-up, from the app",
   "status": "accepted",
-  "updated": "2026-09-14",
+  "updated": "2026-09-16",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -24,8 +24,8 @@
     },
     "C4": {
       "tier": "lead",
-      "model": "lead model",
-      "effort": "-",
+      "model": "opus",
+      "effort": "low or medium",
       "rule": "Planning, merging, reconciling, another project's real data, a sponsor decision"
     }
   },
@@ -759,8 +759,8 @@
       ],
       "status": "done",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -840,6 +840,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "Both sessions reheated onto the built standard and measured. Engine: card ready, routing line present, stale checkpoint fixed by its own commit, no rulecheck stamp (explained). App: card ready, merged and routing lines correct. Declarations, derecord v2, ruflo-item and the engine's artifact are open sponsor decisions, carried outside this ledger."
+        },
+        {
+          "at": "2026-09-16T07:46:24+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": ""
         }
       ],
       "discovered_from": "A-02"
