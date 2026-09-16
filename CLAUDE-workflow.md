@@ -530,6 +530,13 @@ a regenerating rebuild that emits the tag differently. Stated once, here; it
 covers every maintained page, not just the tracker (`skills/warmup/SKILL.md`
 §3 points back here rather than restating it).
 
+**The cookbook (`docs/cookbook.html`, proposal 28 R-06) regenerates with the
+rules it shows, the way the tracker page regenerates with its ledger.** A
+`**Standard change (mandatory):**` entry touching warmup, reheat, or a rule
+shown there regenerates its committed source in that commit and republishes
+it to its existing url — never a new artifact, and not license to touch the
+title rule above.
+
 **Number every proposal, and lead with the number.** Proposals live in
 `docs/proposals/` as `NN-<type>-<slug>.html`, numbered sequentially per project,
 never reused. The visible heading and the `<title>` both read
