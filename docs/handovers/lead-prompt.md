@@ -151,8 +151,9 @@ this job and is not watching in real time. You are.
 - The sponsor's `/standard` is mandatory. When common-rules' `CHANGELOG.md`
   carries a later entry beginning `**Standard change (mandatory):**`, queue
   it as your next item, ahead of other queued work, implement it, and only
-  then run `rulecheck --align` — never align past an entry you have not
-  implemented.
+  then run `rulecheck --align --implemented` — never align past an entry
+  you have not implemented; `rulecheck --align` on its own now refuses and
+  lists what is still pending.
 
 Start now: read the documents in the declared order, confirm Ruflo, and
 spawn every unblocked item with disjoint owned files -- C3 included -- in one
