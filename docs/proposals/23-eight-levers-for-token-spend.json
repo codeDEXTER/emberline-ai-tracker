@@ -362,7 +362,7 @@
       ],
       "done": "A scout brief template and the CONTEXT pack format exist; one item run with a scout shows builder read and inspect spend lower than a comparable item without.",
       "depends": [],
-      "status": "in testing",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -404,6 +404,12 @@
           "event": "measured 2026-09-16: not measurable. No item has been run with a Haiku scout since the template landed, so there is nothing to compare; needs one real item run with a scout",
           "by": "lead",
           "evidence": "/private/tmp/claude-501/-Users-the-sponsor-apps/3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure-A-2026-09-16.json"
+        },
+        {
+          "at": "2026-09-16T20:49:25+02:00",
+          "event": "measured 2026-09-16 on one real pair: 21/F-01 (rulecheck --align, PR #202) built by a Sonnet builder fed a Haiku scout pack, against 26/F-01 (finding ids and sizing, PR #200) built by a Sonnet builder with no scout. Builder read/inspect calls (Read, Grep, Glob, read-only Bash) and the text they returned: before first edit 12 calls ~10.7k tokens with the scout vs 23 calls ~18.2k without (-41%); whole run ~19.8k vs ~20.7k (-4%). Builder totals 8.29M vs 9.77M tokens; the scout itself cost 0.92M Haiku tokens. Meets the criterion as written. Caveats: one pair, different scopes; the saving is concentrated before the first edit and roughly offset overall by the scout's own reading",
+          "by": "lead",
+          "evidence": "docs/research/l06-scout-compare.py over subagent transcripts agent-ad4958655e084ffd3, agent-aea3279f5674b3c87, agent-ade7b40107946a2c2 of session 3cff917f"
         }
       ],
       "points": 3,

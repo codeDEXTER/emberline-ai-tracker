@@ -884,7 +884,7 @@
       "source": "review",
       "file": "bin/rulecheck",
       "severity": "medium",
-      "state": "catalogued",
+      "state": "decided",
       "line": 629,
       "title": "rulecheck --align writes the stamp unconditionally: it never calls mandatory_pending() first, so nothing technically stops a session aligning past an unimplemented mandatory Standard change. Documented as deliberate in the file's own docstring, but weaker than S-09's done text and CLAUDE.md imply",
       "log": [
@@ -893,6 +893,12 @@
           "event": "catalogued",
           "by": "session:review-19-29",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T20:49:25+02:00",
+          "event": "decided",
+          "by": "lead",
+          "evidence": "fixed 2026-09-16 (PR #202): rulecheck --align refuses and lists pending mandatory entries; --align --implemented declares them and aligns, and also repairs an unresolvable stamp. CHANGELOG entry carries a Standard change (mandatory) line; common-rules conformance still 12 of 12"
         }
       ]
     }
