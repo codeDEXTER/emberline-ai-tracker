@@ -2,7 +2,7 @@
   "proposal": 25,
   "title": "Sizing items by value, points and risk",
   "status": "accepted",
-  "updated": "2026-09-15",
+  "updated": "2026-09-16",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -24,8 +24,8 @@
     },
     "C4": {
       "tier": "lead",
-      "model": "lead model",
-      "effort": "-",
+      "model": "opus",
+      "effort": "low or medium",
       "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
     }
   },
@@ -350,5 +350,23 @@
   "execution": {
     "started": "2026-09-15T00:30:00+02:00",
     "integration_branch": "p23-eight-levers"
-  }
+  },
+  "findings": [
+    {
+      "id": "F-01",
+      "source": "review",
+      "file": "tools/tracker/sizing.py",
+      "severity": "high",
+      "state": "catalogued",
+      "title": "Zero of 97 real items carry value or points, so the whole sizing apparatus is inert on real data: tracker lanes returns an empty table, tracker route says unsized, spend calibrate finds 0 points classes. The maths is correct and tested on fixtures; it has never run on a real item",
+      "log": [
+        {
+          "at": "2026-09-16T07:54:36+02:00",
+          "event": "catalogued",
+          "by": "session:review-19-29",
+          "evidence": ""
+        }
+      ]
+    }
+  ]
 }
