@@ -1,9 +1,9 @@
 ---
 name: warmup
-description: Warm up this session on the project's standard (common-rules proposal 19). Reads HANDOFF.md, the operating rules, the ledger and the last checkpoint in a fixed order, checks the tools, and prints the warm card before any work. Use at the start of every session, after a context compaction, or mid-session ("warm up", "what changed", "refresh the rules").
+description: Warm up a FRESH session on the project's standard (common-rules proposal 19, and proposal 28's R-01/R-02). Reads HANDOFF.md, the operating rules, the ledger and the last checkpoint in a fixed order, checks the tools and the standard, queues what is pending, and prints the warm card before any work. Use at the start of a session. A session already running uses /reheat instead ("warm up", "what changed", "refresh the rules").
 ---
 
-# /warmup
+# /warmup: a fresh lead
 
 The rules are already on disk. This skill loads them in the same order every
 time, so the sponsor never has to type "reread the handoff", "are you using
@@ -12,22 +12,40 @@ ruflo" or "what is the current status" again. It asks nothing.
 `RULES` below is `/Users/aashish/apps/common-rules`, unless this project's
 CLAUDE.md names a different common-rules checkout.
 
-## 1. Cold start, or mid-session
+**A session already running does not use this skill again — it uses
+`skills/reheat/SKILL.md` (`/reheat`)**, which asks only what moved since the
+last warm-up or reheat, with the standard's own status carried along every
+time. This skill is for the start of a session: a fresh lead, or a lead that
+cannot tell whether it already warmed up.
 
-- **No earlier warm-up in this session** (or you cannot tell):
-  `RULES/bin/warmup --project . --state .claude/warmup/last.json`
-- **Mid-session refresh, or after a compaction:**
-  `RULES/bin/warmup --project . --since .claude/warmup/last.json`,
-  then save the new state with `RULES/bin/warmup --project . --json --state .claude/warmup/last.json > /dev/null`.
-  Only what moved is printed; act on each line.
+## 1. Run it
 
-`.claude/warmup/` is scratch state. Never commit it.
+`RULES/bin/warmup --project . --queue --state .claude/warmup/last.json`
+
+- **`--queue`** records every non-holding standard item and every pending
+  mandatory Standard change as a ledger item — owner `lead`, status
+  `not started`, first in the queue — so what the card shows is also what the
+  ledger already tracks. Running it again adds nothing for what is already
+  queued: it is always safe to include.
+- **`--state .claude/warmup/last.json`** saves this run's state, so `/reheat`
+  has a baseline to compare against later in the session. `.claude/warmup/`
+  is scratch state — never commit it.
+- Picking up a conversation with real context (a handoff from another
+  session, something the sponsor said before this skill ran): add
+  `--context "<one line>"` — it is printed on the card and carried into the
+  saved state.
+
+The card now always includes `standard: N of 12 hold` and, under it, every
+item that does not hold — the same twelve `bin/conformance` checks, run in
+process. What `--queue` wrote is listed at the end, under `queue:`.
 
 ## 2. Read, in the order the card names
 
 The card ends with `Read in order:`. Read every file on that line, in that
-order, before any other action: HANDOFF.md → docs/OPERATING-RULES.md → the
-ledger(s) → the latest checkpoint → common-rules' CLAUDE-workflow.md.
+order, before any other action: HANDOFF.md (which now folds in
+docs/OPERATING-RULES.md — proposal 23, M-11) → this card itself, not the raw
+ledger JSON → the latest checkpoint → common-rules' CLAUDE-workflow.md. Open a
+ledger's full JSON only for the item currently being worked.
 
 After a compaction the summary above is a paraphrase. The ledger is the
 record. Quote a ruling from disk (the constraints file, the issue, the ledger
@@ -44,22 +62,51 @@ ask), never from the summary.
   it. For every item: `memory search` and `hooks route` before, `hooks
   post-task` and `memory store` after, run from the project root, then
   `daemon stop` for the daemon your calls started. Never kill it by name.
+  **Never register Ruflo's full MCP tool set for this reason.** `bin/ruflo-item`
+  is a CLI wrapper, not an MCP client — it shells out to the `claude-flow`/
+  `ruflo` binary for `hooks pre-task`, `memory search`, `hooks route`,
+  `memory store`, `hooks post-task`, `hooks worker dispatch --trigger
+  testgaps`, `memory list` and `daemon stop`, so a session that only uses
+  `bin/ruflo-item` (every item lead and builder, per this section) pays zero
+  MCP tool-definition tokens: nothing here needs the 333-tool `claude-flow`
+  MCP server on this project's `.claude.json`/`.mcp.json` at all (proposal 19's
+  own finding was the same — the MCP server it tried once "connected but its
+  tools [were] not exposed in the lead session[; it] fell back to the CLI").
+  common-rules does not register that MCP server for itself today. If a
+  session's `~/.claude.json` registers it anyway (for another project, or a
+  future need this CLI wrapper doesn't cover), load only the tools this
+  section already names above — `memory_store`, `memory_search`,
+  `hooks_route`, plus `hooks post-task` and `daemon stop` — one call each via
+  `ToolSearch`, batched, never the full 333-tool set, per proposal 23 M-03
+  ("Ruflo's 333 MCP tools cost ~61.5k tokens of tool definitions per session
+  ... load only the tools the item wrapper uses, or defer loading").
 - **`RULES/bin/recall <words>`** searches every project's memory, LESSONS and
   operating rules. Put the hits for an item under CONTEXT in its brief.
-- **`page changed since last publish: <stem> → <url>`** means the rendered
-  page (`docs/proposals/tracker/<stem>.html`) no longer matches what was last
-  published to that URL. Republish it yourself, in the same turn, in this
-  order:
-  1. Finish and commit ledger edits first. Committing the ledger re-renders
-     the page (derecord's pre-commit hook does it); if the card still shows
-     the page as stale, run `tracker render` and commit that.
+- **`page changed since last publish: docs/proposals/tracker/index.html → <url>`**
+  means the project's one tracker page — every ledger on one page — no longer
+  matches what was last published to that URL. Republish it yourself, in the
+  same turn, in this order:
+  1. Finish and commit ledger edits first. Committing a ledger re-renders the
+     page (derecord's pre-commit hook does it); if the card still shows the
+     page as stale, run `tracker board --project .` and commit that.
   2. Publish that committed page file with your Artifact tool **to the same
      URL** the line names — update the existing artifact in place, never
-     create a new one.
-  3. Record it: `RULES/bin/tracker published docs/proposals/<stem>.json --url <url>`
+     create a new one. **Its `<title>`, once set on first publish, never
+     changes on a later republish** — not a differing `title` parameter, not
+     by hand (`CLAUDE-workflow.md`, "Talking to the user", proposal 22 T-06 —
+     stated once there, covering every maintained page, not restated here).
+  3. Record it: `RULES/bin/tracker published --project . --url <url>`
      (add `--by <your session's name>`), then commit the sidecar on its own:
-     `docs/proposals/tracker/<stem>.published.json`, with nothing else in
-     that commit.
+     `docs/proposals/tracker/index.published.json`, with nothing else in that
+     commit.
+
+  **A proposal the sponsor asked to track separately** — its ledger's
+  `tracker` key records `{"own": true, ...}` — keeps a page and a record of its own:
+  publish `docs/proposals/tracker/<stem>.html` and record it with
+  `RULES/bin/tracker published docs/proposals/<stem>.json --url <url>`, then
+  commit that sidecar on its own. For a ledger without that key the per-ledger
+  command refuses and names `tracker published --project`: one tracker per
+  project unless the sponsor asked for another.
 
   **When `.common-rules.json` declares `plan_page`**, the page of record is
   the file that project's generator writes, not the tracker page, and the
@@ -72,10 +119,14 @@ ask), never from the summary.
   3. Record it: `RULES/bin/tracker published docs/proposals/<stem>.json --url <url> --page <path>`,
      `<path>` being the committed file the generator wrote, relative to the
      project root; then commit the sidecar on its own. Without `--page`,
-     `tracker published` refuses on such a project.
+     `tracker published` refuses on such a project, and so does
+     `tracker published --project`: the declared page is that project's
+     tracker. The project page is still rendered and checked beside it — it is
+     simply not the page that is published.
 
-  `tracker published` refuses while the ledger has uncommitted changes, and,
-  with `--page`, when the page was last committed before the ledger changed
+  `tracker published` refuses while the ledger it records has uncommitted
+  changes — every ledger, for `--project` — and, with `--page`, when the
+  page was last committed before the ledger changed
   — an old page recorded as current would keep the card silent for good.
   Only when a committed ledger change leaves the page's bytes identical, pass
   `--page-unchanged`; the sidecar records that you did.
@@ -85,21 +136,24 @@ ask), never from the summary.
   gets a log entry": a log entry would itself move the page, and the line
   would come straight back.
 
-  A republish needs no sponsor prompt: when the ledger's `switches.publish`
-  is on (the default), republishing a changed page is part of keeping the
-  ledger current, like rendering it. When `switches.publish` is switched off,
-  nothing is published — the card prints no such line and `tracker published`
-  refuses to record. The line never fails `warmup --check`; it is a to-do,
-  not a broken standard. Only a session's Artifact tool can publish; no hook
-  or script does it for you.
-- **A page published before it was recorded.** When a tracker page is
-  published for the first time, or you find one already published (a URL in
-  the handover, lead prompt or log) with no `<stem>.published.json`, record
-  it at once with `tracker published`; from then on the card tells you when
-  it moves. When the project declares `plan_page`, the page is the committed
-  file its generator writes: record it with
-  `RULES/bin/tracker published docs/proposals/<stem>.json --url <url> --page <path>`. The card gives no hint for a missing sidecar, because a project
-  that never publishes must see nothing.
+  A republish needs no sponsor prompt: when `switches.publish` is on (the
+  default) — every ledger's, for the project page — republishing a changed
+  page is part of keeping the ledger current, like rendering it. When any is
+  switched off, nothing is published — the card prints no such line and
+  `tracker published` refuses to record, naming that ledger. The line never
+  fails `warmup --check`; it is a to-do, not a broken standard. Only a
+  session's Artifact tool can publish; no hook or script does it for you.
+- **A page published before it was recorded.** When the project's tracker page
+  is published for the first time, or you find one already published (a URL in
+  the handover, lead prompt or log) with no
+  `docs/proposals/tracker/index.published.json`, record it at once with
+  `tracker published --project . --url <url>`; from then on the card
+  tells you when it moves. When the project declares `plan_page`, the page is
+  the committed file its generator writes: record it with
+  `RULES/bin/tracker published docs/proposals/<stem>.json --url <url> --page <path>`;
+  for a proposal with a tracker of its own, `RULES/bin/tracker published docs/proposals/<stem>.json --url <url>`.
+  The card gives no hint for a missing sidecar, because a project that never
+  publishes must see nothing.
 
 ## 4. The first message to the sponsor
 
@@ -112,8 +166,8 @@ ask), never from the summary.
 While working, keep to one status line in the lead prompt's form:
 `N done / N in progress / N blocked / N not started · what changed · waiting on · yours:`
 
-Every sponsor message that is not an answer to a question becomes an `A-nn`
-ask row in the ledger, in the same turn.
+Every sponsor message that is not an answer to a question becomes an ask
+row (`HANDOFF.md`, "Operating rules"), in the same turn.
 
 ## Moving a running project onto the standard
 
