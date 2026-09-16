@@ -19,9 +19,13 @@ already is; validated by tools/tracker/ledger.py's `_validate_findings`,
 which this module reuses through `ledger.findings()`/`findings_by_id()`).
 
   tracker findings add LEDGER --source S --file F [--line N] --severity SEV
-                        [--title T] [--value V] [--points N] [--impact N]
-                        [--likelihood N] [--cluster C] [--risk R]
+                        [--title T] (--value V --points N | --unsized)
+                        [--impact N] [--likelihood N] [--cluster C] [--risk R]
                         [--by NAME] [--at ISO8601]
+                        --value and --points are both required unless
+                        --unsized is passed instead -- otherwise a finding
+                        lands unsized with nothing recording that it was
+                        meant to (proposal 26 C-05's own F-01).
   tracker findings decide LEDGER FINDING_ID --quote TEXT [--value V] [--points N]
                         [--impact N] [--likelihood N] [--risk R] [--cluster C]
                         [--by NAME] [--at ISO8601]
@@ -35,7 +39,12 @@ which this module reuses through `ledger.findings()`/`findings_by_id()`).
                         change to lanes.py itself (lanes.py is C-02's, merged
                         and unowned by this item; this module only builds the
                         combined queue lanes.lanes() already knows how to
-                        sort, findings shaped exactly like an item row).
+                        sort, findings shaped exactly like an item row). A
+                        finding's id in this queue is proposal-qualified
+                        (`26/F-01`), since a bare `F-01` is only unique
+                        inside its own ledger and this command's whole point
+                        is to mix ledgers; an item's id is untouched -- it
+                        already avoids the collision.
   tracker findings triage LEDGER --batch ID [ID ...] [--json]
                         group a batch of decided-small findings by their
                         shared `cause` before it is worked; a finding with no
@@ -99,9 +108,16 @@ def _append_log(finding: dict, event: str, by: str, at: str, evidence: str = "")
 def add(ledger: dict, *, source: str, file: str, severity: str, line: int | None = None,
         title: str | None = None, value: str | None = None, points: int | None = None,
         impact: int | None = None, likelihood: int | None = None, risk: str | None = None,
-        cluster: str | None = None, by: str = "lead", at: str | None = None) -> str:
+        cluster: str | None = None, unsized: bool = False, by: str = "lead", at: str | None = None) -> str:
     """Catalogue a new finding. Its `state` starts `catalogued` -- visible,
-    not worked -- until the sponsor decides it."""
+    not worked -- until the sponsor decides it.
+
+    `unsized` records that leaving `value`/`points` off was a deliberate
+    choice -- the CLI (`_cmd_add`) is what actually refuses an unsized add
+    unless this is set (proposal 26 C-05's own F-01: "every finding lands
+    unsized" when nothing enforces it); this pure function stays permissive
+    so `decide` remains the normal place a catalogued-but-not-yet-sized
+    finding picks up its size."""
     at = at or _now()
     fid = next_id(ledger)
     finding: dict = {"id": fid, "source": source, "file": file, "severity": severity, "state": "catalogued"}
@@ -109,6 +125,8 @@ def add(ledger: dict, *, source: str, file: str, severity: str, line: int | None
                       ("impact", impact), ("likelihood", likelihood), ("risk", risk), ("cluster", cluster)):
         if val is not None:
             finding[key] = val
+    if unsized:
+        finding["unsized"] = True
     _append_log(finding, "catalogued", by, at)
     ledger.setdefault("findings", []).append(finding)
     return fid
@@ -204,10 +222,21 @@ def queue(ledger: dict) -> list[dict]:
 
 def lanes(ledgers: list[dict], project) -> dict:
     """Every ledger's items and findings, in one shared queue, sorted into
-    lanes by tools/tracker/lanes.py's share/risk/80% cut -- unchanged."""
+    lanes by tools/tracker/lanes.py's share/risk/80% cut -- unchanged.
+
+    A finding's id is proposal-qualified here (`26/F-01`), since this is the
+    cross-ledger queue the feature exists to provide and `F-01` alone is
+    only unique inside its own ledger -- four ledgers each with their own
+    catalogued `F-01` would otherwise render as four indistinguishable rows.
+    An item's id is left as-is; it already avoids the collision. Callers
+    that need the bare finding id back (`light_eligible`) unqualify it
+    themselves against the same ledger."""
     combined: list[dict] = []
     for data in ledgers:
-        combined.extend(queue(data))
+        for row in queue(data):
+            if row.get("kind") == "finding":
+                row["id"] = L.qualify_finding_id(data, row["id"])
+            combined.append(row)
     return LANES.lanes(combined, project)
 
 
@@ -220,14 +249,16 @@ def light_eligible(ledger: dict, project) -> list[str]:
     `lanes()` run everything else uses, never a second formula."""
     result = lanes([ledger], project)
     by_id = L.findings_by_id(ledger)
+    qualified_to_bare = {L.qualify_finding_id(ledger, fid): fid for fid in by_id}
     out = []
     for row in result["items"]:
-        f = by_id.get(row["id"])
+        fid = qualified_to_bare.get(row["id"])
+        f = by_id.get(fid) if fid is not None else None
         if f is None:
             continue
         if f.get("state") == "decided" and not row.get("alone") and isinstance(row.get("points"), int) \
                 and row["points"] <= 3:
-            out.append(row["id"])
+            out.append(fid)
     return out
 
 
@@ -297,12 +328,18 @@ def _validated_write(say: str, path: Path, data: dict, fid: str) -> int:
 
 def _cmd_add(args) -> int:
     say = "tracker findings add:"
+    if not args.unsized and (args.value is None or args.points is None):
+        missing = " and ".join(f for f, v in (("--value", args.value), ("--points", args.points)) if v is None)
+        print(f"{say} needs {missing} -- a finding lands unsized and lane ranking can't place it -- "
+              f"or pass --unsized to record that leaving it unsized was deliberate", file=sys.stderr)
+        return 1
     data = _load(args.ledger)
     if data is None:
         return 2
     fid = add(data, source=args.source, file=args.file, severity=args.severity, line=args.line,
               title=args.title, value=args.value, points=args.points, impact=args.impact,
-              likelihood=args.likelihood, risk=args.risk, cluster=args.cluster, by=args.by, at=args.at)
+              likelihood=args.likelihood, risk=args.risk, cluster=args.cluster, unsized=args.unsized,
+              by=args.by, at=args.at)
     return _validated_write(say, args.ledger, data, fid)
 
 
@@ -397,6 +434,8 @@ def main(argv) -> int:
     p_add.add_argument("--likelihood", type=int)
     p_add.add_argument("--risk", choices=L.RISKS)
     p_add.add_argument("--cluster")
+    p_add.add_argument("--unsized", action="store_true",
+                        help="record that leaving value/points off is deliberate")
     p_add.add_argument("--by", default="lead")
     p_add.add_argument("--at")
     p_add.set_defaults(func=_cmd_add)

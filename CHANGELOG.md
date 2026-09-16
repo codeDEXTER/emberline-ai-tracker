@@ -1,5 +1,38 @@
 # Changelog — common-rules
 
+## 2026-09-16 · Findings are distinguishable across ledgers and never land unsized (P26 F-01)
+
+**Standard change (mandatory):** C-05's first real use exposed two defects
+in `tools/tracker/findings.py`. Finding ids are per-ledger (`F-01`, `F-02`,
+...), so the cross-ledger queue the feature exists to provide -- `tracker
+findings lanes`, and board.py's file-overlap clusters, both of which combine
+every ledger's findings into one list -- showed four different proposals'
+findings as four indistinguishable `F-01` rows; worse, `cluster.py`'s
+`_UnionFind` keyed by bare id silently collapsed two different ledgers'
+`F-01` onto one key and could cluster findings that share no file at all.
+And `tracker findings add` wrote `value`/`points` only when given, with
+nothing requiring them, so every finding landed unsized and the lane
+ranking C-05 was built for had nothing to rank.
+
+A finding's id is now proposal-qualified (`26/F-01`) wherever it can be
+confused with another ledger's same-numbered finding -- `tracker findings
+lanes`'s combined queue and `not_taken_rows()`'s rows for the board's
+clusters -- via the new `ledger.qualify_finding_id()`. An item's id is
+untouched; it already avoids the collision. Stored ids are never
+renumbered, and single-ledger uses (`decide`/`defer`/`decline`/`triage`,
+`light_eligible`) still take and return the plain id.
+
+`tracker findings add` now refuses without `--value` and `--points`,
+naming both, unless `--unsized` is passed -- which records `unsized: true`
+on the row instead. An existing finding with neither sizing fields nor the
+new flag (catalogued before this fix) still validates. At your next
+`/warmup`, any script or brief that calls `tracker findings add` without
+sizing must add `--value`/`--points` or `--unsized`.
+
+`tests/test_tracker_findings.py` and `tests/test_tracker_cluster.py` were
+red on the old code (bare `F-01` colliding across ledgers, and `add`
+succeeding with nothing to rank) and are green on the new.
+
 ## 2026-09-16 · Rows `warmup --queue` writes are routed, and common-rules holds 12 of 12 again
 
 **Standard change (mandatory):** `tools/tracker/queue.py` wrote every queued
