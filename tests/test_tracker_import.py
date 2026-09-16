@@ -156,7 +156,7 @@ class TestFromTheChecklistTable(Case):
         self.s.write("CLAUDE-checklist.md", TABLE_WITH_TRACKS)
         d, _ = self.imported()
         self.assertEqual({"C4"}, {i["cx"] for i in d["items"]})
-        self.assertEqual({"[ruflo · lead · lead model]"}, {i["tag"] for i in d["items"]})
+        self.assertEqual({"[ruflo · lead · opus]"}, {i["tag"] for i in d["items"]})
 
     def test_proves_and_you_get_are_carried(self):
         self.s.write("CLAUDE-checklist.md", TABLE_WITH_TRACKS)

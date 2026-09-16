@@ -24,8 +24,8 @@
     },
     "C4": {
       "tier": "lead",
-      "model": "lead model",
-      "effort": "-",
+      "model": "opus",
+      "effort": "low or medium",
       "rule": "Planning, merging, reconciling, another project's real data, a sponsor decision"
     }
   },

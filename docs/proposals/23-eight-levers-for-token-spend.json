@@ -2,7 +2,7 @@
   "proposal": 23,
   "title": "Eight levers for token spend",
   "status": "accepted",
-  "updated": "2026-09-15",
+  "updated": "2026-09-16",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -24,8 +24,8 @@
     },
     "C4": {
       "tier": "lead",
-      "model": "lead model",
-      "effort": "-",
+      "model": "opus",
+      "effort": "low or medium",
       "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
     }
   },
@@ -71,8 +71,8 @@
       "status": "done",
       "owner": "lead",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -98,6 +98,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
+        },
+        {
+          "at": "2026-09-16T07:47:00+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": "proposal 23 A-22"
         }
       ]
     },
@@ -122,8 +128,8 @@
       "status": "done",
       "owner": "lead",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -149,6 +155,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
+        },
+        {
+          "at": "2026-09-16T07:47:00+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": "proposal 23 A-22"
         }
       ]
     },
@@ -362,8 +374,8 @@
       "status": "done",
       "owner": "lead",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -377,6 +389,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "Became proposal 25, accepted 2026-09-15 (D1-D6 all option A); items Z-01 to Z-06."
+        },
+        {
+          "at": "2026-09-16T07:47:00+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": "proposal 23 A-22"
         }
       ]
     },
@@ -395,8 +413,8 @@
       "status": "done",
       "owner": "lead",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -404,6 +422,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "Covered by proposal 25 D6 (catalogue clustered by files touched) → Z-06."
+        },
+        {
+          "at": "2026-09-16T07:47:00+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": "proposal 23 A-22"
         }
       ]
     },
@@ -420,8 +444,8 @@
       "status": "done",
       "owner": "lead",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -429,6 +453,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "Became proposal 24, accepted 2026-09-15 (D1 B, D2-D4 A); items H-01 to H-03."
+        },
+        {
+          "at": "2026-09-16T07:47:00+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": "proposal 23 A-22"
         }
       ]
     },
@@ -993,6 +1023,15 @@
       "state": "answered",
       "owner": "lead",
       "note": "amends M-11: the word target is secondary to not missing anything important"
+    },
+    {
+      "id": "A-22",
+      "at": "2026-09-16T07:45:10+02:00",
+      "by": "sponsor",
+      "kind": "decision",
+      "quote": "and i think leads should be atleact Opus with low of medium effort / we are finding too many gaps if sonnet is the lead",
+      "became": null,
+      "state": "answered"
     }
   ],
   "proposed_changes": [],
@@ -1000,5 +1039,39 @@
     "started": "2026-09-15T00:20:00+02:00",
     "integration_branch": "p23-levers",
     "ruflo_route": "CLI, cached ruflo at ~/.npm/_npx/85fb20e3e7e3a233"
-  }
+  },
+  "findings": [
+    {
+      "id": "F-01",
+      "source": "review",
+      "file": "docs/workflow.html",
+      "severity": "high",
+      "state": "catalogued",
+      "title": "main has been red since the first wave merged: the rules-version stamp says 589 but main is at 495. The stamp was computed on the long-lived backlog branch and squash-merging collapsed the count. Every suite run was on the branch, never on the merge result -- the exact failure ci.yml was written to catch, undetected because Actions has created no runs since the billing stop",
+      "log": [
+        {
+          "at": "2026-09-16T07:54:36+02:00",
+          "event": "catalogued",
+          "by": "session:review-19-29",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": "F-02",
+      "source": "review",
+      "file": "docs/proposals/23-eight-levers-for-token-spend.json",
+      "severity": "medium",
+      "state": "catalogued",
+      "title": "Nine items across five proposals were closed with the measurement or proof half of their own done criteria never performed (H-02 150k, H-03 proof run, Z-05 first calibration, M-03 before/after tokens, L-01/L-02/L-06/L-07 rerun measurements, T-06 title refusal). The build half was done in every case; the verification half was skipped and the item closed anyway",
+      "log": [
+        {
+          "at": "2026-09-16T07:54:44+02:00",
+          "event": "catalogued",
+          "by": "session:review-19-29",
+          "evidence": ""
+        }
+      ]
+    }
+  ]
 }

@@ -92,6 +92,19 @@ points here rather than restating it.
   report-only review roles a tier table would otherwise route to Opus. Work
   already dispatched at Opus before this ruling is finished, never killed and
   restarted, per Rule 0 (never break work in flight).
+- **The lead itself runs on Opus, at low or medium effort.** VERIFIED, his
+  words on 2026-09-16 (proposal 23, A-22): *"and i think leads should be
+  atleact Opus with low of medium effort"*, with the reason he gave in the
+  same breath: *"we are finding too many gaps if sonnet is the lead"*. This
+  does not contradict the rule above it — that one governs the subagents a
+  lead dispatches, which stay Haiku/Sonnet by tier; this one governs the lead
+  or dispatcher session doing the planning, merging, reconciling and closing.
+  The C4 row of every `tiers` table reads `opus` accordingly. The reason is
+  the rule's own scope: the gaps that prompted it were judgment gaps at the
+  moment of closing an item — a `done` criterion half-met and closed anyway —
+  not defects in what the subagents built (2026-09-16 review of proposals
+  19-29, five independent reviewers). Where a session cannot run Opus, it
+  says so and does not silently close items on a lower model.
 
 ---
 

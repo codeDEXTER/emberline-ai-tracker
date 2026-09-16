@@ -2,7 +2,7 @@
   "proposal": 21,
   "title": "The standard is mandatory",
   "status": "accepted",
-  "updated": "2026-09-15",
+  "updated": "2026-09-16",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -24,8 +24,8 @@
     },
     "C4": {
       "tier": "lead",
-      "model": "lead model",
-      "effort": "-",
+      "model": "opus",
+      "effort": "low or medium",
       "rule": "Planning, merging, reconciling, another project's real data, a sponsor decision"
     }
   },
@@ -52,8 +52,8 @@
       "depends": [],
       "status": "done",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -67,6 +67,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "PR #159 merged as f658e3e; linked ~/.agent-data/skills/standard -> common-rules/skills/standard; user-level ~/.agent-data/CLAUDE.md block <!-- common-rules:standard --> added. Section 3, 'later Standard changes are mandatory', is added on p21 per A-03."
+        },
+        {
+          "at": "2026-09-16T07:47:00+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": "proposal 23 A-22"
         }
       ]
     },
@@ -656,8 +662,8 @@
       "status": "done",
       "owner": "lead",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -695,6 +701,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "The sponsor answered 'Commit it' (A-05): the warm-up pointer block, and nothing else in CLAUDE.md, is committed in the declared read order (CLAUDE.md → HANDOFF.md → docs/OPERATING-RULES.md → ledgers → checkpoint → CLAUDE-workflow.md). bin/conformance now reads 12 of 12 on this tree. The review had passed on e4165d5 (#165)."
+        },
+        {
+          "at": "2026-09-16T07:47:00+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": "proposal 23 A-22"
         }
       ]
     },
@@ -713,8 +725,8 @@
       "status": "done",
       "owner": "lead",
       "tier": "lead",
-      "model": "lead model",
-      "tag": "[ruflo · lead · lead model]",
+      "model": "opus",
+      "tag": "[ruflo · lead · opus]",
       "issue": null,
       "log": [
         {
@@ -728,6 +740,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "The section 2 checklist was already carried out under S-10 (#165, #166). Measured at main 8981397: bin/conformance --project /Users/the-sponsor/apps/common-rules gives 'standard: 12 of 12 hold', exit 0; rulecheck: the rules repository itself, nothing to align (420-8981397); warmup --check ready. Section 3: common-rules carries no stamp; its own Standard change entries are what projects implement. No rule was dropped: the lead prompt was seeded fresh from the template under S-10, with no older prompt to carry over."
+        },
+        {
+          "at": "2026-09-16T07:47:00+02:00",
+          "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
+          "by": "lead",
+          "evidence": "proposal 23 A-22"
         }
       ]
     }
@@ -837,5 +855,24 @@
     "started": "2026-09-14T14:44:41+02:00",
     "ruflo_route": "CLI, cached ruflo v3.41.2 at ~/.npm/_npx/85fb20e3e7e3a233",
     "integration_branch": "p21"
-  }
+  },
+  "findings": [
+    {
+      "id": "F-01",
+      "source": "review",
+      "file": "bin/rulecheck",
+      "severity": "medium",
+      "state": "catalogued",
+      "line": 629,
+      "title": "rulecheck --align writes the stamp unconditionally: it never calls mandatory_pending() first, so nothing technically stops a session aligning past an unimplemented mandatory Standard change. Documented as deliberate in the file's own docstring, but weaker than S-09's done text and CLAUDE.md imply",
+      "log": [
+        {
+          "at": "2026-09-16T07:54:44+02:00",
+          "event": "catalogued",
+          "by": "session:review-19-29",
+          "evidence": ""
+        }
+      ]
+    }
+  ]
 }
