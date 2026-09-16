@@ -125,6 +125,12 @@
           "event": "measured 2026-09-16: FAIL. The session that dispatched bundles K/L (3cff917f) reached 671k context on 16 Sep and 843k on 15 Sep, against a 150k dispatcher cap. No session has run in the dispatcher form yet",
           "by": "lead",
           "evidence": "same measurement as L-01"
+        },
+        {
+          "at": "2026-09-16T22:49:40+02:00",
+          "event": "fresh lead started by the previous lead via claude --bg (H-03)",
+          "by": "lead 26c10928",
+          "evidence": "Session 26c10928-63bb-4b8d-993b-4ad09a3f6653, started 2026-09-16 22:36 by session 3cff917f. Transcript: ~/.agent-data/projects/-Users-the-sponsor-apps-common-rules--claude-worktrees-lead-session-record/26c10928-63bb-4b8d-993b-4ad09a3f6653.jsonl. First session run in the dispatcher form against the 150k cap; measured with bin/worklog dedupe_messages before it ends."
         }
       ],
       "points": 3,
