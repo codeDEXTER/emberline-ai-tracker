@@ -680,15 +680,24 @@ class MandatoryStandardChanges(unittest.TestCase):
         self.assertFalse((self.proj / STAMP).exists())
         self.assertIn("Reheat is mandatory", r.stdout)
 
-    def test_align_refuses_on_an_unresolvable_stamp_even_with_implemented(self):
+    def test_align_refuses_on_an_unresolvable_stamp_without_implemented(self):
         self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
         self.stamp("3-deadbee")
-        for args in (("--align",), ("--align", "--implemented")):
-            with self.subTest(args=args):
-                r = run(self.proj, *args, rules_dir=self.rules.root)
-                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-                self.assertIn("cannot be resolved", r.stdout + r.stderr)
-                self.assertEqual((self.proj / STAMP).read_text().strip(), "3-deadbee")
+        r = run(self.proj, "--align", rules_dir=self.rules.root)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("cannot be resolved", r.stdout + r.stderr)
+        self.assertIn("--align --implemented", r.stdout + r.stderr)
+        self.assertEqual((self.proj / STAMP).read_text().strip(), "3-deadbee")
+
+    def test_implemented_repairs_an_unresolvable_stamp(self):
+        """A squash merge can drop the stamp's commit from the rules history;
+        aligning is the only repair, so the declaration must get through."""
+        self.rules.add("2026-09-14 · Reheat is mandatory", "run derecord --reheat")
+        self.stamp("3-deadbee")
+        r = run(self.proj, "--align", "--implemented", rules_dir=self.rules.root)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("declared implemented: 2026-09-14 · Reheat is mandatory", r.stdout)
+        self.assertEqual((self.proj / STAMP).read_text().strip(), self.rules.version())
 
     def test_implemented_without_align_is_an_error(self):
         r = run(self.proj, "--implemented", rules_dir=self.rules.root)

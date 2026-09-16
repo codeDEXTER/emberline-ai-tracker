@@ -59,9 +59,10 @@ says to rerun with `--align --implemented` once they are done. That declares
 the entries implemented and moves the stamp, printing what was acknowledged so
 the declaration is on record in the session output. `--align` with no
 mandatory entry pending (aligned, ahead, or behind on information only) needs
-no flag and behaves as before. A stamp that is "unresolvable" or that "could
-not check" refuses too -- `--implemented` does not override either, since
-rulecheck cannot tell what is actually pending in those states.
+no flag and behaves as before. An "unresolvable" stamp counts every mandatory
+entry as pending and needs `--implemented` too, which repairs it; "could not
+check" refuses even with `--implemented`, since rulecheck cannot tell what is
+pending at all.
 
 A stamp is a committed file in the project, not something this tool wrote, so
 its sha part reaches git only when it is a hex sha (lowercased). It used to go
@@ -642,14 +643,16 @@ def main():
             print(f"{proj.name}: could not check for mandatory Standard changes -- {shown(pending.why)}. "
                   f"Not aligning: not guessing whether one is pending.", file=sys.stderr)
             return 2
-        if pending.state == "unresolvable":
+        if pending.state == "unresolvable" and pending.entries and not a.implemented:
+            # Aligning is the only way to repair a stamp whose commit left the
+            # rules history (a squash merge does that), so --implemented must
+            # get through here; without it, every mandatory entry counts.
             print(f"{proj.name}: {unresolvable_line(pending.stamp)}. Not aligning.", file=sys.stderr)
-            if pending.entries:
-                print(f"{len(pending.entries)} mandatory Standard change(s) in the rules CHANGELOG -- "
-                      f"implement each, then re-read the rules in full and `rulecheck --align`:",
-                      file=sys.stderr)
-                for e in pending.entries:
-                    print(f"  {shown(e.heading)}", file=sys.stderr)
+            print(f"{len(pending.entries)} mandatory Standard change(s) in the rules CHANGELOG -- "
+                  f"implement each, re-read the rules in full, then rerun with "
+                  f"`rulecheck --align --implemented`:", file=sys.stderr)
+            for e in pending.entries:
+                print(f"  {shown(e.heading)}", file=sys.stderr)
             return 1
         if pending.entries and not a.implemented:
             print(f"{proj.name}: {len(pending.entries)} mandatory Standard change(s) pending -- "

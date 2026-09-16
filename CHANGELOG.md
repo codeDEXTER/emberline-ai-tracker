@@ -45,9 +45,11 @@ exits 1. Once they are implemented, `rulecheck --align --implemented` aligns
 and prints what was acknowledged ("aligned past N mandatory change(s),
 declared implemented: ..."), so the declaration is on record in the session
 output. `--align` with only information entries pending, or none, needs no
-flag and behaves as before. A stamp that is "unresolvable" or that "could not
-check" still refuses, `--implemented` included -- rulecheck cannot tell what
-is pending in those states, so it cannot let the flag through them either.
+flag and behaves as before. A stamp that is "unresolvable" (its commit left
+the rules history, as a squash merge can do) counts every mandatory entry as
+pending, so it needs `--implemented` too -- and gets through with it, since
+aligning is the only way to repair such a stamp. When rulecheck "could not
+check" at all, it refuses, `--implemented` included.
 Projects: after implementing a pending mandatory Standard change, align with
 `rulecheck --align --implemented`, not `rulecheck --align` alone.
 
