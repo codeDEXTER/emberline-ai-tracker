@@ -19,6 +19,27 @@ corrected a stale `.claude/skills/warmup/SKILL.md` and installed the missing
 22's one-tracker rule. Queuing those two fixes then broke item 6, which is how
 the queue defect surfaced. `tests/test_tracker_queue_routing.py` is red on the
 old writer and green on the new.
+## 2026-09-16 · `spend calibrate` no longer credits one item with another's tokens (P25 Z-05)
+
+`tools/calibrate.py` summed worklog tokens by bare item id, and bare ids are
+not unique. A real collection of 2,023 transcripts showed it: common-rules'
+S-06 and S-03 were credited with PhotoVault's own S-06 and S-03, and W-01
+names both proposal 19's item and proposal 27's in this very repo. A
+calibration run on that data would have flagged items for costs that were
+never theirs.
+
+Two rules now. A worklog row counts toward a project only when its session
+started in that project's directory or in one above it (a session opened in
+`apps/` that worked on common-rules still counts; one started in
+`apps/PhotoVault` does not). An id that appears in more than one of the
+project's own ledgers is left out of the calibration and named in
+`skipped_ambiguous`, since its tokens cannot be split between the two.
+
+Not a Standard change: nothing for a project to do. Known and not fixable
+retroactively: a brief whose first line names a bundle rather than an item
+(`BUNDLE-K M-08, C-03, R-04`) credits its tokens to the git branch, so those
+items show no cost at all. The brief template's own first line,
+`[ruflo · tier · model] ITEM-ID title`, attributes correctly -- use it.
 
 ## 2026-09-16 · `tracker published` refuses a changed title -- T-06's missing half (P22 T-06)
 
