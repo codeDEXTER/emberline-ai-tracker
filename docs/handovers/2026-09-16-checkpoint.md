@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-16 20:49
+# Checkpoint — 2026-09-16 21:34
 
-Reason: manual · branch: l06-record · HEAD: 130f872
+Reason: manual · branch: w10-measure · HEAD: 7e6e7ba
 
-<!-- ledger-digest: dab1b17ef34b3c2509309993145e52a19427bdfb18b630c61798f5c11f85b874 -->
+<!-- ledger-digest: d068b8a32ac3487e02a464bc3805e472f76e9a07dac4d10498d5dd826759ae2a -->
 
 ## Proposal 19 · Warm-up
 
@@ -10,7 +10,7 @@ Reason: manual · branch: l06-record · HEAD: 130f872
 
 ### In progress
 
-- W-10 · [ruflo · low · haiku] · Pilot on the PhotoVault engine; measure the exit conditions · exit conditions re-measured
+- W-10 · [ruflo · low · haiku] · Pilot on the PhotoVault engine; measure the exit conditions · exit conditions re-measured 2026-09-16 20:5x, read-only (git status of each project byte-identical before and after): (1) NOT MET -- warmup --check exits 1 in all four focus projects, each under 2 s: PhotoVault engine and app lack the one-tracker page docs/proposals/tracker/index.html and have 4 mandatory Standard changes from 16 Sep pending (P26 F-01, P21 F-01, the queue-routing entry, P22 T-06), work their own sessions queue at their next warm-up; pockets and mac-explorer-ruflo were never migrated (no ledger, no docs/OPERATING-RULES.md; pockets also no HANDOFF.md) -- migrating writes into those projects, so it waits for their own sessions or the sponsor. (2) HALF MET -- engine 71 renders (15 Sep); pockets has no ledger to render. (3) MET -- test_tracker_check, land runs tracker check. (4) and (5) wait for the pilot week to end (about 20 Sep), then measure from transcripts
 
 ### Blocked, and why
 

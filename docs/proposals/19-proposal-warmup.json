@@ -904,10 +904,17 @@
           "event": "exit conditions re-measured",
           "by": "lead",
           "evidence": "15 Sep (P29 K-05): 1 not met today (PhotoVault warmup --check fails on the new P23 Standard change); 2 half met (engine 71 renders; pockets not migrated); 3 met (test_tracker_check, land runs tracker check); 4 and 5 to measure from transcripts once the pilot week ends, about 20 Sep."
+        },
+        {
+          "at": "2026-09-16T21:34:04+02:00",
+          "event": "exit conditions re-measured 2026-09-16 20:5x, read-only (git status of each project byte-identical before and after): (1) NOT MET -- warmup --check exits 1 in all four focus projects, each under 2 s: PhotoVault engine and app lack the one-tracker page docs/proposals/tracker/index.html and have 4 mandatory Standard changes from 16 Sep pending (P26 F-01, P21 F-01, the queue-routing entry, P22 T-06), work their own sessions queue at their next warm-up; pockets and mac-explorer-ruflo were never migrated (no ledger, no docs/OPERATING-RULES.md; pockets also no HANDOFF.md) -- migrating writes into those projects, so it waits for their own sessions or the sponsor. (2) HALF MET -- engine 71 renders (15 Sep); pockets has no ledger to render. (3) MET -- test_tracker_check, land runs tracker check. (4) and (5) wait for the pilot week to end (about 20 Sep), then measure from transcripts",
+          "by": "lead",
+          "evidence": "bin/warmup --project <dir> --check --no-recall --no-pull for PhotoVault/engine, PhotoVault/app, pockets, mac-explorer-ruflo"
         }
       ],
       "points": 3,
-      "value": "high"
+      "value": "high",
+      "owner": "lead"
     }
   ],
   "asks": [
