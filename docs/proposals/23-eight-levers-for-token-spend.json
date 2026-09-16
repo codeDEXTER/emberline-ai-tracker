@@ -116,6 +116,12 @@
           "event": "measured 2026-09-16: FAIL. The common-rules lead session itself (3cff917f, main transcript, deduped by message id) spent 76.1% of its 16 Sep tokens (165.5M over 348 requests) on requests above 500k context; max context 671k; 15 Sep 39.3%. No other lead session exists after the rule landed. The rule is written but not followed: this lead ran one session across 14-16 Sep instead of starting fresh per milestone",
           "by": "lead",
           "evidence": "worklog.dedupe_messages over ~/.claude/projects/-Users-aashish-apps/3cff917f-aeff-41f8-9753-cac90d63512e.jsonl; ctx = input+cache_write+cache_read"
+        },
+        {
+          "at": "2026-09-16T22:49:06+02:00",
+          "event": "fresh lead started by the previous lead via claude --bg (H-03)",
+          "by": "lead 26c10928",
+          "evidence": "Session 26c10928-63bb-4b8d-993b-4ad09a3f6653, started 2026-09-16 22:36 by session 3cff917f. Transcript: ~/.claude/projects/-Users-aashish-apps-common-rules--claude-worktrees-lead-session-record/26c10928-63bb-4b8d-993b-4ad09a3f6653.jsonl. Second lead session after the rule landed, and the first started fresh at a boundary rather than run on. Its own spend is measured with bin/worklog dedupe_messages before it ends."
         }
       ],
       "points": 2,
