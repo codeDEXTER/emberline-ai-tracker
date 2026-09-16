@@ -2,7 +2,7 @@
   "proposal": 26,
   "title": "Cluster work by contribution and risk",
   "status": "accepted",
-  "updated": "2026-09-15",
+  "updated": "2026-09-16",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -24,8 +24,8 @@
     },
     "C4": {
       "tier": "lead",
-      "model": "lead model",
-      "effort": "-",
+      "model": "opus",
+      "effort": "low or medium",
       "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
     }
   },
@@ -356,5 +356,23 @@
   "execution": {
     "started": "2026-09-15T09:40:00+02:00",
     "integration_branch": "p26-cluster-by-risk"
-  }
+  },
+  "findings": [
+    {
+      "id": "F-01",
+      "source": "review",
+      "file": "tools/tracker/findings.py",
+      "severity": "medium",
+      "state": "catalogued",
+      "title": "First real use of C-05 exposed two defects: finding ids are per-ledger so four different findings are all F-01 and are indistinguishable in the cross-ledger queue the feature exists to provide (items avoid this with per-proposal prefixes); and value/points are optional on findings add, so every finding lands unsized and the lane ranking it was built for cannot rank them",
+      "log": [
+        {
+          "at": "2026-09-16T07:55:11+02:00",
+          "event": "catalogued",
+          "by": "session:review-19-29",
+          "evidence": ""
+        }
+      ]
+    }
+  ]
 }
