@@ -73,7 +73,9 @@
           "by": "lead",
           "evidence": "tools/tracker/ledger.py _validate_sizing; tests/test_tracker_sizing.py; PR bundle-a"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "high"
     },
     {
       "id": "Z-02",
@@ -106,7 +108,9 @@
           "by": "lead",
           "evidence": "tools/tracker/route.py, bin/tracker route; tests/test_tracker_route.py; PR bundle-a"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "Z-03",
@@ -145,7 +149,9 @@
           "by": "lead",
           "evidence": "tools/project.py value_defaults, tools/tracker/sizing.py; tests/test_tracker_value_defaults.py; PR bundle-a"
         }
-      ]
+      ],
+      "points": 2,
+      "value": "medium"
     },
     {
       "id": "Z-04",
@@ -178,7 +184,9 @@
           "by": "lead",
           "evidence": "tools/tracker/risk.py, .common-rules.json risk_always; tests/test_tracker_risk.py; PR bundle-a"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "high"
     },
     {
       "id": "Z-05",
@@ -192,8 +200,8 @@
       "depends": [
         "Z-01"
       ],
-      "status": "blocked",
-      "owner": "sponsor",
+      "status": "done",
+      "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
@@ -216,8 +224,16 @@
           "event": "reopened and blocked: done requires 'the first real calibration recorded in a ledger log'. The tool works, but bin/spend calibrate skips all 94 closed items -- 0 of 97 items carry points, so there is nothing to calibrate. Unblocking needs the sponsor's call on sizing the backlog (2026-09-16 review, finding F-01 on this ledger)",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T18:42:03+02:00",
+          "event": "unblocked by the lead (sponsor: 'fix blocked yourself'). All 97 items sized blind to cost by a Sonnet agent from title/what/done/files only (388 points; 13s: V-01, C-05), applied here. Attribution fixed first (PR #194). First real calibration, 2026-09-16, 88 closed items, worklog collected to a scratch dir: class medians 2pt 1.35M, 3pt 5.39M, 5pt 9.54M, 8pt 7.24M, 13pt 7.83M tokens; 10 flagged: S-03 29.2x (2pt), S-05 4.77x, T-03 4.58x, S-06 3.87x, V-02 3.49x, V-07 2.63x, T-06 2.59x, T-02 2.55x, S-04 2.23x, K-02 2.21x. Caveat, not a pass: only 41 of 88 had worklog data (47 skipped: bundle briefs never tagged an item id; W-01..W-04 skipped as ambiguous across ledgers 19/27), and medians do not rise past 5 points, so the flags are not yet a reliable size signal",
+          "by": "lead",
+          "evidence": "bin/spend calibrate --force --project . (calibration-log.jsonl record at 2026-09-16); sizer-output-2026-09-16.json; PR #194"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "Z-06",
@@ -250,7 +266,9 @@
           "by": "session:bundle-m",
           "evidence": "tools/tracker/cluster.py (not_taken_rows, file_overlap_clusters: union-find over exact file-path equality, same-folder pitfall handled); tools/tracker/board.py new 'Not taken, clustered by files touched' section (render()'s now-optional project arg); tests/test_tracker_cluster.py (8) + tests/test_tracker_board_clusters.py (4); full suite green after commit 360061d; branch worktree-agent-ac1bad8b278b2dcc2"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     }
   ],
   "asks": [
@@ -370,6 +388,24 @@
           "at": "2026-09-16T07:54:36+02:00",
           "event": "catalogued",
           "by": "session:review-19-29",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": "F-02",
+      "source": "review",
+      "file": "tools/calibrate.py",
+      "severity": "medium",
+      "state": "catalogued",
+      "title": "Calibration sees 41 of 88 closed items: bundle briefs carry no item id, so their tokens attribute to no item; 8/13-point medians fall below 5-point",
+      "value": "high",
+      "points": 3,
+      "log": [
+        {
+          "at": "2026-09-16T18:42:03+02:00",
+          "event": "catalogued",
+          "by": "lead",
           "evidence": ""
         }
       ]

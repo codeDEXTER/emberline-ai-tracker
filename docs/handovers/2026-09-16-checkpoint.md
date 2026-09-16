@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-16 18:17
+# Checkpoint — 2026-09-16 18:42
 
-Reason: manual · branch: conformance-12 · HEAD: ff3f4b6
+Reason: manual · branch: z05-sizing · HEAD: 9d0f38f
 
-<!-- ledger-digest: 6bbd1a72e480e99c9ea1492eb834a76325231921e758d1c09a2be206afb677b6 -->
+<!-- ledger-digest: c16b2d0507805d0a54c10bd7a197d72b4db1f8b4cf52a0d9d4d08f956fbd8a3e -->
 
 ## Proposal 19 · Warm-up
 
@@ -76,26 +76,6 @@ Reason: manual · branch: conformance-12 · HEAD: ff3f4b6
 ### Blocked, and why
 
 - none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- none
-
-## Proposal 25 · Sizing items by value, points and risk
-
-5 done / 0 in progress / 1 blocked / 0 not started
-
-### In progress
-
-- none
-
-### Blocked, and why
-
-- Z-05 · no log entry yet
 
 ### Open asks
 

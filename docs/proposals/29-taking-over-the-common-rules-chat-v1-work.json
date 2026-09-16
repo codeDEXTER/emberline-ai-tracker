@@ -85,7 +85,9 @@
           "by": "lead",
           "evidence": "proposal 23 A-22"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "high"
     },
     {
       "id": "K-02",
@@ -118,7 +120,9 @@
           "by": "lead",
           "evidence": "PR 180 merged to main as 8aa1f55 (from gh). Suite on 9989c53: quiet: OK · 1225 tests. CI: only the known Linux test_a_long_branch_says_how_many_it_did_not_print. Review (haiku, checklist): merge; its CHANGELOG check read an older entry, the lead verified the newest entry quotes the sponsor exactly with no new Standard change line."
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     },
     {
       "id": "K-03",
@@ -151,7 +155,9 @@
           "by": "lead",
           "evidence": "P22 A-04, T-05"
         }
-      ]
+      ],
+      "points": 1,
+      "value": "low"
     },
     {
       "id": "K-04",
@@ -182,7 +188,9 @@
           "by": "lead",
           "evidence": "Haiku agent, bin/conformance and rulecheck --mandatory from origin/main 32cd0b9: PhotoVault app 6 of 12 (not holding 1, 2, 4, 6 row Q-16 untagged, 10, 12); engine 7 of 12 (1, 2, 4, 10, 12). Both behind two Standard changes: P22 T-02/T-03 one tracker, P23 L-01 to L-07 token budget. Lead re-ran warmup --check read-only: both fail on the P23 entry; working trees unchanged (app M CLAUDE.md from 14 Sep 19:18, engine ?? .agents/ from 14 Sep 16:54, both predate the check). Next step is the PhotoVault sessions' own /warmup after the shared rules checkout is pulled."
         }
-      ]
+      ],
+      "points": 2,
+      "value": "medium"
     },
     {
       "id": "K-05",
@@ -213,7 +221,9 @@
           "by": "lead",
           "evidence": "Proposal 19 'What completes this', re-measured by the lead read-only on 15 Sep: (1) warmup passes in all four focus projects: not met today, both PhotoVault projects fail --check on the P23 Standard change; (2) render engine 71 and pockets' first ledger: engine 71 page matches its JSON, pockets not migrated; (3) land refuses an unmoved ledger row: met, tests/test_tracker_check.py on main and bin/land runs tracker check; (4) and (5) pilot-week transcript measures: due after the pilot week (W-10 started 13 Sep 21:55). W-10 stays in progress with these results."
         }
-      ]
+      ],
+      "points": 2,
+      "value": "medium"
     },
     {
       "id": "K-06",
@@ -252,7 +262,9 @@
           "by": "lead",
           "evidence": "re-verified before removal, not just trusting the earlier check: worktree agent-acf3f21931e1d70f8's uncommitted CHANGELOG.md entry for P21 S-06 is already on main verbatim via commit 1ac75c4 (PR 163); agent-a6cbd5b0dfbe31b3e's only uncommitted content was LESSONS.md, already captured in the entry at its own commit 28e2784. Both removed with git worktree remove --force. Decided by the lead, delegated by the sponsor: \"make a decision yourself on the blocked items.\""
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     },
     {
       "id": "K-07",
@@ -293,7 +305,9 @@
           "by": "lead",
           "evidence": "proposal 23 A-22"
         }
-      ]
+      ],
+      "points": 2,
+      "value": "low"
     }
   ],
   "asks": [

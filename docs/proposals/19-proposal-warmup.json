@@ -154,7 +154,9 @@
           "by": "lead (found in W-05's engine pilot)",
           "evidence": "ledger.find() returned any NN-*.json, including the engine's 56-proposal-the-sample-sheet.sidecar.json, so warm-up and the checkpoint hook printed 'Proposal None'. Now keeps JSON objects with an items list and still returns unparseable files. Test TestFind red then green; shipped in ab0616a."
         }
-      ]
+      ],
+      "points": 8,
+      "value": "high"
     },
     {
       "id": "W-01",
@@ -202,7 +204,9 @@
           "by": "lead, verified in a clean detached worktree",
           "evidence": "origin/p19-w01 at 5013279, base contains 40352ef, only its 7 owned files; full suite 289 OK; merge b9c8f81"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "W-02",
@@ -244,7 +248,9 @@
           "by": "lead",
           "evidence": "merge 8c91450"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "W-03",
@@ -294,7 +300,9 @@
           "by": "lead (found reading check.py for the W-00 fix)",
           "evidence": "rows_at called .get on whatever a ledger-shaped file parsed to; a JSON array raised, Python exited 1, and land reads exit 1 as 'the row did not move' -- a refusal whose reason is a traceback. Guarded to JSON objects with an items list. Test showed the Traceback first; shipped in ab0616a."
         }
-      ]
+      ],
+      "points": 5,
+      "value": "medium"
     },
     {
       "id": "W-04",
@@ -342,7 +350,9 @@
           "by": "lead, verified in a clean detached worktree",
           "evidence": "origin/p19-w04 at 137117d, base contains 40352ef, only its 2 owned files; test_tracker_sync.py 14 OK; full suite 281 OK; merge fa8291d"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "medium"
     },
     {
       "id": "W-05",
@@ -405,7 +415,9 @@
           "by": "lead (found by the PhotoVault engine's rehearsal)",
           "evidence": "The card's test command copied land's test_cmd(), which only guesses (tests/*.py means unittest, package.json means npm test), so for the engine -- pytest with markers -- both the card and land named the wrong gate, and there was nowhere to declare the right one (the gap proposal 18 B named). Added .common-rules-test at the project root: the first non-blank, non-comment line is the gate; land and warmup read it first. Red first: the declared-command warmup test and both land tests failed (the fallback test passed vacuously, being today's behaviour)."
         }
-      ]
+      ],
+      "points": 8,
+      "value": "high"
     },
     {
       "id": "W-06",
@@ -454,7 +466,9 @@
           "by": "lead, verified in a clean detached worktree",
           "evidence": "origin/p19-w06 at eef7959, base contains 40352ef, only its 3 owned files; full suite 293 OK; merge 5bc941f"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "medium"
     },
     {
       "id": "W-07",
@@ -503,7 +517,9 @@
           "by": "lead, verified in a clean detached worktree",
           "evidence": "origin/p19-w07 at a9a753b, base contains 40352ef, only its 5 owned files; test_hooks.py 14 OK; full suite 281 OK; merge 45a3725"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "W-08",
@@ -564,7 +580,9 @@
           "by": "lead",
           "evidence": "the lead-prompt check looked only in docs/handovers/, and the app keeps docs/proposals/70-lead-prompt.md with no handovers/ folder. derecord now looks three levels under docs/. Red first; green test_derecord 18 OK."
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "W-11",
@@ -614,7 +632,9 @@
           "by": "lead",
           "evidence": "that Claude Code lists /warmup in a real session of a project derecord has run against -- a file at .claude/skills/warmup/SKILL.md is verified, the harness picking it up is not. Carried to W-10, the pilot."
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     },
     {
       "id": "W-09",
@@ -669,7 +689,9 @@
           "by": "lead",
           "evidence": "merge 309ff26"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "medium"
     },
     {
       "id": "W-12",
@@ -734,7 +756,9 @@
           "by": "lead",
           "evidence": "rule_blocks read only '- **lead**' bullets, so a plain '- lead. ...' rule was invisible and the dry run reported 'nothing to supersede' over a rule the standard replaces. A plain bullet's lead is now its first sentence; bold bullets are read as before. Red first (the plain-bullet test errored on a missing ## Superseded); green test_warmup_migrate 16 OK."
         }
-      ]
+      ],
+      "points": 8,
+      "value": "high"
     },
     {
       "id": "W-13",
@@ -791,7 +815,9 @@
           "by": "lead",
           "evidence": ""
         }
-      ]
+      ],
+      "points": 3,
+      "value": "high"
     },
     {
       "id": "W-10",
@@ -879,7 +905,9 @@
           "by": "lead",
           "evidence": "15 Sep (P29 K-05): 1 not met today (PhotoVault warmup --check fails on the new P23 Standard change); 2 half met (engine 71 renders; pockets not migrated); 3 met (test_tracker_check, land runs tracker check); 4 and 5 to measure from transcripts once the pilot week ends, about 20 Sep."
         }
-      ]
+      ],
+      "points": 3,
+      "value": "high"
     }
   ],
   "asks": [
