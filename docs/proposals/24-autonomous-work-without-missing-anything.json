@@ -89,7 +89,7 @@
       "depends": [
         "H-01"
       ],
-      "status": "in testing",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -119,6 +119,12 @@
           "event": "reopened: built, but its own done criterion is unverified -- done required dispatcher context measured under 150k across a full bundle; the test only asserts the string 150k appears in a template (2026-09-16 review of P19-29, finding F-02)",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T19:11:51+02:00",
+          "event": "measured 2026-09-16: FAIL. The session that dispatched bundles K/L (3cff917f) reached 671k context on 16 Sep and 843k on 15 Sep, against a 150k dispatcher cap. No session has run in the dispatcher form yet",
+          "by": "lead",
+          "evidence": "same measurement as L-01"
         }
       ],
       "points": 3,
@@ -136,8 +142,8 @@
       "depends": [
         "H-02"
       ],
-      "status": "in testing",
-      "owner": "lead",
+      "status": "blocked",
+      "owner": "sponsor",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
@@ -166,6 +172,12 @@
           "event": "reopened: built, but its own done criterion is unverified -- done required a lead started and finished with no sponsor action, or blocked with owner sponsor; research only, neither branch taken (2026-09-16 review of P19-29, finding F-02)",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T19:11:52+02:00",
+          "event": "proof run 2026-09-16: claude --bg starts a session with no click (ids cad150f6 haiku, 13a5bca6 opus, 5f0bbe4e opus, each in its own --worktree), and claude rm removes it -- but none finished: the first two stopped on 'Could not refresh your login because another Claude Code process is refreshing it', the third on 'Login expired · Please run /login'. Signing in is the sponsor's. Also found: the research doc's command is wrong, --bg refuses -p (prompt goes as the positional); Haiku has no auto mode, so an unattended lead must run on a model that does",
+          "by": "lead",
+          "evidence": "transcripts under ~/.claude/projects/-Users-aashish-apps-common-rules--claude-worktrees-h03-proof*/"
         }
       ],
       "points": 8,
