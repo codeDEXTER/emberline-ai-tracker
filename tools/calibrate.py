@@ -97,12 +97,49 @@ def closed_items(project) -> list[tuple[Path, dict]]:
     return out
 
 
-def tokens_by_item(worklog_out=None) -> dict[str, int]:
+def project_slug(project) -> str:
+    """The name Claude Code gives a session started in `project`: its absolute
+    path with every non-alphanumeric character turned into '-'. Worklog rows
+    carry this as `project` -- the directory the session STARTED in."""
+    import re
+    return re.sub(r"[^A-Za-z0-9]", "-", str(Path(project).resolve()))
+
+
+def row_belongs_to(row_project, slug: str) -> bool:
+    """Whether a worklog row can be counted toward the project named by `slug`.
+
+    Item ids are not unique across projects -- PhotoVault has its own S-06 --
+    so a row started in another project's directory must not be credited
+    here. A row started in this project or in any directory ABOVE it (a
+    session opened in apps/ that worked on common-rules) can be. A `project`
+    that is not a path slug at all (older rows, fixtures) cannot be judged
+    and is kept, as before."""
+    if not isinstance(row_project, str) or not row_project.startswith("-"):
+        return True
+    return slug == row_project or slug.startswith(row_project + "-")
+
+
+def _ids_by_ledger_count(project) -> dict[str, int]:
+    """item id -> how many of `project`'s ledgers carry an item with that id."""
+    counts: dict[str, int] = {}
+    for path in L.find(project):
+        try:
+            data = L.load(path)
+        except (OSError, ValueError):
+            continue
+        for i_id in {i.get("id") for i in data.get("items", []) if i.get("id")}:
+            counts[i_id] = counts.get(i_id, 0) + 1
+    return counts
+
+
+def tokens_by_item(worklog_out=None, project=None) -> dict[str, int]:
     """item id -> total tokens (all four kinds, every day file in
     `worklog_out`) that `bin/worklog collect` has recorded for it. Reads
     only the day files' own numeric fields -- never transcript text, the
-    same guarantee `tools/worklog.py` itself carries."""
+    same guarantee `tools/worklog.py` itself carries. With `project`, rows
+    started in another project's directory are left out (`row_belongs_to`)."""
     out_dir = worklog_out or worklog.DEFAULT_OUT
+    slug = project_slug(project) if project is not None else None
     totals: dict[str, int] = {}
     for path in sorted(glob.glob(os.path.join(out_dir, "*.jsonl"))):
         with open(path) as fh:
@@ -116,6 +153,8 @@ def tokens_by_item(worklog_out=None) -> dict[str, int]:
                     continue
                 item = row.get("item")
                 if not item:
+                    continue
+                if slug is not None and not row_belongs_to(row.get("project"), slug):
                     continue
                 tokens = (row.get("input_tokens", 0) + row.get("cache_write_tokens", 0)
                           + row.get("cache_read_tokens", 0) + row.get("output_tokens", 0))
@@ -149,18 +188,26 @@ def calibrate(project=".", worklog_out=None, out=None, force=False) -> dict:
 
     if not force and (n // CALIBRATE_EVERY) <= (last // CALIBRATE_EVERY):
         return {"ran": False, "closed": n, "last_calibrated_at": last,
-                "flagged": [], "medians": {}, "skipped_no_data": []}
+                "flagged": [], "medians": {}, "skipped_no_data": [], "skipped_ambiguous": []}
 
     # `worklog_out` (where `bin/worklog collect` writes) and `out` (where
     # this calibration's own state/log live) default to the same directory
     # -- only pass them separately when the two genuinely diverge.
-    totals = tokens_by_item(worklog_out or out_dir)
+    totals = tokens_by_item(worklog_out or out_dir, project=project)
+
+    # Worklog rows name an item by its bare id, and ids repeat across this
+    # project's own ledgers (W-01 is both proposal 19's and proposal 27's).
+    # Their tokens cannot be told apart, so crediting either would calibrate
+    # against the sum of two items. Leave them out, and say which.
+    ambiguous = sorted(i for i, c in _ids_by_ledger_count(project).items() if c > 1)
 
     by_class: dict[int, list[int]] = {}
     item_costs: list[tuple[Path, str, int, int]] = []
     skipped: list[str] = []
     for path, item in items:
         item_id = item.get("id")
+        if item_id in ambiguous:
+            continue
         points = item.get("points")
         tokens = totals.get(item_id) if item_id else None
         if not isinstance(points, int) or tokens is None:
@@ -189,7 +236,7 @@ def calibrate(project=".", worklog_out=None, out=None, force=False) -> dict:
         "at": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
         "closed_items": n,
         "classes": {str(points): median for points, median in medians.items()},
-        "flagged": flagged, "skipped": skipped,
+        "flagged": flagged, "skipped": skipped, "skipped_ambiguous": ambiguous,
     }
     log_path = _log_path(out_dir)
     os.makedirs(os.path.dirname(log_path) or ".", exist_ok=True)
@@ -197,4 +244,5 @@ def calibrate(project=".", worklog_out=None, out=None, force=False) -> dict:
         fh.write(json.dumps(record) + "\n")
 
     return {"ran": True, "closed": n, "last_calibrated_at": n,
-            "flagged": flagged, "medians": medians, "skipped_no_data": skipped}
+            "flagged": flagged, "medians": medians, "skipped_no_data": skipped,
+            "skipped_ambiguous": ambiguous}
