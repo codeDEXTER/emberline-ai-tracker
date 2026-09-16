@@ -73,7 +73,9 @@
           "by": "lead",
           "evidence": "bin/spend subagent glob + message.id dedupe; tests/test_spend.py; PR bundle-b, commit d032380"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "high"
     },
     {
       "id": "W-02",
@@ -106,7 +108,9 @@
           "by": "lead",
           "evidence": "bin/worklog collect, tools/worklog.py; tests/test_worklog.py; PR bundle-b, commit 6f38ac1; state-trust and unpriced-model fixes 78283b4/a7983ff"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "W-03",
@@ -139,7 +143,9 @@
           "by": "session:bundle-l",
           "evidence": "hooks/stop, bin/worklog-nightly, tests/test_hooks.py, tests/test_worklog_nightly.py (9 tests); PR bundle-l, commit 993a334"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     },
     {
       "id": "W-04",
@@ -172,7 +178,9 @@
           "by": "lead",
           "evidence": "bin/worklog day/yesterday-line; tests/test_worklog.py render tests; PR bundle-b, commit 6f38ac1"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     }
   ],
   "asks": [

@@ -74,7 +74,9 @@
           "by": "lead",
           "evidence": "proposal 23 A-22"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "high"
     },
     {
       "id": "S-02",
@@ -164,7 +166,9 @@
           "by": "lead",
           "evidence": "merged origin/p21-s02 (6b66b58) into p21 with S-03; the expectedFailure marker is removed and the test passes against S-03's proposalcheck; CHANGELOG entry carries a Standard change line; full suite on the merged tree OK."
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     },
     {
       "id": "S-03",
@@ -246,7 +250,9 @@
           "by": "lead",
           "evidence": "merged origin/p21-s03 (6ebc6b9) into p21; CHANGELOG entry written, flagging the behaviour change (the app's uncommitted 73-76); /standard checklist item 7 reworded to the date gate and proposal_series; full suite on the merged tree OK."
         }
-      ]
+      ],
+      "points": 2,
+      "value": "medium"
     },
     {
       "id": "S-04",
@@ -313,7 +319,9 @@
           "by": "lead",
           "evidence": "merged origin/p21-s04 (257d87d0d2b79de165619f1f4d284f02ba39f13a) into p21 with the lead's CRLF fix (the stamp compared as bytes via git cat-file, with a test) and a CHANGELOG entry; full suite on the merged tree OK."
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "S-05",
@@ -403,7 +411,9 @@
           "by": "lead",
           "evidence": "The sponsor answered 'Install it' (A-06). derecord --parent /Users/aashish/apps/PhotoVault found 2 child projects and wrote only a SessionStart hook to PhotoVault/.claude/settings.json (none existed before; PhotoVault is not a git repo). The installed hook, fed the startup payload for that folder, prints the card: app 23 done / 2 in progress / 13 blocked / 22 not started; engine 42 / 1 / 0 / 3; each with /warmup --project. A second run said 'already present'. app and engine git status unchanged (19 and 2 lines). The sponsor answered 'Not now' for /Users/aashish/apps (A-07)."
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     },
     {
       "id": "S-06",
@@ -485,7 +495,9 @@
           "by": "lead",
           "evidence": "merged into p21 with its CHANGELOG entry; full suite on the merged tree OK."
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     },
     {
       "id": "S-07",
@@ -518,7 +530,9 @@
           "evidence": "15 Sep (P29 K-04): conformance 6 of 12 on origin/main 32cd0b9; behind P22 T-02/T-03 and P23 L-01 to L-07. Stays with session:PhotoVault App to implement via /warmup."
         }
       ],
-      "owner": "session:PhotoVault App"
+      "owner": "session:PhotoVault App",
+      "points": 3,
+      "value": "high"
     },
     {
       "id": "S-08",
@@ -551,7 +565,9 @@
           "evidence": "15 Sep (P29 K-04): conformance 7 of 12 on origin/main 32cd0b9 (was 12 of 12 at 4863eec before today's Standard changes); behind P22 T-02/T-03 and P23 L-01 to L-07. Stays with session:PhotoVault Engine."
         }
       ],
-      "owner": "session:PhotoVault Engine"
+      "owner": "session:PhotoVault Engine",
+      "points": 3,
+      "value": "high"
     },
     {
       "id": "S-09",
@@ -635,7 +651,9 @@
           "by": "lead",
           "evidence": "merged into p21 with its CHANGELOG entry, which warns that every stamped project fails warmup --check until it implements and aligns; full suite on the merged tree OK."
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "S-10",
@@ -708,7 +726,9 @@
           "by": "lead",
           "evidence": "proposal 23 A-22"
         }
-      ]
+      ],
+      "points": 8,
+      "value": "high"
     },
     {
       "id": "S-11",
@@ -747,7 +767,9 @@
           "by": "lead",
           "evidence": "proposal 23 A-22"
         }
-      ]
+      ],
+      "points": 2,
+      "value": "high"
     }
   ],
   "asks": [

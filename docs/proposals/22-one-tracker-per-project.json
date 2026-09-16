@@ -137,7 +137,9 @@
           "by": "lead",
           "evidence": "bin/ruflo-item --project /Users/aashish/apps/common-rules done T-01 on the main checkout at 4614013: gate python3 -m unittest discover -s tests -q, Ran 1062 tests, OK; stored item:T-01:done (namespace patterns)."
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "T-02",
@@ -217,7 +219,9 @@
           "by": "lead",
           "evidence": "Round 2 verdict merge (quality-manager opus, on 64b735e). Two low findings recorded, not fixed: git rebase/cherry-pick run no pre-commit hook (warmup --check is the safety net that still catches a stale page); a sub-millisecond window around SIGTERM's stop-handler installation, not reproduced by the reviewer. origin/p22-t02 merged into p22 as 1e5f042 (--no-ff). First full-suite run after the merge: Ran 1118, FAILED (failures=1), tracker render on the live PhotoVault app ledger /Users/aashish/apps/PhotoVault/app/docs/proposals/70-r9-delivery-plan.json -- RQ-03 read with state 'accepted', not a valid request state, while the App session was mid-edit. Re-read moments later: RQ-03 state 'in progress', valid. Not this branch's defect: the test reads that file directly and the app session corrected it independently. Full suite re-run: Ran 1118 tests, OK."
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "T-03",
@@ -284,7 +288,9 @@
           "by": "lead",
           "evidence": "F10 fixed: 'the ledger it records has uncommitted changes -- every ledger, for --project', and the paragraph it broke reflowed; quick gate 264 OK; 0a80bfb pushed to origin/p22-t03. origin/p22-t03 merged into p22 as a --no-ff merge, clean (no conflicts); full suite on the merged tree: Ran 1167 tests, OK (1 skipped, pre-existing). T-03 is done: two review rounds, F1 (a crash) and F2 (an unpinned refusal order) fixed and verified by reproduction and mutation both rounds; F5/F10 (wording) fixed; F3 (three real projects lose their publish line and conformance item 10 the moment this reaches main -- needs the sponsor's yes on migrating them first), F4 (the published --json key's three-valued shape), F6 (--by accepts line separators, pre-existing at 64b735e) and the F7/F8 nits carried to T-04, which also owns the CHANGELOG entry (F9) and the Standard change line."
         }
-      ]
+      ],
+      "points": 5,
+      "value": "medium"
     },
     {
       "id": "T-04",
@@ -334,7 +340,9 @@
           "by": "lead",
           "evidence": "Taken over as P29 K-02. PR 180 merged to main as 8aa1f55 (from gh). Suite on 9989c53: quiet: OK · 1225 tests. CI: only the known Linux test_a_long_branch_says_how_many_it_did_not_print. Review (haiku, checklist): merge; its CHANGELOG check read an older entry, the lead verified the newest entry quotes the sponsor exactly with no new Standard change line."
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     },
     {
       "id": "T-05",
@@ -366,7 +374,9 @@
           "by": "lead",
           "evidence": "A-04"
         }
-      ]
+      ],
+      "points": 1,
+      "value": "low"
     },
     {
       "id": "T-06",
@@ -397,7 +407,9 @@
           "by": "session:t06-repair",
           "evidence": "tools/tracker/render.py: page_title(), _recorded_title(), _title_check() -- published_project_main and published_main now record the page's <title> in the sidecar and refuse a later publish whose <title> differs from what was recorded, unless --title-changed overrides (recorded as title_changed:true); a sidecar with no recorded title (every one committed before this) has nothing to compare and gains one. Backward compatible: no existing sidecar invalidated. Tests: tests/test_tracker_render.py TestPublishedTitleGuard (per-ledger) and TestPublishedProjectTitleGuard (--project), tests/test_published_title_stable.py TestTitleCheckHelper -- all red-first, drive the real tracker published CLI/functions and can fail if the check regresses (the reviewer's complaint about the original render()-only test no longer applies to these). Full suite: see checkpoint."
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     }
   ],
   "asks": [

@@ -115,7 +115,9 @@
           "by": "lead",
           "evidence": "merged origin/p20-v00 (b803be3) as 8dd6b8a; reconciled 2f31ffc: dry run filters only the not-exist problems for derecord's seeds (HANDOFF.md, docs/OPERATING-RULES.md), with red tests (a dry run passes; a non-seeded missing file still refuses); docstrings corrected; full suite OK. Carried forward: the CHANGELOG entry at the PR to main; invisible Unicode in commands, not fixed."
         }
-      ]
+      ],
+      "points": 8,
+      "value": "high"
     },
     {
       "id": "V-01",
@@ -197,7 +199,9 @@
           "by": "lead",
           "evidence": "4c23170 (from V-02's review): id, ask, request and owner patterns end in \\\\Z; switch by/at/quote and request from/to must be one line (no control character or lone surrogate). Red (5 failures), then green; the app's 70, engine's 71, and 19 and 20 still validate; merged into p20 as 4c23170; full suite OK. To be checked in V-02's round-2 review."
         }
-      ]
+      ],
+      "points": 13,
+      "value": "high"
     },
     {
       "id": "V-02",
@@ -276,7 +280,9 @@
           "by": "lead",
           "evidence": "merged origin/p20-v02 into p20 as fce3700; full suite on the merged tree OK. Real cards read-only (reviewer, round 2): app ready; engine's only problem is its known stale checkpoint."
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "V-03",
@@ -330,7 +336,9 @@
           "by": "lead",
           "evidence": "merged origin/p20-v03 (a09c317) as c6c33e2; reconciled 361d320: the backward-compatibility test skips without history; full suite OK. Lead looked at the app ledger's page (with test weights added): readiness line, gates, requests, off switches and merged markers render. Carried forward: readiness shows as small grey text, not a headline; gates must be a list (validate)."
         }
-      ]
+      ],
+      "points": 5,
+      "value": "medium"
     },
     {
       "id": "V-04",
@@ -384,7 +392,9 @@
           "by": "lead",
           "evidence": "merged origin/p20-v04 (f854cc1) into p20 as 0c8b705; full suite on the merged tree OK"
         }
-      ]
+      ],
+      "points": 2,
+      "value": "low"
     },
     {
       "id": "V-05",
@@ -442,7 +452,9 @@
           "by": "lead",
           "evidence": "merged origin/p20-v05 (d63ae26) into p20 as 58f4b1b; full suite on the merged tree OK. V-07 installs it; the Agent tool's real hook tool_name stays unverified until then."
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     },
     {
       "id": "V-06",
@@ -514,7 +526,9 @@
           "by": "lead",
           "evidence": "merged origin/p20-v06 (19fa49d) into p20 as 68eecd2; full suite on the merged tree OK. The app keeps RUFLO_NAMESPACE=photovault-app when it adopts it."
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "V-07",
@@ -616,7 +630,9 @@
           "by": "lead",
           "evidence": "merged origin/p20-v07 (03d6d85) into p20 as bc0e57a; full suite on the merged tree OK"
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "V-08",
@@ -658,7 +674,9 @@
           "by": "lead",
           "evidence": "lead read the diff (no separate reviewer agent: D10's reviewer rule landed in this same item); merged 4eb0e8c; reconciled 645721a so the lead prompt names `tiers` or `model_routing`, matching V-01; suite on p20 471 OK"
         }
-      ]
+      ],
+      "points": 3,
+      "value": "medium"
     },
     {
       "id": "V-09",
@@ -741,7 +759,9 @@
           "by": "lead",
           "evidence": "merged origin/p20-v09 into p20 as 3a3b69f; lead fix 2128d10: shown() escapes only bidi controls and invisible characters (U+061C, 200B, 200E-200F, 202A-202E, 2060-2064, 2066-2069, FEFF); a family emoji, Persian ZWNJ, soft hyphen and England flag reach the card as written (red first, then green); full suite 726 OK."
         }
-      ]
+      ],
+      "points": 5,
+      "value": "high"
     },
     {
       "id": "V-10",
@@ -848,7 +868,9 @@
           "evidence": ""
         }
       ],
-      "discovered_from": "A-02"
+      "discovered_from": "A-02",
+      "points": 3,
+      "value": "high"
     },
     {
       "id": "V-11",
@@ -960,7 +982,9 @@
           "by": "lead",
           "evidence": "Read-only on the app: c4d4244 changes only the sidecar; its keys are at, by, digest, ledger_digest, page, url (page docs/proposals/70-r9-delivery-plan.html, by lead, at 12:37:55); ledger_digest equals the current ledger's sha256, and digest equals the current page file's; warmup --check ready; no publish line on the card; app git status unchanged (19 lines before and after)."
         }
-      ]
+      ],
+      "points": 5,
+      "value": "medium"
     }
   ],
   "asks": [
