@@ -518,6 +518,67 @@ def _hex64(value) -> bool:
     return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
 
 
+# ---------------------------------------------------------------------------
+# T-06 repair (proposal 22): a published page's name is set once and never
+# changes. Recording gained a `title` field (V-09/V-11 records have none --
+# a sidecar with no recorded title has nothing to compare, is accepted, and
+# gains one); comparing refuses a later publish whose page's own <title>
+# differs from what the sidecar last recorded, unless --title-changed says
+# the sponsor wants the rename recorded anyway.
+
+def page_title(page: Path) -> str | None:
+    """The page's own <title> text, HTML-unescaped, or None if it has none
+    (a declared plan_page's own generator may not emit one -- V-11's
+    AppProject fixture doesn't, and that is fine: nothing to compare)."""
+    try:
+        text = page.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    m = re.search(r"<title[^>]*>(.*?)</title>", text, re.S)
+    if not m:
+        return None
+    return html.unescape(m.group(1)).strip()
+
+
+def _recorded_title(sidecar: Path) -> str | None:
+    """The <title> a sidecar last recorded, or None -- a missing sidecar, one
+    that cannot be read as a JSON object, or a record from before this check
+    existed (no 'title' key) all mean nothing to compare."""
+    try:
+        data = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, ValueError, RecursionError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    title = data.get("title")
+    return title if isinstance(title, str) and title else None
+
+
+def _title_check(sidecar: Path, page: Path, override: bool) -> tuple[str | None, bool, str | None]:
+    """(the page's own <title> or None, whether a change was recorded by
+    override, a refusal message or None).
+
+    None/None/None when the page has no <title>, or the sidecar has nothing
+    recorded yet, or the titles match: nothing to refuse, and the title (if
+    any) is recorded going forward. A changed title is refused by default
+    (proposal 22, T-06: "a published page's name is set once and never
+    changes"); --title-changed records the new name and that the change was
+    deliberate."""
+    new_title = page_title(page)
+    if new_title is None:
+        return None, False, None
+    old_title = _recorded_title(sidecar)
+    if old_title is None or old_title == new_title:
+        return new_title, False, None
+    if override:
+        return new_title, True, None
+    return new_title, False, (
+        f"{_printable(page)}'s <title> has changed since {_printable(sidecar)} last recorded it -- "
+        f"was {_printable(old_title)}, now {_printable(new_title)} -- proposal 22 T-06: a published page's "
+        "name is set once and never changes -- pass --title-changed to record the new name anyway -- "
+        "nothing recorded")
+
+
 def page_path_problem(value) -> str | None:
     """None for a one-line relative path with no `..` part, else what is wrong
     -- never echoing the value. Whether it resolves inside the project, through
@@ -824,9 +885,18 @@ def published_project_main(args) -> int:
               "page, publish that committed file, then record it -- nothing recorded", file=sys.stderr)
         return 1
 
+    new_title, title_changed, problem = _title_check(sidecar, page, args.title_changed)
+    if problem:
+        print(f"{say} {problem}", file=sys.stderr)
+        return 1
+
     import datetime
     record = {"url": args.url, "digest": digest(page), "ledgers": B.page_digests(page), "by": args.by,
               "at": datetime.datetime.now().astimezone().isoformat(timespec="seconds")}
+    if new_title is not None:
+        record["title"] = new_title
+    if title_changed:
+        record["title_changed"] = True
     sidecar.parent.mkdir(parents=True, exist_ok=True)
     sidecar.write_text(json.dumps(record, indent=2, sort_keys=True, ensure_ascii=False) + "\n")
     print(f"recorded {sidecar} · {args.url} · commit it")
@@ -849,6 +919,10 @@ def published_main(argv) -> int:
     ap.add_argument("--page-unchanged", action="store_true",
                     help="with --page: record a page last committed before the ledger's last change, for a "
                          "ledger change that leaves the page's bytes identical; the sidecar records it")
+    ap.add_argument("--title-changed", action="store_true",
+                    help="override: record a page whose <title> differs from the one last recorded published "
+                         "-- proposal 22 T-06 says a published page's name is set once and never changes; "
+                         "the sidecar records that the change was deliberate")
     args = ap.parse_args(argv)
     say = "tracker published:"
 
@@ -960,6 +1034,7 @@ def published_main(argv) -> int:
         return 1
 
     import datetime
+    sidecar = published_path(args.ledger)
     if args.page is not None:
         rel, problem = page_problem(root, args.page)
         if problem:
@@ -968,6 +1043,10 @@ def published_main(argv) -> int:
         if not args.page_unchanged and not _page_after_ledger(root, ledger_rel, rel):
             print(f"{say} {_printable(rel)} was last committed before the ledger changed -- regenerate and commit "
                   "it first -- nothing recorded", file=sys.stderr)
+            return 1
+        new_title, title_changed, problem = _title_check(sidecar, root / rel, args.title_changed)
+        if problem:
+            print(f"{say} {problem}", file=sys.stderr)
             return 1
         record = {"url": args.url, "digest": digest(root / rel), "page": rel}
         if args.page_unchanged:
@@ -979,10 +1058,17 @@ def published_main(argv) -> int:
             print(f"{say} {_printable(page)} is {fresh} against {_printable(args.ledger.name)} -- render first: "
                   f"tracker render {_printable(args.ledger)}, publish that page, then record it", file=sys.stderr)
             return 1
+        new_title, title_changed, problem = _title_check(sidecar, page, args.title_changed)
+        if problem:
+            print(f"{say} {problem}", file=sys.stderr)
+            return 1
         record = {"url": args.url, "digest": digest(page)}
+    if new_title is not None:
+        record["title"] = new_title
+    if title_changed:
+        record["title_changed"] = True
     record.update({"ledger_digest": digest(args.ledger), "by": args.by,
                    "at": datetime.datetime.now().astimezone().isoformat(timespec="seconds")})
-    sidecar = published_path(args.ledger)
     # V-11: a project that publishes only its declared page may never have
     # rendered the tracker page, so docs/proposals/tracker/ may not exist yet.
     sidecar.parent.mkdir(parents=True, exist_ok=True)
