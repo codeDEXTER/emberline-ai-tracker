@@ -2,7 +2,7 @@
   "proposal": 24,
   "title": "Autonomous work without missing anything",
   "status": "accepted",
-  "updated": "2026-09-15",
+  "updated": "2026-09-16",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -87,7 +87,7 @@
       "depends": [
         "H-01"
       ],
-      "status": "done",
+      "status": "in testing",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -111,6 +111,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "templates/lead-prompt.md dispatcher/item-lead forms; tests/test_templates.py updated; PR bundle-d"
+        },
+        {
+          "at": "2026-09-16T09:30:46+02:00",
+          "event": "reopened: built, but its own done criterion is unverified -- done required dispatcher context measured under 150k across a full bundle; the test only asserts the string 150k appears in a template (2026-09-16 review of P19-29, finding F-02)",
+          "by": "lead",
+          "evidence": ""
         }
       ]
     },
@@ -126,7 +132,7 @@
       "depends": [
         "H-02"
       ],
-      "status": "done",
+      "status": "in testing",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -150,6 +156,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "docs/research/starting-item-leads.md; recommends claude --bg -p; proof run still open (D)"
+        },
+        {
+          "at": "2026-09-16T09:30:46+02:00",
+          "event": "reopened: built, but its own done criterion is unverified -- done required a lead started and finished with no sponsor action, or blocked with owner sponsor; research only, neither branch taken (2026-09-16 review of P19-29, finding F-02)",
+          "by": "lead",
+          "evidence": ""
         }
       ]
     },

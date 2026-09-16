@@ -68,7 +68,7 @@
       "depends": [
         "X-03"
       ],
-      "status": "done",
+      "status": "in testing",
       "owner": "lead",
       "tier": "lead",
       "model": "opus",
@@ -104,6 +104,12 @@
           "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
           "by": "lead",
           "evidence": "proposal 23 A-22"
+        },
+        {
+          "at": "2026-09-16T09:30:45+02:00",
+          "event": "reopened: built, but its own done criterion is unverified -- transcript spend below 10% was never re-measured; evidence is a static text-presence test (2026-09-16 review of P19-29, finding F-02)",
+          "by": "lead",
+          "evidence": ""
         }
       ]
     },
@@ -125,7 +131,7 @@
       "depends": [
         "X-01"
       ],
-      "status": "done",
+      "status": "in testing",
       "owner": "lead",
       "tier": "lead",
       "model": "opus",
@@ -161,6 +167,12 @@
           "event": "C4 model routing: lead model -> opus, low or medium effort (proposal 23, A-22)",
           "by": "lead",
           "evidence": "proposal 23 A-22"
+        },
+        {
+          "at": "2026-09-16T09:30:45+02:00",
+          "event": "reopened: built, but its own done criterion is unverified -- the scout vs non-scout spend comparison was never run (2026-09-16 review of P19-29, finding F-02)",
+          "by": "lead",
+          "evidence": ""
         }
       ]
     },
@@ -328,7 +340,7 @@
       ],
       "done": "A scout brief template and the CONTEXT pack format exist; one item run with a scout shows builder read and inspect spend lower than a comparable item without.",
       "depends": [],
-      "status": "done",
+      "status": "in testing",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -358,6 +370,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
+        },
+        {
+          "at": "2026-09-16T09:30:45+02:00",
+          "event": "reopened: built, but its own done criterion is unverified -- the promised rerun measurement was never taken (2026-09-16 review of P19-29, finding F-02)",
+          "by": "lead",
+          "evidence": ""
         }
       ]
     },
@@ -477,7 +495,7 @@
       ],
       "done": "Brief template MUST lines added with a Standard change line; a rerun of the mining script shows each cluster down by half.",
       "depends": [],
-      "status": "done",
+      "status": "in testing",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -507,6 +525,12 @@
           "event": "done",
           "by": "lead",
           "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
+        },
+        {
+          "at": "2026-09-16T09:30:45+02:00",
+          "event": "reopened: built, but its own done criterion is unverified -- the mining-script cluster-count halving was never measured (2026-09-16 review of P19-29, finding F-02)",
+          "by": "lead",
+          "evidence": ""
         }
       ]
     },
@@ -570,7 +594,7 @@
       "tests": [],
       "done": "Measured tool-definition tokens per session before and after; bin/ruflo-item still works.",
       "depends": [],
-      "status": "done",
+      "status": "in testing",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
@@ -594,6 +618,12 @@
           "event": "landed via direct file edit, commit dcc3c1b -- test_warmup.py 114 tests OK",
           "by": "lead",
           "evidence": "commit dcc3c1b, content matches bundle F's verified c6b116d"
+        },
+        {
+          "at": "2026-09-16T09:30:45+02:00",
+          "event": "reopened: built, but its own done criterion is unverified -- done required tool-definition tokens measured before and after; argued by design instead, never measured (2026-09-16 review of P19-29, finding F-02)",
+          "by": "lead",
+          "evidence": ""
         }
       ]
     },

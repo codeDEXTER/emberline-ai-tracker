@@ -192,8 +192,8 @@
       "depends": [
         "Z-01"
       ],
-      "status": "done",
-      "owner": "session:bundle-l",
+      "status": "blocked",
+      "owner": "sponsor",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
@@ -210,6 +210,12 @@
           "event": "bin/spend calibrate: every 20 closed items, groups cost by points class, flags >2x class median",
           "by": "session:bundle-l",
           "evidence": "tools/calibrate.py, tests/test_calibrate.py (12 tests); PR bundle-l, commit 425a1ae"
+        },
+        {
+          "at": "2026-09-16T09:30:52+02:00",
+          "event": "reopened and blocked: done requires 'the first real calibration recorded in a ledger log'. The tool works, but bin/spend calibrate skips all 94 closed items -- 0 of 97 items carry points, so there is nothing to calibrate. Unblocking needs the sponsor's call on sizing the backlog (2026-09-16 review, finding F-01 on this ledger)",
+          "by": "lead",
+          "evidence": ""
         }
       ]
     },

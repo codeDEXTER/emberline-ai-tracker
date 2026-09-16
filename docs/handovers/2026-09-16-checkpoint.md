@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-16 08:42
+# Checkpoint — 2026-09-16 09:31
 
-Reason: manual · branch: ledger-catchup · HEAD: ce2aa95
+Reason: manual · branch: reopen-unverified · HEAD: 9400dee
 
-<!-- ledger-digest: 8e4f01bfa101168948204ff052776156954101231317c7dc4fc64a4a7466fdfc -->
+<!-- ledger-digest: 113c7fbf6bb02279baddde658f02db4fac2f6630addb01a3b896c3ca6cfef946 -->
 
 ## Proposal 19 · Warm-up
 
@@ -44,6 +44,66 @@ Reason: manual · branch: ledger-catchup · HEAD: ce2aa95
 
 - S-07 · [ruflo · low · haiku] · PhotoVault app on the standard
 - S-08 · [ruflo · low · haiku] · PhotoVault engine on the standard
+
+## Proposal 23 · Eight levers for token spend
+
+16 done / 0 in progress / 0 blocked / 0 not started / 5 in testing
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- none
+
+## Proposal 24 · Autonomous work without missing anything
+
+2 done / 0 in progress / 0 blocked / 0 not started / 2 in testing
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- none
+
+## Proposal 25 · Sizing items by value, points and risk
+
+5 done / 0 in progress / 1 blocked / 0 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- Z-05 · no log entry yet
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- none
 
 ## Exact next action
 
