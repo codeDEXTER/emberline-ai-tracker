@@ -122,6 +122,12 @@
           "event": "fresh lead started by the previous lead via claude --bg (H-03)",
           "by": "lead 26c10928",
           "evidence": "Session 26c10928-63bb-4b8d-993b-4ad09a3f6653, started 2026-09-16 22:36 by session 3cff917f. Transcript: ~/.agent-data/projects/-Users-the-sponsor-apps-common-rules--claude-worktrees-lead-session-record/26c10928-63bb-4b8d-993b-4ad09a3f6653.jsonl. Second lead session after the rule landed, and the first started fresh at a boundary rather than run on. Its own spend is measured with bin/worklog dedupe_messages before it ends."
+        },
+        {
+          "at": "2026-09-16T23:36:01+02:00",
+          "event": "measured: this fresh lead session passes the criterion; the day's other lead session does not, so L-01 stays open",
+          "by": "lead 26c10928",
+          "evidence": "Session 26c10928, its own transcript deduped by message.id (tools/worklog.py dedupe_messages, threshold 500k, context = input + cache_read + cache_creation): 71 requests, 7,123,240 tokens, 0 requests and 0 tokens above 500k context (0.0%), peak context 123,840. That is the first lead session to meet L-01's 'below 10%' criterion. NOT closing L-01: the criterion is measured over lead spend, and session 3cff917f was still running on the same day at 671k peak (16 Sep measurement in this log), so the day's lead spend is not yet a pass. L-01 closes when a day's lead sessions all measure below 10%, not when one does. Script: docs/research has no L-01 measure yet; this run used a session-local copy of the same dedupe_messages logic."
         }
       ],
       "points": 2,

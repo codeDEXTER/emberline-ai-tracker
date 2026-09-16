@@ -131,6 +131,12 @@
           "event": "fresh lead started by the previous lead via claude --bg (H-03)",
           "by": "lead 26c10928",
           "evidence": "Session 26c10928-63bb-4b8d-993b-4ad09a3f6653, started 2026-09-16 22:36 by session 3cff917f. Transcript: ~/.agent-data/projects/-Users-the-sponsor-apps-common-rules--claude-worktrees-lead-session-record/26c10928-63bb-4b8d-993b-4ad09a3f6653.jsonl. First session run in the dispatcher form against the 150k cap; measured with bin/worklog dedupe_messages before it ends."
+        },
+        {
+          "at": "2026-09-16T23:36:08+02:00",
+          "event": "measured: the first dispatcher-form session stayed under the 150k cap",
+          "by": "lead 26c10928",
+          "evidence": "Session 26c10928, its own transcript deduped by message.id: peak context 123,840 against the 150k dispatcher cap, 71 requests, 7,123,240 tokens, 0.0% above 500k. It stayed thin by dispatching nothing and doing one small ledger task itself; the due-later items were taken by the peer lead 3cff917f in parallel. NOT closing H-02: one session under the cap is not the 'thin dispatcher and short item leads' shape working -- this session never dispatched an item lead, so the short-item-lead half is still unmeasured."
         }
       ],
       "points": 3,
