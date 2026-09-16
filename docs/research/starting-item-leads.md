@@ -3,6 +3,17 @@
 Research only — no session was started for this. Commands below were read
 from `claude --help` / `claude agents --help`, never run.
 
+## Correction, 2026-09-16: proof run taken
+
+The command below is wrong as written: `claude --bg` refuses `-p` ("--bg and
+--print conflict"); the prompt is the positional argument:
+`claude --bg --model opus --worktree <name> "<prompt>"`. Three proof runs
+started with no click and were removed with `claude rm <id>`, but none
+finished: two stopped on a login refresh held by another Claude process, the
+third on "Login expired · Please run /login". Haiku also has no auto mode, so
+an unattended lead must run on a model that does. H-03 is blocked on the
+sponsor's sign-in; see its ledger log.
+
 ## Mechanism 1: `claude --bg -p "<prompt>"`
 
 - **Click needed:** none. `claude --bg` "start[s] the session in the
@@ -61,7 +72,7 @@ dispatcher would otherwise create itself. The proof run the lead should do
 first, without sending it anything but a no-op:
 
 ```
-claude --bg -p "print 'handover proof run' and exit" --worktree handover-proof
+claude --bg --worktree handover-proof "print 'handover proof run' and exit"
 ```
 
 Then confirm with `claude agents --json` that the id it printed shows up,
