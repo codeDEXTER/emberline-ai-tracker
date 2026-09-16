@@ -35,9 +35,79 @@
       "name": "Warm-up standard",
       "goal": "One /warmup, one set of templates, one tracker for every focus project, built in common-rules and proven on the PhotoVault engine first (D6).",
       "exit": "The five exit conditions in proposal 19 'What completes this', each measured."
+    },
+    {
+      "id": "Q",
+      "name": "Queued from warmup",
+      "goal": "standard and rules items warmup --queue found pending",
+      "exit": "each item done, or reassigned to where it belongs"
     }
   ],
   "items": [
+    {
+      "id": "Q-02",
+      "phase": "Q",
+      "cx": "C2",
+      "title": "standard item 10 Publishing recorded: docs/proposals/tracker/21-standard-is-mandatory.published.json records a page for 21-standard-is-mandatory.json, which records no tracker of its own -- the project publishes one page, and that record is docs/proposals/tracker/index.published.json; docs/proposals/tracker/23-eight-levers-for-token-spend.published.json records a page for 23-eight-levers-for-token-spend.json, which records no tracker of its own -- the project publishes one page, and that record is docs/proposals/tracker/index.published.json",
+      "status": "done",
+      "owner": "lead",
+      "queue_source": "conformance:10",
+      "log": [
+        {
+          "at": "2026-09-16T18:14:44+02:00",
+          "event": "queued by warmup --queue",
+          "by": "warmup",
+          "evidence": ""
+        },
+        {
+          "at": "2026-09-16T18:15:36+02:00",
+          "event": "git rm the per-ledger sidecars for P21 and P23: neither ledger records a tracker of its own, so the project's one publish record is tracker/index.published.json (P22)",
+          "by": "lead",
+          "evidence": "bin/conformance item 10 holds: 1 publish record"
+        },
+        {
+          "at": "2026-09-16T18:16:50+02:00",
+          "event": "routed from this ledger's C2 row; queue.py wrote it with no tier, model or tag (fixed in the same change)",
+          "by": "lead",
+          "evidence": ""
+        }
+      ],
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]"
+    },
+    {
+      "id": "Q-01",
+      "phase": "Q",
+      "cx": "C2",
+      "title": "standard item 4 Installed: the git pre-commit hook is not the one this common-rules' bin/derecord installs (edited by hand, from an older derecord, or naming another rules checkout)",
+      "status": "done",
+      "owner": "lead",
+      "queue_source": "conformance:4",
+      "log": [
+        {
+          "at": "2026-09-16T18:14:43+02:00",
+          "event": "queued by warmup --queue",
+          "by": "warmup",
+          "evidence": ""
+        },
+        {
+          "at": "2026-09-16T18:15:36+02:00",
+          "event": "bin/derecord re-run on common-rules: pre-commit hook reinstalled; it also corrected a stale .claude/skills/warmup/SKILL.md and installed the missing .claude/skills/reheat/SKILL.md",
+          "by": "lead",
+          "evidence": "bin/conformance item 4 holds"
+        },
+        {
+          "at": "2026-09-16T18:16:50+02:00",
+          "event": "routed from this ledger's C2 row; queue.py wrote it with no tier, model or tag (fixed in the same change)",
+          "by": "lead",
+          "evidence": ""
+        }
+      ],
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]"
+    },
     {
       "id": "W-00",
       "phase": "W",

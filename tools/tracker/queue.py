@@ -75,6 +75,13 @@ def queue(ledger_path: Path, title: str, source_key: str, by: str = "warmup") ->
         "log": [{"at": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
                 "event": "queued by warmup --queue", "by": by, "evidence": ""}],
     }
+    # Route from the ledger's own table, never a hardcoded model: a queued row
+    # without tier/model/tag fails conformance item 6 in every project that
+    # runs --queue, and a hardcoded one goes stale the day the table changes.
+    row = (data.get("tiers") or {}).get(DEFAULT_CX)
+    if isinstance(row, dict) and row.get("tier") and row.get("model"):
+        item["tier"], item["model"] = row["tier"], row["model"]
+        item["tag"] = f"[ruflo · {row['tier']} · {row['model']}]"
     items = data.setdefault("items", [])
     items.insert(0, item)
     data["updated"] = datetime.date.today().isoformat()

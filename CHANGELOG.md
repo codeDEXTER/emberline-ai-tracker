@@ -1,5 +1,25 @@
 # Changelog — common-rules
 
+## 2026-09-16 · Rows `warmup --queue` writes are routed, and common-rules holds 12 of 12 again
+
+**Standard change (mandatory):** `tools/tracker/queue.py` wrote every queued
+row with `cx: C2` and no `tier`, `model` or `tag`, so any project that ran
+`warmup --queue` -- which the standard makes routine at every warm-up --
+failed conformance item 6 on the very rows the standard had just asked it to
+record. Queued rows now take tier, model and tag from the ledger's own `tiers`
+row for their `cx`, never a hardcoded model. At your next `/warmup`, give any
+existing row with a `queue_source` and no `tag` its route with
+`tracker set <ledger> <id> --field tier=... --field model=... --field 'tag=[ruflo · <tier> · <model>]'`.
+
+Found by common-rules reheating itself: conformance read 10 of 12. Item 4 --
+its pre-commit hook was stale; `bin/derecord` reinstalled it, and in passing
+corrected a stale `.claude/skills/warmup/SKILL.md` and installed the missing
+`.claude/skills/reheat/SKILL.md`. Item 10 -- two per-ledger publish sidecars
+(P21, P23) for ledgers with no tracker of their own, removed under proposal
+22's one-tracker rule. Queuing those two fixes then broke item 6, which is how
+the queue defect surfaced. `tests/test_tracker_queue_routing.py` is red on the
+old writer and green on the new.
+
 ## 2026-09-16 · `tracker published` refuses a changed title -- T-06's missing half (P22 T-06)
 
 **Standard change (mandatory):** T-06 ("a published page's name is set once

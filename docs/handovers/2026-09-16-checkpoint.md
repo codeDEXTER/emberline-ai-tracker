@@ -1,12 +1,12 @@
-# Checkpoint — 2026-09-16 09:31
+# Checkpoint — 2026-09-16 18:17
 
-Reason: manual · branch: reopen-unverified · HEAD: 9400dee
+Reason: manual · branch: conformance-12 · HEAD: ff3f4b6
 
-<!-- ledger-digest: 113c7fbf6bb02279baddde658f02db4fac2f6630addb01a3b896c3ca6cfef946 -->
+<!-- ledger-digest: 6bbd1a72e480e99c9ea1492eb834a76325231921e758d1c09a2be206afb677b6 -->
 
 ## Proposal 19 · Warm-up
 
-13 done / 1 in progress / 0 blocked / 0 not started
+15 done / 1 in progress / 0 blocked / 0 not started
 
 ### In progress
 
