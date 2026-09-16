@@ -68,7 +68,7 @@
       "depends": [
         "X-03"
       ],
-      "status": "in testing",
+      "status": "in progress",
       "owner": "lead",
       "tier": "lead",
       "model": "opus",
@@ -110,6 +110,12 @@
           "event": "reopened: built, but its own done criterion is unverified -- transcript spend below 10% was never re-measured; evidence is a static text-presence test (2026-09-16 review of P19-29, finding F-02)",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T19:11:51+02:00",
+          "event": "measured 2026-09-16: FAIL. The common-rules lead session itself (3cff917f, main transcript, deduped by message id) spent 76.1% of its 16 Sep tokens (165.5M over 348 requests) on requests above 500k context; max context 671k; 15 Sep 39.3%. No other lead session exists after the rule landed. The rule is written but not followed: this lead ran one session across 14-16 Sep instead of starting fresh per milestone",
+          "by": "lead",
+          "evidence": "worklog.dedupe_messages over ~/.claude/projects/-Users-aashish-apps/3cff917f-aeff-41f8-9753-cac90d63512e.jsonl; ctx = input+cache_write+cache_read"
         }
       ],
       "points": 2,
@@ -175,6 +181,12 @@
           "event": "reopened: built, but its own done criterion is unverified -- the scout vs non-scout spend comparison was never run (2026-09-16 review of P19-29, finding F-02)",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T19:11:52+02:00",
+          "event": "measured 2026-09-16: not measurable yet. Outside this lead's own session there are no subagent transcripts with token activity after the rule landed; rerun once a few days of ordinary project sessions accumulate",
+          "by": "lead",
+          "evidence": "/private/tmp/claude-501/-Users-aashish-apps/3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure-L01-L02-L06-H02.py, /private/tmp/claude-501/-Users-aashish-apps/3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure-A-2026-09-16.json"
         }
       ],
       "points": 2,
@@ -386,6 +398,12 @@
           "event": "reopened: built, but its own done criterion is unverified -- the promised rerun measurement was never taken (2026-09-16 review of P19-29, finding F-02)",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T19:11:52+02:00",
+          "event": "measured 2026-09-16: not measurable. No item has been run with a Haiku scout since the template landed, so there is nothing to compare; needs one real item run with a scout",
+          "by": "lead",
+          "evidence": "/private/tmp/claude-501/-Users-aashish-apps/3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure-A-2026-09-16.json"
         }
       ],
       "points": 3,
@@ -513,7 +531,7 @@
       ],
       "done": "Brief template MUST lines added with a Standard change line; a rerun of the mining script shows each cluster down by half.",
       "depends": [],
-      "status": "in testing",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -549,6 +567,12 @@
           "event": "reopened: built, but its own done criterion is unverified -- the mining-script cluster-count halving was never measured (2026-09-16 review of P19-29, finding F-02)",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T19:11:51+02:00",
+          "event": "measured 2026-09-16: FAIL. Mining script reconstructed and rerun, 8-14 Sep vs 16 Sep, all apps transcripts: cat/sed -n reads 12.80 -> 7.67 per 100 tool calls (-40%, not halved); hand-appended HANDOFF/AGENT-LOG 2 -> 1 (too thin to judge); raw flutter test not measurable (no Flutter sessions after). Reconstruction does not reproduce the original 15 Sep magnitudes, so the original script's window differed",
+          "by": "lead",
+          "evidence": "/private/tmp/claude-501/-Users-aashish-apps/3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure.py, /private/tmp/claude-501/-Users-aashish-apps/3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure-B-2026-09-16.json"
         }
       ],
       "points": 2,
@@ -618,7 +642,7 @@
       "tests": [],
       "done": "Measured tool-definition tokens per session before and after; bin/ruflo-item still works.",
       "depends": [],
-      "status": "in testing",
+      "status": "in progress",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
@@ -648,6 +672,12 @@
           "event": "reopened: built, but its own done criterion is unverified -- done required tool-definition tokens measured before and after; argued by design instead, never measured (2026-09-16 review of P19-29, finding F-02)",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-16T19:11:51+02:00",
+          "event": "measured 2026-09-16: build half questioned. M-03 landed as dcc3c1b, 18 lines of skills/warmup/SKILL.md only -- no .mcp.json or loading change, so nothing can move tool-definition tokens. Before: first-request context median 52,795 tokens over 10 ruflo-project sessions (4-5 Sep, thin); after: 0 ruflo-project sessions exist. bin/ruflo-item --help exits 0",
+          "by": "lead",
+          "evidence": "/private/tmp/claude-501/-Users-aashish-apps/3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure-B-2026-09-16.json"
         }
       ],
       "points": 3,
