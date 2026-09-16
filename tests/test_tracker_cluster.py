@@ -29,8 +29,8 @@ def finding(id_, file_, state="catalogued", **extra):
     return row
 
 
-def ledger(items=None, findings=None):
-    return {"proposal": 25, "title": "t", "status": "accepted",
+def ledger(proposal=25, items=None, findings=None):
+    return {"proposal": proposal, "title": "t", "status": "accepted",
             "phases": [{"id": "Z", "name": "build"}],
             "items": items or [], "findings": findings or [], "asks": []}
 
@@ -41,12 +41,32 @@ class TestNotTakenRows(unittest.TestCase):
                    findings=[finding("F-01", "c.py"), finding("F-02", "d.py", state="decided")])
         rows = C.not_taken_rows(d)
         ids = {r["id"] for r in rows}
-        self.assertEqual(ids, {"Z-10", "F-01"})
+        # A finding's id is proposal-qualified ("25/F-01"), so board.py's
+        # cluster_state() can union rows from more than one ledger without
+        # two different ledgers' plain "F-01" colliding as one key. An
+        # item's id is left as-is.
+        self.assertEqual(ids, {"Z-10", "25/F-01"})
 
     def test_declined_and_deferred_findings_are_excluded(self):
         d = ledger(findings=[finding("F-01", "c.py", state="declined"),
                              finding("F-02", "d.py", state="deferred")])
         self.assertEqual(C.not_taken_rows(d), [])
+
+    def test_two_ledgers_each_with_their_own_f01_do_not_collide(self):
+        # board.py's cluster_state() combines not_taken_rows() from every
+        # ledger and unions them by id -- two different ledgers' plain
+        # "F-01" would otherwise collapse onto one _UnionFind key (a dict
+        # comprehension over duplicate keys keeps only the last one) and
+        # silently merge two findings that share no file.
+        left = ledger(25, findings=[finding("F-01", "a.py")])
+        right = ledger(30, findings=[finding("F-01", "b.py")])
+        rows = C.not_taken_rows(left) + C.not_taken_rows(right)
+        ids = {r["id"] for r in rows}
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(ids, {"25/F-01", "30/F-01"})
+        result = C.file_overlap_clusters(rows)
+        self.assertEqual(result["clusters"], [])
+        self.assertEqual({s["id"] for s in result["singles"]}, {"25/F-01", "30/F-01"})
 
 
 class TestFileOverlapClusters(unittest.TestCase):
