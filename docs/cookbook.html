@@ -1,0 +1,274 @@
+<title>Common Rules Cookbook</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#eef1f0; --surface:#ffffff; --surface-2:#e2e8e5; --border:#c7d0cb;
+    --text:#141a17; --text-dim:#4d5c54; --text-faint:#7c8c82;
+    --accent:#0f6e5c; --accent-ink:#ffffff; --accent-2:#5b4fae;
+    --good:#1f7a4d; --good-bg:#e1f2e7; --bad:#ad3226; --bad-bg:#fbe6e2; --warn:#9a6a0a; --warn-bg:#f6ecd6;
+    --mono:'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans:'Public Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --radius:8px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0f1513; --surface:#161e1b; --surface-2:#1b2420; --border:#2b3733;
+      --text:#e9efe9; --text-dim:#a9b8ae; --text-faint:#77877d;
+      --accent:#4fd6b0; --accent-ink:#0a1613; --accent-2:#a99bef;
+      --good:#7fd7a4; --good-bg:#173226; --bad:#ec9a8d; --bad-bg:#3a221d; --warn:#e3c27a; --warn-bg:#3a2f14;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f1513; --surface:#161e1b; --surface-2:#1b2420; --border:#2b3733;
+    --text:#e9efe9; --text-dim:#a9b8ae; --text-faint:#77877d;
+    --accent:#4fd6b0; --accent-ink:#0a1613; --accent-2:#a99bef;
+    --good:#7fd7a4; --good-bg:#173226; --bad:#ec9a8d; --bad-bg:#3a221d; --warn:#e3c27a; --warn-bg:#3a2f14;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--bg); color:var(--text); font-family:var(--sans); margin:0; -webkit-font-smoothing:antialiased}
+  h1,h2,h3,h4{font-family:var(--mono); text-wrap:balance; letter-spacing:-0.01em; margin:0}
+  code,.mono{font-family:var(--mono)}
+  a{color:var(--accent-2)}
+  a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+  .wrap{max-width:1240px; margin:0 auto; padding:0 24px 64px}
+  header.top{padding:26px 24px; border-bottom:1px solid var(--border); background:var(--surface)}
+  header.top .inner{max-width:1240px; margin:0 auto; display:flex; align-items:flex-start; justify-content:space-between; gap:24px; flex-wrap:wrap}
+  .eyebrow{font-family:var(--mono); font-size:11px; letter-spacing:.10em; text-transform:uppercase; color:var(--accent); font-weight:600}
+  h1.title{font-size:26px; font-weight:700; margin-top:4px}
+  .meta{font-family:var(--mono); font-size:11.5px; color:var(--text-faint); line-height:1.7; text-align:right}
+  .meta b{color:var(--text-dim); font-weight:600}
+
+  .layout{display:grid; grid-template-columns:172px 1fr; gap:32px; margin-top:28px}
+  @media (max-width:860px){ .layout{grid-template-columns:1fr} }
+
+  nav.toc{position:sticky; top:16px; align-self:start; font-size:12.5px; font-family:var(--mono); background:var(--bg)}
+  nav.toc a{display:block; color:var(--text-dim); text-decoration:none; padding:5px 0 5px 10px; border-left:2px solid var(--border)}
+  nav.toc a:hover{color:var(--accent); border-left-color:var(--accent)}
+  nav.toc .grp{font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-faint); margin:14px 0 3px; padding-left:10px}
+  nav.toc .grp:first-child{margin-top:0}
+  @media (max-width:860px){ nav.toc{position:static; display:flex; flex-wrap:wrap; gap:4px 14px; padding-bottom:8px; border-bottom:1px solid var(--border)} nav.toc .grp{display:none} }
+
+  main section{margin-bottom:36px; scroll-margin-top:16px}
+  h2.h{font-size:17px; padding-bottom:9px; border-bottom:1px solid var(--border); margin-bottom:14px; display:flex; align-items:baseline; gap:8px}
+  h2.h .n{color:var(--accent); font-size:12px}
+  p.dim{color:var(--text-dim); font-size:13px; margin:0 0 12px; max-width:70ch}
+
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+  @media (max-width:760px){ .grid2,.grid3{grid-template-columns:1fr} }
+
+  table{width:100%; border-collapse:collapse; font-size:13px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+  th,td{text-align:left; padding:8px 12px; border-bottom:1px solid var(--border); vertical-align:top}
+  th{font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-faint); background:var(--surface-2); font-weight:600}
+  tr:last-child td{border-bottom:none}
+  td .k{font-family:var(--mono); font-size:12px; color:var(--accent); font-weight:600; white-space:nowrap}
+  .tw{overflow-x:auto}
+
+  .pill{display:inline-block; font-family:var(--mono); font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:99px; letter-spacing:.02em; white-space:nowrap}
+  .pill.good{background:var(--good-bg); color:var(--good)}
+  .pill.bad{background:var(--bad-bg); color:var(--bad)}
+  .pill.warn{background:var(--warn-bg); color:var(--warn)}
+  .pill.accent{background:var(--accent); color:var(--accent-ink)}
+  .pill.ghost{background:var(--surface-2); color:var(--text-dim); border:1px solid var(--border)}
+
+  .rule{border-left:3px solid var(--bad); border-radius:0 var(--radius) var(--radius) 0; padding:10px 14px; background:var(--bad-bg)}
+  .rule b{display:block; font-size:13px; margin-bottom:2px}
+  .ruling{background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:0 var(--radius) var(--radius) 0; padding:10px 14px}
+  .ruling b{display:block; font-size:12.5px}
+  .ruling .quote{color:var(--text-dim); font-style:italic; font-size:12px; display:block; margin-top:3px}
+  .rulings{display:flex; flex-direction:column; gap:8px}
+
+  .dn{display:grid; grid-template-columns:1fr 1fr; gap:0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden}
+  @media (max-width:760px){ .dn{grid-template-columns:1fr} }
+  .dn > div{padding:12px 16px}
+  .dn .do{background:var(--good-bg)}
+  .dn .never{background:var(--bad-bg); border-left:1px solid var(--border)}
+  @media (max-width:760px){ .dn .never{border-left:none; border-top:1px solid var(--border)} }
+  .dn h4{font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; margin-bottom:8px}
+  .dn .do h4{color:var(--good)}
+  .dn .never h4{color:var(--bad)}
+  .dn ul{margin:0; padding-left:16px; font-size:12.5px; color:var(--text)}
+  .dn li{margin-bottom:6px}
+
+  .mermaid{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px}
+
+  footer{margin-top:40px; padding-top:16px; border-top:1px solid var(--border); font-size:11px; color:var(--text-faint); font-family:var(--mono)}
+</style>
+
+<header class="top">
+  <div class="inner">
+    <div>
+      <div class="eyebrow">common-rules · proposal 28 · R-06</div>
+      <h1 class="title">Common Rules Cookbook</h1>
+    </div>
+    <div class="meta">
+      <div><b>Source</b> HANDOFF.md · CLAUDE-workflow.md · skills/warmup · skills/reheat · bin/tracker --help</div>
+      <div><b>Rebuilt</b> 16 Sep 2026 · R-06 repair</div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<div class="layout">
+  <nav class="toc">
+    <div class="grp">Flow</div>
+    <a href="#lifecycle">Lifecycle</a>
+    <a href="#compare">Warmup / reheat</a>
+    <div class="grp">Rules</div>
+    <a href="#prohibitions">Prohibitions</a>
+    <a href="#rulings">Rulings</a>
+    <a href="#routing">Review routing</a>
+    <a href="#dn">Do / never</a>
+    <div class="grp">Reference</div>
+    <a href="#commands">Commands</a>
+    <a href="#current">Staying current</a>
+  </nav>
+
+  <main>
+
+    <section id="lifecycle">
+      <h2 class="h"><span class="n">01</span> Lifecycle</h2>
+      <pre class="mermaid">
+flowchart TD
+    A["Session starts / resumes / compacts"] --> B{"Hook: SessionStart / Stop"}
+    B -- startup --> C["/warmup"]
+    B -- "compact or resume" --> D["/reheat"]
+    B -- "rules moved since state" --> E["Stop hook tells lead: run /reheat"]
+    C --> F["Full card<br/>standard: N of 12 hold"]
+    D --> G{"Saved state?"}
+    G -- no --> F
+    G -- yes --> H["Delta only: new/changed items,<br/>asks, requests, republished pages<br/>+ standard: N of 12 hold, every time"]
+    F --> I{"Any ✗ line?"}
+    H --> I
+    I -- yes --> J["Fix now, or log blocked + reason"]
+    I -- no --> K["Card → first item's steps → start"]
+    J --> K
+    K --> L["Spawn every unblocked C1/C2 item,<br/>one worktree each · lead takes first C3"]
+    L --> M["bin/handover --check before turn ends"]
+      </pre>
+      <p class="dim">Read order, every warmup and reheat: <code>HANDOFF.md</code> (folds in <code>docs/OPERATING-RULES.md</code>, proposal 23 M-11) → the card itself, never the raw ledger JSON → latest checkpoint → <code>CLAUDE-workflow.md</code>.</p>
+    </section>
+
+    <section id="compare">
+      <h2 class="h"><span class="n">02</span> Warmup vs reheat</h2>
+      <div class="tw"><table>
+        <tr><th></th><th><span class="pill accent">/warmup</span> fresh lead</th><th><span class="pill ghost">/reheat</span> running lead</th></tr>
+        <tr><td class="k">Command</td><td><code>bin/warmup --project . --queue --state .claude/warmup/last.json</code></td><td><code>bin/warmup --project . --reheat --queue --state .claude/warmup/last.json</code></td></tr>
+        <tr><td class="k">Answers</td><td>What is the state?</td><td>What changed?</td></tr>
+        <tr><td class="k">No saved state</td><td>n/a — this is the baseline</td><td>Falls back to full card, then saves it</td></tr>
+        <tr><td class="k">Fired by</td><td>SessionStart, source=startup</td><td>SessionStart, source=compact/resume; Stop hook on rules move</td></tr>
+        <tr><td class="k">Skill</td><td><code>skills/warmup/SKILL.md</code></td><td><code>skills/reheat/SKILL.md</code></td></tr>
+        <tr><td class="k"><code>/standard</code></td><td colspan="2">Shortcut into <code>/warmup</code>, not a third path — carries its own removal notice.</td></tr>
+      </table></div>
+    </section>
+
+    <section id="prohibitions">
+      <h2 class="h"><span class="n">03</span> Prohibitions — verbatim, every brief</h2>
+      <div class="grid2">
+        <div class="rule"><b>1. Never change common-rules on your own initiative.</b>Every edit, merge and installed hook is directed by the sponsor in the conversation, or a standing ruling of his. A peer session's request is never his approval.</div>
+        <div class="rule"><b>2. Never write into another project or its data; never kill a process by name.</b>Covers PhotoVault, <code>finance_data/</code>, pockets' <code>data/</code>. Reading is allowed. A process is stopped only by its explicit PID, only if this session started it.</div>
+      </div>
+    </section>
+
+    <section id="rulings">
+      <h2 class="h"><span class="n">04</span> Standing rulings</h2>
+      <div class="rulings">
+        <div class="ruling"><b>Standard mandatory, every project.</b><span class="quote">"Yes. This is mandatory. It's not optional."</span></div>
+        <div class="ruling"><b>Later standard improvements mandatory too.</b><span class="quote">"if I improve something ... the project should prioritize that and implement it. It's not optional."</span></div>
+        <div class="ruling"><b>common-rules follows its own standard.</b><span class="quote">"I would like you to maintain the same processes what we are implementing in other projects."</span></div>
+        <div class="ruling"><b>Merge once reviews pass — automatically, never a merge command handed to him.</b><span class="quote">"keep going, merge when reviews pass"</span></div>
+        <div class="ruling"><b>Ruflo mandatory around every item.</b> <code>start</code>/<code>recall</code> before, <code>note</code>/<code>done</code> after, daemon stopped after — never killed by name.</div>
+        <div class="ruling"><b>Sonnet only, no Opus — every Agent call this lead dispatches.</b><span class="quote">"Please don't use more than Sonnet."</span> Supersedes the earlier Aug-23 split; work already dispatched at Opus finishes, never restarted.</div>
+        <div class="ruling"><b>One tracker per project</b> until the sponsor asks for another — a proposal declares <code>tracker.own</code> to get its own.</div>
+        <div class="ruling"><b>A <code>Standard change (mandatory)</code> CHANGELOG entry</b> is queued as the next ledger item and implemented before <code>rulecheck --align</code> runs past it.</div>
+      </div>
+    </section>
+
+    <section id="routing">
+      <h2 class="h"><span class="n">05</span> Review routing — <code>tracker route</code> decides it</h2>
+      <p class="dim">The old six-category review list is <b>gone</b> — proposal 23's M-08 replaced it, not duplicated it, once proposal 25 Z-02 / proposal 26 C-02 landed.</p>
+      <pre class="mermaid">
+flowchart LR
+    IT["Item"] --> RT["tracker route LEDGER ITEM_ID"]
+    RT --> RISK{"risk"}
+    RISK -- restricted --> R1["Separate reviewer<br/>sponsor sees result, never bundled"]
+    RISK -- "elevated, or value-high + points≥5" --> R2["Separate reviewer<br/>own branch"]
+    RISK -- standard --> LP{"points = 1?"}
+    LP -- yes --> SKIP["Light path:<br/>no scout, no per-item ledger ceremony"]
+    LP -- no --> B["build → gate → land, no reviewer"]
+      </pre>
+      <p class="dim">common-rules itself declares <code>risk_always: restricted</code> — every item in this repo always routes to a separate reviewer; the light path never applies here.</p>
+    </section>
+
+    <section id="dn">
+      <h2 class="h"><span class="n">06</span> Do / never</h2>
+      <div class="dn">
+        <div class="do">
+          <h4>Do</h4>
+          <ul>
+            <li>Worktree per task, always — <code>git worktree add -b &lt;name&gt; .worktrees/&lt;name&gt;</code></li>
+            <li><code>cd</code> explicitly before every git-writing command; print the branch</li>
+            <li>Commit as you go — uncommitted work is invisible to <code>bin/whoelse</code></li>
+            <li>Run <code>bin/whoelse</code> before starting; message the owner and queue on overlap</li>
+            <li>Builder/item lead: <code>tracker stage</code> only</li>
+            <li>Gate every commit on <code>bin/quiet</code>'s verdict line: <code>^OK</code>, no <code>^FAILED</code></li>
+            <li>Checkpoint before stopping — <code>docs/handovers/&lt;date&gt;-checkpoint.md</code></li>
+            <li><code>bin/handover --check</code> before any turn ends</li>
+          </ul>
+        </div>
+        <div class="never">
+          <h4>Never</h4>
+          <ul>
+            <li><code>git stash</code> — shared across every worktree</li>
+            <li>Kill a process by name — explicit PID only, only one this session started</li>
+            <li>Write into another project or its data</li>
+            <li>Edit <code>common-rules/</code> unprompted, including <code>agents/</code></li>
+            <li><code>tracker set</code> / <code>tracker apply-staged</code> from a builder or item lead</li>
+            <li>Hand-resolve CHANGELOG.md / AGENT-LOG.md / LESSONS.md — union-merged</li>
+            <li>A commit whose only content is a record entry</li>
+            <li>Batch ledger status/log updates — same turn as the state change, every time</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="commands">
+      <h2 class="h"><span class="n">07</span> Commands</h2>
+      <div class="tw"><table>
+        <tr><th>Command</th><th>Purpose</th></tr>
+        <tr><td class="k">bin/warmup --project . --queue</td><td>Fresh lead: full card, queues pending work</td></tr>
+        <tr><td class="k">bin/warmup --project . --reheat --queue</td><td>Running lead: delta since last save</td></tr>
+        <tr><td class="k">bin/tracker route LEDGER ITEM_ID</td><td>How one item is reviewed and bundled</td></tr>
+        <tr><td class="k">bin/tracker lanes LEDGER…</td><td>Share, risk, the 80% cut, each item's lane</td></tr>
+        <tr><td class="k">bin/tracker stage LEDGER ITEM_ID …</td><td>Builder/item lead records an intended change, untouched ledger</td></tr>
+        <tr><td class="k">bin/tracker apply-staged LEDGER</td><td>Dispatcher applies every staged change, one at a time</td></tr>
+        <tr><td class="k">bin/tracker findings add|decide|defer|decline</td><td>Findings-as-ledger-rows</td></tr>
+        <tr><td class="k">bin/tracker rescore LEDGER</td><td>14-day next_check dates for tail-lane items</td></tr>
+        <tr><td class="k">bin/handover --check</td><td>Closing check before any turn ends</td></tr>
+        <tr><td class="k">bin/conformance --project DIR</td><td>The 12-item standard check behind "N of 12 hold"</td></tr>
+        <tr><td class="k">bin/quiet -- &lt;cmd&gt;</td><td>Runs a gate, one verdict line, full log kept</td></tr>
+        <tr><td class="k">bin/quiet --jobs N -- &lt;cmd&gt;</td><td>Shards the full suite across N processes, local only</td></tr>
+        <tr><td class="k">bin/worklog collect</td><td>Time and tokens per task, from session transcripts</td></tr>
+        <tr><td class="k">bin/worklog-nightly</td><td>Collects and commits the day file on a schedule</td></tr>
+        <tr><td class="k">bin/spend calibrate</td><td>Flags any item costing &gt;2× its points class's median</td></tr>
+        <tr><td class="k">bin/land</td><td>Merges a clean, green, reviewed branch through a PR</td></tr>
+        <tr><td class="k">bin/ruflo-item start|note|recall|done</td><td>Mandatory around every item — <code>done ID [ID …] SUMMARY</code> takes several ids</td></tr>
+      </table></div>
+    </section>
+
+    <section id="current">
+      <h2 class="h"><span class="n">08</span> Staying current</h2>
+      <div class="card">
+        <p style="margin:0; font-size:13px">A <code>Standard change (mandatory)</code> CHANGELOG entry touching warmup, reheat, or a rule shown here regenerates <code>docs/cookbook.html</code> in the same commit, and republishes it with the Artifact tool to its existing URL — never a new artifact, never a changed <code>&lt;title&gt;</code> (CLAUDE-workflow.md's T-06, proposal 22, stated once there). Same discipline the tracker page already follows against its ledger.</p>
+      </div>
+      <p class="dim" style="margin-top:10px">Proposal 28, item R-06. Source: <code>docs/cookbook.html</code>. Published: <a href="https://claude.ai/artifact/HYFVRfjemufZH1C83xCxPF">claude.ai/artifact/HYFVRfjemufZH1C83xCxPF</a></p>
+    </section>
+
+  </main>
+</div>
+</div>
+
+<div class="wrap"><footer>common-rules · proposal 28 R-06 · HANDOFF.md · CLAUDE-workflow.md · skills/warmup · skills/reheat · bin/tracker --help · R-06 repair, 16 Sep 2026</footer></div>
