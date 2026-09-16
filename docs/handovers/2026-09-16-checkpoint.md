@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-16 23:07
+# Checkpoint — 2026-09-16 23:36
 
-Reason: manual · branch: worktree-lead-session-record · HEAD: 40dbb43
+Reason: manual · branch: worktree-lead-session-record · HEAD: ba48e66
 
-<!-- ledger-digest: c2eb27c9d34d16c02fde9f6f644092a46712865586a5acb9fdcd1170384ed297 -->
+<!-- ledger-digest: 966f2529890bb15144b6d484b943f7458ff6603a58692370e94aafdbfb046ed8 -->
 
 ## Proposal 19 · Warm-up
 
@@ -51,7 +51,7 @@ Reason: manual · branch: worktree-lead-session-record · HEAD: 40dbb43
 
 ### In progress
 
-- L-01 · [ruflo · lead · opus] · Fresh lead per milestone or day · fresh lead started by the previous lead via claude --bg (H-03)
+- L-01 · [ruflo · lead · opus] · Fresh lead per milestone or day · measured: this fresh lead session passes the criterion; the day's other lead session does not, so L-01 stays open
 
 ### Blocked, and why
 
@@ -71,7 +71,7 @@ Reason: manual · branch: worktree-lead-session-record · HEAD: 40dbb43
 
 ### In progress
 
-- H-02 · [ruflo · medium · sonnet] · Thin dispatcher and short item leads · fresh lead started by the previous lead via claude --bg (H-03)
+- H-02 · [ruflo · medium · sonnet] · Thin dispatcher and short item leads · measured: the first dispatcher-form session stayed under the 150k cap
 
 ### Blocked, and why
 
