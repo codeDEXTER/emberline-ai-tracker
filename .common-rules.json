@@ -1,9 +1,13 @@
 {
-  "read_order": ["CLAUDE.md", "HANDOFF.md", "docs/OPERATING-RULES.md"],
+  "read_order": [
+    "CLAUDE.md",
+    "HANDOFF.md",
+    "docs/OPERATING-RULES.md"
+  ],
   "safety_rules": "HANDOFF.md#Prohibitions",
   "gates": {
     "quick": "python3 -m unittest discover -s tests -q -p 'test_tracker*.py'",
-    "merge": "python3 -m unittest discover -s tests -q"
+    "merge": "bin/quiet --label merge-gate --jobs auto -- python3 -m unittest discover -s tests -q"
   },
   "value_defaults": {
     "tracker": "high",
