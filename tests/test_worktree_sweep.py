@@ -212,13 +212,35 @@ class TestGhMergedPr(SweepFixture):
         git(path, "commit", "-q", "-m", "work behind a merged PR")
         self.backdate(path, 3)
 
+        tip = git(path, "rev-parse", "HEAD").stdout.strip()
+
         def fake_gh(cmd):
             self.assertIn("pr-merged", cmd)
-            return subprocess.CompletedProcess(cmd, 0, json.dumps([{"number": 42}]), "")
+            return subprocess.CompletedProcess(cmd, 0, json.dumps([{"number": 42, "headRefOid": tip}]), "")
 
         rows, _, _ = self.sweep(idle_hours=2, gh_runner=fake_gh)
         row = self.row_for(rows, path)
         self.assertEqual("REMOVABLE", row["verdict"], row)
+
+    def test_kept_when_branch_moved_past_its_merged_pr(self):
+        """A merged PR from this branch is not enough: commits made after the
+        merge are unmerged work, and deleting the branch would lose them."""
+        path = self.add_worktree("pr-then-more", branch="pr-then-more")
+        (path / "x.txt").write_text("x\n")
+        git(path, "add", "-A")
+        git(path, "commit", "-q", "-m", "work behind a merged PR")
+        merged_tip = git(path, "rev-parse", "HEAD").stdout.strip()
+        (path / "y.txt").write_text("y\n")
+        git(path, "add", "-A")
+        git(path, "commit", "-q", "-m", "more work after the merge")
+        self.backdate(path, 3)
+
+        def fake_gh(cmd):
+            return subprocess.CompletedProcess(cmd, 0, json.dumps([{"number": 42, "headRefOid": merged_tip}]), "")
+
+        rows, _, _ = self.sweep(idle_hours=2, gh_runner=fake_gh)
+        row = self.row_for(rows, path)
+        self.assertEqual("KEEP", row["verdict"], row)
 
     def test_gh_error_never_guesses_merged(self):
         path = self.add_worktree("pr-unknown", branch="pr-unknown")

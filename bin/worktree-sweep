@@ -144,13 +144,17 @@ def check_clean(path):
 # 2. merged
 # ---------------------------------------------------------------------------
 
-def gh_pr_merged(branch, project, runner=None):
-    """True/False/None (unknown -- gh unavailable or errored; never guessed)."""
+def gh_pr_merged(branch, project, runner=None, tip=None):
+    """True/False/None (unknown -- gh unavailable or errored; never guessed).
+
+    With `tip`, True only when a merged PR's head commit IS that sha: a branch
+    that gained commits after its PR merged still carries unmerged work, and
+    "some PR from this branch merged" must not delete it."""
     run = runner or (lambda cmd: subprocess.run(cmd, cwd=project, capture_output=True, text=True, timeout=30))
     if runner is None and shutil.which("gh") is None:
         return None
     try:
-        r = run(["gh", "pr", "list", "--state", "merged", "--head", branch, "--json", "number"])
+        r = run(["gh", "pr", "list", "--state", "merged", "--head", branch, "--json", "number,headRefOid"])
     except (OSError, subprocess.TimeoutExpired):
         return None
     if r.returncode != 0:
@@ -159,7 +163,11 @@ def gh_pr_merged(branch, project, runner=None):
         data = json.loads(r.stdout)
     except (ValueError, TypeError):
         return None
-    return bool(data)
+    if not isinstance(data, list):
+        return None
+    if tip is None:
+        return bool(data)
+    return any(isinstance(pr, dict) and pr.get("headRefOid") == tip for pr in data)
 
 
 def check_merged(ref, branch, project, gh_runner=None):
@@ -175,7 +183,7 @@ def check_merged(ref, branch, project, gh_runner=None):
             return True, "no commits beyond origin/main"
 
     if branch:
-        pr = gh_pr_merged(branch, project, runner=gh_runner)
+        pr = gh_pr_merged(branch, project, runner=gh_runner, tip=git_out(["rev-parse", ref], project))
         if pr is True:
             return True, "merged PR on GitHub"
 
