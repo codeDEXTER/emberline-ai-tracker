@@ -1,5 +1,32 @@
 # Changelog — common-rules
 
+## 2026-09-16 · `bin/worktree-sweep` cleans up finished worktrees (WT-01)
+
+**Standard change (mandatory):** common-rules alone had grown ~54 worktrees
+-- agent worktrees under `.claude/worktrees/agent-*`, lead worktrees under
+`.worktrees/<name>`, and `claude --bg --worktree` sessions -- with nothing
+removing the finished ones. Most had gone through a squash-merged GitHub PR,
+so their branch commits were never ancestors of `origin/main` even though
+the work was long since merged: ancestry alone cannot answer "is this
+merged", which is why the new checker asks it four ways (ancestor of
+`origin/main`, nothing committed beyond `origin/main`, a merged GitHub PR
+for the branch's head, or `git cherry origin/main <branch>` showing every
+patch already landed) before ever calling a worktree removable.
+
+`bin/worktree-sweep --project DIR [--apply] [--json] [--idle-hours N]`
+prints one line per worktree with a verdict and reason, dry-run by default;
+`--apply` removes only worktrees that are clean, merged by one of the four
+checks above, and idle (nothing touched in `--idle-hours`, default 2, no
+running `claude` background session and no OS process with its cwd inside
+it). Anything uncommitted, unmerged, or active is kept, with the first
+failing reason. `git worktree prune` runs alongside it and reports any
+administrative entry whose directory is already gone. The main checkout is
+never a candidate.
+
+Projects: run `bin/worktree-sweep --project . --apply` when a session ends
+and after landing a batch, so finished worktrees stop piling up.
+`CLAUDE-workflow.md`, "Working alongside other sessions", carries the rule.
+
 ## 2026-09-16 · Findings are distinguishable across ledgers and never land unsized (P26 F-01)
 
 **Standard change (mandatory):** C-05's first real use exposed two defects
