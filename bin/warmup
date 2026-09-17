@@ -125,6 +125,7 @@ from tools import rules_pull as RP  # noqa: E402
 from tools.tracker import board as B  # noqa: E402
 from tools.tracker import checkpoint as CP  # noqa: E402
 from tools.tracker import ledger as L  # noqa: E402
+from tools.tracker import parts as PT  # noqa: E402, proposal 30, P-04
 from tools.tracker import render as R  # noqa: E402
 from tools.tracker import rescore as RS  # noqa: E402
 
@@ -605,6 +606,37 @@ def mandatory_pending_entries(project: Path) -> list[str]:
     return []
 
 
+def part_info(item: dict, today: datetime.date) -> dict:
+    """Proposal 30, P-04: what the card shows for an item that has `parts` --
+    its completion % and its next open part (id, title, and, when it is
+    waiting, why)."""
+    nxt = PT.next_part(item)
+    info = {"completion": PT.completion(item), "group": PT.group(item, today), "next": None}
+    if nxt is not None:
+        n = {"id": nxt.get("id"), "title": nxt.get("title", "")}
+        if PT.is_waiting(nxt, today):
+            owner = nxt.get("owner")
+            if isinstance(owner, str) and owner.startswith("session:"):
+                n["waiting"] = owner[len("session:"):]
+            elif nxt.get("waiting_until"):
+                n["waiting"] = nxt["waiting_until"]
+        info["next"] = n
+    return info
+
+
+def part_line_suffix(part: dict | None) -> str:
+    """` 50% · next W-10.A (waiting ...)`, or "" for an item without parts."""
+    if part is None:
+        return ""
+    suffix = f" {part['completion']}%"
+    nxt = part.get("next")
+    if nxt:
+        suffix += f" · next {shown(nxt['id'])} {shown(nxt['title'])}"
+        if nxt.get("waiting"):
+            suffix += f" (waiting {shown(nxt['waiting'])})"
+    return suffix
+
+
 def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
     top = git(project, "rev-parse", "--show-toplevel")
     if top is None:
@@ -624,6 +656,10 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
         "prohibitions_from": list(dict.fromkeys(rel for rel, _ in P.safety_sources(decl["safety_rules"]))),
         "prose": list(decl["read_order"]),
         "problems": [], "chain": [], "ledgers": {}, "files": {},
+        # Proposal 30, P-04: every open item (with or without parts) falls
+        # into one of PT.GROUPS; "done" is not shown here, only the three
+        # kinds of open work the card's own line names.
+        "groups": {"finish now": 0, "back burner": 0, "waiting": 0},
         "test_command": test_command(project), "quick_gate": decl["gates"].get("quick"),
         "merge_gate_declared": bool(own.get("gates", {}).get("merge")),
         "rules": rules, "ruflo": ruflo_cli(), "ruflo_namespace": ruflo_namespace(project),
@@ -723,6 +759,16 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             state["problems"].append(problem)
             state["chain"].append(("✗", f"{shown(R.published_path(lp).relative_to(project))} · {label}"))
         unblocked = {i["id"] for i in L.unblocked(data)}
+        # Proposal 30, P-04: an item with lettered parts carries its
+        # completion % and next open part alongside the card's usual fields;
+        # an item without `parts` carries none of this, so its card lines are
+        # untouched.
+        parts_by_id = {i["id"]: part_info(i, today) for i in L.items(data)
+                       if "id" in i and i.get("parts") is not None}
+        for i in L.items(data):
+            g = PT.group(i, today)
+            if g in state["groups"]:
+                state["groups"][g] += 1
         switches_off = []
         for name in L.SWITCHES:
             if not L.switch_on(data, name):
@@ -734,7 +780,8 @@ def gather(project: Path, recall: bool, corpus: list[str]) -> dict:
             "proposal": data.get("proposal"), "title": data.get("title", ""),
             "status_line": L.status_line(data),
             "items": {i["id"]: {"status": i.get("status"), "title": i.get("title", ""), "tag": i.get("tag", ""),
-                                "next": i["id"] in unblocked} for i in L.items(data) if "id" in i},
+                                "next": i["id"] in unblocked, "parts": parts_by_id.get(i["id"])}
+                      for i in L.items(data) if "id" in i},
             "asks": {a["id"]: {"state": a.get("state"), "kind": a.get("kind"), "quote": a.get("quote", "")}
                      for a in (data.get("asks") or []) if "id" in a},
             # Proposal 20, V-02 (D8, D4, D5, D7, D2): each present only when
@@ -975,13 +1022,17 @@ def card(s: dict) -> str:
     for rel, led in s["ledgers"].items():
         out.append(f"Proposal {shown(led['proposal'])} · {shown(led['title'])}: {led['status_line']}")
         for iid, it in led["items"].items():
+            # Proposal 30, P-04: an item with parts appends its completion %
+            # and next open part; one without them is unchanged.
+            suffix = part_line_suffix(it.get("parts"))
             if it["status"] == "in progress":
-                out.append(f"  in progress  {shown(iid)} {shown(it['tag'])} {shown(it['title'])}")
+                out.append(f"  in progress  {shown(iid)} {shown(it['tag'])} {shown(it['title'])}{suffix}")
             elif it["status"] == "blocked":
-                out.append(f"  blocked      {shown(iid)} {shown(it['tag'])} {shown(it['title'])}")
+                out.append(f"  blocked      {shown(iid)} {shown(it['tag'])} {shown(it['title'])}{suffix}")
         for iid, it in led["items"].items():
             if it["next"]:
-                out.append(f"  next         {shown(iid)} {shown(it['tag'])} {shown(it['title'])}")
+                suffix = part_line_suffix(it.get("parts"))
+                out.append(f"  next         {shown(iid)} {shown(it['tag'])} {shown(it['title'])}{suffix}")
         for aid, a in led["asks"].items():
             if a["state"] == "open":
                 out.append(f"  open ask     {shown(aid)} ({shown(a['kind'])}) “{shown(a['quote'])}”")
@@ -990,6 +1041,13 @@ def card(s: dict) -> str:
     project_pub = s.get("published")
     if project_pub and project_pub.get("changed"):
         out.append(publish_line(project_pub))
+    # Proposal 30, P-04: one project-level line counting every open item
+    # (with or without parts) into PT.GROUPS -- "done" is not shown, this
+    # line is about what is still open.
+    g = s.get("groups") or {}
+    if any(g.values()):
+        out.append(f"open work: finish now {g.get('finish now', 0)} · "
+                   f"back burner {g.get('back burner', 0)} · waiting {g.get('waiting', 0)}")
     out.append("Chain:")
     out += [f"  {mark} {text}" for mark, text in s["chain"]]
     if s.get("superseded"):
