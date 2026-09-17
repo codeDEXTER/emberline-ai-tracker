@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 21:41
+# Checkpoint — 2026-09-17 21:42
 
-Reason: manual · branch: gate-speed · HEAD: f326483
+Reason: manual · branch: p31-items-8-10 · HEAD: 13d7912
 
-<!-- ledger-digest: 56993482bd7d92afb3bc1dafa7f46eac06e4809bc1802db5d2094f6b1290b8c6 -->
+<!-- ledger-digest: 87dfb3703cc79e238f855c5fe093930f8a67daf4f101747a791c1f081179ef55 -->
 
 ## Proposal 19 · Warm-up
 
@@ -111,7 +111,7 @@ Reason: manual · branch: gate-speed · HEAD: f326483
 
 ## Proposal 31 · Cheaper turns: a fast gate and scripts instead of bookkeeping
 
-6 done / 0 in progress / 0 blocked / 1 not started
+6 done / 0 in progress / 0 blocked / 4 not started
 
 ### In progress
 
@@ -128,11 +128,16 @@ Reason: manual · branch: gate-speed · HEAD: f326483
 ### Next unblocked
 
 - O-02 · [ruflo · high · sonnet] · The merge gate runs the parallel runner that already exists
+- O-08 · [ruflo · high · sonnet] · A staging branch, so main is never red
+- O-09 · [ruflo · high · sonnet] · Warm-up stops shelling out 23 times to measure conformance
 
 ### Open work by group
 
 **finish now**
 - O-02 0%
+- O-08 0%
+- O-09 0%
+- O-10 0%
 
 ## Exact next action
 
