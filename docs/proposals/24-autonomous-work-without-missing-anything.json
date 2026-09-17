@@ -89,7 +89,7 @@
       "depends": [
         "H-01"
       ],
-      "status": "in progress",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
@@ -143,6 +143,13 @@
           "event": "correction: this session finished at 157,059 peak context and BREACHED the 150k cap; one artifact read caused it",
           "by": "lead 26c10928",
           "evidence": "The 123,840 recorded earlier today was measured mid-session and is superseded. Final: 95 requests, 10,393,867 tokens, 0.0% above 500k, peak context 157,059 -- 4.7% over the 150k dispatcher cap. Single cause: the warm-up card's republish step requires reading the published tracker artifact before publishing to it, and that page is 572.5KB; the read cost about 25k tokens in one call and took the session from 123.8k to over the cap. Everything else this session did -- warm-up, two ledger records, four full-suite runs, two PRs -- fit in 123.8k. This is a real gap in the dispatcher form, not a one-off: any lead that republishes the board pays that read, so the cap and the republish step as written cannot both hold on a page this size."
+        },
+        {
+          "at": "2026-09-17T12:48:16+02:00",
+          "event": "measured 2026-09-17 (this session, 42686527): thin dispatcher ran the whole F-05 bundle -- warm-up check, L-01 record, one sonnet builder dispatched to a worktree, diff review, PR #223 opened and squash-merged, ledger changes staged -- at peak context 88,638 across 46 requests (3.2M tokens). Target was under 150,000; the previous fresh lead breached it at 157k by reading a rendered artifact page. Reading only tracker/grep output and the builder's single quiet: summary line kept the peak at 59% of budget",
+          "by": "lead",
+          "evidence": "tools/worklog.py iter_records + dedupe_messages + usage_tokens over this session's transcript; measured at the ledger-commit point, before this PR's own merge",
+          "status": "done"
         }
       ],
       "points": 3,
