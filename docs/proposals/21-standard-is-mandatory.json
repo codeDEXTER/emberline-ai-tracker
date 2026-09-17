@@ -528,11 +528,26 @@
           "event": "measured",
           "by": "lead",
           "evidence": "15 Sep (P29 K-04): conformance 6 of 12 on origin/main 32cd0b9; behind P22 T-02/T-03 and P23 L-01 to L-07. Stays with session:PhotoVault App to implement via /warmup."
+        },
+        {
+          "at": "2026-09-17T15:36:59+02:00",
+          "event": "split into lettered parts (proposal 30, P-05)",
+          "by": "lead",
+          "evidence": "docs/research/p30-migrate-parts.py"
         }
       ],
       "owner": "session:PhotoVault App",
       "points": 3,
-      "value": "high"
+      "value": "high",
+      "parts": [
+        {
+          "id": "S-07.A",
+          "title": "12 of 12 conformance items hold for PhotoVault app/engine",
+          "share": 100,
+          "status": "not started",
+          "owner": "session:PhotoVault App"
+        }
+      ]
     },
     {
       "id": "S-08",
@@ -563,11 +578,26 @@
           "event": "measured",
           "by": "lead",
           "evidence": "15 Sep (P29 K-04): conformance 7 of 12 on origin/main 32cd0b9 (was 12 of 12 at 4863eec before today's Standard changes); behind P22 T-02/T-03 and P23 L-01 to L-07. Stays with session:PhotoVault Engine."
+        },
+        {
+          "at": "2026-09-17T15:36:59+02:00",
+          "event": "split into lettered parts (proposal 30, P-05)",
+          "by": "lead",
+          "evidence": "docs/research/p30-migrate-parts.py"
         }
       ],
       "owner": "session:PhotoVault Engine",
       "points": 3,
-      "value": "high"
+      "value": "high",
+      "parts": [
+        {
+          "id": "S-08.A",
+          "title": "12 of 12 conformance items hold for PhotoVault app/engine",
+          "share": 100,
+          "status": "not started",
+          "owner": "session:PhotoVault Engine"
+        }
+      ]
     },
     {
       "id": "S-09",
