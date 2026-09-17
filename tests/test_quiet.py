@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
+import json
 import os
 import re
 import subprocess
@@ -319,29 +320,34 @@ class TestQuietParallelDiscover(unittest.TestCase):
 class TestOrderedShards(unittest.TestCase):
     """Pure unit tests of `_ordered_shards`, the sort `_run_parallel_discover`
     uses to decide submission order -- no subprocess, no timing, so these
-    can't be flaky."""
+    can't be flaky. It sorts Units (a whole file, or a group of one file's
+    classes) since O-10 made a slow file splittable."""
+
+    @staticmethod
+    def units(*names):
+        return [quiet.Unit(Path(n)) for n in names]
 
     def test_the_slowest_known_module_goes_first(self):
-        files = [Path(n) for n in ("test_a.py", "test_slow.py", "test_b.py", "test_c.py")]
+        files = self.units("test_a.py", "test_slow.py", "test_b.py", "test_c.py")
         durations = {"test_a.py": 1.0, "test_slow.py": 575.0, "test_b.py": 2.0, "test_c.py": 0.5}
         ordered = quiet._ordered_shards(files, durations)
-        self.assertEqual(ordered[0].name, "test_slow.py")
+        self.assertEqual(ordered[0].path.name, "test_slow.py")
         # and otherwise strictly by descending duration
-        self.assertEqual([p.name for p in ordered],
+        self.assertEqual([u.path.name for u in ordered],
                           ["test_slow.py", "test_b.py", "test_a.py", "test_c.py"])
 
     def test_a_cold_cache_still_orders_every_file_and_drops_none(self):
-        files = [Path(n) for n in ("test_a.py", "test_b.py", "test_c.py")]
+        files = self.units("test_a.py", "test_b.py", "test_c.py")
         ordered = quiet._ordered_shards(files, {})
-        self.assertEqual({p.name for p in ordered}, {"test_a.py", "test_b.py", "test_c.py"})
+        self.assertEqual({u.path.name for u in ordered}, {"test_a.py", "test_b.py", "test_c.py"})
         # no durations known at all -> the incoming (alphabetical) order is
         # kept, a plain round-robin.
-        self.assertEqual([p.name for p in ordered], ["test_a.py", "test_b.py", "test_c.py"])
+        self.assertEqual([u.path.name for u in ordered], ["test_a.py", "test_b.py", "test_c.py"])
 
     def test_unknown_files_sort_after_every_timed_file(self):
-        files = [Path(n) for n in ("test_new.py", "test_timed.py")]
+        files = self.units("test_new.py", "test_timed.py")
         ordered = quiet._ordered_shards(files, {"test_timed.py": 3.0})
-        self.assertEqual([p.name for p in ordered], ["test_timed.py", "test_new.py"])
+        self.assertEqual([u.path.name for u in ordered], ["test_timed.py", "test_new.py"])
 
 
 class TestAutoJobs(unittest.TestCase):
@@ -416,3 +422,116 @@ class TestShardDurationCache(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPlanUnits(unittest.TestCase):
+    """`_plan_units` is the O-10 change: a file too slow to be one shard is
+    cut across its own test classes, so the suite's floor stops being its
+    slowest file (finding 31/F-02 -- tests/test_warmup.py was 575s of a
+    ~1000s suite and `discover -p <one file>` could not split it).
+
+    Pure input/output, no subprocess and no timing, so these cannot flake.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.dir = Path(self._tmp.name)
+
+    def write(self, name, classes, tests_each=1):
+        body = ["import unittest", ""]
+        for c in classes:
+            body.append(f"class {c}(unittest.TestCase):")
+            for n in range(tests_each):
+                body.append(f"    def test_{n}(self):")
+                body.append("        pass")
+            body.append("")
+        p = self.dir / name
+        p.write_text("\n".join(body) + "\n")
+        return p
+
+    def test_a_cold_cache_splits_nothing(self):
+        slow = self.write("test_slow.py", ["TestA", "TestB", "TestC", "TestD"])
+        fast = self.write("test_fast.py", ["TestE"])
+        units = quiet._plan_units([fast, slow], {}, jobs=4)
+        self.assertEqual([u.classes for u in units], [[], []],
+                         "with no timings there is no evidence to split on")
+
+    def test_the_slow_file_is_split_and_the_others_are_not(self):
+        slow = self.write("test_slow.py", ["TestA", "TestB", "TestC", "TestD"])
+        fast = self.write("test_fast.py", ["TestE"])
+        durations = {"test_slow.py": 600.0, "test_fast.py": 10.0}
+        units = quiet._plan_units([fast, slow], durations, jobs=4)
+        fast_units = [u for u in units if u.path.name == "test_fast.py"]
+        slow_units = [u for u in units if u.path.name == "test_slow.py"]
+        self.assertEqual(len(fast_units), 1)
+        self.assertEqual(fast_units[0].classes, [])
+        # target = 610/4 ~= 152.5s; 600/152.5 -> 4 groups, capped by 4 classes
+        self.assertEqual(len(slow_units), 4)
+        self.assertEqual(sorted(c for u in slow_units for c in u.classes),
+                         ["TestA", "TestB", "TestC", "TestD"])
+
+    def test_every_class_appears_exactly_once_across_the_groups(self):
+        slow = self.write("test_slow.py", [f"Test{n}" for n in range(9)])
+        units = quiet._plan_units([slow], {"test_slow.py": 900.0}, jobs=3)
+        got = [c for u in units for c in u.classes]
+        self.assertEqual(sorted(got), sorted(f"Test{n}" for n in range(9)))
+        self.assertEqual(len(got), len(set(got)), "a class must not run twice")
+
+    def test_a_file_is_never_split_past_its_class_count(self):
+        slow = self.write("test_slow.py", ["TestOnly"])
+        units = quiet._plan_units([slow], {"test_slow.py": 9000.0}, jobs=8)
+        self.assertEqual(len(units), 1)
+        self.assertEqual(units[0].classes, [], "one class cannot be spread over eight")
+
+    def test_jobs_one_never_splits(self):
+        slow = self.write("test_slow.py", ["TestA", "TestB"])
+        units = quiet._plan_units([slow], {"test_slow.py": 600.0}, jobs=1)
+        self.assertEqual([u.classes for u in units], [[]])
+
+    def test_a_split_units_key_names_its_own_classes(self):
+        u = quiet.Unit(Path("test_slow.py"), ["TestA", "TestB"])
+        self.assertEqual(u.key, "test_slow.py::TestA+TestB")
+        self.assertEqual(quiet.Unit(Path("test_slow.py")).key, "test_slow.py")
+
+    def test_a_split_unit_runs_named_modules_from_the_tests_directory(self):
+        u = quiet.Unit(Path("test_slow.py"), ["TestA"])
+        argv = u.argv("python3", "tests")
+        self.assertEqual(argv, ["python3", "-m", "unittest", "test_slow.TestA", "-q"])
+        self.assertEqual(u.cwd("tests"), "tests",
+                         "tests/ is not a package, so a bare module name needs that cwd")
+        whole = quiet.Unit(Path("test_slow.py"))
+        self.assertIn("discover", whole.argv("python3", "tests"))
+        self.assertIsNone(whole.cwd("tests"))
+
+    def test_a_files_duration_is_the_sum_of_its_split_units(self):
+        durations = {"test_slow.py::TestA": 100.0, "test_slow.py::TestB": 200.0}
+        self.assertEqual(300.0, quiet._file_duration(Path("test_slow.py"), durations))
+        self.assertEqual(-1.0, quiet._file_duration(Path("test_new.py"), durations))
+
+    def test_test_classes_reads_the_source_and_skips_classes_with_no_tests(self):
+        p = self.write("test_mixed.py", ["TestReal"])
+        p.write_text(p.read_text() + "\nclass Helper:\n    def build(self):\n        pass\n")
+        self.assertEqual(["TestReal"], quiet._test_classes(p))
+
+    def test_split_shards_agree_with_a_sequential_run(self):
+        """End to end: the aggregate over split units reports the same test
+        count and the same verdict as one plain run of the same files."""
+        self.write("test_alpha.py", ["TestA", "TestB", "TestC", "TestD"], tests_each=2)
+        self.write("test_beta.py", ["TestE"], tests_each=2)
+        cache = quiet._duration_cache_path(self.dir)
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps({"test_alpha.py": 600.0, "test_beta.py": 10.0}))
+        self.addCleanup(lambda: cache.unlink(missing_ok=True))
+
+        result = quiet._run_parallel_discover(sys.executable, str(self.dir), "test*.py", 4)
+        self.assertIsNotNone(result)
+        out, code = result
+        self.assertEqual(0, code, out)
+        self.assertIn("Ran 10 tests", out)
+        self.assertIn("OK", out)
+
+        seq = subprocess.run([sys.executable, "-m", "unittest", "discover",
+                              "-s", str(self.dir), "-q"],
+                             capture_output=True, text=True)
+        self.assertIn("Ran 10 tests", seq.stdout + seq.stderr)
