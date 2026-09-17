@@ -93,13 +93,21 @@
       "depends": [
         "O-01"
       ],
-      "status": "not started",
+      "status": "done",
       "tier": "high",
       "model": "sonnet",
       "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-17T22:58:46+02:00",
+          "event": "Measured on one commit (b5a9dd1), back to back, load 4.7-7.7: serial 965.6s, --jobs auto cold 410.7s, --jobs auto warm 245.8s -- 3.9x, and the cold-to-warm jump is O-10's within-file split. Full suite on merged main through the new gate: OK, 1853 tests, 201.5s. gates.merge and .github/workflows/ci.yml both now run bin/quiet --label merge-gate --jobs auto, kept identical by test_ci_matches_land.",
+          "by": "session:common-rules lead",
+          "evidence": "",
+          "status": "done"
+        }
+      ],
       "points": 5,
       "value": "high"
     },
@@ -323,7 +331,7 @@
       "depends": [
         "O-09"
       ],
-      "status": "in progress",
+      "status": "done",
       "tier": "high",
       "model": "sonnet",
       "tag": "[ruflo · high · sonnet]",
@@ -336,6 +344,13 @@
           "by": "session:common-rules lead",
           "evidence": "",
           "status": "in progress"
+        },
+        {
+          "at": "2026-09-17T22:58:46+02:00",
+          "event": "all parts done",
+          "by": "session:common-rules lead",
+          "evidence": "",
+          "status": "done"
         }
       ],
       "points": 5,
@@ -351,7 +366,16 @@
           "id": "O-10.B",
           "title": "Measured on a quiet machine: serial vs --jobs auto on one commit",
           "share": 30,
-          "status": "not started"
+          "status": "done",
+          "log": [
+            {
+              "at": "2026-09-17T22:58:46+02:00",
+              "event": "Measured: serial 965.6s vs --jobs auto warm 245.8s on one commit; the split is what takes it from 410.7s to 245.8s.",
+              "by": "session:common-rules lead",
+              "evidence": "",
+              "status": "done"
+            }
+          ]
         }
       ]
     }

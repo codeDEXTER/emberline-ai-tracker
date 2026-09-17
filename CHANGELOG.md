@@ -1,3 +1,31 @@
+## 2026-09-17 · the merge gate runs in parallel, and the suite is four times faster (O-02)
+
+**Standard change (mandatory):** a project's `gates.merge` runs its suite
+through `bin/quiet --jobs auto`, and its CI workflow runs the identical
+command. Declare it in `.common-rules.json` and change the workflow file in
+the same PR; `tests/test_ci_matches_land.py` fails if the two drift.
+
+Measured on one commit, back to back, machine load 4.7-7.7:
+
+| run | wall clock |
+|---|---|
+| serial | 965.6s |
+| `--jobs auto`, cold shard cache | 410.7s |
+| `--jobs auto`, warm cache | 245.8s |
+
+Then the full suite on merged main, through the new gate: OK, 1853 tests,
+**201.5s**. Proposal 23's M-01 promised this in September and was closed
+without measuring it (finding 23/F-07); this entry exists so the next person
+can check the claim rather than trust it.
+
+Three changes compound to get there, none of them sufficient alone: warm-up
+stopped spawning 23 subprocesses to measure conformance (O-09, 1.9s -> 2.1s
+under load but half its former cost on a quiet machine), shards now split
+*within* a slow file instead of only between files (O-10 -- the cold-to-warm
+jump from 410.7s to 245.8s is that split), and the slowest file's fixture is
+built once and copied (O-01, worth 7%, which is also the record that my first
+diagnosis was wrong).
+
 # Changelog — common-rules
 
 ## 2026-09-17 · warm-up stops shelling out 23 times to measure conformance (O-09)
