@@ -93,7 +93,11 @@
   .dn ul{margin:0; padding-left:16px; font-size:12.5px; color:var(--text)}
   .dn li{margin-bottom:6px}
 
-  .mermaid{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px}
+  .mermaid{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; overflow-x:auto}
+
+  .costnote{font-size:11.5px; color:var(--text-faint); margin:8px 0 0}
+  .stepcell{font-family:var(--mono); font-size:11px; color:var(--accent); font-weight:600; white-space:nowrap}
+  td.num{font-family:var(--mono); white-space:nowrap}
 
   footer{margin-top:40px; padding-top:16px; border-top:1px solid var(--border); font-size:11px; color:var(--text-faint); font-family:var(--mono)}
 </style>
@@ -101,12 +105,12 @@
 <header class="top">
   <div class="inner">
     <div>
-      <div class="eyebrow">common-rules · proposal 28 · R-06</div>
+      <div class="eyebrow">common-rules · proposal 30 · CB-01</div>
       <h1 class="title">Common Rules Cookbook</h1>
     </div>
     <div class="meta">
-      <div><b>Source</b> HANDOFF.md · CLAUDE-workflow.md · skills/warmup · skills/reheat · bin/tracker --help</div>
-      <div><b>Rebuilt</b> 16 Sep 2026 · R-06 repair</div>
+      <div><b>Source</b> HANDOFF.md · CLAUDE-workflow.md · templates/brief.md · bin/tracker --help · transcripts 14-17 Sep 2026</div>
+      <div><b>Rebuilt</b> 17 Sep 2026 · CB-01, visual-first with measured costs</div>
     </div>
   </div>
 </header>
@@ -114,6 +118,9 @@
 <div class="wrap">
 <div class="layout">
   <nav class="toc">
+    <div class="grp">One task</div>
+    <a href="#onetask">The flow</a>
+    <a href="#costs">What it costs</a>
     <div class="grp">Flow</div>
     <a href="#lifecycle">Lifecycle</a>
     <a href="#compare">Warmup / reheat</a>
@@ -128,6 +135,62 @@
   </nav>
 
   <main>
+
+    <section id="onetask">
+      <h2 class="h"><span class="n">00</span> One task, start to finish</h2>
+      <p class="dim">The sponsor gives one task in chat. This is the actual path it takes through the standard, item CB-01 -- five lanes: sponsor, lead, builder, gate, ledger/Ruflo.</p>
+      <pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Sponsor
+    participant Lead as Lead (Opus)
+    participant Builder as Builder (Sonnet/Haiku)
+    participant Gate as Gate (bin/quiet)
+    participant Tracker as Ledger + Ruflo
+
+    Sponsor->>Lead: Task, in chat
+    Lead->>Tracker: tracker ask (A-nn)<br/>+ ledger item, or lettered<br/>part W-10.A (proposal 30)
+    Note over Lead: tracker route -> tier<br/>C1 haiku / C2-C3 sonnet / C4 opus-lead
+    Note over Lead,Builder: optional Haiku scout writes<br/>the CONTEXT pack first (P23 L-06)
+    Lead->>Lead: write 5-heading brief<br/>(templates/brief.md)
+    Lead->>Tracker: ruflo-item start (before)
+    Lead->>Builder: dispatch, own git worktree<br/>(Agent tool, isolation:"worktree")
+
+    Builder->>Builder: red, then green -- write<br/>the test before the fix
+    Builder->>Gate: own gate: AFFECTED tests only<br/>(tools/affected_tests.py, P23 M-02)
+    Gate-->>Builder: verdict line: OK, no FAILED
+    Builder->>Builder: commit only on OK, push branch,<br/>opens no PR
+
+    Builder->>Lead: branch ready
+    Lead->>Lead: review the diff, open the PR
+    Lead->>Gate: squash-merge once green<br/>(adopting project -- standing ruling)<br/>-- common-rules itself reserves this<br/>merge for the sponsor (bin/land)
+    Lead->>Gate: full suite once, on merged main<br/>("verify the merge result, not the branch")
+    Gate-->>Lead: verdict line: OK, no FAILED
+
+    Lead->>Tracker: ruflo-item done (after) --<br/>merge gate once per whole bundle
+    Lead->>Tracker: tracker set --status done --event
+    Note over Tracker: pre-commit hook regenerates<br/>the tracker page + checkpoint
+    Lead->>Sponsor: republish tracker page,<br/>tracker published (sidecar)
+    Lead->>Lead: bin/worktree-sweep --apply<br/>(session end housekeeping)
+      </pre>
+      <p class="dim">A sequence diagram, not a flowchart: the sponsor's ask was "how many tests, when, and why" across actors over time, which lanes-by-actor show directly; a flowchart would need subgraphs per actor and loses the time axis.</p>
+    </section>
+
+    <section id="costs">
+      <h2 class="h"><span class="n">00b</span> What runs when, and what it costs</h2>
+      <div class="tw"><table>
+        <tr><th>Step</th><th>What runs</th><th>Tests</th><th>Tokens</th><th>$</th></tr>
+        <tr><td class="stepcell">1 Ask + ledger</td><td>Lead: <code>tracker ask</code>, <code>tracker set</code></td><td>none</td><td>share of ledger bookkeeping</td><td class="num">~$96 / bundle</td></tr>
+        <tr><td class="stepcell">2 Route + brief + dispatch</td><td>Lead: <code>tracker route</code>, brief.md; optional Haiku scout</td><td>none</td><td>scout ~0.9M each</td><td class="num">~$26 / bundle (briefs)</td></tr>
+        <tr><td class="stepcell">3 Builder implements</td><td>Builder, own worktree, red-then-green</td><td>affected only: ~25 of 73 modules,<br/>~980 of 1,661 tests, ~13 min</td><td>8-10M / builder (Sonnet); 27 builders = 601M</td><td class="num">$258 (25% of the money)</td></tr>
+        <tr><td class="stepcell">4 Review, merge, full suite</td><td>Lead: diff review, PR, merge, full suite on main</td><td>full suite once: 1,661 tests, ~18 min</td><td>git/merge/suite $242 + reading diffs $155 of lead spend</td><td class="num">part of $753 (72%)</td></tr>
+        <tr><td class="stepcell">5 Ruflo wrap</td><td>Lead + builder: <code>bin/ruflo-item start</code>/<code>done</code></td><td><code>bin/conformance</code> item 9 checks the record</td><td>folded into orchestration spend</td><td class="num">--</td></tr>
+        <tr><td class="stepcell">6 Record done + republish</td><td>Lead: <code>tracker set</code>, republish, <code>tracker published</code></td><td>--</td><td>bookkeeping $96 + publishing $16</td><td class="num">part of $753</td></tr>
+        <tr><td class="stepcell">7 Housekeeping</td><td>Lead: <code>bin/worktree-sweep --apply</code></td><td>--</td><td>negligible</td><td class="num">--</td></tr>
+        <tr><td class="stepcell">Whole bundle</td><td>27 builders + 2 lead sessions (1,556 requests) + 34 measuring/4 review agents</td><td>~980 affected per builder gate,<br/>1,661 full suite at integration</td><td>1.19B tokens total</td><td class="num">~$1,044</td></tr>
+      </table></div>
+      <p class="costnote">Measured, not modelled: list prices, from ~/.claude/projects transcripts 14-17 Sep 2026, deduped by message id. Varies with the item -- a fresh dispatcher lead ran a whole bundle at a 96k context peak; one long-running lead hit 843k, and 90% of lead spend came from requests carrying over 200k of context. Builders: 601M tokens, 49% of output tokens, $258. Lead orchestration: 523M tokens, $753 across two sessions. Measuring/research agents (34): 52.7M tokens, $26. Review/verify agents (4): 11.4M tokens, $6.</p>
+    </section>
 
     <section id="lifecycle">
       <h2 class="h"><span class="n">01</span> Lifecycle</h2>
@@ -264,11 +327,30 @@ flowchart LR
       <div class="card">
         <p style="margin:0; font-size:13px">A <code>Standard change (mandatory)</code> CHANGELOG entry touching warmup, reheat, or a rule shown here regenerates <code>docs/cookbook.html</code> in the same commit, and republishes it with the Artifact tool to its existing URL — never a new artifact, never a changed <code>&lt;title&gt;</code> (CLAUDE-workflow.md's T-06, proposal 22, stated once there). Same discipline the tracker page already follows against its ledger.</p>
       </div>
-      <p class="dim" style="margin-top:10px">Proposal 28, item R-06. Source: <code>docs/cookbook.html</code>. Published: <a href="https://claude.ai/artifact/HYFVRfjemufZH1C83xCxPF">claude.ai/artifact/HYFVRfjemufZH1C83xCxPF</a></p>
+      <p class="dim" style="margin-top:10px">Proposal 28, item R-06 (rule); proposal 30, item CB-01 (this visual rebuild). Source: <code>docs/cookbook.html</code>. Published: <a href="https://claude.ai/artifact/HYFVRfjemufZH1C83xCxPF">claude.ai/artifact/HYFVRfjemufZH1C83xCxPF</a></p>
     </section>
 
   </main>
 </div>
 </div>
 
-<div class="wrap"><footer>common-rules · proposal 28 R-06 · HANDOFF.md · CLAUDE-workflow.md · skills/warmup · skills/reheat · bin/tracker --help · R-06 repair, 16 Sep 2026</footer></div>
+<div class="wrap"><footer>common-rules · proposal 28 R-06 · proposal 30 CB-01 · HANDOFF.md · CLAUDE-workflow.md · skills/warmup · skills/reheat · bin/tracker --help · visual rebuild with measured costs, 17 Sep 2026</footer></div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+(function(){
+  function isDark(){
+    var forced = document.documentElement.getAttribute('data-theme');
+    if (forced === 'light') return false;
+    if (forced === 'dark') return true;
+    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  if (window.mermaid) {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: isDark() ? 'dark' : 'default',
+      themeVariables: { fontFamily: "'JetBrains Mono', ui-monospace, monospace" }
+    });
+  }
+})();
+</script>
