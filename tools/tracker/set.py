@@ -1,6 +1,6 @@
 """tracker set -- one-line ledger updates, in place of an inline `python3 -`
 script that loads a ledger, changes one item and dumps it back (proposal 23,
-lever L4, L-04).
+lever L4, L-04). Proposal 30 (P-02) extends it to an item's lettered parts.
 
   tracker set LEDGER ITEM_ID [--status S] [--owner O] [--field KEY=VALUE ...]
                               [--event TEXT [--evidence TEXT]]
@@ -22,13 +22,48 @@ ledgers already close with an `--event` that is not literally "done"). `--by`
 names who logged it (default "lead"); `--at` is the log entry's own time,
 ISO 8601 with an offset (default: now, local, seconds precision).
 
+Parts (proposal 30, P-01's shape, see tools/tracker/parts.py):
+
+  tracker set LEDGER W-10.B --status done --event "..." [--field KEY=VALUE]
+                             [--owner O] [--evidence TEXT] [--by NAME] [--at ISO]
+
+An ITEM_ID with a `.LETTER` suffix targets that lettered part instead of the
+item: the same --status/--owner/--event/--evidence/--by/--at handling
+applies, but the log entry is appended to the *part's own* `log`, and
+`--field` may only touch a part's `owner`, `waiting_until`, `risk`,
+`risk_reason`, `title` or `share` (so `--field share=30` writes the int 30).
+When that change leaves every part of the item done, `set` also closes the
+item: its `status` becomes "done" and an item-level log entry
+{event: "all parts done", status: "done"} is appended. Setting an item
+(not a part) to `--status done` while a part is still open is refused --
+`ledger.validate()` reports it (P-01) and this command prints that finding
+before refusing to write.
+
+  tracker set LEDGER W-10 --add-part "title" --share N [--status S] [--owner O]
+                           [--waiting-until D] [--risk R --risk-reason T]
+
+Appends one new part to W-10, lettered after however many parts it already
+has (A, B, C, ...). Repeat the command to add more; because every write is
+validated first, shares must add up to 100 *after* the command that
+completes them, so the lead adds the last part (or edits an existing
+--field share=N) once the total is right.
+
+  tracker set LEDGER W-10 --parts '[{"title": "...", "share": 40}, ...]'
+
+The simpler way to give an item all its parts at once: replaces an item that
+has no parts yet with the given list, letters assigned A.. in order. Refused
+if the item already has parts.
+
 The ledger is validated with the change already applied, before anything is
 written: on any problem the problems are printed and the file is untouched
-(exit 1). An unknown item id is the same -- exit 1, nothing written. On
-success the ledger is written (indent=2, ensure_ascii=False, trailing
-newline -- the format the engine's own ledgers already use), `updated` moves
-to today, and the page is re-rendered with tools/tracker/render.py so the
-page never falls behind the ledger it was set from.
+(exit 1). An unknown item id, unknown part, or a part reached without its
+parent existing is the same -- exit 1, nothing written. On success the
+ledger is written (indent=2, ensure_ascii=False, trailing newline -- the
+format the engine's own ledgers already use), `updated` moves to today, and
+the page is re-rendered with tools/tracker/render.py so the page never falls
+behind the ledger it was set from. The one-line output names the part (or
+item) changed and, when the item has parts, its new completion percent
+(tools/tracker/parts.py's `completion`).
 
 Exit codes: 0 written, 1 a finding (or nothing to check against), 2 could
 not read the ledger.
@@ -38,13 +73,17 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import re
 import sys
 from pathlib import Path
 
 from tools.tracker import ledger as L
+from tools.tracker import parts as PARTS
 from tools.tracker import render as R
 
 FORBIDDEN_FIELDS = frozenset({"id", "log", "phase"})
+PART_FIELDS = frozenset({"owner", "waiting_until", "risk", "risk_reason", "title", "share"})
+PART_ID = re.compile(r"^(.+)\.([A-Z])$")
 
 
 def _now() -> str:
@@ -110,6 +149,107 @@ def apply_change(data: dict, item_id: str, *, status: str | None = None, owner: 
     return parts
 
 
+def split_target(item_id: str) -> tuple[str, str | None]:
+    """"W-10" -> ("W-10", None); "W-10.B" -> ("W-10", "B")."""
+    m = PART_ID.match(item_id)
+    return (m.group(1), m.group(2)) if m else (item_id, None)
+
+
+def _next_letter(n: int) -> str:
+    letters = PARTS._LETTERS
+    return letters[n] if n < len(letters) else f"#{n + 1}"
+
+
+def add_part(item: dict, title: str, share: int, *, status: str | None = None, owner: str | None = None,
+             waiting_until: str | None = None, risk: str | None = None, risk_reason: str | None = None) -> str:
+    """Append one new lettered part to `item`, in place. Returns its id."""
+    ps = item.setdefault("parts", [])
+    letter = _next_letter(len(ps))
+    part_id = f"{item.get('id')}.{letter}"
+    part = {"id": part_id, "title": title, "share": share, "status": status or "not started"}
+    if owner:
+        part["owner"] = owner
+    if waiting_until:
+        part["waiting_until"] = waiting_until
+    if risk:
+        part["risk"] = risk
+        if risk_reason:
+            part["risk_reason"] = risk_reason
+    ps.append(part)
+    return part_id
+
+
+def set_parts(item: dict, spec_list: list) -> None:
+    """Replace `item`'s (empty) parts with `spec_list`, in place, lettering
+    A.. in order. Raises ValueError if `item` already has parts."""
+    if PARTS.parts(item):
+        raise ValueError(f"{item.get('id')}: already has parts -- --parts only replaces an item with none yet")
+    new_parts = []
+    for n, spec in enumerate(spec_list):
+        if not isinstance(spec, dict):
+            raise ValueError(f"--parts[{n}] is not an object")
+        letter = _next_letter(n)
+        part = {"id": f"{item.get('id')}.{letter}", "title": spec.get("title"), "share": spec.get("share"),
+                "status": spec.get("status") or "not started"}
+        for k in ("owner", "waiting_until", "risk", "risk_reason"):
+            if spec.get(k) is not None:
+                part[k] = spec[k]
+        new_parts.append(part)
+    item["parts"] = new_parts
+
+
+def apply_part_change(data: dict, parent_id: str, letter: str, *, status: str | None = None,
+                       owner: str | None = None, fields: list[tuple[str, object, str]] = (),
+                       event: str | None = None, evidence: str = "", by: str = "lead",
+                       at: str | None = None) -> list[str] | None:
+    """Apply one change to part `parent_id`.`letter`, in place. Returns the
+    human-readable parts on success, or None when the item or the part is
+    not found. Raises ValueError for a `--field` not allowed on a part.
+
+    When this leaves every part of the item done, also closes the item
+    itself (status "done", an item-level log entry {"event": "all parts
+    done", "status": "done"}) -- proposal 30, P-02's roll-up rule."""
+    item = L.by_id(data).get(parent_id)
+    if item is None:
+        return None
+    ps = PARTS.parts(item)
+    part_id = f"{parent_id}.{letter}"
+    part = next((p for p in ps if p.get("id") == part_id), None)
+    if part is None:
+        return None
+
+    changed = []
+    if owner is not None:
+        part["owner"] = owner
+        changed.append(f"owner {owner}")
+    for key, value, shown in fields:
+        if key not in PART_FIELDS:
+            raise ValueError(f"--field may not set {key!r} on a part -- allowed: {', '.join(sorted(PART_FIELDS))}")
+        part[key] = value
+        changed.append(f"field {key}={shown}")
+    if status is not None:
+        part["status"] = status
+        changed.append(f"status {status}")
+
+    event_text = event if event is not None else status
+    if event_text is not None:
+        entry = {"at": at or _now(), "event": event_text, "by": by, "evidence": evidence}
+        if status is not None:
+            entry["status"] = status
+        part.setdefault("log", []).append(entry)
+        changed.append(f'log "{event_text}"')
+
+    if ps and all(p.get("status") == "done" for p in ps) and item.get("status") != "done":
+        item["status"] = "done"
+        item.setdefault("log", []).append({
+            "at": _now(), "event": "all parts done", "by": by, "evidence": "", "status": "done",
+        })
+        changed.append("item done (all parts done)")
+
+    data["updated"] = datetime.date.today().isoformat()
+    return changed
+
+
 def _render(data: dict, path: Path) -> None:
     out = R.default_out(path)
     repo = R.infer_repo(path)
@@ -130,6 +270,12 @@ def main(argv) -> int:
     ap.add_argument("--evidence", default="")
     ap.add_argument("--by", default="lead")
     ap.add_argument("--at")
+    ap.add_argument("--add-part", metavar="TITLE")
+    ap.add_argument("--share", type=int)
+    ap.add_argument("--waiting-until")
+    ap.add_argument("--risk")
+    ap.add_argument("--risk-reason")
+    ap.add_argument("--parts", metavar="JSON")
     args = ap.parse_args(argv)
     say = "tracker set:"
 
@@ -151,11 +297,73 @@ def main(argv) -> int:
         print(f"{say} {exc}", file=sys.stderr)
         return 2
 
-    parts = apply_change(data, args.item_id, status=args.status, owner=args.owner, fields=fields,
-                          event=args.event, evidence=args.evidence, by=args.by, at=args.at)
-    if parts is None:
-        print(f"{say} {args.item_id} is not an item in {args.ledger} -- nothing written", file=sys.stderr)
-        return 1
+    parent_id, letter = split_target(args.item_id)
+
+    if args.add_part is not None or args.parts is not None:
+        if letter is not None:
+            print(f"{say} --add-part/--parts take an item id, not a part id ({args.item_id}) -- nothing written",
+                  file=sys.stderr)
+            return 1
+        item = L.by_id(data).get(args.item_id)
+        if item is None:
+            print(f"{say} {args.item_id} is not an item in {args.ledger} -- nothing written", file=sys.stderr)
+            return 1
+
+    if args.add_part is not None:
+        if args.parts is not None:
+            print(f"{say} --add-part and --parts are alternatives -- nothing written", file=sys.stderr)
+            return 1
+        if args.share is None:
+            print(f"{say} --add-part needs --share -- nothing written", file=sys.stderr)
+            return 1
+        if args.risk and not args.risk_reason:
+            print(f"{say} --risk needs --risk-reason -- nothing written", file=sys.stderr)
+            return 1
+        part_id = add_part(item, args.add_part, args.share, status=args.status, owner=args.owner,
+                            waiting_until=args.waiting_until, risk=args.risk, risk_reason=args.risk_reason)
+        data["updated"] = datetime.date.today().isoformat()
+        result = [f"added {part_id}", f"share {args.share}"]
+        if args.status:
+            result.append(f"status {args.status}")
+        if args.owner:
+            result.append(f"owner {args.owner}")
+        target_item = item
+    elif args.parts is not None:
+        try:
+            spec_list = json.loads(args.parts)
+        except (json.JSONDecodeError, ValueError) as exc:
+            print(f"{say} --parts is not valid JSON: {exc} -- nothing written", file=sys.stderr)
+            return 1
+        if not isinstance(spec_list, list) or not spec_list:
+            print(f"{say} --parts must be a non-empty JSON list -- nothing written", file=sys.stderr)
+            return 1
+        try:
+            set_parts(item, spec_list)
+        except ValueError as exc:
+            print(f"{say} {exc} -- nothing written", file=sys.stderr)
+            return 1
+        data["updated"] = datetime.date.today().isoformat()
+        result = [f"{len(spec_list)} part(s) added"]
+        target_item = item
+    elif letter is not None:
+        try:
+            result = apply_part_change(data, parent_id, letter, status=args.status, owner=args.owner,
+                                        fields=fields, event=args.event, evidence=args.evidence,
+                                        by=args.by, at=args.at)
+        except ValueError as exc:
+            print(f"{say} {exc} -- nothing written", file=sys.stderr)
+            return 1
+        if result is None:
+            print(f"{say} {args.item_id} is not a part in {args.ledger} -- nothing written", file=sys.stderr)
+            return 1
+        target_item = L.by_id(data).get(parent_id)
+    else:
+        result = apply_change(data, args.item_id, status=args.status, owner=args.owner, fields=fields,
+                               event=args.event, evidence=args.evidence, by=args.by, at=args.at)
+        if result is None:
+            print(f"{say} {args.item_id} is not an item in {args.ledger} -- nothing written", file=sys.stderr)
+            return 1
+        target_item = L.by_id(data).get(args.item_id)
 
     problems = L.validate(data)
     if problems:
@@ -166,8 +374,10 @@ def main(argv) -> int:
 
     args.ledger.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
     _render(data, args.ledger)
-    parts.append("page rendered")
-    print(f"{say} {args.item_id} " + " · ".join(parts))
+    if target_item is not None and PARTS.parts(target_item):
+        result.append(f"completion {PARTS.completion(target_item)}%")
+    result.append("page rendered")
+    print(f"{say} {args.item_id} " + " · ".join(result))
     return 0
 
 
