@@ -840,12 +840,27 @@ class TestItem9Ruflo(Copy):
 
     def test_pre_cutoff_items_are_ignored_but_counted(self):
         # B-01 (done, pre-cutoff) alone: nothing required, and the baseline
-        # empty .swarm/memory.db already holds -- this pins the "not
-        # counted" note appears once a pre-cutoff item exists.
+        # empty .swarm/memory.db already holds -- this pins that the note
+        # appears once a pre-cutoff item exists.
         data, code = report(self.p)
         self.assertEqual(states_of(data)[9], HOLDS)
         self.assertIn("2026-09-17", self.item(data, 9)["why"])
-        self.assertIn("not counted", self.item(data, 9)["why"])
+        self.assertIn("not checked", self.item(data, 9)["why"])
+
+    def test_f05_the_note_says_not_checked_not_missing_a_record(self):
+        # F-05: the pre-cutoff note used to read "have no Ruflo record (not
+        # counted)", which is false for any pre-cutoff item that does have a
+        # done record -- it's excluded because it predates the cutoff and was
+        # never checked, not because evidence is missing. Give B-01 (the
+        # fixture's lone pre-cutoff done item) a done record and confirm the
+        # why states the true reason and never claims the record is absent.
+        write_swarm_db(self.p, [("item:B-01:start", "demo"), ("item:B-01:done", "demo")])
+        data, code = report(self.p)
+        why = self.item(data, 9)["why"]
+        self.assertEqual(states_of(data)[9], HOLDS)
+        self.assertIn("1 item(s) closed before 2026-09-17 not checked", why)
+        self.assertIn("of which 1 have records", why)
+        self.assertNotIn("no Ruflo record", why)
 
     def test_an_id_shared_by_two_ledgers_needs_only_one_record(self):
         run([sys.executable, NEW_PROPOSAL, "--project", self.p, "Second plan"])
