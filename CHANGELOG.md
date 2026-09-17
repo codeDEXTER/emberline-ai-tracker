@@ -50,6 +50,47 @@ paragraph, and the Issues section for batch dispatch) and in
 `templates/lead-prompt.md` (§2 for the gate, §3 for batch dispatch), and
 `templates/brief.md` restates the gate half of it for the builder who runs
 one. No new top-level section was added to any of the three files.
+## 2026-09-17 · `bin/commit-if-green`: gate, commit and push in one call (O-04)
+
+Proposal 31, D4: a builder finishing a task spent three model turns on a
+mechanical sequence after the gate -- `git add`, `git commit`, `git push` --
+and the OK/FAILED call itself was read by the model from raw gate output
+rather than checked by code. HANDOFF.md's operating rules (S3) record the
+day that went wrong: a `grep ... && git commit` chain shipped a failing
+test because grep exits 0 on a line containing "FAILED".
+
+Added `bin/commit-if-green [--project DIR] [--message MSG | --message-file
+FILE] [--push] [--timeout SECONDS] [--gate CMD...]`. It runs the gate through
+`bin/quiet` (`--timeout`, default 600s: the gate is killed and nothing is
+committed if it has not produced a verdict by then, with the log path
+printed either way -- found while building this, when the full
+affected-tests set ran into this very harness's 120s auto-background limit
+and left no way to tell "still running" from "hung" without re-polling) --
+default is the standard's own affected-tests gate (`tools/affected_tests.py
+--base origin/main`, mapped to bare module names, `python3 -m unittest
+<mods> -q` from `tests/`; falls back to the full suite when nothing is
+affected) -- and commits (`git add -A` then `git commit`) only when quiet's
+own verdict line starts `quiet: OK` **and** quiet's own exit code is 0.
+FAILED, a nonzero exit, and an empty or unrecognised verdict line are all
+treated as failure, never as success; it never re-parses the gate's raw
+output itself, only quiet's one line. Refuses before running anything
+(exit 2): bad usage, `--push` while on `main` (never pushed), a merge or
+rebase already in progress, or nothing staged and nothing to stage. `--push`
+uses `--force-with-lease` when the branch already tracks a remote branch of
+the same name, otherwise `-u origin <branch>`. Appends the
+`Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>` trailer if not
+already present. Exit codes: 0 committed, 1 gate failed, 2 refused before
+the gate ran.
+
+`tests/test_commit_if_green.py` (16 cases) runs it against throwaway git
+repos with a fake gate: commits on green, commits nothing on red, the
+FAILED-while-exit-0 grep trap, an unrecognised verdict from a stub
+`bin/quiet`, a slow gate hitting `--timeout`, every pre-flight refusal
+above, attribution added once and not twice, and both push shapes -- never
+the real suite, never the real repo.
+
+This is not a Standard change: the tool is available for a builder to use,
+not yet required.
 
 ## 2026-09-17 · lettered parts are the standard way to split an item (P-06)
 
