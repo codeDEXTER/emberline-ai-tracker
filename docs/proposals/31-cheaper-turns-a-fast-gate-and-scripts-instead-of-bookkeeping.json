@@ -96,13 +96,21 @@
       "tests": [],
       "done": "A Standard change (mandatory) CHANGELOG entry; the rule in templates/brief.md, templates/lead-prompt.md and CLAUDE-workflow.md; a test that fails if the brief template loses it.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "high",
       "model": "sonnet",
       "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-17T21:30:49+02:00",
+          "event": "Extended the gate rule into CLAUDE-workflow.md's gate section, templates/lead-prompt.md §2 and templates/brief.md's MUST section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
+          "by": "session:o03-o07-turn-rules",
+          "evidence": "cc1806f45e5cd799c084b3c4fe0a1e88e04f7eb6",
+          "status": "done"
+        }
+      ],
       "points": 3,
       "value": "high"
     },
@@ -192,13 +200,21 @@
       "tests": [],
       "done": "Standard change (mandatory) entry; the rule in the lead prompt and CLAUDE-workflow.md; a test pinning it in the templates.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "high",
       "model": "sonnet",
       "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-17T21:31:01+02:00",
+          "event": "Extended batch dispatch as a cost rule into templates/lead-prompt.md §3 and CLAUDE-workflow.md's Issues section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
+          "by": "session:o03-o07-turn-rules",
+          "evidence": "cc1806f45e5cd799c084b3c4fe0a1e88e04f7eb6",
+          "status": "done"
+        }
+      ],
       "points": 2,
       "value": "medium"
     }
