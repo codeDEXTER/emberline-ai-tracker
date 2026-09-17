@@ -1,7 +1,13 @@
-"""Proposal 30, P-05: every open item in the repo's ledgers is either split
-into valid lettered parts or is one of proposal 30's own whole items (P-01
-through P-06, tracked without parts by design -- see that proposal's own
-P-05 row). Also pins the lead's approved shares for the five migrated items.
+"""Proposal 30, P-05: every item being worked on is either split into valid
+lettered parts or is one of proposal 30's own whole items (P-01 through
+P-06, tracked without parts by design -- see that proposal's own P-05 row).
+Also pins the lead's approved shares for the five migrated items.
+
+"Being worked on" and not merely open, because proposal 30's rule is that
+"an item that cannot reach 100% in one go is split into parts" -- a queued
+item nobody has started yet has nothing to split, and the lead sets its
+shares when the work turns out to need them (D2). Requiring parts on every
+not-started row would make every new ledger item carry invented shares.
 
 Run:  python3 -m unittest discover -s tests -q
 """
@@ -28,12 +34,15 @@ EXPECTED_SHARES = {
 }
 
 
-def open_items():
-    """(ledger_path, item) for every item whose status is not 'done'."""
+STARTED = ("in progress", "in review", "in testing", "blocked")
+
+
+def started_items():
+    """(ledger_path, item) for every item someone has begun."""
     for path in LEDGER.find(ROOT):
         data = LEDGER.load(path)
         for i in LEDGER.items(data):
-            if i.get("status") != "done":
+            if i.get("status") in STARTED:
                 yield path, i
 
 
@@ -41,7 +50,7 @@ class TestEveryOpenItemHasPartsOrIsWholeByDesign(unittest.TestCase):
 
     def test_every_open_item_has_valid_parts_or_is_a_p30_whole_item(self):
         problems = []
-        for path, i in open_items():
+        for path, i in started_items():
             iid = i.get("id")
             if iid in PROPOSAL_30_WHOLE_ITEMS:
                 self.assertNotIn("parts", i, f"{path.name} {iid}: a proposal-30 P-0x "
@@ -49,7 +58,7 @@ class TestEveryOpenItemHasPartsOrIsWholeByDesign(unittest.TestCase):
                 continue
             part_problems = PARTS.validate_parts(i)
             if not i.get("parts"):
-                problems.append(f"{path.name} {iid}: open item has no parts and is not "
+                problems.append(f"{path.name} {iid}: item in flight has no parts and is not "
                                  "a P-0x whole item")
             elif part_problems:
                 problems.extend(f"{path.name}: {p}" for p in part_problems)
