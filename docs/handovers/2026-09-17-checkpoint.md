@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 22:03
+# Checkpoint — 2026-09-17 22:06
 
-Reason: manual · branch: finding-claude-md · HEAD: a3c5821
+Reason: manual · branch: o09-warmup-speed · HEAD: 22980b8
 
-<!-- ledger-digest: 65dbfec1e1c015da616cd780331d12468f7e0b62f8ac5c2c80e8e68f9ebdf358 -->
+<!-- ledger-digest: 43d5a063f14f7fcc5ee040c4e305dbd3e492e76b27eb381ae01f1033ce961bb0 -->
 
 ## Proposal 19 · Warm-up
 
@@ -111,11 +111,11 @@ Reason: manual · branch: finding-claude-md · HEAD: a3c5821
 
 ## Proposal 31 · Cheaper turns: a fast gate and scripts instead of bookkeeping
 
-6 done / 1 in progress / 0 blocked / 3 not started
+7 done / 0 in progress / 0 blocked / 3 not started
 
 ### In progress
 
-- O-10 · [ruflo · high · sonnet] · Shards split within a file, not just between files · Sharding now splits within a file: a Unit is a file or a group of its test classes, planned against the balanced target from the duration cache. 38 test_quiet tests green. The real-suite measurement is deliberately left to O-02, on a quiet machine.
+- none
 
 ### Blocked, and why
 
@@ -129,15 +129,14 @@ Reason: manual · branch: finding-claude-md · HEAD: a3c5821
 
 - O-02 · [ruflo · high · sonnet] · The merge gate runs the parallel runner that already exists
 - O-08 · [ruflo · high · sonnet] · A staging branch, so main is never red
-- O-09 · [ruflo · high · sonnet] · Warm-up stops shelling out 23 times to measure conformance
+- O-10 · [ruflo · high · sonnet] · Shards split within a file, not just between files
 
 ### Open work by group
 
 **finish now**
 - O-02 0%
 - O-08 0%
-- O-09 0%
-- O-10 70% · next O-10.B
+- O-10 0%
 
 ## Exact next action
 
