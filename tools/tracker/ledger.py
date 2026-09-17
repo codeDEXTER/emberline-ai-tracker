@@ -240,6 +240,9 @@ def validate(ledger: dict) -> list[str]:
             problems.append(f"{name}: no `quote` -- an ask is recorded in the sponsor's words")
         if a.get("state") == "became-item" and not a.get("became"):
             problems.append(f"{name}: became-item but `became` names nothing")
+    from tools.tracker import parts as PARTS  # proposal 30, P-01
+    for i in items(ledger):
+        problems.extend(PARTS.validate_parts(i))
     problems.extend(_validate_sizing(ledger))
     problems.extend(_validate_v2(ledger, ids, ask_ids))
     problems.extend(_validate_tracker(ledger))
