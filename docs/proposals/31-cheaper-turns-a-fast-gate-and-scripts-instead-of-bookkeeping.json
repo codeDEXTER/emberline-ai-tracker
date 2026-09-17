@@ -1,0 +1,202 @@
+{
+  "proposal": 31,
+  "title": "Cheaper turns: a fast gate and scripts instead of bookkeeping",
+  "status": "accepted",
+  "updated": "2026-09-17",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "sonnet",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "opus",
+      "effort": "low or medium",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "O",
+      "name": "Optimise the loop"
+    }
+  ],
+  "items": [
+    {
+      "id": "O-01",
+      "phase": "O",
+      "cx": "C2",
+      "title": "The suite's slowest file stops rebuilding its world per test",
+      "what": "tests/test_warmup.py builds a git repo plus three bin/tracker subprocesses in every test's setUp: 574.9s for 122 tests (finding 23/F-06). Build the seeded project once and copytree it per test. No assertion changes.",
+      "files": [],
+      "tests": [],
+      "done": "test_warmup's wall clock measured before and after on the same commit, with an unchanged `Ran N tests` line.",
+      "depends": [],
+      "status": "in progress",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 3,
+      "value": "high",
+      "parts": [
+        {
+          "id": "O-01.A",
+          "title": "Build the seeded project once, copy it per test",
+          "share": 100,
+          "status": "in progress"
+        }
+      ]
+    },
+    {
+      "id": "O-02",
+      "phase": "O",
+      "cx": "C3",
+      "title": "The merge gate runs the parallel runner that already exists",
+      "what": "bin/quiet --jobs was built for 23/M-01 and never wired in (finding 23/F-07). Shards dispatch longest-known-first from a duration cache, --jobs auto resolves to cpu_count()-2, and .common-rules.json's gates.merge plus bin/land pass it.",
+      "files": [],
+      "tests": [],
+      "done": "Serial vs --jobs auto wall clock measured on the same commit after O-01; gates.merge and bin/land use it; the verdict line's shape is unchanged.",
+      "depends": [
+        "O-01"
+      ],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo · high · sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 5,
+      "value": "high"
+    },
+    {
+      "id": "O-03",
+      "phase": "O",
+      "cx": "C3",
+      "title": "No waiting on a gate: one blocking call, one verdict line",
+      "what": "An agent that backgrounds a gate and polls it spends a full context re-send (~134k tokens, measured) per check to learn nothing. The standard says: run the gate in the foreground, read the verdict line in the same turn, never park a turn on a timer. Mandatory Standard change, in the brief template, the lead prompt and CLAUDE-workflow.md.",
+      "files": [],
+      "tests": [],
+      "done": "A Standard change (mandatory) CHANGELOG entry; the rule in templates/brief.md, templates/lead-prompt.md and CLAUDE-workflow.md; a test that fails if the brief template loses it.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo · high · sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 3,
+      "value": "high"
+    },
+    {
+      "id": "O-04",
+      "phase": "O",
+      "cx": "C2",
+      "title": "bin/commit-if-green: gate, verdict and commit in one call",
+      "what": "Today a builder reads the gate's verdict, then issues git add, git commit and git push as separate tool calls -- four model turns for a mechanical sequence, and the OK/FAILED check is applied by the model rather than by code. One wrapper runs the gate, commits and pushes only on a verdict line matching ^OK with no ^FAILED, and reports what it did.",
+      "files": [],
+      "tests": [],
+      "done": "Refuses on FAILED, on a non-zero exit and on an empty verdict; commits nothing in either case; tested against a fixture repo with a passing and a failing gate.",
+      "depends": [],
+      "status": "not started",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 3,
+      "value": "high"
+    },
+    {
+      "id": "O-05",
+      "phase": "O",
+      "cx": "C2",
+      "title": "A PR body drafted from the ledger item and the diff",
+      "what": "The lead composes every PR title and body from memory of the item and the diff, having already read both. A script prints a skeleton -- item id, title, files touched, test counts -- for the lead to edit rather than compose.",
+      "files": [],
+      "tests": [],
+      "done": "Prints a usable body for a real branch and item; the lead's edits are what lands; tested on a fixture ledger and diff.",
+      "depends": [],
+      "status": "not started",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 2,
+      "value": "medium"
+    },
+    {
+      "id": "O-06",
+      "phase": "O",
+      "cx": "C2",
+      "title": "One draft for the ruflo-item done note and the ledger event",
+      "what": "The same facts (item id, commit, PR, test counts) are written twice by hand: once as the ruflo-item done summary, once as tracker set --event text. Draft both from the same source; the lead adjusts wording.",
+      "files": [],
+      "tests": [],
+      "done": "Both texts drafted from one call on a fixture item; the lead's wording still wins; tested.",
+      "depends": [],
+      "status": "not started",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 2,
+      "value": "medium"
+    },
+    {
+      "id": "O-07",
+      "phase": "O",
+      "cx": "C3",
+      "title": "Batch dispatch: one message carries every unblocked brief",
+      "what": "Six briefs in one message cost one lead turn; six messages cost six. The standard already says to spawn every unblocked C1/C2 item in one message -- say it as a cost rule, with the same rule for reviewing branches, and say that a lead never sends a brief a turn at a time.",
+      "files": [],
+      "tests": [],
+      "done": "Standard change (mandatory) entry; the rule in the lead prompt and CLAUDE-workflow.md; a test pinning it in the templates.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo · high · sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 2,
+      "value": "medium"
+    }
+  ],
+  "asks": [
+    {
+      "id": "A-01",
+      "at": "2026-09-17T21:10:54+02:00",
+      "kind": "decision",
+      "quote": "Implement all the five recommendations with the recommended decisions.",
+      "became": null,
+      "state": "answered"
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {}
+}

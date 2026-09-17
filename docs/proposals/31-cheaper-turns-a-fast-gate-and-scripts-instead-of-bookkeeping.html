@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>31 · accepted · Cheaper turns: a fast gate and scripts instead of bookkeeping</title>
+<meta name="proposal-id" content="31">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-17">
+<meta name="common-rules-template" content="proposal/21">
+<!--
+  Written by common-rules bin/new-proposal from templates/proposal.html
+  (proposal 21, S-02). Replace every highlighted passage; delete none of
+  the sections. The status appears in four places that must agree: the
+  proposal-status meta above, the <title>, the <h1>, and the
+  "Proposal NN · proposed DATE" line under the heading. The Decided
+  section below says exactly what to change when the sponsor answers.
+-->
+<style>
+  :root {
+    --ground: #F1F2F4; --surface: #FFFFFF; --ink: #16191D; --dim: #5E6873;
+    --border: #D3D8DE; --accent: #C2521F; --accent-soft: #F7E3D8;
+    --fill: #FFF3BF; --fill-ink: #5C4400;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #111417; --surface: #1A1F24; --ink: #E5E8EB; --dim: #939DA7;
+      --border: #2F3841; --accent: #EE7A45; --accent-soft: #3A2419;
+      --fill: #3B3313; --fill-ink: #F2DC8C;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 90px; }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.01em; margin: 0; }
+  h1 .num, h1 .status { color: var(--accent); }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 40px 0 10px; }
+  .sub { color: var(--dim); margin: 10px 0 0; max-width: 72ch; }
+  .card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; margin-top: 12px; }
+  blockquote { margin: 0; padding: 14px 20px; background: var(--surface); border-left: 3px solid var(--accent); font-size: 17px; }
+  blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--dim); }
+  .opt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .opt .card h3 { margin: 0 0 6px; font-size: 16px; }
+  ol.decisions { background: var(--surface); border: 1px solid var(--border); margin: 12px 0 0; padding: 14px 20px 14px 44px; }
+  ol.decisions li + li { margin-top: 6px; }
+  .slot { border: 1px dashed var(--border); padding: 14px 20px; margin-top: 12px; color: var(--dim); }
+  .slot li + li { margin-top: 8px; }
+  .m { font-family: var(--mono); font-size: .9em; }
+  pre.m { background: var(--surface); color: var(--ink); border: 1px solid var(--border); padding: 8px 12px; margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .fill { background: var(--fill); color: var(--fill-ink); padding: 0 3px; }
+  .src { font-size: 13px; color: var(--dim); margin-top: 36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="num">31</span> · <span class="status">accepted</span> · Cheaper turns: a fast gate and scripts instead of bookkeeping</h1>
+<p class="sub">Proposal 31 · accepted 2026-09-17. The sponsor asked what could be optimised in the workflow, whether the tests can run locally, and why they need so many tokens. Measuring it gave a different answer than the question assumed: the tests cost nothing, and the money goes on the number of model turns. This proposal is the seven pieces of work that follow from that.</p>
+
+<h2>The ask</h2>
+<blockquote>
+  what can be optimized in this workflow can the tests be locally run why do they need so many tokens
+  <cite>The sponsor, 17 Sep 2026, in this session's chat; recorded as ask A-01 in the ledger beside this page.</cite>
+</blockquote>
+<blockquote>
+  So what can we improve here? To optimize you're telling me you have a lot of problems but give me solutions
+  <cite>The sponsor, 17 Sep 2026, same session, after the first measurements.</cite>
+</blockquote>
+<blockquote>
+  Implement all the five recommendations with the recommended decisions.
+  <cite>The sponsor, 17 Sep 2026, accepting the five recommendations below.</cite>
+</blockquote>
+
+<h2>What was found</h2>
+<div class="card">
+  <ul>
+    <li><b>The tests already run locally and cost nothing.</b> The suite is plain <span class="m">unittest</span>: no network, no model calls, no tokens. The premise of the question is answered by measurement, not by change.</li>
+    <li><b>One agent turn costs about 134,000 cache-read context tokens</b> to produce a few hundred written ones — read off a single builder record in this session's transcript. Cost therefore scales with the <i>number</i> of turns, not with the work inside them. It is why 72% of this project's spend went to lead orchestration and 25% to implementing.</li>
+    <li><b>The suite is ~16 minutes, and one file is a third of it.</b> <span class="m">tests/test_warmup.py</span>: 574.9s for 122 tests, 4.7s each, against <span class="m">test_tracker_render</span>'s 0.36s. Every test rebuilds a git repo and shells out to three <span class="m">bin/tracker</span> subprocesses in its <span class="m">setUp</span>. Recorded as finding 23/F-06.</li>
+    <li><b>Sharding does not help yet.</b> <span class="m">bin/quiet --jobs 8</span> measured 610s wall — no better than serial — because one shard holds that one file, while the other six finished in 15, 27, 66, 129, 164 and 222s.</li>
+    <li><b>The parallel runner was built and never switched on.</b> <span class="m">bin/quiet --jobs</span> exists from proposal 23's M-01, whose own done criterion was "Suite wall-clock measured before and after on the same commit; merge gate and land use it". Neither happened: its evidence quotes one sequential 1210.2s run, and <span class="m">gates.merge</span> still runs the plain serial discover. Recorded as finding 23/F-07.</li>
+    <li><b>Two builders spent turns polling a backgrounded suite</b> in this very session, each check re-sending a full context to learn nothing. That is the habit, not an accident.</li>
+    <li><b>Not verified:</b> what the suite costs after the fixture fix and with balanced shards. O-01 and O-02 must measure it before and after on the same commit — the mistake M-01 made is exactly the one not to repeat.</li>
+  </ul>
+</div>
+
+<h2>Options</h2>
+<div class="opt">
+  <div class="card">
+    <h3>A · Make the tests cheaper</h3>
+    <p>Fix the slow fixture, balance the shards, wire the parallel runner into the merge gate. Cuts the wait from ~16 minutes towards ~2. Costs nothing in judgment and nothing in tokens directly — it removes the <i>reason</i> a session waits.</p>
+  </div>
+  <div class="card">
+    <h3>B · Make the turns fewer</h3>
+    <p>Forbid waiting on a gate, batch dispatch into one message, and move mechanical bookkeeping — commit-on-green, PR bodies, ledger event text — from model prose into scripts. Attacks the 134k-per-turn cost directly. Rules out nothing; judgment stays with the model in every case.</p>
+  </div>
+</div>
+<p><b>Recommended: both, in that order.</b> A alone leaves the polling habit in place; B alone leaves sessions with a 16-minute reason to poll. The one reason to do A first: until the gate is fast, "never background a gate" is a rule nobody can follow.</p>
+
+<h2>Decisions</h2>
+<p class="sub">Each numbered line is one thing the sponsor answers. Keep the numbers stable once shown: answers and ledger items cite them.</p>
+<ol class="decisions">
+  <li><b>D1.</b> Fix the slowest test file by building its seeded project once and copying it per test, changing no assertion. → O-01</li>
+  <li><b>D2.</b> Balance the shards by measured duration, give <span class="m">--jobs</span> an <span class="m">auto</span> default, and point <span class="m">gates.merge</span> and <span class="m">bin/land</span> at the parallel runner — measuring before and after on the same commit. → O-02</li>
+  <li><b>D3.</b> Make it a mandatory Standard change that a session runs its gate in the foreground and reads the verdict in the same turn, never backgrounding it to poll. → O-03</li>
+  <li><b>D4.</b> Move three mechanical sequences into scripts: commit-and-push only on a green verdict, the PR body drafted from the ledger item and the diff, and the <span class="m">ruflo-item done</span> and ledger event text drafted from the same facts. Each script assembles facts; none decides anything. → O-04, O-05, O-06</li>
+  <li><b>D5.</b> Make batching a stated cost rule: every unblocked brief goes out in one message, and branches are reviewed in one pass. → O-07</li>
+</ol>
+
+<h2 id="decided">Decided</h2>
+<section class="slot">
+  <p><b>Accepted in full on 17 Sep 2026</b>, in the sponsor's words: "Implement all the five recommendations with the recommended decisions." D1 through D5 are adopted as recommended, and option A and option B are both taken, A first for the reason given above.</p>
+  <p>The seven items are in the ledger beside this page: O-01 and O-02 for the gate, O-03 and O-07 as mandatory Standard changes, O-04, O-05 and O-06 as the three drafting scripts. O-02 depends on O-01, because the sharding measurement is meaningless before the fixture fix.</p>
+  <p>One boundary, recorded because it constrains every item here: these scripts draft bookkeeping prose from recorded facts. None of them decides whether work is done, whether to merge, or what tier something is. That judgment stays with the model, as it does today.</p>
+</section>
+
+<p class="src">Sources: the suite timings are <span class="m">python3 -m unittest &lt;module&gt; -q</span> runs on this machine, 17 Sep 2026, recorded in findings 23/F-06 and 23/F-07; the 610s eight-way figure is a shard script over the same tests; the 134k-tokens-per-turn figure is one builder request read from this session's transcript under <span class="m">~/.claude/projects</span>; the 72%/25% split is <span class="m">bin/spend</span> over the same transcripts. Not verified: the suite's wall clock after O-01 and O-02 — O-02 is not closed until it is measured before and after on one commit.</p>
+
+</div>
+</body>
+</html>

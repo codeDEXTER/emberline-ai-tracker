@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 21:09
+# Checkpoint — 2026-09-17 21:15
 
-Reason: manual · branch: findings-f06f07 · HEAD: 9a9011c
+Reason: manual · branch: p31-accept · HEAD: 30cfbd9
 
-<!-- ledger-digest: 62225fa112fc05d481fff02c3457c91c6960809e948e8ebdeb6be2405e0c40c9 -->
+<!-- ledger-digest: 9a0bbdd38b92d9a4a173f2e888bc6f2dc32078d6fd1a1e46febc36ea858a5468 -->
 
 ## Proposal 19 · Warm-up
 
@@ -108,6 +108,41 @@ Reason: manual · branch: findings-f06f07 · HEAD: 9a9011c
 **finish now**
 - P-04 0%
 - P-08 0% · next P-08.A
+
+## Proposal 31 · Cheaper turns: a fast gate and scripts instead of bookkeeping
+
+0 done / 1 in progress / 0 blocked / 6 not started
+
+### In progress
+
+- O-01 · [ruflo · medium · sonnet] · The suite's slowest file stops rebuilding its world per test · no log entry yet
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- O-03 · [ruflo · high · sonnet] · No waiting on a gate: one blocking call, one verdict line
+- O-04 · [ruflo · medium · sonnet] · bin/commit-if-green: gate, verdict and commit in one call
+- O-05 · [ruflo · medium · sonnet] · A PR body drafted from the ledger item and the diff
+- O-06 · [ruflo · medium · sonnet] · One draft for the ruflo-item done note and the ledger event
+- O-07 · [ruflo · high · sonnet] · Batch dispatch: one message carries every unblocked brief
+
+### Open work by group
+
+**finish now**
+- O-01 0% · next O-01.A
+- O-02 0%
+- O-03 0%
+- O-04 0%
+- O-05 0%
+- O-06 0%
+- O-07 0%
 
 ## Exact next action
 
