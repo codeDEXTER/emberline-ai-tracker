@@ -49,7 +49,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -96,7 +96,7 @@
       "status": "not started",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [],
@@ -116,13 +116,13 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
         {
           "at": "2026-09-17T21:30:49+02:00",
-          "event": "Extended the gate rule into CLAUDE-workflow.md's gate section, templates/lead-prompt.md \u00a72 and templates/brief.md's MUST section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
+          "event": "Extended the gate rule into CLAUDE-workflow.md's gate section, templates/lead-prompt.md §2 and templates/brief.md's MUST section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
           "by": "session:o03-o07-turn-rules",
           "evidence": "cc1806f45e5cd799c084b3c4fe0a1e88e04f7eb6",
           "status": "done"
@@ -144,7 +144,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -178,7 +178,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -206,7 +206,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -234,13 +234,13 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
         {
           "at": "2026-09-17T21:31:01+02:00",
-          "event": "Extended batch dispatch as a cost rule into templates/lead-prompt.md \u00a73 and CLAUDE-workflow.md's Issues section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
+          "event": "Extended batch dispatch as a cost rule into templates/lead-prompt.md §3 and CLAUDE-workflow.md's Issues section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
           "by": "session:o03-o07-turn-rules",
           "evidence": "cc1806f45e5cd799c084b3c4fe0a1e88e04f7eb6",
           "status": "done"
@@ -262,7 +262,7 @@
       "status": "not started",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [],
@@ -282,7 +282,7 @@
       "status": "not started",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [],
@@ -301,15 +301,37 @@
       "depends": [
         "O-09"
       ],
-      "status": "not started",
+      "status": "in progress",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-17T21:59:36+02:00",
+          "event": "Sharding now splits within a file: a Unit is a file or a group of its test classes, planned against the balanced target from the duration cache. 38 test_quiet tests green. The real-suite measurement is deliberately left to O-02, on a quiet machine.",
+          "by": "session:common-rules lead",
+          "evidence": "",
+          "status": "in progress"
+        }
+      ],
       "points": 5,
-      "value": "high"
+      "value": "high",
+      "parts": [
+        {
+          "id": "O-10.A",
+          "title": "A shard is a file or a group of its classes, planned from the duration cache",
+          "share": 70,
+          "status": "done"
+        },
+        {
+          "id": "O-10.B",
+          "title": "Measured on a quiet machine: serial vs --jobs auto on one commit",
+          "share": 30,
+          "status": "not started"
+        }
+      ]
     }
   ],
   "asks": [
