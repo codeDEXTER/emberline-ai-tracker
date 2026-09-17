@@ -1,5 +1,28 @@
 # Changelog — common-rules
 
+## 2026-09-17 · lettered parts are the standard way to split an item (P-06)
+
+**Standard change (mandatory):** every item that cannot reach 100% in one
+piece is split into lettered parts, ITEM.A, ITEM.B, ... (letters in order,
+never reused). Each part is a tracked sub-ticket with its own status, owner,
+share (whole percents adding to 100), optional `waiting_until` and risk with
+reason, and log. An item's completion is the sum of its done parts' shares;
+the item closes when its last part closes. Projects split their open
+multi-part items at the next warm-up.
+
+The sponsor's words: "I like the naming convention with ABC. That should be
+standardized as the standard approach. And each ticket should be tracked in
+the tracker or sub-ticket."
+
+Fixed: `bin/tracker set LEDGER ITEM.X --status ... --event ...` updates a
+part and closes the item when the last part closes; `bin/tracker set LEDGER
+ITEM --parts '[{"title": ..., "share": ...}, ...]'` splits an unsplit item,
+lettering A, B, C automatically. The tracker page shows an overview (tiles:
+finish now / back burner / waiting, each item's parts) and a filterable
+details section below, with the old Lanes view kept folded as "advanced".
+The warm-up and reheat cards show each item's completion % and next open
+part, and a group count line.
+
 ## 2026-09-17 · `tracker ask` can close an existing ask (ASK-01)
 
 `tools/tracker/ask.py` only ever created A-nn rows. Nothing could move one
