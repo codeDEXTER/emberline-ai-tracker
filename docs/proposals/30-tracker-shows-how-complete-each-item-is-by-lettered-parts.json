@@ -1,0 +1,194 @@
+{
+  "proposal": 30,
+  "title": "Tracker shows how complete each item is, by lettered parts",
+  "status": "proposed",
+  "updated": "2026-09-17",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "sonnet",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "opus",
+      "effort": "low or medium",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "P",
+      "name": "Parts",
+      "goal": "The ledger and tracker learn a part: a lettered sub-ticket of an item, with its own status, owner and share, so completion is measured instead of guessed.",
+      "exit": "A ledger item can carry parts, bin/tracker addresses them, the board renders the completion view above, warm-up counts them, every open item is migrated or confirmed as one whole part, and the naming standard is recorded as mandatory."
+    }
+  ],
+  "items": [
+    {
+      "id": "P-01",
+      "phase": "P",
+      "cx": "C3",
+      "title": "Ledger schema: parts on items, validated",
+      "what": "A `parts` array on a ledger item: id `<ITEM>.<LETTER>` with letters in order and never reused, title, share (shares of an item's parts sum to 100), status (done / running / waiting / other), owner, optional `until` (a date, only with status waiting), optional `risk` (high/medium/low) with a `reason`. An item with no `parts` behaves as one part worth 100 -- tools/tracker/ledger.py computes completion the same way either way. Validation lives beside the existing item checks in ledger.py's validate().",
+      "files": ["tools/tracker/ledger.py"],
+      "tests": ["tests/test_tracker_ledger.py"],
+      "done": "validate() rejects a duplicate or out-of-order letter, shares that do not sum to 100, a status outside the vocabulary, a risk word without a reason, and a waiting part without `until`; accepts a wellformed parts array and an item with none. Tests red first.",
+      "depends": [],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo · high · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "P-02",
+      "phase": "P",
+      "cx": "C3",
+      "title": "bin/tracker set addresses a part",
+      "what": "`bin/tracker set ITEM.A --status running --owner lead --until 2026-09-23 --risk medium --reason \"...\"` finds the part by its full id inside the item's `parts` array and updates it in place, the same way `bin/tracker set ITEM --status ...` already updates a whole item. Closing the last open part flips the item itself to done and logs it -- no separate step marks the item done.",
+      "files": ["tools/tracker/set.py"],
+      "tests": ["tests/test_tracker_set.py"],
+      "done": "Setting every part of an item to done closes the item and writes one log entry naming which part closed it last; setting a part on an item with no `parts` array is refused, naming P-05 as the fix (migrate first).",
+      "depends": ["P-01"],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo · high · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "P-03",
+      "phase": "P",
+      "cx": "C3",
+      "title": "Board renders the completion view",
+      "what": "tools/tracker/board.py replaces the rendered Lanes section with the view this proposal's mockup shows: summary tiles, a filter bar (group, proposal, owner, status, free-text search), features collapsed to one line (id, title, %, segmented bar, next open part), a click-to-expand parts table, and a 'show finished' toggle off by default. Static HTML with the ledger data embedded as JSON and a small inline script -- no build step, no external library. D5's answer decides whether the old share/cumulative table stays reachable as a folded 'advanced' section.",
+      "files": ["tools/tracker/board.py", "templates/tracker-board.html"],
+      "tests": ["tests/test_tracker_board.py"],
+      "done": "tracker board renders the new view for a ledger with parts and for one without; proposalcheck and the existing board tests still pass; a page with 90+ done items and 5 open renders under the same size budget board.py already enforces.",
+      "depends": ["P-01"],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo · high · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "P-04",
+      "phase": "P",
+      "cx": "C2",
+      "title": "Warm-up card and checkpoint count parts",
+      "what": "bin/warmup's card and tools/tracker/checkpoint.py report completion the same way: an item with open parts shows its %, not just 'in progress'; the card's per-project summary counts parts toward what is pending, not whole items only.",
+      "files": ["bin/warmup", "tools/tracker/checkpoint.py"],
+      "tests": ["tests/test_warmup_card.py", "tests/test_tracker_checkpoint.py"],
+      "done": "A ledger with a part-carrying item shows that item's % on the card and in the checkpoint; a ledger with none renders exactly as it does today (no regression).",
+      "depends": ["P-01"],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "P-05",
+      "phase": "P",
+      "cx": "C2",
+      "title": "Migrate the open items into parts",
+      "what": "Every open item across the 10 ledgers (W-10, L-07, L-02, S-07, S-08, and whatever is open by the time this runs) gets a `parts` array reflecting real, current sub-work -- read from its own log, not invented -- or is confirmed as one whole part worth 100 when it genuinely has no sub-work. This is the one-time data migration; P-02 is the tool it uses.",
+      "files": ["docs/proposals/19-proposal-warmup.json", "docs/proposals/21-standard-is-mandatory.json", "docs/proposals/23-eight-levers-for-token-spend.json"],
+      "tests": ["bin/tracker validate on every migrated ledger"],
+      "done": "Every ledger in the project validates clean; every open item either has a `parts` array whose shares sum to 100, or is confirmed (in its log) as a single whole part; nothing that was `done` is touched.",
+      "depends": ["P-01", "P-02"],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "issue": null,
+      "log": []
+    },
+    {
+      "id": "P-06",
+      "phase": "P",
+      "cx": "C1",
+      "title": "Standard change entry and docs",
+      "what": "A `Standard change (mandatory):` CHANGELOG.md entry naming the parts schema, the naming standard (`<ITEM>.<LETTER>`, letters in order and never reused, a part is a sub-ticket, an item with no parts is one part worth 100), and that it replaces the Lanes overview as what the tracker page shows by default. HANDOFF.md / docs/OPERATING-RULES.md gain the naming standard in the read order.",
+      "files": ["CHANGELOG.md", "HANDOFF.md", "docs/OPERATING-RULES.md"],
+      "tests": ["bin/rulecheck --mandatory names the new entry"],
+      "done": "CHANGELOG.md carries the mandatory entry; a project run through bin/rulecheck after P-01 through P-05 land and before this one reports behind on it; after, it reports current.",
+      "depends": ["P-01", "P-02", "P-03", "P-04", "P-05"],
+      "status": "not started",
+      "owner": "lead",
+      "tier": "low",
+      "model": "haiku",
+      "tag": "[ruflo · low · haiku]",
+      "issue": null,
+      "log": []
+    }
+  ],
+  "asks": [
+    {
+      "id": "A-01",
+      "at": "2026-09-17T00:00:00+02:00",
+      "by": "sponsor",
+      "kind": "decision",
+      "quote": "i dont understand this overview in the tracker",
+      "state": "became-item",
+      "became": "P-03",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl, 2026-09-17"
+    },
+    {
+      "id": "A-02",
+      "at": "2026-09-17T00:05:00+02:00",
+      "by": "sponsor",
+      "kind": "decision",
+      "quote": "So my understanding is uh, these are the elements which are getting completed. Based on the priority, and if anything is above 80%, a task which may be a subtask that is still pending to be completed, that ends up in that list. So, this needs to be refactored and revisualized properly so I can understand it a bit better. So, my basic requirement is every task gets to 100%. But if there are some tasks, for example, not able to get 100% in some part of the work is left, then that work is evaluated as a sub-item. For example, L-02.A, BC, then the percentage is calculated, okay, what would be what percentage of feature they would be completing? Based on that, if the overall feature is 80% completed, and the sub uh, remaining elements only complete maybe 2, 3, or the last remaining 10, 20%, then they can be added as a back burner. Backlog, which can be handled later. Or uh, you know that should be visualized here. And what would be the risk and all, you know, based on the that it's calculating how to do it. And also the percentage does not give me a right figure because 17%, I don't have the formula in my mind.",
+      "state": "became-item",
+      "became": "P-01",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl, 2026-09-17"
+    },
+    {
+      "id": "A-03",
+      "at": "2026-09-17T00:10:00+02:00",
+      "by": "sponsor",
+      "kind": "decision",
+      "quote": "This visualized widget is good and this is how it should be represented in the tracker. Uh, to get an estimate of the degree of completion. Please uh, make a proposal on how the tracker would look like so it's not completely overpopulated. And then it should also be possible to filter things out and get into the details.",
+      "state": "became-item",
+      "became": "P-03",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl, 2026-09-17"
+    },
+    {
+      "id": "A-04",
+      "at": "2026-09-17T00:12:00+02:00",
+      "by": "sponsor",
+      "kind": "decision",
+      "quote": "Also, I like the naming convention with ABC. That should be standardized as the standard approach. And each ticket should be tracked in the tracker or sub-ticket.",
+      "state": "became-item",
+      "became": "P-06",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl, 2026-09-17"
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {}
+}
