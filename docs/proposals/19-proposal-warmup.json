@@ -2,7 +2,7 @@
   "proposal": 19,
   "title": "Warm-up",
   "status": "accepted",
-  "updated": "2026-09-16",
+  "updated": "2026-09-17",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -910,6 +910,12 @@
           "event": "exit conditions re-measured 2026-09-16 20:5x, read-only (git status of each project byte-identical before and after): (1) NOT MET -- warmup --check exits 1 in all four focus projects, each under 2 s: PhotoVault engine and app lack the one-tracker page docs/proposals/tracker/index.html and have 4 mandatory Standard changes from 16 Sep pending (P26 F-01, P21 F-01, the queue-routing entry, P22 T-06), work their own sessions queue at their next warm-up; pockets and mac-explorer-ruflo were never migrated (no ledger, no docs/OPERATING-RULES.md; pockets also no HANDOFF.md) -- migrating writes into those projects, so it waits for their own sessions or the sponsor. (2) HALF MET -- engine 71 renders (15 Sep); pockets has no ledger to render. (3) MET -- test_tracker_check, land runs tracker check. (4) and (5) wait for the pilot week to end (about 20 Sep), then measure from transcripts",
           "by": "lead",
           "evidence": "bin/warmup --project <dir> --check --no-recall --no-pull for PhotoVault/engine, PhotoVault/app, pockets, mac-explorer-ruflo"
+        },
+        {
+          "at": "2026-09-17T07:30:59+02:00",
+          "event": "interim reading of conditions 4 and 5, 2026-09-14 to 2026-09-16 22:47: common-rules NOT MET on both -- (4) 94 sponsor messages: 29 with an ask row, 11 answers, 54 unmatched; (5) 130 agent briefs, 74 with all five headings (missing CONTEXT 45, OWNS 54, MUST 48, MUST NOT 45, OUTPUT 44). Caveat: the -Users-the-sponsor-apps transcript slug mixes common-rules with other projects' sessions started in apps/. PhotoVault engine and app not measurable: no main-session transcripts in the window. Full-week measurement scheduled for 2026-09-21 09:00 (scheduled task common-rules-w10-pilot-week-measure)",
+          "by": "lead",
+          "evidence": "docs/research/w10-c45.py"
         }
       ],
       "points": 3,

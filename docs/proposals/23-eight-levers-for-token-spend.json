@@ -2,7 +2,7 @@
   "proposal": 23,
   "title": "Eight levers for token spend",
   "status": "accepted",
-  "updated": "2026-09-16",
+  "updated": "2026-09-17",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -205,6 +205,12 @@
           "event": "measured 2026-09-16: not measurable yet. Outside this lead's own session there are no subagent transcripts with token activity after the rule landed; rerun once a few days of ordinary project sessions accumulate",
           "by": "lead",
           "evidence": "/private/tmp/claude-501/-Users-the-sponsor-apps/3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure-L01-L02-L06-H02.py, /private/tmp/claude-501/-Users-the-sponsor-apps/3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure-A-2026-09-16.json"
+        },
+        {
+          "at": "2026-09-17T07:30:59+02:00",
+          "event": "interim rerun 2026-09-16 22:50: FAIL so far. Subagent spend from 2026-09-16, deduped by message id, classified by brief title: review/fix 19.2% (n=5, 12.6M tokens), measurement/scout 10.2% (n=4), build 70.6% (n=8) -- all in one lead session, thin. Defects after merge not measurable as a rate: the 8 reopenings and 7 findings dated 16 Sep are the review of P19-29, not new defects. Final measurement scheduled for 2026-09-23 09:00",
+          "by": "lead",
+          "evidence": "docs/research/l02-measure.py"
         }
       ],
       "points": 2,
@@ -609,6 +615,12 @@
           "event": "correction to the entry above: the script is docs/research/l07-m03-measure.py (the scratch path did not expand)",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-17T07:30:59+02:00",
+          "event": "interim rerun 2026-09-16 22:50 (sponsor: 'implement the due later tasks'): FAIL so far. cat/sed -n reads 12.80 -> 7.74 per 100 tool calls (needs <=6.40); hand-appended HANDOFF/AGENT-LOG 0.005 -> 0.094 per 100 (raw 2 -> 1, thin); flutter test not measurable (no Flutter sessions). AFTER sample thin: 3 sessions, 1,060 tool calls. Final measurement scheduled for 2026-09-23 09:00 (scheduled task common-rules-l07-l02-calibration-remeasure)",
+          "by": "lead",
+          "evidence": "docs/research/l07-m03-measure.py"
         }
       ],
       "points": 2,
@@ -1226,6 +1238,42 @@
           "event": "decided",
           "by": "lead",
           "evidence": "acted on 2026-09-16: every item named was reopened (PR #192) and then measured or proved: Z-05 closed on a real calibration (#195); T-06 closed with the title refusal (#189); L-01, H-02, L-07 measured failing, M-03 closed on measurement (#197, #199); L-02, L-06 not measurable yet; H-03 blocked on sponsor sign-in"
+        }
+      ]
+    },
+    {
+      "id": "F-03",
+      "source": "review",
+      "file": "bin/ruflo-item",
+      "severity": "medium",
+      "state": "catalogued",
+      "title": "bin/ruflo-item memory store fails in every worktree ('Database not initialized'): .swarm/ exists only in the main checkout, so the mandatory Ruflo loop silently records nothing for worktree work",
+      "value": "medium",
+      "points": 2,
+      "log": [
+        {
+          "at": "2026-09-17T07:31:07+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead 2026-09-16 night",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": "F-04",
+      "source": "test",
+      "file": "bin/spend",
+      "severity": "medium",
+      "state": "catalogued",
+      "title": "bin/spend calibrate has no --help: 'spend calibrate --help' runs a real calibration into the default worklog dir (16 Sep, an agent wrote a false last_calibrated_at=92 this way; files moved out by the lead)",
+      "value": "medium",
+      "points": 1,
+      "log": [
+        {
+          "at": "2026-09-17T07:31:07+02:00",
+          "event": "catalogued",
+          "by": "lead",
+          "evidence": ""
         }
       ]
     }
