@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 22:06
+# Checkpoint — 2026-09-17 22:03
 
-Reason: manual · branch: o09-warmup-speed · HEAD: 22980b8
+Reason: manual · branch: o08-staging-branch · HEAD: a54eccb
 
-<!-- ledger-digest: 43d5a063f14f7fcc5ee040c4e305dbd3e492e76b27eb381ae01f1033ce961bb0 -->
+<!-- ledger-digest: 5ac3db23f59bb493a07ca10159b71d8afbda7828253e4d5d4de252b42839fcb6 -->
 
 ## Proposal 19 · Warm-up
 
@@ -128,14 +128,13 @@ Reason: manual · branch: o09-warmup-speed · HEAD: 22980b8
 ### Next unblocked
 
 - O-02 · [ruflo · high · sonnet] · The merge gate runs the parallel runner that already exists
-- O-08 · [ruflo · high · sonnet] · A staging branch, so main is never red
-- O-10 · [ruflo · high · sonnet] · Shards split within a file, not just between files
+- O-09 · [ruflo · high · sonnet] · Warm-up stops shelling out 23 times to measure conformance
 
 ### Open work by group
 
 **finish now**
 - O-02 0%
-- O-08 0%
+- O-09 0%
 - O-10 0%
 
 ## Exact next action
