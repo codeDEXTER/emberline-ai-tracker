@@ -336,6 +336,7 @@ def sweep(project, idle_hours, gh_runner=None, claude_runner=None, lsof_runner=N
         return None, fetch_ok, prune_lines_dry
 
     main_path = str(Path(trees[0]["path"]).resolve()) if trees else None
+    all_paths = [str(Path(t["path"]).resolve()) for t in trees if not t.get("bare")]
 
     # Fetched lazily, at most once each, and only if some worktree actually
     # reaches the idle check -- a dirty or unmerged worktree, or a run with
@@ -361,6 +362,23 @@ def sweep(project, idle_hours, gh_runner=None, claude_runner=None, lsof_runner=N
             continue  # the main checkout -- never a candidate
         if not Path(path).exists():
             continue  # gone already; `prune` reports it separately
+
+        rpath = str(Path(path).resolve())
+        if main_path and not rpath.startswith(main_path + os.sep):
+            # A worktree registered from somewhere else on disk (another
+            # app's folder) is not this project's to delete.
+            rows.append({"path": path, "branch": w["branch"], "detached": w["detached"],
+                         "locked": w["locked"], "verdict": "KEEP",
+                         "reason": "outside the project directory", "notes": []})
+            continue
+        nested = [q for q in all_paths if q != rpath and q.startswith(rpath + os.sep)]
+        if nested:
+            # Removing this directory would delete the worktree inside it,
+            # whatever that one's own verdict is.
+            rows.append({"path": path, "branch": w["branch"], "detached": w["detached"],
+                         "locked": w["locked"], "verdict": "KEEP",
+                         "reason": f"contains another worktree ({len(nested)})", "notes": []})
+            continue
 
         # Snapshotted before check_clean's `git status` gets anywhere near
         # this worktree -- see check_idle's docstring for why the order
