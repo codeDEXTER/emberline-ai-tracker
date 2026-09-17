@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 08:36
+# Checkpoint — 2026-09-17 09:21
 
-Reason: manual · branch: close-f03-f04 · HEAD: 7026aba
+Reason: manual · branch: asks-backfill · HEAD: 650c7b7
 
-<!-- ledger-digest: 090ca52925cbb46f7443015bc949aa5adbf7b30c609a781440d3d291a89efa44 -->
+<!-- ledger-digest: 1f0c4a64dd372a2ddb86c3ef9479d650136ce20b2341537e35faad1f32062427 -->
 
 ## Proposal 19 · Warm-up
 
@@ -59,7 +59,8 @@ Reason: manual · branch: close-f03-f04 · HEAD: 7026aba
 
 ### Open asks
 
-- none
+- A-29 · "fix ruflo"
+- A-30 · "also continue other tasks"
 
 ### Next unblocked
 

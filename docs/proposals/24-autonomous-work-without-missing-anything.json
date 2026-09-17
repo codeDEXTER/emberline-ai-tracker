@@ -2,7 +2,7 @@
   "proposal": 24,
   "title": "Autonomous work without missing anything",
   "status": "accepted",
-  "updated": "2026-09-16",
+  "updated": "2026-09-17",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -311,6 +311,54 @@
       "quote": "add an amendment I would like to see when uh, is it possible to see the leads in background tasks if so they should follow a different naming convention",
       "became": "H-04",
       "state": "became-item"
+    },
+    {
+      "id": "A-08",
+      "at": "2026-09-16T19:46:30+00:00",
+      "by": "lead",
+      "kind": "question",
+      "quote": "What do you mean by logged out?",
+      "became": null,
+      "state": "answered",
+      "owner": "lead",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); the CLI's own sign-in; sponsor ran claude auth login; H-03 proved (PR #206)"
+    },
+    {
+      "id": "A-09",
+      "at": "2026-09-16T20:18:32+00:00",
+      "by": "lead",
+      "kind": "decision",
+      "quote": "in parallel can you run other tasks so we can finish faster",
+      "became": null,
+      "state": "answered",
+      "owner": "lead",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); sponsor chose a fresh lead only, no leads in other projects"
+    },
+    {
+      "id": "A-10",
+      "at": "2026-09-16T20:38:01+00:00",
+      "by": "lead",
+      "kind": "question",
+      "quote": "Anything else pending?",
+      "became": null,
+      "state": "answered",
+      "owner": "lead",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap)"
+    },
+    {
+      "id": "A-11",
+      "at": "2026-09-16T20:41:24+00:00",
+      "by": "lead",
+      "kind": "question",
+      "quote": "Is the new lead running?",
+      "became": null,
+      "state": "answered",
+      "owner": "lead",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap)"
     }
   ],
   "proposed_changes": [],
