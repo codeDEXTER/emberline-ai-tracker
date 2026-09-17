@@ -1246,7 +1246,7 @@
       "source": "review",
       "file": "bin/ruflo-item",
       "severity": "medium",
-      "state": "catalogued",
+      "state": "decided",
       "title": "bin/ruflo-item memory store fails in every worktree ('Database not initialized'): .swarm/ exists only in the main checkout, so the mandatory Ruflo loop silently records nothing for worktree work",
       "value": "medium",
       "points": 2,
@@ -1256,6 +1256,12 @@
           "event": "catalogued",
           "by": "session:common-rules lead 2026-09-16 night",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-17T08:36:25+02:00",
+          "event": "decided",
+          "by": "lead",
+          "evidence": "fixed 2026-09-17 (PR #215): Ruflo calls from a linked worktree run in the main checkout (git-common-dir's parent), where .swarm/ lives; a failed memory store now exits nonzero with a message"
         }
       ]
     },
@@ -1264,7 +1270,7 @@
       "source": "test",
       "file": "bin/spend",
       "severity": "medium",
-      "state": "catalogued",
+      "state": "decided",
       "title": "bin/spend calibrate has no --help: 'spend calibrate --help' runs a real calibration into the default worklog dir (16 Sep, an agent wrote a false last_calibrated_at=92 this way; files moved out by the lead)",
       "value": "medium",
       "points": 1,
@@ -1274,6 +1280,12 @@
           "event": "catalogued",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-17T08:36:25+02:00",
+          "event": "decided",
+          "by": "lead",
+          "evidence": "fixed 2026-09-17 (PR #215): every bin/spend subcommand prints usage on -h/--help without doing work; test proves calibrate --help writes nothing"
         }
       ]
     }
