@@ -73,11 +73,13 @@ class SweepFixture(unittest.TestCase):
         git(self.project, "config", "user.email", "t@example.com")
         git(self.project, "config", "user.name", "t")
         (self.project / "f.txt").write_text("one\n")
+        (self.project / ".gitignore").write_text(".worktrees/\n")
         git(self.project, "add", "-A")
         git(self.project, "commit", "-q", "-m", "one")
         git(self.project, "push", "-q", "origin", "main")
 
-        self.worktrees_dir = root / "worktrees"
+        self.root = root
+        self.worktrees_dir = self.project / ".worktrees"
         self.worktrees_dir.mkdir()
 
     def tearDown(self):
@@ -380,6 +382,38 @@ class TestCLIDryRunAlwaysExitsZero(SweepFixture):
         rc = WS.main(["--project", str(self.project), "--idle-hours", "2"])
         self.assertEqual(0, rc)
         self.assertTrue(path.exists())
+
+
+
+class TestNeverDeletesWhatItDoesNotOwn(SweepFixture):
+    def test_worktree_outside_the_project_is_kept(self):
+        outside = self.root / "elsewhere"
+        git(self.project, "worktree", "add", "--detach", str(outside), "main")
+        self.backdate(outside, 3)
+        rows, _, _ = self.sweep(idle_hours=2)
+        row = self.row_for(rows, outside)
+        self.assertEqual("KEEP", row["verdict"], row)
+        self.assertIn("outside the project", row["reason"])
+
+    def test_worktree_containing_another_worktree_is_kept(self):
+        outer = self.add_worktree("outer")
+        inner = outer / ".claude" / "worktrees" / "inner"
+        inner.parent.mkdir(parents=True)
+        (outer / ".gitignore").write_text(".claude/\n")
+        git(outer, "add", "-A")
+        git(outer, "commit", "-q", "-m", "ignore .claude")
+        git(self.project, "push", "-q", "origin", "outer:main")
+        git(self.project, "fetch", "-q", "origin")
+        git(self.project, "worktree", "add", "-b", "inner", str(inner), "origin/main")
+        (inner / "wip.txt").write_text("unmerged\n")
+        git(inner, "add", "-A")
+        git(inner, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "wip")
+        self.backdate(outer, 3)
+        rows, _, _ = self.sweep(idle_hours=2, apply=True)
+        row = self.row_for(rows, outer)
+        self.assertEqual("KEEP", row["verdict"], row)
+        self.assertIn("contains another worktree", row["reason"])
+        self.assertTrue((inner / "wip.txt").exists())
 
 
 if __name__ == "__main__":
