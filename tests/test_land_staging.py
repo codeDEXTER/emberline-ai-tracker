@@ -192,7 +192,8 @@ class TestAdvanceStaging(StagingHarness):
                                  {"tests/test_x.py": FAILING_TEST})
         out = self.land("--advance-staging")
         combined = out.stdout + out.stderr
-        self.assertIn("gate is red", combined)
+        self.assertIn("did not say OK", combined)
+        self.assertIn("quiet: FAILED", combined)
         self.assertEqual(main_before, self.sha("main"))
 
     def test_unreadable_verdict_refuses_not_passes(self):

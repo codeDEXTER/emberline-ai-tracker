@@ -693,16 +693,38 @@ advance_staging() {
             return 1 ;;
     esac
 
-    say "  running: $tc"
-    if ! eval "$tc" >/tmp/land-staging.$$ 2>&1; then
-        refuse "staging's gate is red -- main stays where it is"
-        tail -15 /tmp/land-staging.$$ | sed 's/^/      /'
-        rm -f /tmp/land-staging.$$
+    # This gate now guards main, not just a branch review -- so it is held
+    # to the same rule `bin/commit-if-green` already holds itself to, and
+    # `bin/land`'s own gate at land_one() (still exit-code-only; logged as a
+    # finding, its own item) does not yet: docs/OPERATING-RULES.md S3, `grep
+    # ... && git commit` once shipped a failing test because grep exits 0 on
+    # a line containing "FAILED". `eval`ing $tc directly and trusting its
+    # exit code has that identical shape. `bin/quiet` exists precisely to
+    # read the runner's own summary line, not just its exit code, so route
+    # through it rather than repeating that parsing here.
+    #
+    # `bash -c "$tc"`, not a split argv: $tc is a single string this whole
+    # file already `eval`s (test_cmd()'s contract -- a project's declared
+    # gate command, which may contain a pipe, a quoted argument or `&&`),
+    # and quiet execs its CMD directly with no shell of its own. Splitting
+    # $tc into words here would silently mis-parse or drop exactly that.
+    if [ ! -x "$RULES_DIR/bin/quiet" ]; then
         restore_original
+        refuse "the verdict cannot be read -- $RULES_DIR/bin/quiet is missing or not executable"
         return 1
     fi
-    say "  staging gate green ($(grep -oE 'Ran [0-9]+ tests?' /tmp/land-staging.$$ | tail -1))"
-    rm -f /tmp/land-staging.$$
+
+    say "  running: $RULES_DIR/bin/quiet -- $tc"
+    local quiet_out quiet_rc=0
+    quiet_out="$("$RULES_DIR/bin/quiet" --label land-staging -- bash -c "$tc")" || quiet_rc=$?
+    if [ "$quiet_rc" = 0 ] && [[ "$quiet_out" == "quiet: OK"* ]]; then
+        say "  staging gate green -- $quiet_out"
+    else
+        restore_original
+        refuse "staging's gate did not say OK -- main stays where it is
+      ${quiet_out:-quiet printed no verdict line} (quiet exit $quiet_rc)"
+        return 1
+    fi
 
     if [ "$CHECK_ONLY" = 1 ]; then
         restore_original
@@ -712,9 +734,25 @@ advance_staging() {
 
     $GIT checkout -q main
     $GIT merge -q --ff-only "$target"
-    say "  main advanced to $target ($ahead commit(s))"
-    $GIT push -q origin main 2>/dev/null || true
-    return 0
+    say "  main advanced to $target ($ahead commit(s)) locally"
+
+    # A silent push failure here is worse than a silent push failure
+    # anywhere else in this file: main is commonly protected (this file's
+    # own header), so "cannot push to main" is the expected failure mode,
+    # not a rare one -- and "main advanced" printed over a push that never
+    # happened would tell every caller main is published when it is not.
+    local push_err
+    if push_err="$($GIT push origin main 2>&1)"; then
+        say "  pushed"
+        restore_original
+        return 0
+    fi
+    say "  main moved locally but the push to origin failed -- main is NOT published:"
+    printf '%s\n' "$push_err" | sed 's/^/      /'
+    say "  push it yourself once this is resolved (main is a straight fast-forward, so a plain"
+    say "  \`git push origin main\` from here will do it -- nothing needs re-testing)."
+    restore_original
+    return 1
 }
 
 if [ "$ADVANCE" = 1 ]; then

@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 22:03
+# Checkpoint — 2026-09-17 22:10
 
-Reason: manual · branch: o08-staging-branch · HEAD: a54eccb
+Reason: manual · branch: o08-staging-branch · HEAD: becba32
 
-<!-- ledger-digest: 5ac3db23f59bb493a07ca10159b71d8afbda7828253e4d5d4de252b42839fcb6 -->
+<!-- ledger-digest: b88f01777600e93bec380cfb10736b562553031a6f800fde1bf78634d703ed47 -->
 
 ## Proposal 19 · Warm-up
 
