@@ -44,6 +44,9 @@
   tracker rescore LEDGER [--project DIR] [--at DATE] [--json]
                                        14-day next_check dates for tail-lane
                                        items (Daily/Weekly/When touched)    (P26 C-04)
+  tracker history [--project DIR] [--json] [--since YYYY-MM-DD]
+                                       progress over time, from the ledgers'
+                                       own git history -- no AI updates    (P30 P-07)
 
 Each command is a module in tools/tracker/ with a `main(argv) -> int`, so
 commands built in parallel never edit the same file.
@@ -58,7 +61,7 @@ RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
 COMMANDS = ("validate", "render", "check", "sync", "checkpoint", "import", "published", "board", "set", "ask",
-            "route", "lanes", "stage", "apply-staged", "findings", "rescore")
+            "route", "lanes", "stage", "apply-staged", "findings", "rescore", "history")
 
 
 def validate(argv):
