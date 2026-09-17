@@ -1,5 +1,38 @@
 # Changelog — common-rules
 
+## 2026-09-17 · `bin/ruflo-item` works from worktrees; `bin/spend` subcommands answer `--help` without running (P23 F-03, F-04)
+
+Two ledger findings from proposal 23's backlog.
+
+**F-03**: `bin/ruflo-item` resolved the Ruflo/`.swarm/` cwd as
+`project_root()` -- the current project's own toplevel. From a linked
+worktree that is the worktree itself, not the main checkout where `.swarm/`
+actually lives, so every `hooks`/`memory` call there failed with "Database
+not initialized" and the mandatory Ruflo loop silently recorded nothing for
+worktree work. `ruflo-item` now resolves `git rev-parse
+--git-common-dir`'s parent -- the main checkout's own root -- for every
+Ruflo/daemon call, while `done`'s merge gate still runs in the actual
+worktree; the main checkout's own behaviour is unchanged, since there the
+two paths are already the same. Separately, the `memory store` call that
+actually persists `item:<ID>:start`/`done`/`note` is no longer folded into
+the same best-effort `|| true` as pre-task/route/search telemetry: a failed
+store now exits `ruflo-item` nonzero with a one-line message instead of
+looking like success.
+
+**F-04**: `spend calibrate --help` (and every other `spend` subcommand's
+`--help`) fell straight through to the real command -- `spend calibrate
+--help` ran a real calibration against the default worklog dir, which wrote
+a false `last_calibrated_at` into the real repo on 16 Sep. Every `spend`
+subcommand now checks `-h`/`--help` in its own args before doing any work,
+printing that subcommand's usage line and exiting 0.
+
+Tests: `tests/test_ruflo_item.py` (`TestWorktreeRufloCwd`,
+`TestRequiredMemoryStore`) and `tests/test_spend.py` (`TestHelp`) --
+red-then-green against a temp repo + linked worktree and a stubbed `ruflo`,
+and against a temp calibration `--out` dir; no real Ruflo binary or `.swarm/`
+is ever called, and `spend calibrate`'s worker function is mocked to raise
+if it is ever invoked at all.
+
 ## 2026-09-16 · `bin/worktree-sweep` cleans up finished worktrees (WT-01)
 
 **Standard change (mandatory):** common-rules alone had grown ~54 worktrees

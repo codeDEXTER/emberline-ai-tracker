@@ -82,8 +82,24 @@ derive without being told, but a wrong guess must be visible rather than
 silently losing `recall`'s history -- so the namespace in use is printed on
 every run).
 
-Exit codes: 0 ok, 1 the gate refused or failed (or a bad done/note/recall
-argument), 2 no Ruflo binary found, 128+signum on SIGTERM/SIGHUP (143/129),
+RUFLO STATE CWD (proposal 23, F-03). `.swarm/` and whatever else Ruflo keeps
+as state exist only in the main checkout -- a linked worktree's own root is
+the wrong cwd for every Ruflo call, and every one of them used to fail there
+with "Database not initialized" while the item's own work (the gate, in
+`done`) ran fine, so nothing outwardly looked wrong. `ruflo_cwd_for()`
+resolves `git rev-parse --git-common-dir`'s parent -- the main checkout's own
+root -- and every `hooks`/`memory`/`daemon` call below runs there, while the
+gate itself still runs in `project` (the worktree actually being worked in).
+In the main checkout the two paths are the same, so behaviour is unchanged
+there. And because a Ruflo call silently failing was exactly F-03's
+complaint, the `memory store` call that actually persists
+`item:<ID>:start`/`item:<ID>:done`/`item:<ID>:note` is no longer best-effort:
+its failure now exits ruflo-item nonzero with a one-line message, rather than
+being folded into the same `|| true` telemetry as pre-task/route/search.
+
+Exit codes: 0 ok, 1 the gate refused or failed, a required memory store
+failed (or a bad done/note/recall argument), 2 no Ruflo binary found,
+128+signum on SIGTERM/SIGHUP (143/129),
 130 on Ctrl-C.
 """
 from __future__ import annotations
@@ -162,6 +178,31 @@ def project_root(explicit: str | None) -> Path:
     return Path.cwd().resolve()
 
 
+def ruflo_cwd_for(project: Path) -> Path:
+    """Where every Ruflo call (and `daemon stop`) should run -- proposal 23
+    F-03: `.swarm/` (and whatever else Ruflo keeps as state) exists only in
+    the main checkout, so a linked worktree's own root is the wrong cwd --
+    every call there fails with "Database not initialized" and the mandatory
+    Ruflo loop silently records nothing for worktree work.
+
+    `git rev-parse --git-common-dir` answers the shared `.git` dir for both
+    the main checkout and every linked worktree; its parent is the main
+    checkout's own root. In the main checkout this IS `project` already (its
+    `--git-common-dir` is just `.git`), so behaviour there is unchanged --
+    only a linked worktree resolves somewhere else.
+
+    Not a git repository at all, or the git call fails for any reason: falls
+    back to `project` unchanged, same as `project_root`'s own fallback."""
+    r = subprocess.run(["git", "rev-parse", "--git-common-dir"],
+                        capture_output=True, text=True, cwd=str(project))
+    if r.returncode != 0 or not r.stdout.strip():
+        return project
+    common_dir = Path(r.stdout.strip())
+    if not common_dir.is_absolute():
+        common_dir = project / common_dir
+    return common_dir.resolve().parent
+
+
 def namespace_for(project: Path, explicit: str | None) -> str:
     """--namespace NS when given; else $RUFLO_NAMESPACE; else the project
     directory's own name."""
@@ -189,13 +230,31 @@ def daemon_stop(binary: list[str] | None, project: Path) -> None:
 
 def _note_ignored(label: str, result: subprocess.CompletedProcess) -> None:
     """Best-effort telemetry, exactly like the app wrapper's `|| true`: a
-    failed pre-task, route, post-task, store, list, search or testgaps-dispatch
-    call is noted but never fails the item -- only `done`'s own gate does."""
+    failed pre-task, route, post-task, list, search or testgaps-dispatch
+    call is noted but never fails the item -- only `done`'s own gate, and
+    the memory store calls below, do."""
     if result.returncode != 0:
         print(f"{PREFIX} {label} did not succeed (ignored): "
               f"{(result.stderr or result.stdout).strip()}", file=sys.stderr)
     elif result.stdout.strip():
         print(result.stdout.strip())
+
+
+def _note_required(label: str, result: subprocess.CompletedProcess) -> bool:
+    """Like `_note_ignored`, but for the `memory store` call that actually
+    records `item:<ID>:start` / `item:<ID>:done` / `item:<ID>:note` --
+    proposal 23 F-03: "an item without start and done in Ruflo memory is not
+    done" only holds if a failed store is visible, not folded into the same
+    best-effort `|| true` as pre-task/route/search telemetry. Returns True on
+    success; the caller exits nonzero on False, one-line message on stderr,
+    never silent success."""
+    if result.returncode != 0:
+        print(f"{PREFIX} {label} failed -- item not recorded in Ruflo memory: "
+              f"{(result.stderr or result.stdout).strip()}", file=sys.stderr)
+        return False
+    if result.stdout.strip():
+        print(result.stdout.strip())
+    return True
 
 
 def _terminate_process_group(proc: subprocess.Popen) -> None:
@@ -235,28 +294,29 @@ def _run_gate(gate: str, project: Path) -> int:
         raise
 
 
-def cmd_start(binary: list[str], project: Path, item_id: str, task: str, ns: str) -> int:
+def cmd_start(binary: list[str], project: Path, ruflo_cwd: Path, item_id: str, task: str, ns: str) -> int:
     print(f"{PREFIX} pre-task for {item_id}")
     _note_ignored("hooks pre-task", run_ruflo(
-        binary, project, "hooks", "pre-task", "--description", f"{item_id}: {task}"))
+        binary, ruflo_cwd, "hooks", "pre-task", "--description", f"{item_id}: {task}"))
 
     print(f"{PREFIX} searched memory for {item_id!r} (namespace {ns})")
     _note_ignored("memory search", run_ruflo(
-        binary, project, "memory", "search", "--query", item_id, "--namespace", ns))
+        binary, ruflo_cwd, "memory", "search", "--query", item_id, "--namespace", ns))
 
     print(f"{PREFIX} routed via hooks route --task")
     _note_ignored("hooks route", run_ruflo(
-        binary, project, "hooks", "route", "--task", f"{item_id}: {task}"))
+        binary, ruflo_cwd, "hooks", "route", "--task", f"{item_id}: {task}"))
 
     key = f"item:{item_id}:start"
     value = f"{now_iso()} {task}"
-    _note_ignored("memory store", run_ruflo(
-        binary, project, "memory", "store", "--namespace", ns, "--key", key, "--value", value))
+    if not _note_required("memory store", run_ruflo(
+            binary, ruflo_cwd, "memory", "store", "--namespace", ns, "--key", key, "--value", value)):
+        return 1
     print(f"{PREFIX} stored {key}")
     return 0
 
 
-def cmd_done(binary: list[str], project: Path, item_ids: list[str], summary: str, ns: str) -> int:
+def cmd_done(binary: list[str], project: Path, ruflo_cwd: Path, item_ids: list[str], summary: str, ns: str) -> int:
     gate = P.test_command(project)
     if not gate:
         print(f"{PREFIX} no merge gate declared, and none could be guessed -- "
@@ -279,37 +339,39 @@ def cmd_done(binary: list[str], project: Path, item_ids: list[str], summary: str
 
     for item_id in item_ids:
         _note_ignored("hooks post-task", run_ruflo(
-            binary, project, "hooks", "post-task", "--task-id", item_id,
+            binary, ruflo_cwd, "hooks", "post-task", "--task-id", item_id,
             "--success", "true", "--store-results", "true"))
 
         key = f"item:{item_id}:done"
         value = f"{now_iso()} {summary}"
-        _note_ignored("memory store", run_ruflo(
-            binary, project, "memory", "store", "--namespace", ns, "--key", key, "--value", value))
+        if not _note_required("memory store", run_ruflo(
+                binary, ruflo_cwd, "memory", "store", "--namespace", ns, "--key", key, "--value", value)):
+            return 1
         print(f"{PREFIX} stored {key}")
 
     _note_ignored("hooks worker dispatch", run_ruflo(
-        binary, project, "hooks", "worker", "dispatch", "--trigger", "testgaps"))
+        binary, ruflo_cwd, "hooks", "worker", "dispatch", "--trigger", "testgaps"))
     return 0
 
 
-def cmd_note(binary: list[str], project: Path, item_id: str, text: str, ns: str) -> int:
+def cmd_note(binary: list[str], project: Path, ruflo_cwd: Path, item_id: str, text: str, ns: str) -> int:
     ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
     key = f"item:{item_id}:note:{ts}"
     value = f"{now_iso()} {text}"
-    _note_ignored("memory store", run_ruflo(
-        binary, project, "memory", "store", "--namespace", ns, "--key", key, "--value", value))
+    if not _note_required("memory store", run_ruflo(
+            binary, ruflo_cwd, "memory", "store", "--namespace", ns, "--key", key, "--value", value)):
+        return 1
     print(f"{PREFIX} stored {key}")
     return 0
 
 
-def cmd_recall(binary: list[str], project: Path, keywords: str, ns: str) -> int:
+def cmd_recall(binary: list[str], project: Path, ruflo_cwd: Path, keywords: str, ns: str) -> int:
     print(f"{PREFIX} memory keys (namespace {ns}):")
-    _note_ignored("memory list", run_ruflo(binary, project, "memory", "list", "--namespace", ns))
+    _note_ignored("memory list", run_ruflo(binary, ruflo_cwd, "memory", "list", "--namespace", ns))
 
     print(f"{PREFIX} searching memory for {keywords!r}")
     _note_ignored("memory search", run_ruflo(
-        binary, project, "memory", "search", "--query", keywords, "--namespace", ns))
+        binary, ruflo_cwd, "memory", "search", "--query", keywords, "--namespace", ns))
     return 0
 
 
@@ -344,24 +406,25 @@ def main(argv: list[str]) -> int:
         return 2
 
     project = project_root(args.project)
+    ruflo_cwd = ruflo_cwd_for(project)
     ns = namespace_for(project, args.namespace)
     print(f"{PREFIX} namespace: {ns}")
 
     _install_signal_handlers()
     try:
         if args.cmd == "start":
-            return cmd_start(binary, project, args.id, args.task, ns)
+            return cmd_start(binary, project, ruflo_cwd, args.id, args.task, ns)
         if args.cmd == "done":
-            return cmd_done(binary, project, args.ids, args.summary, ns)
+            return cmd_done(binary, project, ruflo_cwd, args.ids, args.summary, ns)
         if args.cmd == "note":
-            return cmd_note(binary, project, args.id, args.text, ns)
+            return cmd_note(binary, project, ruflo_cwd, args.id, args.text, ns)
         if args.cmd == "recall":
-            return cmd_recall(binary, project, args.keywords, ns)
+            return cmd_recall(binary, project, ruflo_cwd, args.keywords, ns)
         return 2  # pragma: no cover -- argparse's `required=True` rules this out
     except _Signaled as sig:
         return 128 + sig.signum
     finally:
-        daemon_stop(binary, project)
+        daemon_stop(binary, ruflo_cwd)
 
 
 if __name__ == "__main__":
