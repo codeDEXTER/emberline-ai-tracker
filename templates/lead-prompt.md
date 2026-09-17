@@ -195,7 +195,9 @@ merge, reconcile and decide.
   compaction summary.
 - Before ending: the ledger is current, `docs/handovers/<date>-checkpoint.md`
   is written, `warmup --check` is ready to pass, and every running agent is
-  recorded in the ledger with its worktree and branch.
+  recorded in the ledger with its worktree and branch. Then run
+  `bin/worktree-sweep --project . --apply` -- and again after landing a
+  batch -- so finished worktrees never pile up.
 - Proposal 24's thin dispatcher, short item leads and `bin/handover --check`
   replace this manual handover list. Use one of the two forms below,
   matching which role a session is filling.
