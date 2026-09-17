@@ -40,6 +40,7 @@ from pathlib import Path
 from tools.tracker import cluster as CLUSTER
 from tools.tracker import lanes as LANES
 from tools.tracker import ledger as L
+from tools.tracker import parts as PARTS
 from tools.tracker import render as R
 from tools.tracker import rescore as RS
 
@@ -202,11 +203,24 @@ def item_card(item: dict, number, repo) -> str:
         for x in log)
     details = (f'<details><summary>Log · {len(log)} {"entry" if len(log) == 1 else "entries"}</summary>'
                f'<ol class="log">{entries}</ol></details>' if log else "")
+    group = PARTS.group(item)
+    hidden = ' hidden' if group == "done" else ""
+    explicit_parts = PARTS.parts(item)
+    pct_line = ""
+    if explicit_parts:
+        nxt = PARTS.next_part(item)
+        next_text = f'next: {e(nxt.get("id"))} · {e(nxt.get("title"))}' if nxt else "all parts done"
+        parts_rows = "".join(part_sub_row(p) for p in explicit_parts)
+        pct_line = (f'<p class="pct">{PARTS.completion(item)}% <span class="fbar">{feature_bar(item)}</span> '
+                    f'<span class="next dim">{next_text}</span></p>'
+                    f'<details class="parts-details"><summary>Parts · {len(explicit_parts)}</summary>'
+                    f'<div class="fparts">{parts_rows}</div></details>')
     return (f'<article class="card" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
             f'data-status="{e(status)}" data-owner="{e(owner)}" data-tier="{e(item.get("tier") or "")}" '
+            f'data-group="{e(group)}"{hidden} '
             f'data-search="{e(item_search(item, number))}">'
             f'<header><span class="id">{e(item.get("id"))}</span><span class="pnum">P{e(number)}</span></header>'
-            f'<h3>{e(item.get("title"))}</h3>'
+            f'<h3>{e(item.get("title"))}</h3>{pct_line}'
             f'<p class="meta">{"".join(meta)}</p>{reason}{lastline}{details}</article>')
 
 
@@ -216,8 +230,11 @@ def item_row(item: dict, number, repo) -> str:
     owner = item.get("owner") or ""
     # No data-search here (round 2): the page's script gives each row its
     # card's string, so the text is stored once and the views cannot drift.
+    group = PARTS.group(item)
+    hidden = ' hidden' if group == "done" else ""
     return (f'<tr class="row" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
-            f'data-status="{e(status)}" data-owner="{e(owner)}" data-tier="{e(item.get("tier") or "")}">'
+            f'data-status="{e(status)}" data-owner="{e(owner)}" data-tier="{e(item.get("tier") or "")}" '
+            f'data-group="{e(group)}"{hidden}>'
             f'<td class="id">{e(item.get("id"))}</td><td class="pnum">P{e(number)}</td>'
             f'<td>{e(item.get("title"))}</td>'
             f'<td><span class="pill {slug(status)}">{e(status)}</span></td>'
@@ -348,10 +365,159 @@ def clusters_section(c: dict) -> str:
 
 
 def lanes_section(result: dict) -> str:
+    """D5: the old share/cumulative Lanes view, kept as a folded "advanced"
+    section -- a closed <details>, not deleted (the sponsor's ask replaces
+    what he reads, not the routing math proposal 25/26 still use)."""
     if not result["items"] and not result["unsized"]:
         return ""
-    return (f'<section class="lanes" id="lanes"><h2>Lanes <span class="n">{len(result["items"])}</span></h2>'
-           f'{lanes_block(result)}</section>')
+    return (f'<details class="lanes" id="lanes"><summary>Advanced · Lanes '
+           f'<span class="n">{len(result["items"])}</span></summary>'
+           f'{lanes_block(result)}</details>')
+
+
+# ---------------------------------------------------------------------------
+# proposal 30: the completion overview (P-03). Every rule -- completion,
+# grouping, what counts as waiting -- comes from tools/tracker/parts.py;
+# nothing here recomputes them.
+
+GROUP_LABEL = {"finish now": "Finish now", "back burner": "Back burner", "waiting": "Waiting", "done": "Done"}
+GROUP_RULE = {
+    "finish now": "under 80% done, or an open part is high risk",
+    "back burner": "80% or more done, the rest is low or medium risk",
+    "waiting": "owned by another project, or waiting for a date",
+}
+OVERVIEW_GROUPS = ("finish now", "back burner", "waiting")
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def short_date(value: str) -> str:
+    d = datetime.date.fromisoformat(value)
+    return f"{d.day} {_MONTHS[d.month - 1]}"
+
+
+def display_parts(item: dict) -> list[dict]:
+    """Every part to show in a feature's sub-rows: the item's real parts, or
+    one implicit part standing for the whole item (P-01: an item without
+    parts is one part worth 100, carrying the item's own status)."""
+    ps = PARTS.parts(item)
+    if ps:
+        return ps
+    part = {"id": item.get("id"), "title": item.get("title"), "share": 100,
+            "status": item.get("status") or "not started"}
+    if item.get("owner"):
+        part["owner"] = item["owner"]
+    return [part]
+
+
+def part_pill(p: dict) -> tuple[str, str, str | None]:
+    """(css class, label, title attribute) for one part's status pill."""
+    status = p.get("status")
+    if status == "done":
+        return "done", "done", None
+    owner = p.get("owner")
+    if isinstance(owner, str) and owner.startswith("session:"):
+        return "other", "other project", None
+    wait = p.get("waiting_until")
+    if isinstance(wait, str):
+        try:
+            datetime.date.fromisoformat(wait)
+        except ValueError:
+            pass
+        else:
+            return "waiting", short_date(wait), None
+    if p.get("risk") == "high":
+        return "risk", "risk high", p.get("risk_reason")
+    return slug(status), str(status or ""), None
+
+
+def part_bar_class(p: dict) -> str:
+    """done green / in progress blue / waiting amber / not started empty --
+    the four buckets the segmented bar shows, widths as the part's share."""
+    if p.get("status") == "done":
+        return "seg-done"
+    if PARTS.is_waiting(p):
+        return "seg-waiting"
+    if p.get("status") == "not started":
+        return "seg-empty"
+    return "seg-running"
+
+
+def feature_bar(item: dict) -> str:
+    return "".join(f'<span class="{part_bar_class(p)}" style="width:{p.get("share", 0)}%"></span>'
+                   for p in display_parts(item))
+
+
+def part_sub_row(p: dict) -> str:
+    cls, label, title = part_pill(p)
+    title_attr = f' title="{e(title)}"' if title else ""
+    muted = " muted" if p.get("status") == "done" else ""
+    return (f'<div class="prow{muted}"><span class="pid">{e(p.get("id"))}</span>'
+            f'<span class="ptitle">{e(p.get("title"))}</span>'
+            f'<span class="pshare">{p.get("share", 0)}%</span>'
+            f'<span class="pill p-{cls}"{title_attr}>{e(label)}</span></div>')
+
+
+def feature_overview_row(item: dict, number) -> str:
+    pct = PARTS.completion(item)
+    prows = "".join(part_sub_row(p) for p in display_parts(item))
+    return (f'<details class="frow" data-feature data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
+            f'data-group="{e(PARTS.group(item))}" data-owner="{e(item.get("owner") or "")}">'
+            f'<summary class="fhead"><span class="fid">{e(item.get("id"))}</span>'
+            f'<span class="ftitle">{e(item.get("title"))}</span>'
+            f'<span class="fpct">{pct}%</span>'
+            f'<span class="fbar">{feature_bar(item)}</span></summary>'
+            f'<div class="fparts">{prows}</div></details>')
+
+
+def completion_tiles(entries) -> str:
+    total = len(entries)
+    counts = {"finish now": 0, "back burner": 0, "waiting": 0, "done": 0}
+    for _, item, _, _ in entries:
+        counts[PARTS.group(item)] += 1
+    tiles = [
+        ("done", f'{counts["done"]} of {total}', "features finished"),
+        ("finish", str(counts["finish now"]), "finish now"),
+        ("back", str(counts["back burner"]), "back burner"),
+        ("wait", str(counts["waiting"]), "waiting"),
+    ]
+    return "".join(f'<div class="tile t-{cls}"><span class="n">{e(n)}</span><span class="l">{e(label)}</span></div>'
+                   for cls, n, label in tiles)
+
+
+def completion_groups(entries) -> str:
+    buckets: dict[str, list[tuple[dict, object]]] = {g: [] for g in OVERVIEW_GROUPS}
+    for _, item, number, _ in entries:
+        g = PARTS.group(item)
+        if g in buckets:
+            buckets[g].append((item, number))
+    sections = []
+    for g in OVERVIEW_GROUPS:
+        rows = buckets[g]
+        body = ("".join(feature_overview_row(item, number) for item, number in rows) if rows
+                else '<p class="empty-note">nothing here right now.</p>')
+        sections.append(f'<section class="cgroup" data-group="{e(g)}">'
+                        f'<h3>{e(GROUP_LABEL[g])} · {e(GROUP_RULE[g])} <span class="n">{len(rows)}</span></h3>'
+                        f'{body}</section>')
+    return "".join(sections)
+
+
+def completion_legend() -> str:
+    items = "".join(f'<span class="litem"><span class="sw {cls}"></span>{e(label)}</span>' for cls, label in (
+        ("seg-done", "done"), ("seg-running", "in progress"), ("seg-waiting", "waiting"), ("seg-empty", "not started")))
+    return f'<div class="clegend">{items}</div>'
+
+
+def completion_section(entries) -> str:
+    """The top overview (proposal 30): four tiles, then finish now / back
+    burner / waiting, each open feature with its parts visible underneath.
+    Everything here is plain server-rendered markup -- correct with the
+    page's script disabled, per the brief."""
+    if not entries:
+        return ""
+    return ('<section class="completion" id="completion"><h2>Completion</h2>'
+            f'<div class="tiles">{completion_tiles(entries)}</div>'
+            f'{completion_groups(entries)}'
+            f'{completion_legend()}</section>')
 
 
 def column_order(status: str, entries: list) -> list:
@@ -414,6 +580,10 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         f'<option value="{e(o)}">{e(o)}</option>' for o in sorted(owners))
     tier_opts = '<option value="">Any tier</option>' + "".join(
         f'<option value="{e(t)}">{e(t)}</option>' for t in sorted(tiers))
+    group_opts = '<option value="">Any group</option>' + "".join(
+        f'<option value="{e(g)}">{e(GROUP_LABEL[g])}</option>' for g in ("finish now", "back burner", "waiting", "done"))
+
+    completion = completion_section(entries)
 
     attention = ""
     if open_asks or requests:
@@ -471,8 +641,11 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         f'data-blocked="{totals["blocked"]}" data-not-started="{totals["not started"]}" '
         f'data-in-review="{totals["in review"]}" data-in-testing="{totals["in testing"]}">'
         f'<p class="line">{e(status_line)}</p>{mini_bar(totals)}</section></header>'
+        f'{completion}'
         f'<nav class="proposals" aria-label="Proposals">{blocks}</nav>'
+        '<h2 id="details">Details</h2>'
         '<div class="filters" role="search">'
+        f'<label class="sel"><span>Group</span><select id="group">{group_opts}</select></label>'
         '<input type="search" id="q" placeholder="Search ids, titles, tags, logs" aria-label="Search">'
         f'<div class="chips" role="group" aria-label="Status">{chips}</div>'
         f'<label class="sel"><span>Owner</span><select id="owner">{owner_opts}</select></label>'
@@ -480,6 +653,7 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         '<div class="views" role="group" aria-label="View">'
         '<button type="button" data-view="board" aria-pressed="true">Board</button>'
         '<button type="button" data-view="list" aria-pressed="false">List</button></div>'
+        '<label class="toggle"><input type="checkbox" id="show-finished"><span>Show finished</span></label>'
         '<button type="button" class="clear" id="clear">Clear</button>'
         '<p class="shown" id="shown" aria-live="polite"></p></div>'
         f'{attention}'
@@ -500,14 +674,17 @@ CSS = """
 :root{--ground:#ECEFF3;--surface:#FAFBFC;--raise:#FFFFFF;--ink:#14181D;--dim:#5F6A76;--rule:#D3D9E0;
 --accent:#2E5BA8;--accent-soft:#E1E9F6;
 --done:#2F855A;--prog:#C9531D;--block:#B23A48;--todo:#8A96A3;--block-soft:#F8E6E8;--review:#6B4FBB;--test:#1D7A96;
+--waiting:#B4790E;--risk:#B23A48;
 --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
 --mono:"IBM Plex Mono","SF Mono",ui-monospace,Menlo,monospace;color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ground:#101418;--surface:#171D23;--raise:#1C232A;
 --ink:#E4E8EC;--dim:#94A0AB;--rule:#2A333C;--accent:#86A9E6;--accent-soft:#1D2A3D;
---done:#5FB58A;--prog:#EE7A45;--block:#DB7480;--todo:#6F7B87;--block-soft:#2E1C20;--review:#A992E8;--test:#5FC2DE;color-scheme:dark}}
+--done:#5FB58A;--prog:#EE7A45;--block:#DB7480;--todo:#6F7B87;--block-soft:#2E1C20;--review:#A992E8;--test:#5FC2DE;
+--waiting:#E3A83E;--risk:#DB7480;color-scheme:dark}}
 :root[data-theme="dark"]{--ground:#101418;--surface:#171D23;--raise:#1C232A;
 --ink:#E4E8EC;--dim:#94A0AB;--rule:#2A333C;--accent:#86A9E6;--accent-soft:#1D2A3D;
---done:#5FB58A;--prog:#EE7A45;--block:#DB7480;--todo:#6F7B87;--block-soft:#2E1C20;--review:#A992E8;--test:#5FC2DE;color-scheme:dark}
+--done:#5FB58A;--prog:#EE7A45;--block:#DB7480;--todo:#6F7B87;--block-soft:#2E1C20;--review:#A992E8;--test:#5FC2DE;
+--waiting:#E3A83E;--risk:#DB7480;color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 .card h3,.card .why,.card .meta,.log p,.ask q,td,.proposal .pt{unicode-bidi:isolate}
@@ -633,6 +810,54 @@ td.mono a{color:var(--accent)}
 .none button{border:0;background:none;color:var(--accent);cursor:pointer;padding:0}
 .answered summary{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);padding:6px 0}
 .answered .asks{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:12px 14px}
+.toggle{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;color:var(--dim);cursor:pointer}
+.toggle input{cursor:pointer}
+/* -- proposal 30: completion overview -- */
+.completion{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
+.completion h2{margin:0 0 12px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.tile{background:var(--raise);border:1px solid var(--rule);border-radius:6px;padding:10px 14px}
+.tile .n{display:block;font:600 24px var(--mono);font-variant-numeric:tabular-nums}
+.tile .l{display:block;font:12px var(--sans);color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.tile.t-finish .n{color:var(--accent)}.tile.t-back .n{color:var(--waiting)}
+.tile.t-wait .n{color:var(--dim)}.tile.t-done .n{color:var(--done)}
+.cgroup{margin-top:14px}
+.cgroup:first-of-type{margin-top:0}
+.cgroup h3{font:600 13px var(--sans);margin:0 0 8px;color:var(--ink)}
+.cgroup h3 .n{font:500 12px var(--mono);color:var(--dim);margin-left:6px;font-variant-numeric:tabular-nums}
+.cgroup .empty-note{color:var(--dim);font-size:13px;font-style:italic;padding:6px 0}
+.frow{background:var(--raise);border:1px solid var(--rule);border-radius:6px;margin-top:6px;overflow:hidden}
+.frow:first-child{margin-top:0}
+.fhead{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:auto 5px;row-gap:6px;
+column-gap:10px;align-items:center;padding:8px 12px;cursor:pointer;list-style:none}
+.fhead::-webkit-details-marker{display:none}
+.fhead .fid{font:600 12.5px var(--mono);color:var(--dim)}
+.fhead .ftitle{font:14px var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fhead .fpct{font:600 12.5px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
+.fhead .fbar{grid-column:1/-1;height:5px;display:flex;overflow:hidden;border-radius:2px}
+.fbar span,.fparts .pshare{display:block}
+.fbar span{height:100%}
+.seg-done{background:var(--done)}.seg-running{background:var(--accent)}
+.seg-waiting{background:var(--waiting)}.seg-empty{background:var(--rule)}
+.fparts{border-top:1px solid var(--rule);background:var(--ground)}
+.prow{display:grid;grid-template-columns:90px 1fr 50px 130px;gap:10px;align-items:center;
+padding:6px 12px 6px 22px;font-size:12.5px;border-top:1px solid var(--rule)}
+.prow:first-child{border-top:none}
+.prow.muted{opacity:.65}
+.prow .pid{font-family:var(--mono);color:var(--dim)}
+.prow .pshare{font-family:var(--mono);color:var(--dim);text-align:right}
+.pill.p-done{color:var(--done);border-color:var(--done)}
+.pill.p-other{color:var(--dim)}
+.pill.p-waiting{color:var(--waiting);border-color:var(--waiting)}
+.pill.p-risk{color:var(--risk);border-color:var(--risk);cursor:help;border-style:dashed}
+.clegend{display:flex;gap:16px;font-size:12px;color:var(--dim);margin-top:12px;flex-wrap:wrap}
+.clegend .litem{display:inline-flex;align-items:center;gap:5px}
+.clegend .sw{display:inline-block;width:10px;height:10px;border-radius:2px}
+.parts-details{margin-top:4px}
+.parts-details summary{font-size:11.5px}
+.card .pct{margin:0;font:600 12.5px var(--mono);display:flex;align-items:center;gap:8px}
+.card .pct .fbar{width:60px;height:5px;display:inline-flex;border-radius:2px;overflow:hidden}
+.card .pct .next{font:12px var(--sans);font-weight:400}
 @media (prefers-reduced-motion:no-preference){.card,.proposal,.chip{transition:border-color .12s,background-color .12s}}
 """
 
@@ -640,19 +865,21 @@ SCRIPT = r"""
 (function(){
   var $ = function(s, r){ return (r || document).querySelector(s); };
   var $$ = function(s, r){ return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
-  var state = {proposal: "", statuses: [], owner: "", tier: "", q: "", view: "board"};
+  var state = {proposal: "", statuses: [], owner: "", tier: "", group: "", q: "", view: "board", showFinished: false};
   try { var v = localStorage.getItem("tracker-view"); if (v === "list" || v === "board") state.view = v; } catch (e) {}
   var items = $$("[data-item]");
   var searchById = {};
   $$("article[data-item]").forEach(function(card){ searchById[card.dataset.id] = card.dataset.search || ""; });
   var rows = $$("tr[data-item]");
   rows.forEach(function(row){ row.dataset.search = searchById[row.dataset.id] || ""; });
-  function match(el, ignoreStatus){
+  function match(el, ignoreStatus, ignoreFinished){
     var d = el.dataset;
     if (state.proposal && d.proposal !== state.proposal) return false;
     if (!ignoreStatus && state.statuses.length && state.statuses.indexOf(d.status) < 0) return false;
     if (state.owner && d.owner !== state.owner) return false;
     if (state.tier && d.tier !== state.tier) return false;
+    if (state.group && d.group !== state.group) return false;
+    if (!ignoreFinished && !state.showFinished && d.group === "done" && state.group !== "done") return false;
     if (state.q && (d.search || "").indexOf(state.q) < 0) return false;
     return true;
   }
@@ -660,12 +887,15 @@ SCRIPT = r"""
     var shown = 0, total = 0, byStatus = {};
     var counted = state.view === "list" ? "TR" : "ARTICLE";
     items.forEach(function(el){
-      var ok = match(el, false);
+      var ok = match(el, false, false);
       el.hidden = !ok;
       if (el.tagName === counted) {
         total++;
         if (ok) shown++;
-        if (match(el, true)) byStatus[el.dataset.status] = (byStatus[el.dataset.status] || 0) + 1;
+        // The chip count is the true count of each status among the other
+        // filters (proposal/owner/tier/group/search) -- never zeroed out by
+        // the show-finished toggle, or "Done" would misreport as 0 (D4).
+        if (match(el, true, true)) byStatus[el.dataset.status] = (byStatus[el.dataset.status] || 0) + 1;
       }
     });
     $$(".col").forEach(function(col){
@@ -707,8 +937,10 @@ SCRIPT = r"""
     $("#clear").hidden = !filtered;
   }
   function clear(){
-    state.proposal = ""; state.statuses = []; state.owner = ""; state.tier = ""; state.q = "";
-    $("#q").value = ""; $("#owner").value = ""; $("#tier").value = "";
+    state.proposal = ""; state.statuses = []; state.owner = ""; state.tier = ""; state.group = ""; state.q = "";
+    state.showFinished = false;
+    $("#q").value = ""; $("#owner").value = ""; $("#tier").value = ""; $("#group").value = "";
+    var sf = $("#show-finished"); if (sf) sf.checked = false;
     apply();
   }
   $$(".proposal").forEach(function(b){ b.addEventListener("click", function(){
@@ -719,6 +951,9 @@ SCRIPT = r"""
     apply(); }); });
   $("#owner").addEventListener("change", function(ev){ state.owner = ev.target.value; apply(); });
   $("#tier").addEventListener("change", function(ev){ state.tier = ev.target.value; apply(); });
+  $("#group").addEventListener("change", function(ev){ state.group = ev.target.value; apply(); });
+  var showFinished = $("#show-finished");
+  if (showFinished) showFinished.addEventListener("change", function(ev){ state.showFinished = ev.target.checked; apply(); });
   $("#q").addEventListener("input", function(ev){ state.q = ev.target.value.trim().toLowerCase(); apply(); });
   $$("[data-view]").forEach(function(b){ b.addEventListener("click", function(){
     state.view = b.dataset.view;
