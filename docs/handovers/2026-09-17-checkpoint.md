@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 20:50
+# Checkpoint — 2026-09-17 21:09
 
-Reason: manual · branch: findings-f06f07 · HEAD: 04dbb17
+Reason: manual · branch: findings-f06f07 · HEAD: 9a9011c
 
-<!-- ledger-digest: 5055a1b1d4bbc46032646f0ec657a34fb5fdfb38a18e0a0993a4a7b3f32880d5 -->
+<!-- ledger-digest: 62225fa112fc05d481fff02c3457c91c6960809e948e8ebdeb6be2405e0c40c9 -->
 
 ## Proposal 19 · Warm-up
 
@@ -107,7 +107,7 @@ Reason: manual · branch: findings-f06f07 · HEAD: 04dbb17
 
 **finish now**
 - P-04 0%
-- P-08 0%
+- P-08 0% · next P-08.A
 
 ## Exact next action
 

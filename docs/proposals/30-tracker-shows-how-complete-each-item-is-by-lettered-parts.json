@@ -299,7 +299,21 @@
       ],
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]"
+      "tag": "[ruflo · high · sonnet]",
+      "parts": [
+        {
+          "id": "P-08.A",
+          "title": "Progress charts over time on the board",
+          "share": 50,
+          "status": "in progress"
+        },
+        {
+          "id": "P-08.B",
+          "title": "Feature drill-down: proposal to item to part to sub-part",
+          "share": 50,
+          "status": "in progress"
+        }
+      ]
     }
   ],
   "asks": [
@@ -380,5 +394,25 @@
     }
   ],
   "proposed_changes": [],
-  "execution": {}
+  "execution": {},
+  "findings": [
+    {
+      "id": "F-01",
+      "source": "review",
+      "file": "tools/tracker/set.py",
+      "severity": "low",
+      "state": "catalogued",
+      "title": "tracker set --add-part validates the 100% rule after every single add, so a lead cannot build an item's parts up one at a time and must pass the whole --parts JSON",
+      "value": "medium",
+      "points": 2,
+      "log": [
+        {
+          "at": "2026-09-17T21:09:54+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead",
+          "evidence": ""
+        }
+      ]
+    }
+  ]
 }
