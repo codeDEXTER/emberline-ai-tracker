@@ -560,6 +560,109 @@ class TestBrief(unittest.TestCase):
             "brief.md: MUST does not reference the project's verification ladder",
         )
 
+    def test_gate_run_foreground_not_backgrounded(self):
+        """Proposal 31, O-03 (mandatory Standard change): the MUST section's
+        gate line extends to forbid backgrounding and polling the gate."""
+        text = read("brief.md")
+        section = text.split("\nMUST\n", 1)[1].split("\nMUST NOT\n", 1)[0]
+        self.assertIn(
+            "foreground", section,
+            "brief.md: MUST does not require the gate to run in the foreground",
+        )
+        self.assertIn(
+            "Never background it and poll", section,
+            "brief.md: MUST does not forbid backgrounding and polling the gate",
+        )
+
+
+class TestProposal31TurnRules(unittest.TestCase):
+    """Proposal 31, O-03 and O-07 (both mandatory Standard changes): a gate
+    runs in the foreground in one blocking call, and every unblocked brief
+    goes out in one message. Each rule is extended into the place its host
+    file already talks about gates or dispatch -- no new top-level section
+    was added to templates/brief.md, templates/lead-prompt.md or
+    CLAUDE-workflow.md."""
+
+    def read_workflow(self) -> str:
+        return (ROOT / "CLAUDE-workflow.md").read_text()
+
+    def read_lead_prompt(self) -> str:
+        return read("lead-prompt.md")
+
+    def test_o03_foreground_gate_in_lead_prompt_section_2(self):
+        text = self.read_lead_prompt()
+        section = text.split("## 2 Ruflo is mandatory", 1)[1].split(
+            "## 3 Parallelism is expected", 1
+        )[0]
+        self.assertIn(
+            "foreground", section,
+            "lead-prompt.md: §2 does not say the gate runs in the foreground",
+        )
+        self.assertIn(
+            "O-03", section,
+            "lead-prompt.md: §2 does not cite proposal 31, O-03",
+        )
+
+    def test_o03_foreground_gate_in_workflow(self):
+        text = self.read_workflow()
+        normalized = " ".join(text.split())
+        self.assertIn(
+            "Run the gate in the foreground, one blocking call", normalized,
+            "CLAUDE-workflow.md: no foreground-gate rule in the gate section",
+        )
+        self.assertIn("O-03", text, "CLAUDE-workflow.md: no citation of proposal 31, O-03")
+        self.assertIn(
+            "not a reason to poll", normalized,
+            "CLAUDE-workflow.md: does not say a slow gate is a bug, not a reason to poll",
+        )
+        self.assertIn(
+            "23/F-06", text,
+            "CLAUDE-workflow.md: does not cite finding 23/F-06 as a live example of a slow gate",
+        )
+        self.assertIn(
+            "23/F-07", text,
+            "CLAUDE-workflow.md: does not cite finding 23/F-07 as a live example of a slow gate",
+        )
+
+    def test_o07_batch_dispatch_in_lead_prompt_section_3(self):
+        text = self.read_lead_prompt()
+        section = text.split("## 3 Parallelism is expected", 1)[1].split(
+            "## 4 Keep the ledger current", 1
+        )[0]
+        self.assertIn(
+            "one message", section,
+            "lead-prompt.md: §3 does not require batch dispatch in one message",
+        )
+        self.assertIn(
+            "O-07", section,
+            "lead-prompt.md: §3 does not cite proposal 31, O-07",
+        )
+        self.assertIn(
+            "cost rule", section,
+            "lead-prompt.md: §3 does not frame batching as a cost rule",
+        )
+
+    def test_o07_batch_dispatch_in_workflow_issues_section(self):
+        text = self.read_workflow()
+        section = text.split("## Issues", 1)[1].split("\n## ", 1)[0]
+        self.assertIn(
+            "O-07", section,
+            "CLAUDE-workflow.md: Issues section does not cite proposal 31, O-07",
+        )
+        self.assertIn(
+            "lead-prompt.md", section,
+            "CLAUDE-workflow.md: Issues section does not point at templates/lead-prompt.md",
+        )
+
+    def test_changelog_has_standard_change_entry_for_o03_and_o07(self):
+        changelog = (ROOT / "CHANGELOG.md").read_text()
+        entry_start = changelog.index("O-03, O-07")
+        entry = changelog[entry_start:entry_start + 2000]
+        normalized = " ".join(entry.split())
+        self.assertIn("**Standard change (mandatory):**", normalized)
+        self.assertIn("foreground", normalized)
+        self.assertIn("one message", normalized)
+
 
 if __name__ == "__main__":
     unittest.main()
