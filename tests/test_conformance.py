@@ -1044,6 +1044,68 @@ class TestItem12Card(Copy):
         data = self.assert_breaks({12})
         self.assertIn("warmup", self.item(data, 12)["fix"])
 
+    def test_check_card_calls_warmup_in_process_without_recursing(self):
+        """O-09 (31/F-01): check_card now calls bin/warmup's main(argv) in
+        process instead of as a subprocess. main() computes conformance_state()
+        (which re-enters bin/conformance's measure(), item 12 included) only
+        when args.check is false -- and check_card always passes --check, so
+        the nested warmup can never reach conformance_state(). Proven here by
+        making conformance_state raise if it is ever called from inside
+        check_card's own call, rather than trusting the argument alone."""
+        mod = load_module()
+        ctx = mod.Context(self.p)
+
+        def _boom(project):
+            raise AssertionError("check_card's nested warmup --check called "
+                                 "conformance_state() -- this recurses")
+
+        with mock.patch.object(mod.W, "conformance_state", side_effect=_boom):
+            result = mod.check_card(ctx)
+        self.assertEqual(result.state, HOLDS, result)
+
+
+class TestRunInprocessCrash(unittest.TestCase):
+    """O-09 (31/F-01): run_inprocess() replaced a subprocess launch. A
+    crashed subprocess produced a non-zero returncode and a traceback on
+    stderr, and the caller (check 7 or 12) just reported "does not hold" --
+    it never took the other eleven checks down with it. run_inprocess() must
+    keep that shape for any exception fn(argv) raises, not just SystemExit."""
+
+    def test_a_crashing_check_reports_failure_instead_of_propagating(self):
+        mod = load_module()
+
+        def _crashes(argv):
+            raise KeyError("malformed-ledger")
+
+        r = mod.run_inprocess(_crashes, ["--project", "/nonexistent"])
+        self.assertIsInstance(r, subprocess.CompletedProcess)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("KeyError", r.stderr)
+        self.assertIn("malformed-ledger", r.stderr)
+
+    def test_a_crashing_item_12_leaves_the_other_eleven_reporting(self):
+        mod = load_module()
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        p = Path(tmp.name) / "empty"
+        build_empty(p)
+
+        def _crashes(argv):
+            raise KeyError("boom")
+
+        with mock.patch.object(mod.W, "main", side_effect=_crashes):
+            data = mod.measure(p)
+        self.assertEqual(len(data["items"]), 12)
+        card = next(i for i in data["items"] if i["n"] == 12)
+        self.assertEqual(card["state"], NOT)
+        # The other eleven checks still ran and reported -- none is missing
+        # or itself marked as "the check itself failed" by measure()'s own
+        # blanket handler, which would mean the crash propagated past
+        # run_inprocess and had to be caught one level up instead.
+        for i in data["items"]:
+            if i["n"] != 12:
+                self.assertNotIn("the check itself failed", i["why"], i)
+
 
 class TestEscaping(Copy):
 

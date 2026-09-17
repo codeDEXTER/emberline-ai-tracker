@@ -183,17 +183,22 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime
 import functools
 import hashlib
 import importlib.machinery
 import importlib.util
+import io
 import json
 import os
 import re
 import sqlite3
 import subprocess
 import sys
+import threading
+import traceback
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path, PurePosixPath
 from typing import NamedTuple
 
@@ -226,7 +231,17 @@ def _load(name: str, path: Path):
     loader = importlib.machinery.SourceFileLoader(name, str(path))
     spec = importlib.util.spec_from_loader(loader.name, loader)
     module = importlib.util.module_from_spec(spec)
-    loader.exec_module(module)
+    # Registered under its private name before exec: a bare exec_module()
+    # loads fine for a module with no @dataclass, but @dataclass's own
+    # _is_type looks its module up via sys.modules[cls.__module__] -- absent
+    # here (the module is loaded by path, not by import), that lookup raises
+    # instead of returning None. bin/proposalcheck (O-09) hit exactly this.
+    sys.modules[name] = module
+    try:
+        loader.exec_module(module)
+    except BaseException:
+        sys.modules.pop(name, None)
+        raise
     return module
 
 
@@ -234,6 +249,11 @@ try:
     W = _load("_conformance_warmup", RULES_DIR / "bin" / "warmup")
 except Exception:  # noqa: BLE001 -- any failure to load is "could not run", reported by main()
     W = None
+
+try:
+    PC = _load("_conformance_proposalcheck", RULES_DIR / "bin" / "proposalcheck")
+except Exception:  # noqa: BLE001 -- item 7 reports this itself if it happens
+    PC = None
 
 
 def _mandatory_pending():
@@ -293,6 +313,44 @@ def run(cmd: list, input: str | None = None) -> subprocess.CompletedProcess | st
         return f"{Path(str(cmd[0])).name} could not be started ({type(exc).__name__})"
 
 
+_INPROCESS_LOCK = threading.Lock()
+
+
+def run_inprocess(fn, argv: list) -> subprocess.CompletedProcess:
+    """Call an in-repo CLI's main(argv) in this process and return a
+    CompletedProcess exactly as running it as a subprocess would have --
+    same stdout, stderr and returncode -- so callers need not care which one
+    ran. This is O-09 (31/F-01): bin/warmup and bin/proposalcheck are this
+    repo's own scripts; importing and calling them skips a fresh interpreter
+    start and a full re-compile of every module they load.
+
+    Locked: contextlib.redirect_stdout/stderr swap the process-global
+    sys.stdout/sys.stderr, not a thread-local -- with the checks now running
+    concurrently (O-09), two callers at once would each capture (and worse,
+    on __exit__ clobber) the other's output. Only the two checks that call
+    this (7 and 12) ever contend for it; the other ten's git subprocesses
+    are unaffected."""
+    out, err = io.StringIO(), io.StringIO()
+    argv = [str(a) for a in argv]
+    with _INPROCESS_LOCK, contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        try:
+            code = fn(argv)
+        except SystemExit as exc:
+            code = exc.code if isinstance(exc.code, int) else (1 if exc.code else 0)
+        except KeyboardInterrupt:
+            raise
+        except BaseException:
+            # A crashed subprocess would have produced a non-zero returncode
+            # and the traceback on stderr, and the check that called it just
+            # reported "does not hold" -- a bad file in one project failed
+            # one check. Letting the exception propagate here instead would
+            # take the whole thread pool down with it: one bad ledger failing
+            # all twelve checks instead of just item 7 or 12.
+            traceback.print_exc(file=err)
+            code = 1
+    return subprocess.CompletedProcess(args=argv, returncode=code, stdout=out.getvalue(), stderr=err.getvalue())
+
+
 def _joined(values: list, cap: int = FIRST) -> str:
     head = ", ".join(str(v) for v in values[:cap])
     return head + (f" (+{len(values) - cap} more)" if len(values) > cap else "")
@@ -306,6 +364,7 @@ class Context:
     def __init__(self, root: Path):
         self.root = Path(root)
         self._ledgers: list | None = None
+        self._ledgers_lock = threading.Lock()
 
     def git(self, *args: str, input: str | None = None) -> subprocess.CompletedProcess | str:
         return run(["git", "-c", "core.fsmonitor=false", "-C", self.root, *args], input=input)
@@ -321,21 +380,28 @@ class Context:
             return str(path)
 
     def ledgers(self) -> list[tuple[Path, dict | None, str | None]]:
-        """(path, the ledger or None, why it could not be read or None), in find() order."""
-        if self._ledgers is None:
-            out = []
-            for p in L.find(self.root):
-                try:
-                    data = L.load(p)
-                except (OSError, ValueError):
-                    out.append((p, None, "is not valid JSON"))
-                    continue
-                if not isinstance(data, dict):
-                    out.append((p, None, "is not a JSON object"))
-                    continue
-                out.append((p, data, None))
-            self._ledgers = out
-        return self._ledgers
+        """(path, the ledger or None, why it could not be read or None), in find() order.
+        Locked: the checks that call this run concurrently (O-09), and a bare
+        `if self._ledgers is None` race would have two threads compute -- and
+        one overwrite the other's -- the same list."""
+        with self._ledgers_lock:
+            if self._ledgers is None:
+                self._ledgers = self._load_ledgers()
+            return self._ledgers
+
+    def _load_ledgers(self) -> list[tuple[Path, dict | None, str | None]]:
+        out = []
+        for p in L.find(self.root):
+            try:
+                data = L.load(p)
+            except (OSError, ValueError):
+                out.append((p, None, "is not valid JSON"))
+                continue
+            if not isinstance(data, dict):
+                out.append((p, None, "is not a JSON object"))
+                continue
+            out.append((p, data, None))
+        return out
 
     def declared(self) -> dict:
         try:
@@ -762,8 +828,10 @@ def check_language(ctx: Context) -> Result:
 # --- 7 -----------------------------------------------------------------------
 
 def check_proposals(ctx: Context) -> Result:
-    r = run([sys.executable, RULES_DIR / "bin" / "proposalcheck", "--project", ctx.root])
     fix = f"fix what {RULES_DIR}/bin/proposalcheck --project {ctx.root} names; create proposals with bin/new-proposal"
+    if PC is None:
+        return not_hold("bin/proposalcheck could not be loaded", fix)
+    r = run_inprocess(PC.main, ["--project", ctx.root])
     if isinstance(r, str):
         return not_hold(r, fix)
     if r.returncode == 0:
@@ -1029,7 +1097,9 @@ def check_pointer(ctx: Context) -> Result:
 
 def check_card(ctx: Context) -> Result:
     fix = f"run {RULES_DIR}/bin/warmup --project {ctx.root} --check and fix each problem it names"
-    r = run([sys.executable, RULES_DIR / "bin" / "warmup", "--project", ctx.root, "--check", "--no-recall"])
+    if W is None:
+        return not_hold("bin/warmup could not be loaded", fix)
+    r = run_inprocess(W.main, ["--project", ctx.root, "--check", "--no-recall"])
     if isinstance(r, str):
         return not_hold(r, fix)
     if r.returncode == 0:
@@ -1057,20 +1127,31 @@ ITEMS = (
 )
 
 
+def _run_check(ctx: "Context", check) -> "Result":
+    try:
+        return check(ctx)
+    except Exception as exc:  # noqa: BLE001 -- one broken check must not hide the other eleven
+        return not_hold(f"the check itself failed ({type(exc).__name__}: {exc})",
+                        "report this to common-rules; the item cannot be shown to hold")
+
+
 def measure(project: Path) -> dict:
-    """The report, every string already escaped. Raises CouldNotRun."""
+    """The report, every string already escaped. Raises CouldNotRun.
+
+    O-09 (31/F-01): the twelve checks only read the repo, so they run
+    concurrently -- a thread pool, since each one is dominated by waiting on
+    git or another subprocess, not by CPU. ThreadPoolExecutor.map returns
+    results in the order its iterable was given, not completion order, so
+    `items` comes out in ITEMS' declared 1..12 order regardless of which
+    check finishes first: the card's text is identical run to run."""
     root = toplevel(Path(project))
     if root is None:
         raise CouldNotRun(f"{project} is not inside a git repository")
     ctx = Context(root)
-    items = []
-    for n, name, check in ITEMS:
-        try:
-            result = check(ctx)
-        except Exception as exc:  # noqa: BLE001 -- one broken check must not hide the other eleven
-            result = not_hold(f"the check itself failed ({type(exc).__name__}: {exc})",
-                              "report this to common-rules; the item cannot be shown to hold")
-        items.append({"n": n, "name": name, "state": result.state, "why": shown(result.why), "fix": shown(result.fix)})
+    with ThreadPoolExecutor(max_workers=len(ITEMS)) as pool:
+        results = list(pool.map(lambda t: _run_check(ctx, t[2]), ITEMS))
+    items = [{"n": n, "name": name, "state": result.state, "why": shown(result.why), "fix": shown(result.fix)}
+             for (n, name, _check), result in zip(ITEMS, results)]
     return {"project": shown(root), "hold": sum(1 for i in items if i["state"] == HOLDS),
             "total": TOTAL, "items": items}
 
