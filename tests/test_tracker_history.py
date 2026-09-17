@@ -170,8 +170,10 @@ class TestHistorySeries(unittest.TestCase):
     def test_day_d_completion_pct_uses_parts_completion_per_item(self):
         rows = self.by_date(history.series(self.repo.root))
         r = rows[self.day_d.isoformat()]
-        # W-01=100, W-02=100, W-03=0, W-04=50 (only its top-level A is done)
-        self.assertAlmostEqual(r["completion_pct"], 62.5)
+        # W-01=100, W-02=100, W-03=0, W-04=75: its A (50) is done, and its B
+        # (50) is half done through its own sub-parts -- completion rolls up
+        # through nested parts (proposal 30, the sponsor's "sub sub items").
+        self.assertAlmostEqual(r["completion_pct"], 68.8)
 
     def test_by_proposal_matches_overall_when_theres_one_proposal(self):
         rows = self.by_date(history.series(self.repo.root))
