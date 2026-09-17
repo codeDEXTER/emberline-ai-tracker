@@ -36,9 +36,11 @@ not a delta against nothing.
 
 ## 2. Read only what moved
 
-The output is a delta: new or changed ledger items, asks, requests, a page
-that changed since it was last published, a checkpoint that moved — then
-`standard: N of 12 hold` and every item that does not hold, shown every time
+The output is a delta: new or changed ledger items (a split item's
+completion %, next open part, and group count line among them), asks,
+requests, a page that changed since it was last published, a checkpoint
+that moved — then `standard: N of 12 hold` and every item that does not
+hold, shown every time
 (never only when it changed, since a running lead needs the current answer,
 not just the news). `queue:` lists what `--queue` wrote, or says there was
 nothing new.

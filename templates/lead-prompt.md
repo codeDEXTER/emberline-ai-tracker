@@ -78,6 +78,9 @@ this job and is not watching in real time. You are.
   and `tracker ask` for ask rows — you never hand-edit the ledger JSON
   directly, the same rule `templates/brief.md` states for a builder (which
   instead stages with `tracker stage`, since it does not hold the pen).
+- An item that cannot reach 100% in one piece is split into lettered parts
+  before work starts: set each part's share with `tracker set`, then close
+  parts one at a time with `tracker set` as they finish.
 - Every blocked row and every decision ask carries an `owner` —
   `sponsor`, `lead`, or `session:<name>` (proposal 20 D4).
 - The project has one tracker page, `docs/proposals/tracker/index.html`,
