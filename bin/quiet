@@ -68,9 +68,11 @@ cache, every file still runs exactly once either way.
 """
 from __future__ import annotations
 
+import ast
 import concurrent.futures
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -273,51 +275,160 @@ def _save_duration_cache(path: Path, cache: dict) -> None:
     tmp.replace(path)
 
 
-def _run_one_shard(python: str, start_dir: str, filename: str):
+class Unit:
+    """One shard: a whole test file, or some of one file's classes.
+
+    Sharding by file alone has a floor -- the slowest single file. On this
+    repo that floor was 575s of a ~1000s suite (finding 31/F-02), because
+    tests/test_warmup.py calls bin/warmup 122 times at ~2s a call, and
+    `discover -p <one file>` cannot be split further. A unit is therefore
+    a file OR a named group of that file's test classes, which unittest
+    runs as `python3 -m unittest module.ClassA module.ClassB`, printing
+    the same summary the aggregator already reads.
+    """
+
+    def __init__(self, path: Path, classes: list[str] | None = None):
+        self.path = path
+        self.classes = classes or []
+
+    @property
+    def key(self) -> str:
+        """The duration cache key. A split unit is keyed by its own
+        classes, so a rerun can time each group rather than guessing."""
+        if not self.classes:
+            return self.path.name
+        return f"{self.path.name}::{'+'.join(self.classes)}"
+
+    @property
+    def label(self) -> str:
+        if not self.classes:
+            return self.path.name
+        return f"{self.path.name} [{', '.join(self.classes)}]"
+
+    def argv(self, python: str, start_dir: str) -> list[str]:
+        if not self.classes:
+            return [python, "-m", "unittest", "discover", "-s", start_dir,
+                    "-p", self.path.name, "-q"]
+        module = self.path.stem
+        return [python, "-m", "unittest", *(f"{module}.{c}" for c in self.classes), "-q"]
+
+    def cwd(self, start_dir: str) -> str | None:
+        # A named module is imported from the tests directory itself --
+        # tests/ is not a package here, so the module name is bare and the
+        # process has to start in that directory.
+        return start_dir if self.classes else None
+
+
+def _test_classes(path: Path) -> list[str]:
+    """Every class in `path` that holds at least one test method, read from
+    the source with `ast` -- never by importing the file, which would run
+    its module-level code in this process."""
+    try:
+        tree = ast.parse(path.read_text(errors="replace"))
+    except (OSError, SyntaxError):
+        return []
+    found = []
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        if any(isinstance(b, ast.FunctionDef) and b.name.startswith("test")
+               for b in node.body):
+            found.append(node.name)
+    return found
+
+
+def _run_one_shard(python: str, start_dir: str, unit: "Unit"):
     t0 = time.monotonic()
-    proc = subprocess.run(
-        [python, "-m", "unittest", "discover", "-s", start_dir, "-p", filename, "-q"],
-        capture_output=True,
-        text=True,
-    )
-    return filename, proc.returncode, proc.stdout + proc.stderr, time.monotonic() - t0
+    proc = subprocess.run(unit.argv(python, start_dir), cwd=unit.cwd(start_dir),
+                          capture_output=True, text=True)
+    return unit, proc.returncode, proc.stdout + proc.stderr, time.monotonic() - t0
 
 
-def _ordered_shards(files: list[Path], durations: dict) -> list[Path]:
-    """Longest-known-first (see the module docstring): unknown files (cold
-    cache, or a file that never ran before) get -1 so they sort after
-    every timed file, in `files`'s incoming (already-alphabetical) order --
-    a plain round-robin among themselves. A pure function of its inputs so
-    the dispatch order can be checked without running any tests."""
-    return sorted(files, key=lambda f: durations.get(f.name, -1.0), reverse=True)
+def _ordered_shards(units: list["Unit"], durations: dict) -> list["Unit"]:
+    """Longest-known-first (see the module docstring): unknown units (cold
+    cache, or one that never ran before) get -1 so they sort after every
+    timed unit, in the incoming (already-alphabetical) order -- a plain
+    round-robin among themselves. A pure function of its inputs so the
+    dispatch order can be checked without running any tests."""
+    return sorted(units, key=lambda u: durations.get(u.key, -1.0), reverse=True)
+
+
+def _file_duration(path: Path, durations: dict) -> float:
+    """What the cache knows about a whole file: its own timing, or the sum
+    of its split units' timings from the last run."""
+    if path.name in durations:
+        return float(durations[path.name])
+    prefix = f"{path.name}::"
+    parts = [v for k, v in durations.items() if k.startswith(prefix)]
+    return float(sum(parts)) if parts else -1.0
+
+
+def _plan_units(files: list[Path], durations: dict, jobs: int) -> list["Unit"]:
+    """Files, with any file too slow to be one shard split across its test
+    classes.
+
+    "Too slow" is measured against the only target that matters: the wall
+    clock a perfectly balanced run would reach, which is the total known
+    work divided by the number of processes. A file above that target is
+    the run's floor, so it is cut into ceil(duration / target) groups. With
+    a cold cache nothing is split -- there is no evidence yet to act on,
+    and the first run writes the timings the next one uses.
+    """
+    known = {f: _file_duration(f, durations) for f in files}
+    timed = [d for d in known.values() if d > 0]
+    if jobs < 2 or not timed:
+        return [Unit(f) for f in files]
+    target = sum(timed) / jobs
+    units: list[Unit] = []
+    for f in files:
+        d = known[f]
+        if d <= target or target <= 0:
+            units.append(Unit(f))
+            continue
+        classes = _test_classes(f)
+        groups = min(len(classes), math.ceil(d / target))
+        if groups < 2:
+            units.append(Unit(f))
+            continue
+        # Round-robin, because per-class timings are not known: it spreads
+        # a file's big and small classes across the groups rather than
+        # leaving all the slow ones together at the end.
+        buckets: list[list[str]] = [[] for _ in range(groups)]
+        for n, c in enumerate(classes):
+            buckets[n % groups].append(c)
+        units.extend(Unit(f, b) for b in buckets if b)
+    return units
 
 
 def _run_parallel_discover(python: str, start_dir: str, pattern: str, jobs: int):
-    """Run one `unittest discover` shard per matched file, across up to
-    `jobs` OS processes at once, and return (combined_output, exit_code)
-    in the same unittest summary shape `_detect` already parses -- or
-    None if no files matched (caller then falls back to running CMD as
-    given)."""
+    """Run one shard per unit -- a test file, or a group of one file's
+    classes when that file is the run's floor -- across up to `jobs` OS
+    processes at once, and return (combined_output, exit_code) in the same
+    unittest summary shape `_detect` already parses, or None if no files
+    matched (the caller then falls back to running CMD as given)."""
     files = _shard_files(start_dir, pattern)
     if not files:
         return None
-    jobs = max(1, min(jobs, len(files)))
 
     cache_path = _duration_cache_path(Path(start_dir))
     durations = _load_duration_cache(cache_path)
-    ordered = _ordered_shards(files, durations)
+    units = _plan_units(files, durations, jobs)
+    jobs = max(1, min(jobs, len(units)))
+    ordered = _ordered_shards(units, durations)
 
     shard_start = time.monotonic()
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as ex:
-        futures = [ex.submit(_run_one_shard, python, start_dir, f.name) for f in ordered]
+        futures = [ex.submit(_run_one_shard, python, start_dir, u) for u in ordered]
         for fut in futures:
             results.append(fut.result())
     shard_elapsed = time.monotonic() - shard_start
 
-    new_durations = dict(durations)
-    for filename, code, out, elapsed in results:
-        new_durations[filename] = elapsed
+    new_durations = {k: v for k, v in durations.items()
+                     if k not in {u.key for u in units}
+                     and k.split("::")[0] not in {u.path.name for u in units}}
+    for unit, code, out, elapsed in results:
+        new_durations[unit.key] = elapsed
     _save_duration_cache(cache_path, new_durations)
 
     total_tests = 0
@@ -325,8 +436,8 @@ def _run_parallel_discover(python: str, start_dir: str, pattern: str, jobs: int)
     total_errors = 0
     any_unrecognised_failure = False
     parts = []
-    for filename, code, out, elapsed in results:
-        parts.append(f"--- {filename} ---\n{out.rstrip(chr(10))}\n")
+    for unit, code, out, elapsed in results:
+        parts.append(f"--- {unit.label} ---\n{out.rstrip(chr(10))}\n")
         m = _RAN_RE.search(out)
         if m:
             total_tests += int(m.group(1))
@@ -351,7 +462,6 @@ def _run_parallel_discover(python: str, start_dir: str, pattern: str, jobs: int)
     )
     combined_output = "\n".join(parts) + "\n" + summary + "\n"
     return combined_output, (1 if failed else 0)
-
 
 def _parse_args(argv):
     log = None
