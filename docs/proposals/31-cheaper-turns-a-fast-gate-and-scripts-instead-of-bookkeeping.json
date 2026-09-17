@@ -49,7 +49,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -96,7 +96,7 @@
       "status": "not started",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [],
@@ -116,13 +116,13 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
         {
           "at": "2026-09-17T21:30:49+02:00",
-          "event": "Extended the gate rule into CLAUDE-workflow.md's gate section, templates/lead-prompt.md §2 and templates/brief.md's MUST section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
+          "event": "Extended the gate rule into CLAUDE-workflow.md's gate section, templates/lead-prompt.md \u00a72 and templates/brief.md's MUST section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
           "by": "session:o03-o07-turn-rules",
           "evidence": "cc1806f45e5cd799c084b3c4fe0a1e88e04f7eb6",
           "status": "done"
@@ -144,7 +144,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -178,7 +178,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -206,7 +206,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -234,13 +234,13 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
         {
           "at": "2026-09-17T21:31:01+02:00",
-          "event": "Extended batch dispatch as a cost rule into templates/lead-prompt.md §3 and CLAUDE-workflow.md's Issues section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
+          "event": "Extended batch dispatch as a cost rule into templates/lead-prompt.md \u00a73 and CLAUDE-workflow.md's Issues section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
           "by": "session:o03-o07-turn-rules",
           "evidence": "cc1806f45e5cd799c084b3c4fe0a1e88e04f7eb6",
           "status": "done"
@@ -248,6 +248,68 @@
       ],
       "points": 2,
       "value": "medium"
+    },
+    {
+      "id": "O-08",
+      "phase": "O",
+      "cx": "C3",
+      "title": "A staging branch, so main is never red",
+      "what": "The sponsor: \"We can also reduce the number of tests so we can have a development branch or a staging branch where we can keep merging changes and then after a considerable amount of changes are done, we can test in one go.\" Reviewed branches merge into staging; the full suite runs there, not on main; main fast-forwards from staging only when staging is green. No test is deleted -- what is reduced is the number of runs, not the coverage (finance-tracker had 1,753 green tests over 16 wrong-money defects).",
+      "files": [],
+      "tests": [],
+      "done": "bin/land knows the staging target; the standard says where the full suite runs and when main advances; a red staging branch cannot reach main; tested on a fixture repo.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 5,
+      "value": "high"
+    },
+    {
+      "id": "O-09",
+      "phase": "O",
+      "cx": "C3",
+      "title": "Warm-up stops shelling out 23 times to measure conformance",
+      "what": "Finding 31/F-01: bin/warmup costs 1.9s, of which 1.21s is bin/conformance measure running 23 subprocesses. Every session pays it at startup and test_warmup pays it 122 times. The 23 checks are independent reads -- import them in-process, or run them concurrently, or both. Same verdicts, same output, faster.",
+      "files": [],
+      "tests": [],
+      "done": "bin/warmup's wall clock measured before and after on the same commit; conformance reports identical verdicts for the same repo state; the 12-check suite stays green.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 5,
+      "value": "high"
+    },
+    {
+      "id": "O-10",
+      "phase": "O",
+      "cx": "C3",
+      "title": "Shards split within a file, not just between files",
+      "what": "Finding 31/F-02: bin/quiet shards by test file, so the suite's floor is its slowest file however many cores are free -- which is why --jobs 8 measured 610s. Shard by test class (or by an even split of test ids) so one 575s file spreads across cores.",
+      "files": [],
+      "tests": [],
+      "done": "The slowest file's tests run across several processes; aggregated counts still match a sequential run; --jobs 8 measured against serial on the same commit.",
+      "depends": [
+        "O-09"
+      ],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 5,
+      "value": "high"
     }
   ],
   "asks": [
