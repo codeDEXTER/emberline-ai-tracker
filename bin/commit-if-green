@@ -1,0 +1,291 @@
+#!/usr/bin/env python3
+"""bin/commit-if-green -- run the gate, commit and push only on a green
+verdict (common-rules proposal 31, D4 -> O-04).
+
+Why: a builder finishing a task today reads the gate's verdict, then spends
+three more model turns on a mechanical sequence -- `git add`, `git commit`,
+`git push` -- and the OK/FAILED call itself is made by the model reading raw
+gate output, not by code. HANDOFF.md's operating rules (folded in from the
+old docs/OPERATING-RULES.md, S3) record the day that went wrong: a
+`grep ... && git commit` chain shipped a failing test, because grep exits 0
+on a line containing "FAILED". This script exists to put that one check in
+code instead of in a model's reading of a log.
+
+  commit-if-green [--project DIR] [--message MSG | --message-file FILE]
+                   [--push] [--gate CMD...]
+
+--project DIR       defaults to the git top of the cwd.
+--message MSG,
+--message-file FILE the commit message (mutually exclusive; one is
+                     required). The attribution trailer --
+                     "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+                     -- is appended if not already present.
+--push               push the current branch after committing:
+                     `--force-with-lease` when it already tracks a remote
+                     branch of the same name, otherwise `-u origin <branch>`.
+                     Never pushes to `main` -- refused up front, before the
+                     gate runs, so a doomed push never burns a gate run.
+--timeout SECONDS    how long the gate may run before this script gives up
+                     on it (default 600). A gate that has not produced a
+                     verdict by then is killed; nothing is committed, and
+                     the log path bin/quiet was already writing to is
+                     printed, so the caller can read what the run had done
+                     so far. Found the hard way: a caller ran the full
+                     affected-tests set (two dozen modules) under a harness
+                     that force-backgrounds anything over 120s, and had no
+                     way to tell "still running" from "hung" without
+                     re-polling -- the exact turn-burning habit this script
+                     exists to remove. A wrapper that can hang forever is
+                     worse than the four turns it replaces.
+--gate CMD...        overrides the default gate. Everything after --gate is
+                     the command, run exactly as typed -- put it last.
+                     Default: the project's affected tests, the way the
+                     standard already runs them -- tools/affected_tests.py
+                     --base origin/main, mapped to bare module names, run as
+                     `python3 -m unittest <mods> -q` with cwd tests/. When
+                     nothing is affected, or affected_tests.py cannot tell
+                     (not a git repo yet, no commits), this falls back to
+                     the full suite: `python3 -m unittest discover -s tests
+                     -q`.
+
+The gate always runs through `bin/quiet` (read its own docstring first).
+This script does not re-parse "OK"/"FAILED" out of the gate's raw output --
+that parsing is quiet's job, and quiet already refuses to call a run OK when
+the runner's own summary disagrees with a nonzero exit code. What this
+script checks is quiet's own verdict *line*: it must literally start with
+"quiet: OK", and quiet's own process exit code must be 0. Anything else --
+"quiet: FAILED ...", a nonzero exit, a blank line, or a line that does not
+look like quiet's line at all -- is treated as failure, never as success.
+"I could not tell" is not a green light.
+
+Refuses, before running anything (exit 2): bad usage (no message, or both
+--message and --message-file); --push requested while on `main`; a merge or
+rebase already in progress; nothing staged and nothing to stage.
+
+Exit codes: 0 committed (and pushed, if --push was given); 1 the gate
+failed, nothing was committed; 2 refused before the gate ran.
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+DEFAULT_TIMEOUT = 600.0
+
+# Self-located, the way bin/rulecheck resolves RULES -- COMMON_RULES_DIR
+# still wins when set, which is how the tests point it at a fixture install
+# carrying a stub bin/quiet.
+RULES = Path(os.environ.get("COMMON_RULES_DIR",
+                            str(Path(__file__).resolve().parent.parent)))
+QUIET = RULES / "bin" / "quiet"
+AFFECTED_TESTS = RULES / "tools" / "affected_tests.py"
+
+ATTRIBUTION = "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+
+
+def _git(project: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(project), *args],
+                          capture_output=True, text=True)
+
+
+def _git_top(cwd: Path) -> Path | None:
+    proc = subprocess.run(["git", "-C", str(cwd), "rev-parse", "--show-toplevel"],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        return None
+    return Path(proc.stdout.strip())
+
+
+def _git_dir(project: Path) -> Path | None:
+    proc = _git(project, "rev-parse", "--git-dir")
+    if proc.returncode != 0:
+        return None
+    p = Path(proc.stdout.strip())
+    return p if p.is_absolute() else project / p
+
+
+def _merge_or_rebase_in_progress(project: Path) -> bool:
+    git_dir = _git_dir(project)
+    if git_dir is None:
+        return False
+    return ((git_dir / "MERGE_HEAD").exists()
+            or (git_dir / "rebase-merge").exists()
+            or (git_dir / "rebase-apply").exists())
+
+
+def _nothing_to_commit(project: Path) -> bool:
+    proc = _git(project, "status", "--porcelain")
+    return proc.returncode == 0 and proc.stdout.strip() == ""
+
+
+def _current_branch(project: Path) -> str:
+    return _git(project, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+
+
+def _tracks_same_name_remote(project: Path, branch: str) -> bool:
+    proc = _git(project, "rev-parse", "--abbrev-ref", f"{branch}@{{upstream}}")
+    if proc.returncode != 0:
+        return False
+    return proc.stdout.strip() == f"origin/{branch}"
+
+
+def _default_gate(project: Path) -> tuple[list[str], Path]:
+    """(cmd, cwd) for the standard's own affected-tests gate: modules the
+    changed files touch, run from tests/ -- or the full suite when nothing
+    is affected or affected_tests.py cannot tell (exit 1 or 2, see its own
+    docstring). Never guesses beyond that; a missing tests/ dir is the full
+    suite command's problem to report, not this function's to solve."""
+    proc = subprocess.run(
+        [sys.executable, str(AFFECTED_TESTS), "--base", "origin/main"],
+        cwd=str(project), capture_output=True, text=True,
+    )
+    if proc.returncode == 0:
+        mods = []
+        for line in proc.stdout.splitlines():
+            name = Path(line.strip()).name
+            if name.endswith(".py"):
+                name = name[:-3]
+            if name and name not in mods:
+                mods.append(name)
+        if mods:
+            return [sys.executable, "-m", "unittest", *mods, "-q"], project / "tests"
+    return [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-q"], project
+
+
+def _gate_ok(verdict_line: str, quiet_returncode: int) -> bool:
+    """The one rule this script applies: quiet's own line must say OK, and
+    quiet's own exit code must be 0. Anything else -- FAILED, a nonzero
+    exit, an empty line, a line that isn't quiet's shape at all -- is not
+    OK. Kept as its own function so the refusal can be pinned by a plain
+    unit test, without spinning up a subprocess for every shape."""
+    return verdict_line.startswith("quiet: OK") and quiet_returncode == 0
+
+
+def _build_message(args: argparse.Namespace) -> str:
+    if args.message is not None:
+        msg = args.message
+    else:
+        msg = Path(args.message_file).read_text()
+    msg = msg.rstrip()
+    if ATTRIBUTION not in msg:
+        msg = f"{msg}\n\n{ATTRIBUTION}" if msg else ATTRIBUTION
+    return msg + "\n"
+
+
+def _parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="commit-if-green")
+    parser.add_argument("--project")
+    parser.add_argument("--message")
+    parser.add_argument("--message-file")
+    parser.add_argument("--push", action="store_true")
+    parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT)
+    parser.add_argument("--gate", nargs=argparse.REMAINDER)
+    args = parser.parse_args(argv)
+    if args.message is not None and args.message_file is not None:
+        parser.error("--message and --message-file are mutually exclusive")
+    if args.message is None and args.message_file is None:
+        parser.error("one of --message or --message-file is required")
+    if args.gate is not None and not args.gate:
+        parser.error("--gate requires a command")
+    return args
+
+
+def _commit(project: Path, message: str) -> str | None:
+    add = _git(project, "add", "-A")
+    if add.returncode != 0:
+        print(f"commit-if-green: git add failed: {add.stderr.strip()}", file=sys.stderr)
+        return None
+    fd, msg_path = tempfile.mkstemp(prefix="commit-if-green-", suffix=".txt")
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(message)
+        commit = _git(project, "commit", "-F", msg_path)
+    finally:
+        os.unlink(msg_path)
+    if commit.returncode != 0:
+        print(f"commit-if-green: git commit failed: {commit.stderr.strip()}", file=sys.stderr)
+        return None
+    return _git(project, "rev-parse", "HEAD").stdout.strip()
+
+
+def _push(project: Path, branch: str) -> bool:
+    if _tracks_same_name_remote(project, branch):
+        proc = _git(project, "push", "--force-with-lease", "origin", branch)
+    else:
+        proc = _git(project, "push", "-u", "origin", branch)
+    if proc.returncode != 0:
+        print(f"commit-if-green: push failed: {proc.stderr.strip()}", file=sys.stderr)
+        return False
+    print(f"commit-if-green: pushed {branch}")
+    return True
+
+
+def main(argv: list[str]) -> int:
+    args = _parse_args(argv)
+
+    cwd = Path(args.project).resolve() if args.project else Path.cwd()
+    project = _git_top(cwd)
+    if project is None:
+        print(f"commit-if-green: {cwd} is not inside a git repository", file=sys.stderr)
+        return 2
+
+    branch = _current_branch(project)
+    if args.push and branch == "main":
+        print("commit-if-green: refusing -- never pushes to main", file=sys.stderr)
+        return 2
+
+    if _merge_or_rebase_in_progress(project):
+        print("commit-if-green: refusing -- a merge or rebase is in progress", file=sys.stderr)
+        return 2
+
+    if _nothing_to_commit(project):
+        print("commit-if-green: refusing -- nothing staged and nothing to stage", file=sys.stderr)
+        return 2
+
+    message = _build_message(args)
+    gate_cmd, gate_cwd = (args.gate, project) if args.gate else _default_gate(project)
+
+    # A path we choose, not quiet's own default -- so a timeout below still
+    # knows where the (partial) log is, instead of having nothing to point
+    # the caller at.
+    tmpdir = Path(os.environ.get("TMPDIR") or tempfile.gettempdir())
+    log_path = tmpdir / "quiet" / f"commit-if-green-{time.strftime('%Y%m%d-%H%M%S')}.log"
+
+    try:
+        quiet_proc = subprocess.run(
+            [str(QUIET), "--label", "commit-if-green", "--log", str(log_path), "--", *gate_cmd],
+            cwd=str(gate_cwd), capture_output=True, text=True, timeout=args.timeout,
+        )
+    except subprocess.TimeoutExpired:
+        print(f"commit-if-green: gate did not finish within {args.timeout:g}s -- "
+              f"refusing, nothing committed · log {log_path}", file=sys.stderr)
+        return 1
+    except OSError as exc:
+        print(f"commit-if-green: could not run bin/quiet: {exc}", file=sys.stderr)
+        return 1
+
+    verdict_line = quiet_proc.stdout.strip()
+    print(verdict_line or "quiet: (no verdict line printed)")
+
+    if not _gate_ok(verdict_line, quiet_proc.returncode):
+        return 1
+
+    sha = _commit(project, message)
+    if sha is None:
+        return 1
+    print(f"commit-if-green: committed {sha[:12]}")
+
+    if args.push:
+        if not _push(project, branch):
+            return 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

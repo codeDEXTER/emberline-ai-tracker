@@ -1,8 +1,8 @@
 # Checkpoint — 2026-09-17 21:31
 
-Reason: manual · branch: o03-o07-turn-rules · HEAD: cc1806f
+Reason: manual · branch: o04-commit-if-green · HEAD: d6579ee
 
-<!-- ledger-digest: 9d461a3d14488576f1182bac8a62359ab3ca826e9cf3b1ae056b1aabfc6e1d21 -->
+<!-- ledger-digest: 977404f273204a182a9eb57af9602a6c149d0b57d7efd195f047f8c76c6b7712 -->
 
 ## Proposal 19 · Warm-up
 
@@ -111,7 +111,7 @@ Reason: manual · branch: o03-o07-turn-rules · HEAD: cc1806f
 
 ## Proposal 31 · Cheaper turns: a fast gate and scripts instead of bookkeeping
 
-2 done / 1 in progress / 0 blocked / 4 not started
+1 done / 1 in progress / 0 blocked / 5 not started
 
 ### In progress
 
@@ -127,18 +127,20 @@ Reason: manual · branch: o03-o07-turn-rules · HEAD: cc1806f
 
 ### Next unblocked
 
-- O-04 · [ruflo · medium · sonnet] · bin/commit-if-green: gate, verdict and commit in one call
+- O-03 · [ruflo · high · sonnet] · No waiting on a gate: one blocking call, one verdict line
 - O-05 · [ruflo · medium · sonnet] · A PR body drafted from the ledger item and the diff
 - O-06 · [ruflo · medium · sonnet] · One draft for the ruflo-item done note and the ledger event
+- O-07 · [ruflo · high · sonnet] · Batch dispatch: one message carries every unblocked brief
 
 ### Open work by group
 
 **finish now**
 - O-01 0% · next O-01.A
 - O-02 0%
-- O-04 0%
+- O-03 0%
 - O-05 0%
 - O-06 0%
+- O-07 0%
 
 ## Exact next action
 
