@@ -21,7 +21,12 @@ running `claude` background session and no OS process with its cwd inside
 it). Anything uncommitted, unmerged, or active is kept, with the first
 failing reason. `git worktree prune` runs alongside it and reports any
 administrative entry whose directory is already gone. The main checkout is
-never a candidate.
+never a candidate. Three guards were added in review, each after a real case
+in common-rules' own first dry run: a merged PR counts only when its head is
+the branch's tip (commits made after the merge are unmerged work); a
+worktree registered outside the project directory (one lived in another
+app's folder) is never removed; and a worktree that contains another
+worktree is kept, since deleting its directory would delete the inner one.
 
 Projects: run `bin/worktree-sweep --project . --apply` when a session ends
 and after landing a batch, so finished worktrees stop piling up.
