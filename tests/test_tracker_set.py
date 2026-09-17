@@ -180,5 +180,243 @@ class TestPageIsRendered(TrackerSetCase):
         self.assertEqual(0, check.returncode, check.stdout + check.stderr)
 
 
+# --- proposal 30, P-02: `tracker set` on an item's lettered parts ----------
+
+def with_parts(parts):
+    return fixture(items=[
+        {"id": "W-10", "phase": "W", "cx": "C2", "title": "split item", "status": "in progress",
+         "parts": parts},
+        {"id": "W-02", "phase": "W", "cx": "C3", "title": "b", "status": "not started"},
+    ])
+
+
+def part(letter, share, status="not started", **extra):
+    return {"id": f"W-10.{letter}", "title": f"part {letter}", "share": share, "status": status, **extra}
+
+
+class TrackerSetPartsCase(TrackerSetCase):
+    """Same harness as TrackerSetCase, but the fixture ledger starts with a
+    W-10 item split into parts (each subclass writes its own parts)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.ledger = self.root / "99-fixture.json"
+
+
+class TestSetOnAPart(TrackerSetPartsCase):
+
+    def test_setting_a_part_status_updates_only_that_part(self):
+        self.write(with_parts([part("A", 60), part("B", 40)]))
+        r = self.run_set("W-10.A", "--status", "done", "--event", "shipped")
+        self.assertEqual(0, r.returncode, r.stderr)
+        item = self.item("W-10")
+        self.assertEqual("done", item["parts"][0]["status"])
+        self.assertEqual("not started", item["parts"][1]["status"])
+        self.assertEqual("in progress", item["status"], "item stays open while a part is open")
+
+    def test_the_log_entry_lands_on_the_part_not_the_item(self):
+        self.write(with_parts([part("A", 60), part("B", 40)]))
+        r = self.run_set("W-10.A", "--status", "done", "--evidence", "PR #1", "--by", "the-sponsor")
+        self.assertEqual(0, r.returncode, r.stderr)
+        item = self.item("W-10")
+        self.assertEqual(1, len(item["parts"][0]["log"]))
+        entry = item["parts"][0]["log"][0]
+        self.assertEqual("done", entry["status"])
+        self.assertEqual("PR #1", entry["evidence"])
+        self.assertEqual("the-sponsor", entry["by"])
+        self.assertEqual([], item.get("log") or [], "no item-level log entry while a part remains open")
+
+    def test_field_on_a_part_writes_the_part_not_the_item(self):
+        self.write(with_parts([part("A", 60), part("B", 40)]))
+        r = self.run_set("W-10.A", "--field", "title=renamed slice")
+        self.assertEqual(0, r.returncode, r.stderr)
+        item = self.item("W-10")
+        self.assertEqual("renamed slice", item["parts"][0]["title"])
+        self.assertEqual("split item", item["title"], "the item's own title is untouched")
+
+    def test_field_share_on_a_part_parses_as_an_int(self):
+        self.write(with_parts([part("A", 60), part("B", 40)]))
+        r = self.run_set("W-10.A", "--field", "share=50")
+        # Deliberately leaves shares at 50 + 40 = 90 -- refused, proving the
+        # ledger is validated (and shares parsed as JSON ints) before write.
+        self.assertEqual(1, r.returncode)
+        self.assertIn("add up to 90", r.stderr)
+
+    def test_field_not_allowed_on_a_part_is_refused(self):
+        self.write(with_parts([part("A", 60), part("B", 40)]))
+        before = self.ledger.read_bytes()
+        r = self.run_set("W-10.A", "--field", "cx=C1")
+        self.assertEqual(1, r.returncode)
+        self.assertEqual(before, self.ledger.read_bytes())
+        self.assertIn("cx", r.stderr)
+
+    def test_owner_on_a_part(self):
+        self.write(with_parts([part("A", 60), part("B", 40)]))
+        r = self.run_set("W-10.A", "--owner", "session:builder-2")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertEqual("session:builder-2", self.item("W-10")["parts"][0]["owner"])
+
+    def test_unknown_part_writes_nothing(self):
+        self.write(with_parts([part("A", 60), part("B", 40)]))
+        before = self.ledger.read_bytes()
+        r = self.run_set("W-10.C", "--status", "done")
+        self.assertEqual(1, r.returncode)
+        self.assertEqual(before, self.ledger.read_bytes())
+
+    def test_unknown_parent_item_writes_nothing(self):
+        self.write(with_parts([part("A", 60), part("B", 40)]))
+        before = self.ledger.read_bytes()
+        r = self.run_set("W-99.A", "--status", "done")
+        self.assertEqual(1, r.returncode)
+        self.assertEqual(before, self.ledger.read_bytes())
+
+    def test_output_names_the_part_and_the_completion_percent(self):
+        self.write(with_parts([part("A", 60), part("B", 40)]))
+        r = self.run_set("W-10.A", "--status", "done")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("W-10.A", r.stdout)
+        self.assertIn("completion 60%", r.stdout)
+
+
+class TestLastPartClosesTheItem(TrackerSetPartsCase):
+
+    def test_setting_the_last_open_part_done_closes_the_item(self):
+        self.write(with_parts([part("A", 60, "done"), part("B", 40)]))
+        r = self.run_set("W-10.B", "--status", "done", "--event", "merged")
+        self.assertEqual(0, r.returncode, r.stderr)
+        item = self.item("W-10")
+        self.assertEqual("done", item["status"])
+        self.assertEqual("done", item["parts"][1]["status"])
+        self.assertTrue(item.get("log"), "item gets its own roll-up log entry")
+        last = item["log"][-1]
+        self.assertEqual("all parts done", last["event"])
+        self.assertEqual("done", last.get("status"))
+
+    def test_completion_is_100_after_the_last_part(self):
+        self.write(with_parts([part("A", 60, "done"), part("B", 40)]))
+        r = self.run_set("W-10.B", "--status", "done")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertIn("completion 100%", r.stdout)
+
+    def test_ledger_still_validates_after_the_roll_up(self):
+        self.write(with_parts([part("A", 60, "done"), part("B", 40)]))
+        r = self.run_set("W-10.B", "--status", "done")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertEqual([], L.validate(self.read()))
+
+
+class TestItemDoneWhileAPartIsOpenIsRefused(TrackerSetPartsCase):
+
+    def test_setting_the_item_itself_done_with_an_open_part_is_refused(self):
+        self.write(with_parts([part("A", 60, "done"), part("B", 40)]))
+        before = self.ledger.read_bytes()
+        r = self.run_set("W-10", "--status", "done")
+        self.assertEqual(1, r.returncode)
+        self.assertEqual(before, self.ledger.read_bytes())
+        self.assertIn("status done while a part is still open", r.stderr)
+
+
+class TestAddPart(TrackerSetPartsCase):
+
+    def test_add_part_appends_the_next_letter(self):
+        self.write(with_parts([part("A", 60, "done")]))
+        r = self.run_set("W-10", "--add-part", "wrap-up", "--share", "40")
+        self.assertEqual(0, r.returncode, r.stderr)
+        item = self.item("W-10")
+        self.assertEqual(2, len(item["parts"]))
+        self.assertEqual("W-10.B", item["parts"][1]["id"])
+        self.assertEqual("wrap-up", item["parts"][1]["title"])
+        self.assertEqual(40, item["parts"][1]["share"])
+        self.assertEqual("not started", item["parts"][1]["status"])
+
+    def test_add_part_onto_an_item_with_no_parts_yet_becomes_part_a(self):
+        self.write(fixture(items=[
+            {"id": "W-10", "phase": "W", "cx": "C2", "title": "split item", "status": "not started"},
+            {"id": "W-02", "phase": "W", "cx": "C3", "title": "b", "status": "not started"},
+        ]))
+        r = self.run_set("W-10", "--add-part", "first slice", "--share", "100")
+        self.assertEqual(0, r.returncode, r.stderr)
+        item = self.item("W-10")
+        self.assertEqual(1, len(item["parts"]))
+        self.assertEqual("W-10.A", item["parts"][0]["id"])
+        self.assertEqual([], L.validate(self.read()))
+
+    def test_add_part_with_owner_and_risk(self):
+        self.write(with_parts([part("A", 60, "done")]))
+        r = self.run_set("W-10", "--add-part", "wrap-up", "--share", "40", "--owner", "session:builder-3",
+                          "--risk", "high", "--risk-reason", "external dependency")
+        self.assertEqual(0, r.returncode, r.stderr)
+        p = self.item("W-10")["parts"][1]
+        self.assertEqual("session:builder-3", p["owner"])
+        self.assertEqual("high", p["risk"])
+        self.assertEqual("external dependency", p["risk_reason"])
+
+    def test_add_part_needs_share(self):
+        self.write(with_parts([part("A", 60, "done")]))
+        before = self.ledger.read_bytes()
+        r = self.run_set("W-10", "--add-part", "wrap-up")
+        self.assertEqual(1, r.returncode)
+        self.assertEqual(before, self.ledger.read_bytes())
+
+    def test_add_part_risk_needs_risk_reason(self):
+        self.write(with_parts([part("A", 60, "done")]))
+        before = self.ledger.read_bytes()
+        r = self.run_set("W-10", "--add-part", "wrap-up", "--share", "40", "--risk", "high")
+        self.assertEqual(1, r.returncode)
+        self.assertEqual(before, self.ledger.read_bytes())
+
+    def test_add_part_that_leaves_shares_not_adding_to_100_is_refused(self):
+        self.write(with_parts([part("A", 60, "done")]))
+        before = self.ledger.read_bytes()
+        r = self.run_set("W-10", "--add-part", "wrap-up", "--share", "10")
+        self.assertEqual(1, r.returncode)
+        self.assertEqual(before, self.ledger.read_bytes())
+        self.assertIn("add up to 70", r.stderr)
+
+    def test_add_part_on_a_part_id_is_refused(self):
+        self.write(with_parts([part("A", 60, "done"), part("B", 40)]))
+        before = self.ledger.read_bytes()
+        r = self.run_set("W-10.A", "--add-part", "wrap-up", "--share", "40")
+        self.assertEqual(1, r.returncode)
+        self.assertEqual(before, self.ledger.read_bytes())
+
+
+class TestPartsList(TrackerSetPartsCase):
+
+    def test_parts_json_list_replaces_an_items_empty_parts(self):
+        self.write(fixture(items=[
+            {"id": "W-10", "phase": "W", "cx": "C2", "title": "split item", "status": "not started"},
+            {"id": "W-02", "phase": "W", "cx": "C3", "title": "b", "status": "not started"},
+        ]))
+        spec = json.dumps([{"title": "first", "share": 60}, {"title": "second", "share": 40}])
+        r = self.run_set("W-10", "--parts", spec)
+        self.assertEqual(0, r.returncode, r.stderr)
+        item = self.item("W-10")
+        self.assertEqual(2, len(item["parts"]))
+        self.assertEqual("W-10.A", item["parts"][0]["id"])
+        self.assertEqual("W-10.B", item["parts"][1]["id"])
+        self.assertEqual([], L.validate(self.read()))
+
+    def test_parts_list_refused_when_the_item_already_has_parts(self):
+        self.write(with_parts([part("A", 60, "done"), part("B", 40)]))
+        before = self.ledger.read_bytes()
+        spec = json.dumps([{"title": "x", "share": 100}])
+        r = self.run_set("W-10", "--parts", spec)
+        self.assertEqual(1, r.returncode)
+        self.assertEqual(before, self.ledger.read_bytes())
+
+    def test_parts_list_invalid_json_is_refused(self):
+        self.write(fixture(items=[
+            {"id": "W-10", "phase": "W", "cx": "C2", "title": "split item", "status": "not started"},
+            {"id": "W-02", "phase": "W", "cx": "C3", "title": "b", "status": "not started"},
+        ]))
+        before = self.ledger.read_bytes()
+        r = self.run_set("W-10", "--parts", "{not json")
+        self.assertEqual(1, r.returncode)
+        self.assertEqual(before, self.ledger.read_bytes())
+
+
 if __name__ == "__main__":
     unittest.main()
