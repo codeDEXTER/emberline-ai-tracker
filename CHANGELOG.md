@@ -24,6 +24,32 @@ prose from recorded facts. Neither decides whether work is done, whether to
 merge, or what tier something is -- both print a draft to stdout and write
 nothing, anywhere; the lead's own edits are what lands. Not a Standard
 change -- available to any project that wants them, not required.
+## 2026-09-17 · a gate runs in the foreground, briefs go out in one message (O-03, O-07)
+
+**Standard change (mandatory):** every project on the standard runs its gate
+in the foreground, in one blocking call, and reads the verdict line in the
+same turn -- never backgrounded and polled, never a turn ended parked on a
+timer. If a gate is too slow to sit through, that is a bug in the gate, not a
+reason to poll. And every unblocked brief a lead has to send goes out in one
+message, never one per turn; branches ready for review are read and decided
+in one pass, not one turn each.
+
+Measured this session: one agent turn costs about 134,000 cache-read context
+tokens to produce a few hundred written tokens, so cost scales with the
+number of turns, not the work inside them -- a poll that finds nothing new
+still re-sends the whole context to learn nothing. 72% of the project's spend
+went to lead orchestration, 25% to implementing. Two builders backgrounded a
+16-minute test suite and spent turns checking on it that same day.
+
+The sponsor's words, accepting proposal 31 in full: "Implement all the five
+recommendations with the recommended decisions." D3 (O-03) and D5 (O-07) are
+adopted as recommended.
+
+Fixed: the rule is stated once in `CLAUDE-workflow.md` (the existing gate
+paragraph, and the Issues section for batch dispatch) and in
+`templates/lead-prompt.md` (§2 for the gate, §3 for batch dispatch), and
+`templates/brief.md` restates the gate half of it for the builder who runs
+one. No new top-level section was added to any of the three files.
 
 ## 2026-09-17 · lettered parts are the standard way to split an item (P-06)
 

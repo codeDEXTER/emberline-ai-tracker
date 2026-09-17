@@ -174,6 +174,25 @@ processes for the times you do want all of it locally. Either way, the one
 full sequential run at integration (`bin/land`, CI) stays the gate that
 decides a merge (proposal 23, M-01/M-02).
 
+**Run the gate in the foreground, one blocking call, read the verdict line in
+the same turn** (proposal 31, O-03 — mandatory Standard change). A session
+never backgrounds a gate and spends turns polling it, and never ends a turn
+parked on a timer: one agent turn costs about 134,000 cache-read context
+tokens to produce a few hundred written ones, measured this session, so cost
+scales with the number of turns, not the work inside them — a poll that finds
+nothing new re-sends the whole context to learn nothing. In practice "one
+blocking call" means scoping the run to fit inside it: `python3
+tools/affected_tests.py` before the full suite, not after. If the tool still
+backgrounds the call on its own (the harness's own ~120s cutoff, not a choice
+the session makes), read the output exactly once, the moment you are
+notified, and act on it in that same turn — never check it again, and never
+end a turn whose only purpose was to wait. If even a scoped run cannot finish
+inside that window, that is a bug in the gate — `test_warmup.py` alone is
+574.9s, a third of the suite, and caps sharding at 610s even with `--jobs 8`
+(findings 23/F-06 and 23/F-07, O-01/O-02 track fixing it) — not a reason to
+poll. `templates/brief.md` and `templates/lead-prompt.md` §2 state the same
+rule for the builder and the lead.
+
 **A guard nobody has watched fail is not known to be a guard.** Run a new test
 against the broken state first and see it fail, then fix. Two tests written
 this week passed against the very bug they existed to catch: one because a
@@ -358,6 +377,15 @@ one commit per issue naming its id, one gate run, one PR closing all of them.
 Parallel agents only for surfaces that do not touch. A fix that cannot stand
 alone is still not finished — bundling does not relax that. Proposal 25's
 catalogue supplies the clusters to bundle from.
+
+**Batching is a cost rule for the lead too, not just for a bundle** (proposal
+31, O-07 — mandatory Standard change): 72% of a project's spend went to lead
+orchestration against 25% to implementing, measured this session, because a
+lead that dispatches one brief per turn pays a full turn — about 134,000
+cache-read tokens — for each one. `templates/lead-prompt.md` §3 states the
+rule in full: every unblocked brief goes out in one message, branches are
+reviewed in one pass, and a lead with six things to say to six agents says
+them in one message, never a turn at a time.
 
 Record dependencies when issues are created, not when they collide.
 
