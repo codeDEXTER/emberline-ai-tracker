@@ -383,6 +383,25 @@
           "evidence": ""
         }
       ]
+    },
+    {
+      "id": "F-03",
+      "source": "review",
+      "file": "CLAUDE.md",
+      "severity": "low",
+      "state": "catalogued",
+      "line": 18,
+      "title": "CLAUDE.md still says edits here are reserved for the user and nothing may be merged on a session's own initiative; the 14 Sep standing ruling says merge it yourself once the gate is green and review passed. CLAUDE.md is the sponsor's file, so this is for him to reconcile, not me",
+      "value": "medium",
+      "points": 1,
+      "log": [
+        {
+          "at": "2026-09-17T22:03:46+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead",
+          "evidence": ""
+        }
+      ]
     }
   ]
 }
