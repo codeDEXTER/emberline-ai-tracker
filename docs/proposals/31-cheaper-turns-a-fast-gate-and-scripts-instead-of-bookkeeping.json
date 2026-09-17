@@ -46,13 +46,21 @@
       "tests": [],
       "done": "test_warmup's wall clock measured before and after on the same commit, with an unchanged `Ran N tests` line.",
       "depends": [],
-      "status": "in progress",
+      "status": "done",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-17T21:40:58+02:00",
+          "event": "all parts done",
+          "by": "session:common-rules lead",
+          "evidence": "",
+          "status": "done"
+        }
+      ],
       "points": 3,
       "value": "high",
       "parts": [
@@ -60,7 +68,16 @@
           "id": "O-01.A",
           "title": "Build the seeded project once, copy it per test",
           "share": 100,
-          "status": "in progress"
+          "status": "done",
+          "log": [
+            {
+              "at": "2026-09-17T21:40:58+02:00",
+              "event": "Fixture built once and copied per test: Project() falls to 0.03s, template 0.35s once. Honest result: only 7% of the file (TestCardV2Lines 59.2s -> 54.9s, twice). The 4.7s per test was never the fixture -- it is the tests' own bin/warmup calls at 1.9s each.",
+              "by": "session:common-rules lead",
+              "evidence": "",
+              "status": "done"
+            }
+          ]
         }
       ]
     },
@@ -244,5 +261,44 @@
     }
   ],
   "proposed_changes": [],
-  "execution": {}
+  "execution": {},
+  "findings": [
+    {
+      "id": "F-01",
+      "source": "review",
+      "file": "bin/warmup",
+      "severity": "high",
+      "state": "catalogued",
+      "line": 587,
+      "title": "bin/warmup costs 1.9s and 63% of it is bin/conformance measure shelling out 23 times; 38 subprocesses in all. Every session pays it at startup, and test_warmup pays it 122 times over -- that, not the fixture, is the 575s",
+      "value": "high",
+      "points": 3,
+      "log": [
+        {
+          "at": "2026-09-17T21:41:06+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": "F-02",
+      "source": "review",
+      "file": "bin/quiet",
+      "severity": "medium",
+      "state": "catalogued",
+      "title": "bin/quiet shards by test FILE, so a single slow file cannot be split: the suite's floor is its slowest file (575s) however many cores are free",
+      "value": "high",
+      "points": 3,
+      "log": [
+        {
+          "at": "2026-09-17T21:41:06+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead",
+          "evidence": ""
+        }
+      ]
+    }
+  ]
 }
