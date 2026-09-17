@@ -1268,10 +1268,12 @@
       "kind": "decision",
       "quote": "fix ruflo",
       "became": null,
-      "state": "open",
+      "state": "answered",
       "owner": "lead",
       "source": "Common Rules rework session transcript 3cff917f…jsonl",
-      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); in flight: RF-01"
+      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); in flight: RF-01 · RF-01 merged (PR #219): ruflo-item finds the npx-cached CLI, namespace declared in .common-rules.json (patterns), conformance item 9 checks item start/done records; verified recall from a worktree with no env vars",
+      "answered_at": "2026-09-17T11:04:50+02:00",
+      "answered_by": "lead"
     },
     {
       "id": "A-30",
@@ -1280,10 +1282,12 @@
       "kind": "decision",
       "quote": "also continue other tasks",
       "became": null,
-      "state": "open",
+      "state": "answered",
       "owner": "lead",
       "source": "Common Rules rework session transcript 3cff917f…jsonl",
-      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap)"
+      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap) · backfilled 13 ask rows (#218); tracker ask --close added (#220); nothing else actionable: W-10/L-07/L-02 finals scheduled 21 and 23 Sep, S-07/S-08 belong to PhotoVault's sessions, L-01/H-02 pass only through fresh leads",
+      "answered_at": "2026-09-17T11:04:50+02:00",
+      "answered_by": "lead"
     }
   ],
   "proposed_changes": [],
@@ -1382,6 +1386,24 @@
           "event": "decided",
           "by": "lead",
           "evidence": "fixed 2026-09-17 (PR #215): every bin/spend subcommand prints usage on -h/--help without doing work; test proves calibrate --help writes nothing"
+        }
+      ]
+    },
+    {
+      "id": "F-05",
+      "source": "review",
+      "file": "bin/conformance",
+      "severity": "low",
+      "state": "catalogued",
+      "title": "Item 9's note says 'N items closed before 2026-09-17 have no Ruflo record' for every pre-cutoff item, but 15 of the 92 do have item:<ID>:done records; it should say 'not checked'",
+      "value": "low",
+      "points": 1,
+      "log": [
+        {
+          "at": "2026-09-17T11:04:50+02:00",
+          "event": "catalogued",
+          "by": "lead",
+          "evidence": ""
         }
       ]
     }
