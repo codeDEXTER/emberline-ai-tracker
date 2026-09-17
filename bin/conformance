@@ -892,10 +892,12 @@ def check_ruflo(ctx: Context) -> Result:
                         f"run {RULES_DIR}/bin/ruflo-item start | done around every item")
 
     # Every closed id needing a record, and how many closed items predate the
-    # cutoff and are not counted. An id in two ledgers (a collision) needs
-    # only one record either way -- Ruflo memory is keyed by id alone, so a
-    # set naturally covers both.
-    required, before_cutoff = set(), 0
+    # cutoff and were therefore never checked (some of those may still have a
+    # record from before the cutoff mattered -- that's tallied too, at no
+    # extra cost, since `keys` is already in hand). An id in two ledgers (a
+    # collision) needs only one record either way -- Ruflo memory is keyed by
+    # id alone, so a set naturally covers both.
+    required, before_cutoff, before_cutoff_with_record = set(), 0, 0
     for path, data in ledgers:
         for row in (data.get("items") or []):
             if not isinstance(row, dict) or row.get("status") != "done" or not row.get("id"):
@@ -905,10 +907,12 @@ def check_ruflo(ctx: Context) -> Result:
                 required.add(row["id"])
             else:
                 before_cutoff += 1
+                if f"item:{row['id']}:done" in keys:
+                    before_cutoff_with_record += 1
 
     missing = sorted(i for i in required if f"item:{i}:start" not in keys or f"item:{i}:done" not in keys)
-    note = (f" -- {before_cutoff} item(s) closed before {RUFLO_CUTOFF.isoformat()} have no Ruflo record "
-           f"(not counted)" if before_cutoff else "")
+    note = (f" -- {before_cutoff} item(s) closed before {RUFLO_CUTOFF.isoformat()} not checked, of which "
+           f"{before_cutoff_with_record} have records" if before_cutoff else "")
     if missing:
         return not_hold(f"{_joined(missing)} closed on or after {RUFLO_CUTOFF.isoformat()} without both "
                         f"item:<ID>:start and item:<ID>:done in Ruflo memory (namespace {shown(ns)}){note}",
