@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 21:42
+# Checkpoint — 2026-09-17 21:59
 
-Reason: manual · branch: p31-items-8-10 · HEAD: 13d7912
+Reason: manual · branch: o10-shard · HEAD: db760bd
 
-<!-- ledger-digest: 87dfb3703cc79e238f855c5fe093930f8a67daf4f101747a791c1f081179ef55 -->
+<!-- ledger-digest: 0b4916ee44f10f3089f139454f709b843114a0fd54973ae9e3b130e028767e7e -->
 
 ## Proposal 19 · Warm-up
 
@@ -111,11 +111,11 @@ Reason: manual · branch: p31-items-8-10 · HEAD: 13d7912
 
 ## Proposal 31 · Cheaper turns: a fast gate and scripts instead of bookkeeping
 
-6 done / 0 in progress / 0 blocked / 4 not started
+6 done / 1 in progress / 0 blocked / 3 not started
 
 ### In progress
 
-- none
+- O-10 · [ruflo · high · sonnet] · Shards split within a file, not just between files · Sharding now splits within a file: a Unit is a file or a group of its test classes, planned against the balanced target from the duration cache. 38 test_quiet tests green. The real-suite measurement is deliberately left to O-02, on a quiet machine.
 
 ### Blocked, and why
 
@@ -137,7 +137,7 @@ Reason: manual · branch: p31-items-8-10 · HEAD: 13d7912
 - O-02 0%
 - O-08 0%
 - O-09 0%
-- O-10 0%
+- O-10 70% · next O-10.B
 
 ## Exact next action
 
