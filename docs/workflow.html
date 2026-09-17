@@ -105,7 +105,7 @@
 
 <div class="brand">
   <span>common-rules · reference</span>
-  <span>derived from CLAUDE-workflow.md · rules version 522 · 2026-09-17</span>
+  <span>derived from CLAUDE-workflow.md · rules version 555 · 2026-09-17</span>
 </div>
 
 <h1>The whole workflow, on one page</h1>
@@ -366,7 +366,12 @@ answer would change a look, or the decision is reserved for you.</p>
       <p>UI separated from logic — MVVM for SwiftUI, a services layer for Python/NiceGUI. Commits
       before reporting. Never certifies its own work, never expands scope, and never starts from
       a proposal alone.</p>
-      <div class="out"><span class="pill">pinned to sonnet</span><span class="pill doc">CHANGELOG entry</span></div>
+      <p><strong>Briefs go out in one message, never one per turn</strong> (proposal 31, O-07 —
+      mandatory). 72% of a project's spend went to lead orchestration against 25% to implementing,
+      because a lead that dispatches one brief per turn pays a full turn — about 134,000 cache-read
+      tokens — for each one. Every unblocked brief in one message; branches reviewed in one pass;
+      six things to say to six agents said once.</p>
+      <div class="out"><span class="pill">pinned to sonnet</span><span class="pill doc">CHANGELOG entry</span><span class="pill">one message, every brief</span></div>
     </div>
   </div>
 
@@ -376,7 +381,16 @@ answer would change a look, or the decision is reserved for you.</p>
       <h3>Against the criteria, not against the code</h3>
       <p>Raises structured bug reports; never fixes anything itself. The two negotiate through
       bounded rounds — a dispute unresolved after <strong>two</strong> comes to you.</p>
-      <div class="out"><span class="pill">bug reports</span><span class="pill stop">2 rounds, then escalate</span></div>
+      <p><strong>A gate runs in the foreground, one blocking call, and its verdict line is read in
+      the same turn</strong> (proposal 31, O-03 — mandatory). Never backgrounded and polled, and a
+      turn never ends parked on a timer: one agent turn costs about <strong>134,000</strong>
+      cache-read context tokens to produce a few hundred written ones, so cost follows the number
+      of turns, not the work inside them, and a poll that finds nothing new re-sends the whole
+      context to learn nothing. "One call" means scoping the run to fit —
+      <code>tools/affected_tests.py</code> before the full suite, not after. If the harness
+      backgrounds the call anyway, its output is read <em>once</em>, on notification, and acted on
+      in that turn. A run too slow to sit through is a bug in the gate, not a licence to poll.</p>
+      <div class="out"><span class="pill">bug reports</span><span class="pill stop">2 rounds, then escalate</span><span class="pill stop">never poll a gate</span></div>
     </div>
   </div>
 
@@ -401,7 +415,13 @@ answer would change a look, or the decision is reserved for you.</p>
       <code>main</code>, replace the installed copy, restart it, register it as
       <code>stable</code>. A merge that leaves the installed app on last week's build has finished
       the git work only.</p>
-      <div class="out"><span class="pill">projects: no PRs</span><span class="pill">common-rules: PR, you merge</span></div>
+      <p><strong>A project may declare a staging branch</strong> (proposal 31, O-08 — mandatory
+      where declared). Reviewed branches land on <code>staging</code>, the full suite runs
+      <em>there</em> rather than on <code>main</code>, and <code>main</code> only ever
+      fast-forwards from a green <code>staging</code> — so main is provably green at all times.
+      What that reduces is the number of <em>runs</em>, never the coverage. Undeclared, a project
+      behaves exactly as before: straight to main.</p>
+      <div class="out"><span class="pill">projects: no PRs</span><span class="pill">common-rules: PR, you merge</span><span class="pill">staging → main, green only</span></div>
     </div>
   </div>
 
