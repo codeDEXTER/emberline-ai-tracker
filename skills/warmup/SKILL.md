@@ -37,7 +37,9 @@ cannot tell whether it already warmed up.
 
 The card now always includes `standard: N of 12 hold` and, under it, every
 item that does not hold — the same twelve `bin/conformance` checks, run in
-process. What `--queue` wrote is listed at the end, under `queue:`.
+process. A split item's line shows its completion %, next open part, and a
+group count line (finish now / back burner / waiting). What `--queue` wrote
+is listed at the end, under `queue:`.
 
 ## 2. Read, in the order the card names
 

@@ -1,5 +1,7 @@
 [ruflo · {{TIER}} · {{MODEL}}] {{ITEM_ID}} {{TITLE}}
 
+For a lettered part, {{ITEM_ID}} is the part id (e.g. W-10.B), not the item's.
+
 CONTEXT
 {{RECALL_HITS}}
 {{CONTEXT_PACK}} -- written by the Haiku scout, templates/scout-brief.md, before this brief is sent.
