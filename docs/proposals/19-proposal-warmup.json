@@ -916,11 +916,53 @@
           "event": "interim reading of conditions 4 and 5, 2026-09-14 to 2026-09-16 22:47: common-rules NOT MET on both -- (4) 94 sponsor messages: 29 with an ask row, 11 answers, 54 unmatched; (5) 130 agent briefs, 74 with all five headings (missing CONTEXT 45, OWNS 54, MUST 48, MUST NOT 45, OUTPUT 44). Caveat: the -Users-aashish-apps transcript slug mixes common-rules with other projects' sessions started in apps/. PhotoVault engine and app not measurable: no main-session transcripts in the window. Full-week measurement scheduled for 2026-09-21 09:00 (scheduled task common-rules-w10-pilot-week-measure)",
           "by": "lead",
           "evidence": "docs/research/w10-c45.py"
+        },
+        {
+          "at": "2026-09-17T15:36:59+02:00",
+          "event": "split into lettered parts (proposal 30, P-05)",
+          "by": "lead",
+          "evidence": "docs/research/p30-migrate-parts.py"
         }
       ],
       "points": 3,
       "value": "high",
-      "owner": "lead"
+      "owner": "lead",
+      "parts": [
+        {
+          "id": "W-10.A",
+          "title": "warm-up --check passes in all four focus projects",
+          "share": 20,
+          "status": "not started",
+          "owner": "session:PhotoVault Engine"
+        },
+        {
+          "id": "W-10.B",
+          "title": "tracker render works for the engine and pockets",
+          "share": 20,
+          "status": "in progress",
+          "owner": "session:PhotoVault Engine"
+        },
+        {
+          "id": "W-10.C",
+          "title": "land refuses an unrecorded item",
+          "share": 20,
+          "status": "done"
+        },
+        {
+          "id": "W-10.D",
+          "title": "every sponsor message has an ask row",
+          "share": 20,
+          "status": "not started",
+          "waiting_until": "2026-09-21"
+        },
+        {
+          "id": "W-10.E",
+          "title": "every brief has the five headings",
+          "share": 20,
+          "status": "not started",
+          "waiting_until": "2026-09-21"
+        }
+      ]
     }
   ],
   "asks": [
