@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""item-notes -- two drafted blocks, from the same facts, so the lead
+writes them once instead of twice (proposal 31, O-06).
+
+  item-notes [--project DIR] --item ITEM_ID [--ledger LEDGER] [--commit SHA] [--pr N]
+
+Prints two labelled blocks:
+
+  ruflo-item done:      a one-paragraph summary -- the item's id and title,
+                         what changed (files touched, how many are tests),
+                         the commit, and the PR.
+  tracker set --event:  the ledger event sentence, in the shape real log
+                         entries in docs/proposals/*.json already use: what
+                         changed and why, in prose, not a checklist.
+
+--commit/--pr appear in both blocks only when given; nothing about a commit
+or a PR is fabricated when they are omitted. Both blocks are drafts -- the
+lead's wording is what lands in Ruflo memory and in the ledger, not this
+script's. Said once more in the output itself, so neither is pasted unread.
+
+This prints to stdout and writes nothing, anywhere -- no memory store, no
+ledger write. `bin/ruflo-item done` and `bin/tracker set --event` are the
+commands that actually record anything.
+
+Exit codes: 0 printed, 1 no ledger under --project (default: `git
+rev-parse --show-toplevel`) declares ITEM_ID, 2 bad usage.
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+RULES_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RULES_DIR))
+
+from tools import itemfacts as F  # noqa: E402
+
+DEFAULT_BASE = "origin/main"
+DRAFT_NOTICE = "DRAFT -- read and edit before pasting either block; do not paste unread."
+
+
+def _changed_summary(diff: F.DiffFacts) -> str:
+    if not diff.files:
+        return "no files changed"
+    n = len(diff.files)
+    plural = "s" if n != 1 else ""
+    summary = f"{n} file{plural} changed (+{diff.total_insertions}/-{diff.total_deletions})"
+    if diff.test_file_count:
+        tplural = "s" if diff.test_file_count != 1 else ""
+        summary += f", {diff.test_file_count} test file{tplural} touched"
+    return summary
+
+
+def draft_done_summary(item: dict, diff: F.DiffFacts, commit: str | None, pr: int | None) -> str:
+    parts = [f"{item['id']}: {item['title']}.", _changed_summary(diff).capitalize() + "."]
+    if commit:
+        parts.append(f"Commit {commit}.")
+    if pr:
+        parts.append(f"PR #{pr}.")
+    return " ".join(parts)
+
+
+def draft_event(item: dict, diff: F.DiffFacts, commit: str | None, pr: int | None) -> str:
+    """Matches the shape real log entries already use (read across
+    docs/proposals/*.json before writing this): what changed, then, when
+    there is one, "PR #N <short bit>" or "commit <sha>" -- prose, not a
+    checklist, e.g. "merged in PR #227 lettered parts core, nesting and
+    roll-up; builder gated with affected tests, full suite on merged main"."""
+    bits = [_changed_summary(diff)]
+    trailer = []
+    if pr:
+        trailer.append(f"PR #{pr}")
+    if commit:
+        trailer.append(f"commit {commit}")
+    text = "; ".join(bits + trailer)
+    return text[0].upper() + text[1:] + "."
+
+
+def render(item: dict, diff: F.DiffFacts, commit: str | None, pr: int | None) -> str:
+    lines = [
+        DRAFT_NOTICE,
+        "",
+        "ruflo-item done:",
+        draft_done_summary(item, diff, commit, pr),
+        "",
+        "tracker set --event:",
+        draft_event(item, diff, commit, pr),
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def main(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser(prog="item-notes", description=__doc__.splitlines()[0])
+    ap.add_argument("--project", help="project root (default: git rev-parse --show-toplevel)")
+    ap.add_argument("--item", required=True, help="ledger item id, e.g. O-06")
+    ap.add_argument("--ledger", help="ledger path (default: resolved from --item)")
+    ap.add_argument("--base", default=DEFAULT_BASE, help=f"diff base (default: {DEFAULT_BASE})")
+    ap.add_argument("--commit", help="commit sha to name in both blocks (default: not named)")
+    ap.add_argument("--pr", type=int, help="PR number to name in both blocks (default: not named)")
+    args = ap.parse_args(argv)
+
+    project = F.project_root(args.project)
+    try:
+        facts = F.load_item(project, args.item, args.ledger)
+    except F.ItemNotFound:
+        print(f"item-notes: no ledger under {project / 'docs' / 'proposals'} declares item {args.item!r}",
+              file=sys.stderr)
+        return 1
+
+    try:
+        diff = F.diff_facts(project, args.base)
+    except RuntimeError as exc:
+        print(f"item-notes: {exc}", file=sys.stderr)
+        return 1
+
+    print(render(facts.item, diff, args.commit, args.pr), end="")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
