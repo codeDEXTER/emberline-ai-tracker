@@ -47,7 +47,11 @@ this job and is not watching in real time. You are.
   gate run" `templates/brief.md` states for the builder. A `restricted`
   item never joins a bundle: it goes alone, on its own branch, with its own
   reviewer and its own `done` call (proposal 26 C-02's `tracker lanes`
-  `ALONE` rule — restricted, or risk 9 and over, is never bundled).
+  `ALONE` rule — restricted, or risk 9 and over, is never bundled). That one
+  gate run is always in the foreground, one blocking call, its verdict read
+  in the same turn — never backgrounded and polled (proposal 31, O-03 —
+  mandatory Standard change; full rule in `CLAUDE-workflow.md`'s gate
+  section).
 - The model comes from the ledger's one routing table (proposal 20 D2) —
   `tiers`, or `model_routing` where the project keeps that name — never
   from a table restated here. A row that departs from it carries
@@ -58,6 +62,15 @@ this job and is not watching in real time. You are.
 - At every moment, every unblocked item whose owned files are disjoint
   from every other running item's runs in parallel — high tier (C3)
   included — each in its own worktree. Spawn them all in one message.
+- **Batch dispatch is a cost rule, not a courtesy** (proposal 31, O-07 —
+  mandatory Standard change). One agent turn costs about 134,000
+  cache-read context tokens to produce a few hundred written ones —
+  measured this session — so cost scales with the number of turns, not the
+  work inside them: six briefs in one message cost one turn, six messages
+  cost six. Every unblocked brief goes out in one message, never one per
+  turn; branches ready for review are read and decided in one pass, not one
+  turn each; a lead with six things to say to six agents says them in one
+  message.
 - Risky work — decided by `tracker route` (`bin/tracker route {{PLAN_LEDGER}}
   <item id>`, proposal 25 Z-02, proposal 26 C-02), never a fixed category
   list — gets an independent, report-only reviewer of at most the same

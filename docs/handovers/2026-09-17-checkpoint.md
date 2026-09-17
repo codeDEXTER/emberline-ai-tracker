@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 21:20
+# Checkpoint — 2026-09-17 21:31
 
-Reason: manual · branch: o05-o06-drafts · HEAD: d15ecd6
+Reason: manual · branch: o03-o07-turn-rules · HEAD: cc1806f
 
-<!-- ledger-digest: 20a995d8eb8666307f7cb6e6a461e6a5e838b7b8250ace245d63c4bfcf946aed -->
+<!-- ledger-digest: 9d461a3d14488576f1182bac8a62359ab3ca826e9cf3b1ae056b1aabfc6e1d21 -->
 
 ## Proposal 19 · Warm-up
 
@@ -127,18 +127,18 @@ Reason: manual · branch: o05-o06-drafts · HEAD: d15ecd6
 
 ### Next unblocked
 
-- O-03 · [ruflo · high · sonnet] · No waiting on a gate: one blocking call, one verdict line
 - O-04 · [ruflo · medium · sonnet] · bin/commit-if-green: gate, verdict and commit in one call
-- O-07 · [ruflo · high · sonnet] · Batch dispatch: one message carries every unblocked brief
+- O-05 · [ruflo · medium · sonnet] · A PR body drafted from the ledger item and the diff
+- O-06 · [ruflo · medium · sonnet] · One draft for the ruflo-item done note and the ledger event
 
 ### Open work by group
 
 **finish now**
 - O-01 0% · next O-01.A
 - O-02 0%
-- O-03 0%
 - O-04 0%
-- O-07 0%
+- O-05 0%
+- O-06 0%
 
 ## Exact next action
 
