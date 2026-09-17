@@ -1003,6 +1003,18 @@
       "quote": "merge 152, option 1 for the app",
       "became": "W-13",
       "state": "answered"
+    },
+    {
+      "id": "A-11",
+      "at": "2026-09-16T19:33:23+00:00",
+      "by": "lead",
+      "kind": "decision",
+      "quote": "continue",
+      "became": null,
+      "state": "answered",
+      "owner": "lead",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); W-10 re-measured (PR #205)"
     }
   ],
   "proposed_changes": [

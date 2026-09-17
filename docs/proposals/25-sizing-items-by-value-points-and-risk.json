@@ -368,6 +368,18 @@
       "state": "answered",
       "source": "Common Rules rework session transcript",
       "note": "Applies to every accepted, not-built item in proposals 24-28; built in surface bundles on integration branch backlog."
+    },
+    {
+      "id": "A-10",
+      "at": "2026-09-16T16:14:53+00:00",
+      "by": "lead",
+      "kind": "decision",
+      "quote": "what about the block",
+      "became": null,
+      "state": "answered",
+      "owner": "lead",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); Z-05 unblocked and closed (PR #195)"
     }
   ],
   "proposed_changes": [],
