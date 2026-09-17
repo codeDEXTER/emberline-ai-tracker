@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>30 &middot; proposed &middot; Tracker shows how complete each item is, by lettered parts</title>
+<meta name="proposal-id" content="30">
+<meta name="proposal-status" content="proposed">
+<meta name="common-rules-template" content="proposal/21">
+<style>
+  :root {
+    --ground: #F1F2F4; --surface: #FFFFFF; --ink: #16191D; --dim: #5E6873;
+    --border: #D3D8DE; --accent: #C2521F; --accent-soft: #F7E3D8;
+    --fill: #FFF3BF; --fill-ink: #5C4400;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --done: #2E8B57; --running: #3B6FD6; --waiting: #C98A1A; --empty: #C7CCD2;
+    --risk-high: #C23B3B; --risk-medium: #C98A1A; --risk-low: #5E8A5E;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #111417; --surface: #1A1F24; --ink: #E5E8EB; --dim: #939DA7;
+      --border: #2F3841; --accent: #EE7A45; --accent-soft: #3A2419;
+      --fill: #3B3313; --fill-ink: #F2DC8C;
+      --done: #4CAF7D; --running: #6E9BF0; --waiting: #E3A83E; --empty: #3A424B;
+      --risk-high: #E06565; --risk-medium: #E3A83E; --risk-low: #85B885;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 24px 90px; }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -.01em; margin: 0; }
+  h1 .num, h1 .status { color: var(--accent); }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 40px 0 10px; }
+  .sub { color: var(--dim); margin: 10px 0 0; max-width: 76ch; }
+  .card { background: var(--surface); border: 1px solid var(--border); padding: 16px 20px; margin-top: 12px; }
+  blockquote { margin: 0; padding: 14px 20px; background: var(--surface); border-left: 3px solid var(--accent); font-size: 17px; }
+  blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--dim); }
+  .opt { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .opt .card h3 { margin: 0 0 6px; font-size: 16px; }
+  ol.decisions { background: var(--surface); border: 1px solid var(--border); margin: 12px 0 0; padding: 14px 20px 14px 44px; }
+  ol.decisions li + li { margin-top: 10px; }
+  .slot { border: 1px dashed var(--border); padding: 14px 20px; margin-top: 12px; color: var(--dim); }
+  .m { font-family: var(--mono); font-size: .9em; }
+  pre.m { background: var(--surface); color: var(--ink); border: 1px solid var(--border); padding: 8px 12px; margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .fill { background: var(--fill); color: var(--fill-ink); padding: 0 3px; }
+  .src { font-size: 13px; color: var(--dim); margin-top: 36px; }
+
+  /* -- mockup -- */
+  .mock { background: var(--surface); border: 1px solid var(--border); margin-top: 14px; }
+  .mock-inner { padding: 18px 20px 22px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .tile { border: 1px solid var(--border); padding: 12px 14px; }
+  .tile .n { font-size: 26px; font-weight: 600; }
+  .tile .l { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+  .tile.finish .n { color: var(--running); }
+  .tile.back .n { color: var(--waiting); }
+  .tile.wait .n { color: var(--dim); }
+  .tile.done .n { color: var(--done); }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center; }
+  .filters select, .filters input[type=text], .filters input[type=search] {
+    font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--border);
+    background: var(--ground); color: var(--ink);
+  }
+  .filters input[type=text] { min-width: 170px; }
+  .toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--dim); margin-left: auto; user-select: none; cursor: pointer; }
+  .toggle input { cursor: pointer; }
+
+  .group { margin-bottom: 18px; }
+  .group h3 { font-size: 13px; letter-spacing: .04em; margin: 0 0 8px; display: flex; align-items: baseline; gap: 8px; }
+  .group h3 .gcount { color: var(--dim); font-weight: 400; }
+  .group .gdesc { color: var(--dim); font-weight: 400; font-size: 12px; }
+  .group.empty-group .empty-note { color: var(--dim); font-size: 13px; padding: 8px 0; font-style: italic; }
+
+  .frow { border: 1px solid var(--border); border-top: none; }
+  .frow:first-child { border-top: 1px solid var(--border); }
+  .fhead { display: grid; grid-template-columns: 64px 1fr 150px 46px; gap: 12px; align-items: center; padding: 9px 12px; cursor: pointer; }
+  .fhead:hover { background: var(--ground); }
+  .fhead .fid { font-family: var(--mono); font-size: 12.5px; color: var(--dim); }
+  .fhead .ftitle { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fhead .ftitle .next { display: block; font-size: 11.5px; color: var(--dim); font-weight: 400; white-space: normal; }
+  .fhead .fpct { font-family: var(--mono); font-size: 12.5px; text-align: right; color: var(--dim); }
+  .fhead .caret { text-align: right; color: var(--dim); font-size: 11px; transition: transform .15s; }
+  .frow.open .caret { transform: rotate(90deg); }
+
+  .bar { grid-column: 1 / -1; order: 3; height: 6px; display: flex; overflow: hidden; margin-top: -2px; }
+  .fhead { display: grid; grid-template-columns: 64px 1fr 150px 46px; grid-template-rows: auto 6px; row-gap: 4px; }
+  .bar span { height: 100%; }
+  .bar .seg-done { background: var(--done); }
+  .bar .seg-running { background: var(--running); }
+  .bar .seg-waiting { background: var(--waiting); }
+  .bar .seg-empty { background: var(--empty); }
+
+  .parts { display: none; border-top: 1px solid var(--border); background: var(--ground); }
+  .frow.open .parts { display: block; }
+  .prow { display: grid; grid-template-columns: 90px 1fr 60px 150px; gap: 10px; align-items: center; padding: 7px 12px 7px 24px; font-size: 13px; border-top: 1px solid var(--border); }
+  .prow:first-child { border-top: none; }
+  .prow .pid { font-family: var(--mono); font-size: 12px; color: var(--dim); }
+  .prow .pshare { font-family: var(--mono); font-size: 12px; color: var(--dim); text-align: right; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); justify-self: start; white-space: nowrap; }
+  .pill.done { color: var(--done); border-color: var(--done); }
+  .pill.running { color: var(--running); border-color: var(--running); }
+  .pill.waiting { color: var(--waiting); border-color: var(--waiting); }
+  .pill.other { color: var(--dim); }
+  .risk { font-size: 11px; margin-left: 8px; border-bottom: 1px dotted currentColor; cursor: help; }
+  .risk.high { color: var(--risk-high); }
+  .risk.medium { color: var(--risk-medium); }
+  .risk.low { color: var(--risk-low); }
+
+  .decide { display: flex; gap: 14px; font-size: 12px; color: var(--dim); margin-top: 10px; flex-wrap: wrap; }
+  .decide b { color: var(--ink); font-weight: 600; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--dim); margin: 10px 0 0; flex-wrap: wrap; }
+  .legend .sw { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+
+  .rules-strip { display: grid; gap: 6px; margin-top: 10px; }
+  .rules-strip .rule { display: grid; grid-template-columns: 110px 1fr; gap: 10px; font-size: 13.5px; padding: 6px 0; border-top: 1px solid var(--border); }
+  .rules-strip .rule:first-child { border-top: none; }
+  .rules-strip .rule b { color: var(--accent); font-weight: 600; }
+
+  .naming code { background: var(--ground); padding: 1px 5px; border: 1px solid var(--border); }
+  .naming ul { margin: 8px 0 0; padding-left: 20px; }
+  .naming li + li { margin-top: 6px; }
+
+  .empty-state { font-size: 13px; color: var(--dim); padding: 10px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1><span class="num">30</span> &middot; <span class="status">proposed</span> &middot; Tracker shows how complete each item is, by lettered parts</h1>
+<p class="sub">Proposal 30 &middot; proposed 2026-09-17. Replaces the Lanes overview the sponsor could not read with a completion view: every item to 100%, in named parts, grouped by what still needs doing &mdash; not by a share-and-risk formula nobody can hold in their head.</p>
+
+<h2>The approved mockup</h2>
+<p class="sub">Working HTML/CSS/JS, no build step, built from the current ledgers above. Collapsed by default; click a row to expand its parts. Toggle theme with your system setting.</p>
+
+<div class="mock">
+  <div class="mock-inner">
+    <div class="tiles" id="tiles"></div>
+    <div class="filters">
+      <select id="f-group">
+        <option value="">group: all</option>
+        <option value="finish">finish now</option>
+        <option value="back">back burner</option>
+        <option value="waiting">waiting</option>
+        <option value="done">done</option>
+      </select>
+      <input type="text" id="f-proposal" placeholder="proposal #">
+      <input type="text" id="f-owner" placeholder="owner">
+      <select id="f-status">
+        <option value="">status: any</option>
+        <option value="done">done</option>
+        <option value="running">running now</option>
+        <option value="waiting">waiting for a date</option>
+        <option value="other">other project</option>
+      </select>
+      <input type="search" id="f-search" placeholder="search id or title&hellip;">
+      <label class="toggle"><input type="checkbox" id="f-showdone"> show finished</label>
+    </div>
+    <div id="groups"></div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--done)"></span>done</span>
+      <span><span class="sw" style="background:var(--running)"></span>running now</span>
+      <span><span class="sw" style="background:var(--waiting)"></span>waiting for a date</span>
+      <span><span class="sw" style="background:var(--empty)"></span>not started</span>
+    </div>
+  </div>
+</div>
+
+<h2>How it's decided</h2>
+<div class="card rules-strip">
+  <div class="rule"><b>completion %</b> sum of the done parts' shares. Nothing else moves the number.</div>
+  <div class="rule"><b>finish now</b> under 80% done, or any open part is high risk.</div>
+  <div class="rule"><b>back burner</b> 80% or more done, and what's left is low or medium risk.</div>
+  <div class="rule"><b>waiting</b> owned by another project, or waiting for a date.</div>
+  <div class="rule"><b>risk</b> shown as a word only &mdash; high, medium or low &mdash; with the reason on hover, never a number.</div>
+</div>
+
+<h2>The ask</h2>
+<blockquote>
+  "i dont understand this overview in the tracker"
+  <cite>The sponsor, 17 Sep 2026, on docs/proposals/tracker/index.html's Lanes section &mdash; Common Rules rework session transcript 3cff917f&hellip;jsonl</cite>
+</blockquote>
+<blockquote style="margin-top:10px">
+  "So my understanding is uh, these are the elements which are getting completed. Based on the priority, and if anything is above 80%, a task which may be a subtask that is still pending to be completed, that ends up in that list. So, this needs to be refactored and revisualized properly so I can understand it a bit better. So, my basic requirement is every task gets to 100%. But if there are some tasks, for example, not able to get 100% in some part of the work is left, then that work is evaluated as a sub-item. For example, L-02.A, BC, then the percentage is calculated, okay, what would be what percentage of feature they would be completing? Based on that, if the overall feature is 80% completed, and the sub uh, remaining elements only complete maybe 2, 3, or the last remaining 10, 20%, then they can be added as a back burner. Backlog, which can be handled later. Or uh, you know that should be visualized here. And what would be the risk and all, you know, based on the that it's calculating how to do it. And also the percentage does not give me a right figure because 17%, I don't have the formula in my mind."
+  <cite>The sponsor, 17 Sep 2026 &mdash; Common Rules rework session transcript 3cff917f&hellip;jsonl</cite>
+</blockquote>
+<blockquote style="margin-top:10px">
+  "This visualized widget is good and this is how it should be represented in the tracker. Uh, to get an estimate of the degree of completion. Please uh, make a proposal on how the tracker would look like so it's not completely overpopulated. And then it should also be possible to filter things out and get into the details."
+  <cite>The sponsor, 17 Sep 2026, approving the mockup above &mdash; Common Rules rework session transcript 3cff917f&hellip;jsonl</cite>
+</blockquote>
+<blockquote style="margin-top:10px">
+  "Also, I like the naming convention with ABC. That should be standardized as the standard approach. And each ticket should be tracked in the tracker or sub-ticket."
+  <cite>The sponsor, 17 Sep 2026 &mdash; Common Rules rework session transcript 3cff917f&hellip;jsonl</cite>
+</blockquote>
+
+<h2>What was found</h2>
+<div class="card">
+  <ul>
+    <li>Lanes (tools/tracker/lanes.py) sorts by <span class="m">share = value weight &times; points / queue total</span> and cuts at 80% cumulative share into "Now", then sorts the tail by <span class="m">risk = impact &times; likelihood</span>. Neither number is completion of anything &mdash; a small, unstarted item can outrank a mostly-done one, which is what read as "17%" with no formula behind it.</li>
+    <li>common-rules declares <span class="m">risk_always: "restricted"</span> in .common-rules.json, and lanes.py forces every restricted item's risk to 9 and marks it "alone". Every item in this project reads risk 9 today &mdash; the risk column is uninformative here by construction.</li>
+    <li>No item in any of the 10 ledgers has sub-parts today. "L-02.A, B, C" (the sponsor's own example) does not exist yet &mdash; it names the convention this proposal builds.</li>
+    <li>Measured against the current ledgers (99 real items, Q-03 excluded &mdash; a queue row this same warm-up run added and then reverted, not counted): 94 done, 5 open (W-10, L-07, L-02, S-07, S-08). Since the mockup above was first shown, H-02 and L-01 both closed (PRs #224, #223) &mdash; the examples use that current state, not the state the mockup was approved against.</li>
+    <li>Not verified: how many of the 94 done items would, under this proposal's migration (P-05), turn out to have been closed with real work still open in a part nobody tracked. That is measured when P-05 runs, not guessed here.</li>
+  </ul>
+</div>
+
+<h2>The naming standard</h2>
+<div class="card naming">
+  <p>The sponsor's own example, standardized: a part is <code>&lt;ITEM&gt;.&lt;LETTER&gt;</code> &mdash; <code>W-10.A</code>, <code>W-10.B</code> &hellip; Letters run in order and are never reused, even if a part is dropped.</p>
+  <ul>
+    <li>A part is a sub-ticket: its own status, owner, share of the item, an optional waiting-until date, an optional risk word with a reason, and its own log.</li>
+    <li>Closing every part closes the item. There is no separate "mark the item done" step.</li>
+    <li>An item with no parts behaves as one part worth 100% &mdash; nothing above changes for the 94 items that will never need a letter.</li>
+  </ul>
+</div>
+
+<h2>Options</h2>
+<div class="opt">
+  <div class="card">
+    <h3>A &middot; Completion view replaces Lanes</h3>
+    <p>Lanes' code (share, the 80% cut, risk-tail sort) is removed from the rendered page. Ledger fields it reads (value, points, impact, likelihood) stay &mdash; proposal 25/26 still use them for routing and sizing, just not for what the sponsor looks at.</p>
+  </div>
+  <div class="card">
+    <h3>B &middot; Completion view is added, Lanes kept as "advanced"</h3>
+    <p>Same new view on top, but the old share/cumulative table stays reachable behind a collapsed section for whoever still wants the routing math. Costs one more thing to keep in sync on every render.</p>
+  </div>
+</div>
+<p><b>Recommended:</b> B &mdash; nothing in the ask says delete the routing math, only that it should not be the thing the sponsor reads; keeping it as a folded "advanced" section costs one render branch and answers D5 without deciding it in either direction now.</p>
+
+<h2>Decisions</h2>
+<p class="sub">Each numbered line is one thing the sponsor answers. Keep the numbers stable once shown: answers and ledger items cite them.</p>
+<ol class="decisions">
+  <li><b>D1.</b> Keep the 80% line for the finish-now/back-burner cut? <b>Recommended: yes</b> &mdash; it is the number the sponsor gave ("if anything is above 80%&hellip;"); changing it now would be a second undiscussed decision riding on this one.</li>
+  <li><b>D2.</b> Who sets a part's share of the item &mdash; <b>recommended: the lead, when splitting the work</b> (a judgment call about what fraction of the feature each piece is, made once, at split time) &mdash; or the blind sizer agent from proposal 25 (Z-05), which sizes items, not parts, and was never built for a share that must sum to 100 across siblings?</li>
+  <li><b>D3.</b> What makes a part high risk &mdash; <b>recommended: a lead's call with a one-line reason</b>, shown on hover &mdash; or the existing restricted paths (money, user data, secrets, releases, every common-rules change)? The existing paths mark this whole project "restricted" by declaration (risk_always), which would make every part here high risk and defeat the point of showing risk at all.</li>
+  <li><b>D4.</b> Should done features show by default? <b>Recommended: no</b> &mdash; off by default behind "show finished", per the ask ("not completely overpopulated"); 94 of 99 items today are done, and showing them by default is most of what made Lanes unreadable.</li>
+  <li><b>D5.</b> Keep the old share/cumulative Lanes view as a hidden "advanced" section, or drop it? <b>Recommended: keep it, folded</b> &mdash; see option B above.</li>
+</ol>
+
+<h2>What gets built</h2>
+<div class="card">
+  <ul>
+    <li><b>P-01</b> &mdash; a <span class="m">parts</span> field on ledger items (tools/tracker/ledger.py), validated: unique letters in order, shares that sum to 100, one of the statuses above, an owner, an optional risk word with a reason, an optional waiting-until date.</li>
+    <li><b>P-02</b> &mdash; <span class="m">bin/tracker set ITEM.A --status &hellip;</span> addresses a part the same way it already addresses an item.</li>
+    <li><b>P-03</b> &mdash; tools/tracker/board.py renders the view above: static HTML, the ledger data embedded as JSON, a small script for filter and expand &mdash; no build step, same as this mockup.</li>
+    <li><b>P-04</b> &mdash; the warm-up card and the checkpoint writer count parts, not just items, in their totals.</li>
+    <li><b>P-05</b> &mdash; migrate every open item across the 10 ledgers into parts (or confirm it stands as one part worth 100%).</li>
+    <li><b>P-06</b> &mdash; a Standard change (mandatory) CHANGELOG entry, and the naming standard folded into HANDOFF.md / docs/OPERATING-RULES.md.</li>
+  </ul>
+</div>
+
+<h2>Decided</h2>
+<section class="slot">
+  <p>Not decided yet. When the sponsor answers, change this page in this order.</p>
+  <ol>
+    <li><b>The date, first.</b> Copy this line into the head, directly under the status meta, and put the real date in place of YYYY-MM-DD:
+      <pre class="m">&lt;meta name="proposal-decided" content="YYYY-MM-DD"&gt;</pre>
+      Without it, bin/proposalcheck treats the page as decided before its rules existed and checks nothing.</li>
+    <li><b>Then the status.</b> Replace the proposed status meta with this line:
+      <pre class="m">&lt;meta name="proposal-status" content="accepted"&gt;</pre>
+      and change "proposed" to "accepted" in the title, the heading, and the "Proposal NN &middot; proposed DATE" line under it.</li>
+    <li>Write both lines exactly as shown. Do not self-close them with <span class="m">/&gt;</span>: bin/proposalcheck does not read that form, and the page would read as undecided.</li>
+    <li>Give this section the id <span class="m">decided</span>, and replace this text with the sponsor's answer quoted from disk, the date, and what each of D1, D2 &hellip; was decided as.</li>
+    <li>Add the items to the ledger beside this page (same number, <span class="m">.json</span>).</li>
+  </ol>
+  <p>The id is added by hand, on purpose. A page that shipped with an empty answers block would pass bin/proposalcheck while recording nothing.</p>
+</section>
+
+<p class="src">Sources: docs/proposals/tracker/index.html and tools/tracker/lanes.py (Lanes' current logic, read 17 Sep 2026); .common-rules.json (risk_always: restricted); docs/proposals/19-, 21-, 23-*.json (W-10, S-07, S-08, L-02, L-07 items and logs); docs/proposals/23-, 24-*.json (L-01, H-02, closed as PR #223 / #224 per this task's brief); a full scan of docs/proposals/[0-9]*.json on 2026-09-17 (94 done / 5 open of 99 real items, Q-03 excluded as an artifact of this session's own warm-up run, reverted). The exact shares and statuses inside W-10's five parts, L-02's three and L-07's two are this proposal's own illustration, built from each item's real log text and current status, not yet recorded as ledger fields &mdash; that recording is P-05.</p>
+
+</div>
+<script>
+const DATA = {"open": [{"id": "W-10", "title": "Pilot on the PhotoVault engine; measure the exit conditions", "proposal": 19, "owner": "lead", "pct": 50, "parts": [{"id": "W-10.A", "title": "warmup --check exits clean in all four focus projects", "share": 20, "status": "other", "owner": "other projects"}, {"id": "W-10.B", "title": "the one tracker page renders in every focus project", "share": 30, "status": "done", "owner": "lead"}, {"id": "W-10.C", "title": "the gate runs tracker check", "share": 20, "status": "done", "owner": "lead"}, {"id": "W-10.D", "title": "every sponsor message gets an ask row, measured over the pilot week", "share": 15, "status": "waiting", "until": "2026-09-21", "owner": "lead"}, {"id": "W-10.E", "title": "every brief carries all five headings, measured over the pilot week", "share": 15, "status": "waiting", "until": "2026-09-21", "owner": "lead"}]}, {"id": "L-07", "title": "Use the existing tool, not an inline copy", "proposal": 23, "owner": "lead", "pct": 80, "parts": [{"id": "L-07.A", "title": "Read, spend and gate named in the brief template and OPERATING-RULES", "share": 80, "status": "done", "owner": "lead"}, {"id": "L-07.B", "title": "cat/sed and hand-appended log entries halved in the next transcript sample", "share": 20, "status": "waiting", "until": "2026-09-23", "owner": "lead"}]}, {"id": "L-02", "title": "Review only risky work", "proposal": 23, "owner": "lead", "pct": 60, "parts": [{"id": "L-02.A", "title": "risk class from proposal 25 (X-01) routes the reviewer step", "share": 60, "status": "done", "owner": "lead"}, {"id": "L-02.B", "title": "review spend stays under 10% of total tokens", "share": 30, "status": "waiting", "until": "2026-09-23", "owner": "lead"}, {"id": "L-02.C", "title": "no rise in post-merge defects", "share": 10, "status": "waiting", "owner": "lead", "until": "2026-09-23"}]}, {"id": "S-07", "title": "PhotoVault app on the standard", "proposal": 21, "owner": "PhotoVault app session", "pct": 0, "parts": [{"id": "S-07.A", "title": "the app migrated and its card reads ready", "share": 100, "status": "other", "owner": "PhotoVault app session"}]}, {"id": "S-08", "title": "PhotoVault engine on the standard", "proposal": 21, "owner": "PhotoVault engine session", "pct": 0, "parts": [{"id": "S-08.A", "title": "the engine migrated and its card reads ready", "share": 100, "status": "other", "owner": "PhotoVault engine session"}]}], "done_examples": [{"id": "H-02", "title": "Thin dispatcher and short item leads", "proposal": 24, "owner": "lead", "pct": 100, "closed": "PR #224", "parts": [{"id": "H-02.A", "title": "forms folded into the brief template", "share": 60, "status": "done", "owner": "lead"}, {"id": "H-02.B", "title": "dispatcher prompt stays under 150k tokens", "share": 40, "status": "done", "owner": "lead"}]}, {"id": "L-01", "title": "Fresh lead per milestone or day", "proposal": 23, "owner": "lead", "pct": 100, "closed": "PR #223", "parts": [{"id": "L-01.A", "title": "lead rotates at a milestone boundary or a day, whichever first", "share": 90, "status": "done", "owner": "lead"}, {"id": "L-01.B", "title": "the rotation is recorded in the log", "share": 10, "status": "done", "owner": "lead"}]}], "done_rest": [{"id": "Q-02", "title": "standard item 10 Publishing recorded: docs/proposals/tracker/21-standard-is-mandatory.published.json records a page for 21-standard-is-mandatory.json, which records no tracker of its own -- the project publishes one page, and that record is docs/proposals/tracker/index.published.json; docs/proposals/tracker/23-eight-levers-for-token-spend.published.json records a page for 23-eight-levers-for-token-spend.json, which records no tracker of its own -- the project publishes one page, and that record is docs/proposals/tracker/index.published.json", "proposal": 19}, {"id": "Q-01", "title": "standard item 4 Installed: the git pre-commit hook is not the one this common-rules' bin/derecord installs (edited by hand, from an older derecord, or naming another rules checkout)", "proposal": 19}, {"id": "W-00", "title": "The ledger contract: tools/tracker/ledger.py, bin/tracker validate", "proposal": 19}, {"id": "W-01", "title": "templates/ — the six seeds and the brief", "proposal": 19}, {"id": "W-02", "title": "bin/tracker render — ledger.json to the proposal page", "proposal": 19}, {"id": "W-03", "title": "bin/tracker check — land refuses a commit whose ledger row did not move", "proposal": 19}, {"id": "W-04", "title": "bin/tracker sync — GitHub issues mirror the ledger one way", "proposal": 19}, {"id": "W-05", "title": "/warmup skill and bin/warmup --check", "proposal": 19}, {"id": "W-06", "title": "bin/recall and bin/remember", "proposal": 19}, {"id": "W-07", "title": "Stop, PreCompact and SessionStart hooks; checkpoint writer", "proposal": 19}, {"id": "W-08", "title": "derecord seeds the templates and installs the hooks", "proposal": 19}, {"id": "W-11", "title": "derecord installs the /warmup skill into a project", "proposal": 19}, {"id": "W-09", "title": "tracker import — an existing milestone plan becomes a ledger", "proposal": 19}, {"id": "W-12", "title": "/warmup --migrate — a running project moves onto the standard", "proposal": 19}, {"id": "W-13", "title": "Migrate the PhotoVault app onto the standard", "proposal": 19}, {"id": "V-00", "title": "Project declaration: .common-rules.json (D9)", "proposal": 20}, {"id": "V-01", "title": "Ledger contract v2 (D2, D4, D5, D6, D7, D8)", "proposal": 20}, {"id": "V-02", "title": "Card v2", "proposal": 20}, {"id": "V-03", "title": "Tracker page v2", "proposal": 20}, {"id": "V-04", "title": "sync honours switches.issues (D5)", "proposal": 20}, {"id": "V-05", "title": "Agent tag hook (D3)", "proposal": 20}, {"id": "V-06", "title": "bin/ruflo-item (D11)", "proposal": 20}, {"id": "V-07", "title": "derecord v2 (D12, D13)", "proposal": 20}, {"id": "V-08", "title": "Templates: parallel high tier, reviewer, verify level (D10)", "proposal": 20}, {"id": "V-09", "title": "Publish (D1)", "proposal": 20}, {"id": "V-10", "title": "Reheat the PhotoVault engine and app, then measure", "proposal": 20}, {"id": "V-11", "title": "Publish the declared plan page (D1 with D9)", "proposal": 20}, {"id": "S-01", "title": "/standard: the sponsor's mandatory command", "proposal": 21}, {"id": "S-02", "title": "Proposal template and bin/new-proposal", "proposal": 21}, {"id": "S-03", "title": "proposalcheck: no unchecked proposal pages above the legacy floor", "proposal": 21}, {"id": "S-04", "title": "bin/conformance: the 12-item checklist, measured", "proposal": 21}, {"id": "S-05", "title": "Hooks from a parent start folder", "proposal": 21}, {"id": "S-06", "title": "Templates and CLAUDE-workflow name the standard", "proposal": 21}, {"id": "S-09", "title": "Unimplemented Standard changes fail the card", "proposal": 21}, {"id": "S-10", "title": "common-rules on its own standard", "proposal": 21}, {"id": "S-11", "title": "/standard in the common-rules session", "proposal": 21}, {"id": "T-01", "title": "tracker board: the project's one tracker page", "proposal": 22}, {"id": "T-02", "title": "The chain reads the project page, not one page per proposal", "proposal": 22}, {"id": "T-03", "title": "Publishing the project page", "proposal": 22}, {"id": "T-04", "title": "common-rules on one tracker", "proposal": 22}, {"id": "T-05", "title": "Deprecated -- app and engine each keep their own tracker, never shared", "proposal": 22}, {"id": "T-06", "title": "A published page's name is set once and never changes -- tracker, board, cookbook, any of them", "proposal": 22}, {"id": "L-03", "title": "Quiet builds: log to file, read the summary line", "proposal": 23}, {"id": "L-04", "title": "One-line tracker commands for ledger updates", "proposal": 23}, {"id": "L-05", "title": "Bundle small issues by surface", "proposal": 23}, {"id": "L-06", "title": "Haiku scout writes the context pack", "proposal": 23}, {"id": "X-01", "title": "Size items by value, points and risk (sponsor's L8 note)", "proposal": 23}, {"id": "X-02", "title": "Catalogue and cluster issues for later (sponsor's L2 and L5 notes)", "proposal": 23}, {"id": "X-03", "title": "Autonomous work without missing anything (sponsor's L1 note)", "proposal": 23}, {"id": "M-01", "title": "Parallel test suite", "proposal": 23}, {"id": "M-02", "title": "Builders run only affected tests; one full suite at merge", "proposal": 23}, {"id": "M-03", "title": "Trim Ruflo's tool loading", "proposal": 23}, {"id": "M-04", "title": "One writer for ledger and tracker files", "proposal": 23}, {"id": "M-05", "title": "A light path for tiny items", "proposal": 23}, {"id": "M-06", "title": "Say where lead-prompt §4 stands on hand-editing ledgers", "proposal": 23}, {"id": "M-07", "title": "CLAUDE-workflow.md names the quick/merge two-gate exception", "proposal": 23}, {"id": "M-08", "title": "Six-category review list in CLAUDE-workflow.md gets replaced, not duplicated, when P26 routing lands", "proposal": 23}, {"id": "M-09", "title": "Dedupe five rules stated in more than one file", "proposal": 23}, {"id": "M-10", "title": "Move dated rationale out of CLAUDE-workflow.md into CHANGELOG", "proposal": 23}, {"id": "M-11", "title": "Must-read under 3,000 words: card replaces raw ledger, OPERATING-RULES folds into HANDOFF, checkpoint stays", "proposal": 23}, {"id": "H-01", "title": "Closing check: bin/handover --check", "proposal": 24}, {"id": "H-03", "title": "The dispatcher starts the next lead without asking", "proposal": 24}, {"id": "H-04", "title": "Background leads are visible and named apart from chat sessions", "proposal": 24}, {"id": "Z-01", "title": "Ledger fields: value, points, risk, cluster", "proposal": 25}, {"id": "Z-02", "title": "Routing table from the four fields", "proposal": 25}, {"id": "Z-03", "title": "Value defaults per surface", "proposal": 25}, {"id": "Z-04", "title": "Risk class from paths; common-rules always restricted", "proposal": 25}, {"id": "Z-05", "title": "Calibrate points every 20 items", "proposal": 25}, {"id": "Z-06", "title": "Issue catalogue clustered by files touched", "proposal": 25}, {"id": "C-01", "title": "Impact and likelihood on items", "proposal": 26}, {"id": "C-02", "title": "tracker lanes: share, risk, the 80% cut and each item's lane", "proposal": 26}, {"id": "C-05", "title": "Findings are catalogued, lane-sorted, triaged into batches and light-pathed", "proposal": 26}, {"id": "C-03", "title": "One gate and review per bundle or batch", "proposal": 26}, {"id": "C-04", "title": "Board shows lanes and the 14-day re-score", "proposal": 26}, {"id": "C-06", "title": "Two more statuses: in review, in testing", "proposal": 26}, {"id": "W-01", "title": "Fix bin/spend: subagents, once per response, all token kinds", "proposal": 27}, {"id": "W-02", "title": "bin/worklog collect into common-rules/worklog/<date>.jsonl", "proposal": 27}, {"id": "W-03", "title": "Stop hook after each turn and a nightly run with one commit", "proposal": 27}, {"id": "W-04", "title": "Evening page and the /warmup line", "proposal": 27}, {"id": "R-01", "title": "bin/warmup runs the standard every time, in both modes", "proposal": 28}, {"id": "R-02", "title": "/warmup and /reheat skills with context; /standard becomes a shortcut", "proposal": 28}, {"id": "R-03", "title": "Hooks run warmup and reheat by themselves", "proposal": 28}, {"id": "R-04", "title": "Dispatcher starts a new lead with /warmup <item> [context]", "proposal": 28}, {"id": "R-05", "title": "Fast-forward the shared common-rules checkout when behind", "proposal": 28}, {"id": "R-06", "title": "A visual cookbook page: how warmup and reheat work, the standard's features, constraints and rules", "proposal": 28}, {"id": "K-01", "title": "Land p22 on main", "proposal": 29}, {"id": "K-02", "title": "One tracker per project until the sponsor asks for another (P22 T-04)", "proposal": 29}, {"id": "K-03", "title": "Deprecated -- app and engine each keep their own tracker, never shared (P22 T-05)", "proposal": 29}, {"id": "K-04", "title": "PhotoVault app and engine on the standard (P21 S-07, S-08)", "proposal": 29}, {"id": "K-05", "title": "Proposal 19 pilot exit conditions (W-10)", "proposal": 29}, {"id": "K-06", "title": "Check the two worktrees with uncommitted work, then clean up", "proposal": 29}, {"id": "K-07", "title": "Delete the Common Rules chat v1 session", "proposal": 29}]};
+
+function statusWord(s) {
+  return {done:"done", running:"running now", waiting:"waiting", other:"other project"}[s] || s;
+}
+
+function partGroup(item) {
+  const open = item.parts.filter(p => p.status !== "done");
+  if (open.length === 0) return "done";
+  const allWaitingOrElsewhere = open.every(p => p.status === "waiting" || p.status === "other");
+  if (allWaitingOrElsewhere) return "waiting";
+  const anyHighRisk = open.some(p => p.risk === "high");
+  if (item.pct < 80 || anyHighRisk) return "finish";
+  return "back";
+}
+
+function nextOpenPart(item) {
+  const open = item.parts.filter(p => p.status !== "done");
+  if (open.length === 0) return "all parts done";
+  const p = open[0];
+  if (p.status === "waiting") return p.id + " · waiting until " + p.until;
+  if (p.status === "other") return p.id + " · owned by " + p.owner;
+  return p.id + " · running now";
+}
+
+function barSegs(item) {
+  return item.parts.map(p => {
+    const cls = p.status === "done" ? "seg-done" : p.status === "running" ? "seg-running"
+      : p.status === "waiting" ? "seg-waiting" : "seg-empty";
+    return '<span class="' + cls + '" style="width:' + p.share + '%"></span>';
+  }).join("");
+}
+
+function riskBadge(p) {
+  if (!p.risk) return "";
+  const reason = p.reason || "";
+  return ' <span class="risk ' + p.risk + '" title="' + reason.replace(/"/g, "&quot;") + '">' + p.risk + '</span>';
+}
+
+function pillFor(p) {
+  const label = p.status === "waiting" ? "waiting · " + p.until
+    : p.status === "other" ? "other project" : statusWord(p.status);
+  return '<span class="pill ' + p.status + '">' + label + '</span>';
+}
+
+function buildAll() {
+  const openItems = DATA.open.map(it => Object.assign({}, it, {group: partGroup(it), done: false}));
+  const doneItems = DATA.done_examples.map(it => Object.assign({}, it, {group: "done", done: true}))
+    .concat(DATA.done_rest.map(d => Object.assign({}, d, {
+      pct: 100, group: "done", done: true, owner: "lead",
+      parts: [{id: d.id + ".A", title: d.title, share: 100, status: "done", owner: "lead"}]
+    })));
+  return openItems.concat(doneItems);
+}
+const ALL = buildAll();
+
+function currentFilters() {
+  return {
+    group: document.getElementById("f-group").value,
+    proposal: document.getElementById("f-proposal").value.trim(),
+    owner: document.getElementById("f-owner").value.trim().toLowerCase(),
+    status: document.getElementById("f-status").value,
+    search: document.getElementById("f-search").value.trim().toLowerCase(),
+    showdone: document.getElementById("f-showdone").checked
+  };
+}
+
+function matches(item, f) {
+  if (!f.showdone && item.done && !f.group) return false;
+  if (f.group && item.group !== f.group) return false;
+  if (f.proposal && String(item.proposal) !== f.proposal) return false;
+  if (f.owner && !(item.owner || "").toLowerCase().includes(f.owner)) return false;
+  if (f.status && !item.parts.some(p => p.status === f.status)) return false;
+  if (f.search) {
+    const hay = (item.id + " " + item.title).toLowerCase();
+    if (!hay.includes(f.search)) return false;
+  }
+  return true;
+}
+
+const GROUP_META = {
+  finish: {label: "Finish now", desc: "under 80% done, or the missing part is risky"},
+  back: {label: "Back burner", desc: "80% or more done, the rest is small and low risk"},
+  waiting: {label: "Waiting", desc: "owned by another project, or waiting for a date"},
+  done: {label: "Done", desc: "closed — hidden unless “show finished” is on"}
+};
+
+function renderTiles() {
+  const counts = {finish: 0, back: 0, waiting: 0};
+  ALL.forEach(it => { if (!it.done) counts[it.group] = (counts[it.group] || 0) + 1; });
+  const doneCount = DATA.done_examples.length + DATA.done_rest.length;
+  const total = doneCount + DATA.open.length;
+  const tiles = [
+    {cls: "done", n: doneCount + " of " + total, l: "features finished"},
+    {cls: "finish", n: counts.finish || 0, l: "finish now"},
+    {cls: "back", n: counts.back || 0, l: "back burner"},
+    {cls: "wait", n: counts.waiting || 0, l: "waiting on others"}
+  ];
+  document.getElementById("tiles").innerHTML = tiles.map(t =>
+    '<div class="tile ' + t.cls + '"><div class="n">' + t.n + '</div><div class="l">' + t.l + '</div></div>'
+  ).join("");
+}
+
+function rowHtml(item) {
+  return '<div class="frow" data-id="' + item.id + '-' + item.proposal + '">' +
+    '<div class="fhead">' +
+      '<div class="fid">' + item.id + '</div>' +
+      '<div class="ftitle">' + item.title + '<span class="next">next: ' + nextOpenPart(item) + '</span></div>' +
+      '<div class="fpct">' + item.pct + '%</div>' +
+      '<div class="caret">▸</div>' +
+      '<div class="bar">' + barSegs(item) + '</div>' +
+    '</div>' +
+    '<div class="parts">' + item.parts.map(p =>
+      '<div class="prow"><div class="pid">' + p.id + '</div><div>' + p.title + '</div>' +
+      '<div class="pshare">' + p.share + '%</div>' +
+      '<div>' + pillFor(p) + riskBadge(p) + '</div></div>'
+    ).join("") + '</div>' +
+  '</div>';
+}
+
+function renderGroups() {
+  const f = currentFilters();
+  const visible = ALL.filter(it => matches(it, f));
+  const order = f.showdone || f.group === "done" ? ["finish", "back", "waiting", "done"] : ["finish", "back", "waiting"];
+  const html = order.map(g => {
+    const rows = visible.filter(it => it.group === g);
+    const meta = GROUP_META[g];
+    if (g === "done" && !f.showdone && !f.group) return "";
+    const body = rows.length
+      ? rows.map(rowHtml).join("")
+      : '<div class="empty-note">nothing here right now.</div>';
+    return '<div class="group' + (rows.length ? "" : " empty-group") + '">' +
+      '<h3>' + meta.label + ' <span class="gcount">' + rows.length + '</span> <span class="gdesc">· ' + meta.desc + '</span></h3>' +
+      body + '</div>';
+  }).join("");
+  document.getElementById("groups").innerHTML = html || '<div class="empty-state">nothing matches these filters.</div>';
+  document.querySelectorAll(".fhead").forEach(el => {
+    el.addEventListener("click", () => el.parentElement.classList.toggle("open"));
+  });
+}
+
+["f-group", "f-proposal", "f-owner", "f-status", "f-search", "f-showdone"].forEach(id => {
+  document.getElementById(id).addEventListener("input", renderGroups);
+  document.getElementById(id).addEventListener("change", renderGroups);
+});
+
+renderTiles();
+renderGroups();
+</script>
+</body>
+</html>
