@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 19:37
+# Checkpoint — 2026-09-17 20:02
 
-Reason: manual · branch: p30-p05 · HEAD: 47fa799
+Reason: manual · branch: p30-accept · HEAD: 1186af2
 
-<!-- ledger-digest: 7a4fd754c89ae8e6c7f0b1aed59cb4e8c26b0945e3911e179a34c286f2c1a30a -->
+<!-- ledger-digest: 0576458e3cc6349b5dda944295286fd31112079081f2f6baece1bad6e52971b5 -->
 
 ## Proposal 19 · Warm-up
 
@@ -67,7 +67,7 @@ Reason: manual · branch: p30-p05 · HEAD: 47fa799
 
 ## Proposal 30 · Tracker shows how complete each item is, by lettered parts
 
-0 done / 0 in progress / 0 blocked / 6 not started
+6 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
@@ -83,7 +83,8 @@ Reason: manual · branch: p30-p05 · HEAD: 47fa799
 
 ### Next unblocked
 
-- P-01 · [ruflo · high · sonnet] · Ledger schema: parts on items, validated
+- P-04 · [ruflo · medium · sonnet] · Warm-up card and checkpoint count parts
+- P-08 · [ruflo · high · sonnet] · Charts and feature drill-down on the page
 
 ## Exact next action
 

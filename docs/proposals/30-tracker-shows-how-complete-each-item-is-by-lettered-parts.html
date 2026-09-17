@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>30 &middot; proposed &middot; Tracker shows how complete each item is, by lettered parts</title>
+<title>30 &middot; accepted &middot; Tracker shows how complete each item is, by lettered parts</title>
 <meta name="proposal-id" content="30">
-<meta name="proposal-status" content="proposed">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-17">
 <meta name="common-rules-template" content="proposal/21">
 <style>
   :root {
@@ -129,8 +130,8 @@
 <body>
 <div class="wrap">
 
-<h1><span class="num">30</span> &middot; <span class="status">proposed</span> &middot; Tracker shows how complete each item is, by lettered parts</h1>
-<p class="sub">Proposal 30 &middot; proposed 2026-09-17. Replaces the Lanes overview the sponsor could not read with a completion view: every item to 100%, in named parts, grouped by what still needs doing &mdash; not by a share-and-risk formula nobody can hold in their head.</p>
+<h1><span class="num">30</span> &middot; <span class="status">accepted</span> &middot; Tracker shows how complete each item is, by lettered parts</h1>
+<p class="sub">Proposal 30 &middot; accepted 2026-09-17. Replaces the Lanes overview the sponsor could not read with a completion view: every item to 100%, in named parts, grouped by what still needs doing &mdash; not by a share-and-risk formula nobody can hold in their head.</p>
 
 <h2>The approved mockup</h2>
 <p class="sub">Working HTML/CSS/JS, no build step, built from the current ledgers above. Collapsed by default; click a row to expand its parts. Toggle theme with your system setting.</p>
@@ -251,21 +252,16 @@
   </ul>
 </div>
 
-<h2>Decided</h2>
+<h2 id="decided">Decided</h2>
 <section class="slot">
-  <p>Not decided yet. When the sponsor answers, change this page in this order.</p>
-  <ol>
-    <li><b>The date, first.</b> Copy this line into the head, directly under the status meta, and put the real date in place of YYYY-MM-DD:
-      <pre class="m">&lt;meta name="proposal-decided" content="YYYY-MM-DD"&gt;</pre>
-      Without it, bin/proposalcheck treats the page as decided before its rules existed and checks nothing.</li>
-    <li><b>Then the status.</b> Replace the proposed status meta with this line:
-      <pre class="m">&lt;meta name="proposal-status" content="accepted"&gt;</pre>
-      and change "proposed" to "accepted" in the title, the heading, and the "Proposal NN &middot; proposed DATE" line under it.</li>
-    <li>Write both lines exactly as shown. Do not self-close them with <span class="m">/&gt;</span>: bin/proposalcheck does not read that form, and the page would read as undecided.</li>
-    <li>Give this section the id <span class="m">decided</span>, and replace this text with the sponsor's answer quoted from disk, the date, and what each of D1, D2 &hellip; was decided as.</li>
-    <li>Add the items to the ledger beside this page (same number, <span class="m">.json</span>).</li>
-  </ol>
-  <p>The id is added by hand, on purpose. A page that shipped with an empty answers block would pass bin/proposalcheck while recording nothing.</p>
+  <p>2026-09-17. The sponsor: <q>go with your recommendations</q>, then <q>Please divide the tasks and implement it as fast as possible in parallel.</q> On the page design: <q>I really liked the widget style that was shown earlier. And I wouldn't mind if that is the top view and then you have some details below.</q> and <q>that's the same design implemented in the proposal as well. That's also fine.</q></p>
+  <ul>
+    <li><b>D1</b> keep the 80% line.</li>
+    <li><b>D2</b> the lead sets part shares when splitting.</li>
+    <li><b>D3</b> high risk is the lead's call, with a stated reason.</li>
+    <li><b>D4</b> finished items hidden by default.</li>
+    <li><b>D5</b> the old Lanes view stays, folded as "advanced".</li>
+  </ul>
 </section>
 
 <p class="src">Sources: docs/proposals/tracker/index.html and tools/tracker/lanes.py (Lanes' current logic, read 17 Sep 2026); .common-rules.json (risk_always: restricted); docs/proposals/19-, 21-, 23-*.json (W-10, S-07, S-08, L-02, L-07 items and logs); docs/proposals/23-, 24-*.json (L-01, H-02, closed as PR #223 / #224 per this task's brief); a full scan of docs/proposals/[0-9]*.json on 2026-09-17 (94 done / 5 open of 99 real items, Q-03 excluded as an artifact of this session's own warm-up run, reverted). The exact shares and statuses inside W-10's five parts, L-02's three and L-07's two are this proposal's own illustration, built from each item's real log text and current status, not yet recorded as ledger fields &mdash; that recording is P-05.</p>
