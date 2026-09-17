@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 12:48
+# Checkpoint — 2026-09-17 14:37
 
-Reason: manual · branch: ledger-l01-f05 · HEAD: 69be197
+Reason: manual · branch: worktree-agent-a38e1ed1e329200d1 · HEAD: 0f8afe6
 
-<!-- ledger-digest: e23048a176adbdc3116a1fef35c8481e6af89df4b1dfc250a3d239577c5a4c75 -->
+<!-- ledger-digest: ff2280e25add9f214777abfc2a462fb323c69de2ad7c09f62adfecb3b9143bb7 -->
 
 ## Proposal 19 · Warm-up
 
@@ -64,6 +64,26 @@ Reason: manual · branch: ledger-l01-f05 · HEAD: 69be197
 ### Next unblocked
 
 - none
+
+## Proposal 30 · Tracker shows how complete each item is, by lettered parts
+
+0 done / 0 in progress / 0 blocked / 6 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- P-01 · [ruflo · high · sonnet] · Ledger schema: parts on items, validated
 
 ## Exact next action
 
