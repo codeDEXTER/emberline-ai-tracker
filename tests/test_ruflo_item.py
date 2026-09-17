@@ -85,8 +85,16 @@ class RufloItemCase(unittest.TestCase):
 
         self.log = base / "ruflo.log"
 
+        # An empty scratch HOME: tools/ruflo.py's binary resolution falls
+        # back to the npx cache under $HOME, and this machine's real one
+        # (RF-01) must never leak into a test -- only the fake claude-flow on
+        # PATH, or nothing at all, may ever be found here.
+        self.fake_home = base / "fake-home"
+        self.fake_home.mkdir()
+
         self.env = dict(os.environ)
         self.env["PATH"] = f"{self.fake_bin_dir}:{self.env.get('PATH', '')}"
+        self.env["HOME"] = str(self.fake_home)
         self.env["FAKE_RUFLO_LOG"] = str(self.log)
         self.env.pop("RUFLO", None)
         self.env.pop("RUFLO_NAMESPACE", None)

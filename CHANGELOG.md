@@ -1,5 +1,89 @@
 # Changelog — common-rules
 
+## 2026-09-17 · the mandatory Ruflo loop actually runs: binary discovery, a declared namespace, and conformance on real evidence (RF-01)
+
+**Standard change (mandatory):** projects declare `ruflo_namespace` in
+`.common-rules.json` (the namespace their existing memories use), and run
+`bin/ruflo-item start`/`done` around every item; conformance item 9 now
+fails on items closed without Ruflo records.
+
+Investigation: Ruflo is not on PATH on this machine, only in npm's npx
+cache (`~/.npm/_npx/<hash>/node_modules/.bin/{claude-flow,ruflo}`, several
+versions at once). `bin/ruflo-item` only ever looked at `$RUFLO` then PATH,
+so every call since 15 Sep 14:12 exited 2 "no Ruflo binary found" and leads
+carried on regardless -- the mandatory loop never actually ran. Separately,
+`bin/warmup`'s card kept printing a binary path it found by globbing the
+cache (mtime order, a second copy of the same logic), so a session's warm
+card looked fine while the loop itself was broken; and neither tool knew
+about a project's existing memory namespace (common-rules' own 90 entries
+sit in `patterns`, not `common-rules`, the directory-name default), so even
+a working binary would have read and written the wrong one. Conformance's
+item 9 checked only that `.swarm/` existed -- "a proxy" its own docstring
+admitted -- so common-rules read 12 of 12 while recording nothing per item:
+33 `item:*:start` and 15 `item:*:done` keys against 92 closed items.
+
+Fixed: `tools/ruflo.py` is the one binary/namespace resolver, imported by
+`bin/ruflo-item`, `bin/warmup` and `bin/conformance` -- never two copies.
+Binary resolution order: `$RUFLO` (a full command line, split with `shlex`),
+then `claude-flow`/`ruflo` on PATH, then the npx cache, picking the HIGHEST
+version by each candidate's own nearest `package.json` (never mtime or glob
+order -- this machine's cache alone holds 3.38.21 and 3.41.4 at once).
+Namespace resolution order: `--namespace`, then `$RUFLO_NAMESPACE`, then
+`.common-rules.json`'s new `ruflo_namespace` key (`tools/project.py`
+validates it: a non-empty, one-line string), then the project directory's
+own name. `bin/warmup`'s card now shows the resolved binary and namespace on
+its `ruflo` line; `bin/ruflo-item` prints which binary it used on every run,
+like the namespace already was, and a missing binary now names all three
+places searched. common-rules' own `.common-rules.json` declares
+`"ruflo_namespace": "patterns"`.
+
+Conformance item 9 no longer accepts a non-empty `.swarm/` as proof. It now
+reads `.swarm/memory.db` read-only, straight with `sqlite3`
+(`file:...?mode=ro`, table `memory_entries`, columns `key` and `namespace`
+-- never through the CLI, which auto-starts Ruflo's daemon), and requires
+both `item:<ID>:start` and `item:<ID>:done` under the resolved namespace for
+every item, across every ledger, whose status is "done" and whose own close
+date -- a log entry's `status` key equal to "done", else (older rows) the
+last entry whose `event` is exactly "done" -- is dated on or after
+**2026-09-17** -- the date this entry lands, so history before the fix is
+reported ("N item(s) closed before 2026-09-17 have no Ruflo record (not
+counted)"), never failed. A missing ledger or a missing/unreadable
+`.swarm/memory.db` still fails item 9, as before. An id shared by two
+ledgers (a collision) needs only one record -- Ruflo memory is keyed by id
+alone, so it counts for both.
+
+Review round: `_done_log_date` originally matched only a log entry whose
+`event` is literally "done", but `tracker set --status done --event "<free
+text>"` -- the normal way a lead closes an item -- writes that free text as
+`event`; 35 of 92 done items in the real ledgers have no `event` reading
+"done". `tracker set` (and `apply-staged`, which shares its code through
+`apply_change()`) now also stamps the log entry's own `status` key with the
+new status whenever `--status` changes one, independently of `--event`'s
+wording; item 9 prefers a `status`-keyed close date, falling back to the
+`event` match only for older rows that never wrote one.
+
+Tests: `tests/test_ruflo_item.py` (unchanged behaviour, now routed through
+the shared module -- a real Ruflo binary is never called, only a stubbed
+`claude-flow` on PATH); a new `tests/test_ruflo.py` for `tools/ruflo.py`
+(cache discovery with `$HOME` pointed at a temp dir holding fake
+`node_modules/.bin/{claude-flow,ruflo}` trees and `package.json`s at
+several versions -- the highest wins; `$RUFLO` still wins over all of it;
+namespace precedence including `.common-rules.json`); `tests/
+test_project_declaration.py` (`ruflo_namespace` validation, and the state's
+pinned key set); `tests/test_conformance.py`'s `TestItem9Ruflo`, rewritten
+against a temp sqlite `memory_entries(key, namespace)` table -- passes with
+both records present after the cutoff, fails naming missing ids, ignores
+(while counting) items closed before it, and prefers a `status`-keyed close
+date over an `event` match, falling back to `event` for a row with no
+`status` key; `tests/test_tracker_set.py`'s `TestLogEntryStatusKey` (`--status`
+stamps the log entry's `status` key regardless of `--event`'s wording,
+`--event` alone never does, and the ledger still validates).
+
+Verified read-only against the real repo (`bin/conformance --project
+/Users/the-sponsor/apps/common-rules`'s item 9 line, and `bin/warmup --project
+/Users/the-sponsor/apps/common-rules --no-recall --no-pull | grep -i ruflo`) --
+never against a real Ruflo binary or a write to the real `.swarm/`.
+
 ## 2026-09-17 · `bin/ruflo-item` works from worktrees; `bin/spend` subcommands answer `--help` without running (P23 F-03, F-04)
 
 Two ledger findings from proposal 23's backlog.

@@ -42,6 +42,12 @@ module does not know is ignored, because later proposals add keys.
       Proposal 25, Z-04: path globs that set an item's risk class, and a
       floor no path lowers (common-rules declares restricted, D4). Read by
       tools/tracker/risk.py. Defaults: {} and None.
+  "ruflo_namespace": "patterns"
+      RF-01: the Ruflo memory namespace this project's existing memories use.
+      A non-empty, one-line string. Read by tools/ruflo.py's namespace_for(),
+      which every Ruflo-facing tool (bin/ruflo-item, bin/warmup, bin/
+      conformance item 9) now shares -- --namespace, then $RUFLO_NAMESPACE,
+      then this key, then the project directory's own name. Default: None.
 
 EVERY VALUE IS UNTRUSTED. A path is relative to the project root: an absolute
 path, a `..` part, or a path that resolves (through a symlink) outside the
@@ -112,6 +118,7 @@ DEFAULTS: dict = {
     "value_defaults": {},
     "risk_paths": {},
     "risk_always": None,
+    "ruflo_namespace": None,
 }
 
 VALUES = ("high", "medium", "low")  # tools/tracker/ledger.py VALUES, proposal 25
@@ -370,6 +377,16 @@ def _checked(data: dict) -> tuple[dict, list[str]]:
                 bad.append(why)
             elif cmd:
                 ok[key] = cmd
+    if "ruflo_namespace" in data:
+        v = data["ruflo_namespace"]
+        if not isinstance(v, str) or not v.strip():
+            bad.append(f"{FILE}: ruflo_namespace must be a non-empty string")
+        elif not _utf8(v):
+            bad.append(f"{FILE}: ruflo_namespace is not valid UTF-8")
+        elif not _one_line(v.strip()):
+            bad.append(f"{FILE}: ruflo_namespace must be one line")
+        else:
+            ok["ruflo_namespace"] = v.strip()
     return ok, bad
 
 

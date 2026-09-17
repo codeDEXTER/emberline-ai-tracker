@@ -12,7 +12,8 @@ Shape, as the PhotoVault engine's proposal 71 already writes it, plus `asks`:
                   "depends": "R-01 R-02", "status": "done",
                   "tier": "high", "model": "opus", "tag": "[ruflo · high · opus]",
                   "issue": 229, "discovered_from": "X-03",
-                  "log": [{"at": "...", "event": "...", "by": "...", "evidence": "..."}]}],
+                  "log": [{"at": "...", "event": "...", "by": "...", "evidence": "...",
+                           "status": "done"}]}],
       "asks":   [{"id": "A-07", "at": "...", "kind": "research", "quote": "...",
                   "became": null, "state": "open"}],
       "proposed_changes": [...], "priority": {...}, "execution": {"ruflo_route": "..."}
@@ -221,7 +222,7 @@ def validate(ledger: dict) -> list[str]:
         else:
             for k, entry in enumerate(i.get("log") or []):
                 if not isinstance(entry, dict):
-                    problems.append(f"{name}: log[{k}] is not an object {{at, event, by, evidence}}")
+                    problems.append(f"{name}: log[{k}] is not an object {{at, event, by, evidence, status?}}")
     seen_asks: set[str] = set()
     for n, a in enumerate(ledger.get("asks") or []):
         name = a.get("id") or f"asks[{n}]"

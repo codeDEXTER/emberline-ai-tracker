@@ -99,6 +99,38 @@ class TestCustomEvent(TrackerSetCase):
         self.assertIn('log "started"', r.stdout)
 
 
+class TestLogEntryStatusKey(TrackerSetCase):
+    """RF-01: `--status` stamps the log entry's own `status` key too,
+    independent of `--event`'s free text -- bin/conformance item 9 reads the
+    close date from `status`, not `event`, since a lead's own `--event`
+    wording does not reliably spell "done"."""
+
+    def test_status_alone_stamps_the_log_entry_status_key(self):
+        r = self.run_set("W-01", "--status", "done")
+        self.assertEqual(0, r.returncode, r.stderr)
+        entry = self.item("W-01")["log"][-1]
+        self.assertEqual("done", entry.get("status"))
+        self.assertEqual("done", entry["event"])
+
+    def test_status_with_a_free_text_event_still_stamps_status(self):
+        r = self.run_set("W-01", "--status", "done", "--event", "shipped in PR #99")
+        self.assertEqual(0, r.returncode, r.stderr)
+        entry = self.item("W-01")["log"][-1]
+        self.assertEqual("done", entry.get("status"))
+        self.assertEqual("shipped in PR #99", entry["event"])
+
+    def test_event_without_status_never_stamps_a_status_key(self):
+        r = self.run_set("W-01", "--event", "a note, no status change")
+        self.assertEqual(0, r.returncode, r.stderr)
+        entry = self.item("W-01")["log"][-1]
+        self.assertNotIn("status", entry)
+
+    def test_the_ledger_still_validates_with_a_status_keyed_entry(self):
+        r = self.run_set("W-01", "--status", "done", "--event", "shipped")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertEqual([], L.validate(self.read()))
+
+
 class TestField(TrackerSetCase):
 
     def test_field_parses_json_when_valid(self):

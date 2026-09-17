@@ -14,9 +14,13 @@ identity nothing should rewrite.
 
 `--status` without `--event` appends a log entry whose event is the new
 status; `--event` (with or without `--status`) appends a log entry with that
-text instead. `--by` names who logged it (default "lead"); `--at` is the
-log entry's own time, ISO 8601 with an offset (default: now, local, seconds
-precision).
+text instead. Either way, `--status` also stamps that log entry's own
+`status` key with the new status (RF-01: bin/conformance item 9 finds an
+item's own close date from a log entry's `status` key, not `event` --
+`--event` is free text a lead writes, and 35 of 92 done items in the real
+ledgers already close with an `--event` that is not literally "done"). `--by`
+names who logged it (default "lead"); `--at` is the log entry's own time,
+ISO 8601 with an offset (default: now, local, seconds precision).
 
 The ledger is validated with the change already applied, before anything is
 written: on any problem the problems are printed and the file is untouched
@@ -87,12 +91,19 @@ def apply_change(data: dict, item_id: str, *, status: str | None = None, owner: 
 
     event_text = event if event is not None else status
     if event_text is not None:
-        item.setdefault("log", []).append({
+        entry = {
             "at": at or _now(),
             "event": event_text,
             "by": by,
             "evidence": evidence,
-        })
+        }
+        if status is not None:
+            # RF-01: the log entry's own `status` key is what bin/conformance
+            # item 9 reads for an item's close date -- independent of
+            # `event`, which is free text (an `--event` override, a lead's
+            # own wording) that does not reliably spell "done".
+            entry["status"] = status
+        item.setdefault("log", []).append(entry)
         parts.append(f'log "{event_text}"')
 
     data["updated"] = datetime.date.today().isoformat()
