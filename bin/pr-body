@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""pr-body -- a PR title and body skeleton, drafted from recorded facts
+(proposal 31, O-05).
+
+  pr-body [--project DIR] --item ITEM_ID [--ledger LEDGER] [--base REF] [--title-only]
+
+Assembles, and never decides (proposal 31's Decided section, D4 -- this
+drafts bookkeeping prose from facts already on disk, it does not judge
+whether the work is done or fit to merge): the ledger item's id, title,
+`what` and `done` criterion, and its parts and their statuses when it has
+any; the diff against --base (default origin/main) -- files changed with
+insertion/deletion counts, and how many of the changed files are tests; the
+branch name and the commits on it, oldest first; a `Gate:` line, left for
+the lead to paste its verdict into, clearly marked as not filled in here;
+and the trailer every PR in this repo carries.
+
+The lead edits every line before any of it ships. This prints a draft to
+stdout and writes nothing, anywhere.
+
+Exit codes: 0 printed, 1 no ledger under --project (default: `git
+rev-parse --show-toplevel`) declares ITEM_ID, 2 bad usage.
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+RULES_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RULES_DIR))
+
+from tools import itemfacts as F  # noqa: E402
+
+TRAILER = "\U0001f916 Generated with [Claude Code](https://claude.com/claude-code)"
+DEFAULT_BASE = "origin/main"
+GATE_PLACEHOLDER = "Gate: <NOT FILLED IN -- paste the gate's own verdict line here before this ships>"
+
+
+def title_line(item: dict) -> str:
+    return f"{item['id']}: {item['title']}"
+
+
+def _diff_lines(diff: F.DiffFacts) -> list[str]:
+    if not diff.files:
+        return [f"**Diff:** no changes against `{diff.base}`"]
+    lines = [f"**Diff:** {len(diff.files)} file(s) changed, "
+             f"+{diff.total_insertions}/-{diff.total_deletions}, "
+             f"{diff.test_file_count} test file(s) touched"]
+    for fc in diff.files:
+        ins = "-" if fc.insertions is None else f"+{fc.insertions}"
+        dele = "-" if fc.deletions is None else f"-{fc.deletions}"
+        lines.append(f"- `{fc.path}` ({ins}/{dele})")
+    return lines
+
+
+def render_body(facts: F.ItemFacts, diff: F.DiffFacts, branch: F.BranchFacts) -> str:
+    item = facts.item
+    lines = [f"## {item['id']}: {item['title']}", ""]
+    if item.get("what"):
+        lines += [item["what"], ""]
+    if item.get("done"):
+        lines += [f"**Done:** {item['done']}", ""]
+    if facts.parts:
+        lines.append("**Parts:**")
+        for p in facts.parts:
+            lines.append(f"- {p.get('id', '?')} ({p.get('status', '?')}): {p.get('title', '')}")
+        lines.append("")
+    lines.append(f"**Branch:** `{branch.branch}`, {len(branch.commits)} commit(s) against `{branch.base}`")
+    for c in branch.commits:
+        lines.append(f"- {c.sha} {c.subject}")
+    lines.append("")
+    lines += _diff_lines(diff)
+    lines += ["", GATE_PLACEHOLDER, "", TRAILER]
+    return "\n".join(lines) + "\n"
+
+
+def main(argv: list[str]) -> int:
+    ap = argparse.ArgumentParser(prog="pr-body", description=__doc__.splitlines()[0])
+    ap.add_argument("--project", help="project root (default: git rev-parse --show-toplevel)")
+    ap.add_argument("--item", required=True, help="ledger item id, e.g. O-05")
+    ap.add_argument("--ledger", help="ledger path (default: resolved from --item)")
+    ap.add_argument("--base", default=DEFAULT_BASE, help=f"diff/log base (default: {DEFAULT_BASE})")
+    ap.add_argument("--title-only", action="store_true", help="print only the PR title line")
+    args = ap.parse_args(argv)
+
+    project = F.project_root(args.project)
+    try:
+        facts = F.load_item(project, args.item, args.ledger)
+    except F.ItemNotFound:
+        print(f"pr-body: no ledger under {project / 'docs' / 'proposals'} declares item {args.item!r}",
+              file=sys.stderr)
+        return 1
+
+    title = title_line(facts.item)
+    if args.title_only:
+        print(title)
+        return 0
+
+    try:
+        diff = F.diff_facts(project, args.base)
+        branch = F.branch_facts(project, args.base)
+    except RuntimeError as exc:
+        print(f"pr-body: {exc}", file=sys.stderr)
+        return 1
+
+    print(title)
+    print()
+    print(render_body(facts, diff, branch), end="")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
