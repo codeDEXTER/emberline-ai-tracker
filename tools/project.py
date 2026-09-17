@@ -48,6 +48,15 @@ module does not know is ignored, because later proposals add keys.
       which every Ruflo-facing tool (bin/ruflo-item, bin/warmup, bin/
       conformance item 9) now shares -- --namespace, then $RUFLO_NAMESPACE,
       then this key, then the project directory's own name. Default: None.
+  "staging_branch": "staging"
+      O-08: the integration branch a reviewed branch lands on instead of
+      main. A non-empty, one-line string -- a branch name, not a command.
+      Read by bin/land: `land` merges onto this branch (creating it from
+      main when it does not exist yet) and `land --advance-staging` runs
+      the merge gate on it and fast-forwards main only on a green verdict.
+      Default: None -- straight to main, exactly as before this key existed.
+      No project under apps/ declares it yet; the switch is the sponsor's
+      to throw.
 
 EVERY VALUE IS UNTRUSTED. A path is relative to the project root: an absolute
 path, a `..` part, or a path that resolves (through a symlink) outside the
@@ -72,6 +81,10 @@ WHO READS IT
                        and it writes nothing while problems() has anything to say.
   bin/new-proposal     proposal_series(), to number across sibling projects; it
                        refuses to run while the series has a problem.
+  bin/land             staging_branch, read by its own self-contained bash
+                       JSON reader (test_cmd()'s twin) so land stays a single
+                       file; staging_target() above is that reader's python
+                       twin, for tests and other callers.
 
 A BROKEN DECLARATION. load() never raises: a file that is not valid JSON, or
 not an object, gives the defaults, and a value that fails a check leaves that
@@ -119,6 +132,7 @@ DEFAULTS: dict = {
     "risk_paths": {},
     "risk_always": None,
     "ruflo_namespace": None,
+    "staging_branch": None,
 }
 
 VALUES = ("high", "medium", "low")  # tools/tracker/ledger.py VALUES, proposal 25
@@ -387,6 +401,16 @@ def _checked(data: dict) -> tuple[dict, list[str]]:
             bad.append(f"{FILE}: ruflo_namespace must be one line")
         else:
             ok["ruflo_namespace"] = v.strip()
+    if "staging_branch" in data:
+        v = data["staging_branch"]
+        if not isinstance(v, str) or not v.strip():
+            bad.append(f"{FILE}: staging_branch must be a non-empty string")
+        elif not _utf8(v):
+            bad.append(f"{FILE}: staging_branch is not valid UTF-8")
+        elif not _one_line(v.strip()):
+            bad.append(f"{FILE}: staging_branch must be one line")
+        else:
+            ok["staging_branch"] = v.strip()
     return ok, bad
 
 
@@ -520,3 +544,10 @@ def test_command(project: Path) -> str:
     if pkg.is_file() and '"test"' in pkg.read_text(errors="replace"):
         return "npm test --silent"
     return ""
+
+
+def staging_target(project: Path) -> str | None:
+    """bin/land's staging_branch() twin: the declared staging_branch, or None
+    when it is not declared or not usable -- in which case land goes straight
+    to main, exactly as it did before this key existed."""
+    return declared(project).get("staging_branch")

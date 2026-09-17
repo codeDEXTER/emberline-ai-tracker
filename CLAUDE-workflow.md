@@ -86,7 +86,10 @@ Commit as you go. Uncommitted work is invisible to every other session and to
 **Landing is automatic.** When a branch is done, run `bin/land`. It checks the
 tree is clean, the branch is ahead, the merge is conflict-free, the tests are
 green and nothing reserved was touched — then merges, through a PR where `main`
-is protected. Nothing waits in a queue for the user to notice it.
+is protected. Nothing waits in a queue for the user to notice it. A project
+that declares a staging branch lands there instead, and main moves only
+through `bin/land --advance-staging` — full rule, and why, in the Tests
+section below (proposal 31, O-08).
 
 **Shared plan documents live on one branch, never in a feature branch.**
 A project's milestone plan and the surfaces generated from it — for
@@ -173,6 +176,33 @@ N -- python3 -m unittest discover -s tests -q` shards the full suite across N
 processes for the times you do want all of it locally. Either way, the one
 full sequential run at integration (`bin/land`, CI) stays the gate that
 decides a merge (proposal 23, M-01/M-02).
+
+**A project can move that integration gate off main onto a staging branch**
+(proposal 31, O-08 — mandatory Standard change). The sponsor: *"We can also
+reduce the number of tests so we can have a development branch or a staging
+branch where we can keep merging changes and then after a considerable
+amount of changes are done, we can test in one go. Rather than testing again
+and again in smaller batches. We can test larger batches."* Declare
+`"staging_branch": "<name>"` in `.common-rules.json` (`tools/project.py`
+documents the key) and `bin/land` merges a reviewed branch onto that branch
+instead of main, creating it from main the first time it's needed, running
+the exact same gate it always has run — this changes *where* a branch lands,
+not what it's tested against. `main` then only ever moves through
+`bin/land --advance-staging`, which re-runs the gate on staging itself and
+fast-forwards main to staging's tip on a green verdict only; it refuses,
+never guesses, when the gate is red, when staging is behind main (some
+commit reached main another way), or when the verdict cannot be read at all
+(no test suite declared) — an unreadable verdict is a refusal, exactly like
+a red one, never a pass. **No test is deleted by any of this.** What goes
+down is how often the full suite gates main, never what it covers — a
+smaller suite would have been just as green and just as wrong: finance-tracker
+once carried 1,753 green tests over 16 wrong-money defects, found only by the
+negative cases nobody had cut. And batch by time, not by commit count: a
+batch large enough that a red staging verdict can't be traced to which branch
+caused it costs more to untangle than the runs it saved — bisecting several
+already-merged branches is worse than testing each as it landed. A project
+that never declares `staging_branch` is unaffected: `land` goes straight to
+main, exactly as before this key existed.
 
 **Run the gate in the foreground, one blocking call, read the verdict line in
 the same turn** (proposal 31, O-03 — mandatory Standard change). A session
