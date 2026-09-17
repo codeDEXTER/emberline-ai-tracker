@@ -23,6 +23,7 @@ from datetime import datetime
 from pathlib import Path
 
 from tools.tracker import ledger
+from tools.tracker import parts as PT  # proposal 30, P-04
 
 DIGEST_RE = re.compile(r"<!--\s*ledger-digest:\s*([0-9a-f]{64})\s*-->")
 
@@ -126,6 +127,39 @@ def _next_unblocked_section(d: dict) -> str:
     return _bullets(lines)
 
 
+def _next_part_note(item: dict, today) -> str:
+    """` · next W-10.A (waiting ...)`, or "" for an item with no open part."""
+    nxt = PT.next_part(item)
+    if nxt is None:
+        return ""
+    note = f" · next {nxt.get('id')}"
+    if PT.is_waiting(nxt, today):
+        owner = nxt.get("owner")
+        if isinstance(owner, str) and owner.startswith("session:"):
+            note += f" (waiting on {owner[len('session:'):]})"
+        elif nxt.get("waiting_until"):
+            note += f" (waiting {nxt['waiting_until']})"
+    return note
+
+
+def _groups_section(items: list[dict], today) -> str:
+    """Open items (proposal 30, P-04), grouped by PT.group -- `done` items
+    are not open work and are left out, same as the flat sections above.
+    Short by design: one line per open item, its completion % and next
+    part, under the group it falls in."""
+    by_group: dict[str, list[str]] = {g: [] for g in PT.GROUPS if g != "done"}
+    for i in items:
+        g = PT.group(i, today)
+        if g not in by_group:
+            continue
+        # An item without `parts` has no real "next part" to point at --
+        # PT.next_part would name the item itself, which says nothing.
+        note = _next_part_note(i, today) if i.get("parts") is not None else ""
+        by_group[g].append(f"- {i.get('id')} {PT.completion(i)}%{note}")
+    sections = [f"**{g}**\n" + "\n".join(lines) for g in ("finish now", "back burner", "waiting") if (lines := by_group[g])]
+    return "\n".join(sections) if sections else "- none"
+
+
 def _exact_next_action(ledgers: list[tuple[Path, dict]]) -> str:
     if not ledgers:
         return "none open"
@@ -155,6 +189,7 @@ def render(ledgers: list[tuple[Path, dict]], digest: str, reason: str,
         info_line,
         f"<!-- ledger-digest: {digest} -->",
     ]
+    today = now.date()
     for path, d in ledgers:
         items = ledger.items(d)
         parts.append(f"## Proposal {d.get('proposal')} · {d.get('title', '')}")
@@ -167,6 +202,10 @@ def render(ledgers: list[tuple[Path, dict]], digest: str, reason: str,
         parts.append(_open_asks_section(d))
         parts.append("### Next unblocked")
         parts.append(_next_unblocked_section(d))
+        # Proposal 30, P-04: open work by group, short -- completion % and
+        # the next open part, instead of scanning every item's own line for it.
+        parts.append("### Open work by group")
+        parts.append(_groups_section(items, today))
     parts.append("## Exact next action")
     parts.append(_exact_next_action(ledgers))
     return "\n\n".join(parts) + "\n"

@@ -342,6 +342,66 @@ class TestTheCard(Case):
         out = self.p.warmup().stdout
         self.assertNotIn("?\n", out.replace("worth it", ""))
 
+    def test_open_work_by_group_counts_items_without_parts_too(self):
+        # ledger_data() has no `parts` anywhere: W-02 in progress and W-03 not
+        # started are each their own implicit part, 0% complete -- both
+        # "finish now"; W-01 is done and not counted.
+        out = self.p.warmup().stdout
+        self.assertIn("open work: finish now 2 · back burner 0 · waiting 0", out)
+
+
+class TestPartsOnTheCard(Case):
+    """Proposal 30, P-04: an item with lettered parts shows its completion %
+    and next open part on the card; an item without `parts` is unchanged."""
+
+    def setUp(self):
+        super().setUp()
+        d = ledger_data()
+        d["items"][1]["parts"] = [
+            {"id": "W-02.A", "title": "first half", "share": 50, "status": "done"},
+            {"id": "W-02.B", "title": "second half", "share": 50, "status": "not started"},
+        ]
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.checkpoint()
+        self.p.commit("W-02 split into parts")
+
+    def test_in_progress_line_shows_completion_and_next_part(self):
+        out = self.p.warmup().stdout
+        self.assertIn("W-02", out)
+        self.assertIn("50%", out)
+        self.assertIn("next W-02.B", out)
+        self.assertIn("second half", out)
+
+    def test_an_item_without_parts_keeps_its_plain_line(self):
+        out = self.p.warmup().stdout
+        # W-03 has no `parts`: its "next" line carries no completion % or
+        # "next W-03.<letter>" -- unchanged from before P-04.
+        next_lines = [ln for ln in out.splitlines() if ln.strip().startswith("next ") and "W-03" in ln]
+        self.assertTrue(next_lines, out)
+        self.assertEqual("next         W-03 [ruflo · medium · sonnet] check the gate", next_lines[0].strip())
+        self.assertNotIn("%", next_lines[0])
+
+    def test_a_waiting_next_part_says_why(self):
+        d = ledger_data()
+        d["items"][1]["parts"] = [
+            {"id": "W-02.A", "title": "first half", "share": 50, "status": "done"},
+            {"id": "W-02.B", "title": "second half", "share": 50, "status": "not started",
+             "waiting_until": "2099-01-01"},
+        ]
+        self.p.set_ledger(d)
+        self.p.render()
+        self.p.checkpoint()
+        self.p.commit("W-02.B waiting")
+        out = self.p.warmup().stdout
+        self.assertIn("(waiting 2099-01-01)", out)
+
+    def test_open_work_by_group_reflects_the_split(self):
+        out = self.p.warmup().stdout
+        # W-02 at 50% is under the 80% cut -> "finish now"; W-03 has no
+        # parts and is also "finish now" (0%).
+        self.assertIn("open work: finish now 2 · back burner 0 · waiting 0", out)
+
 
 ENGINE_SHAPED_HANDOFF = """# engine — start here
 
