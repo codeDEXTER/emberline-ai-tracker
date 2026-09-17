@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 20:02
+# Checkpoint — 2026-09-17 20:50
 
-Reason: manual · branch: p30-accept · HEAD: 1186af2
+Reason: manual · branch: findings-f06f07 · HEAD: 04dbb17
 
-<!-- ledger-digest: 0576458e3cc6349b5dda944295286fd31112079081f2f6baece1bad6e52971b5 -->
+<!-- ledger-digest: 5055a1b1d4bbc46032646f0ec657a34fb5fdfb38a18e0a0993a4a7b3f32880d5 -->
 
 ## Proposal 19 · Warm-up
 
@@ -23,6 +23,11 @@ Reason: manual · branch: p30-accept · HEAD: 1186af2
 ### Next unblocked
 
 - none
+
+### Open work by group
+
+**waiting**
+- W-10 20% · next W-10.A (waiting on PhotoVault Engine)
 
 ## Proposal 21 · The standard is mandatory
 
@@ -45,6 +50,12 @@ Reason: manual · branch: p30-accept · HEAD: 1186af2
 - S-07 · [ruflo · low · haiku] · PhotoVault app on the standard
 - S-08 · [ruflo · low · haiku] · PhotoVault engine on the standard
 
+### Open work by group
+
+**waiting**
+- S-07 0% · next S-07.A (waiting on PhotoVault App)
+- S-08 0% · next S-08.A (waiting on PhotoVault Engine)
+
 ## Proposal 23 · Eight levers for token spend
 
 19 done / 0 in progress / 0 blocked / 0 not started / 2 in testing
@@ -64,6 +75,12 @@ Reason: manual · branch: p30-accept · HEAD: 1186af2
 ### Next unblocked
 
 - none
+
+### Open work by group
+
+**waiting**
+- L-02 60% · next L-02.B (waiting 2026-09-23)
+- L-07 80% · next L-07.B (waiting 2026-09-23)
 
 ## Proposal 30 · Tracker shows how complete each item is, by lettered parts
 
@@ -85,6 +102,12 @@ Reason: manual · branch: p30-accept · HEAD: 1186af2
 
 - P-04 · [ruflo · medium · sonnet] · Warm-up card and checkpoint count parts
 - P-08 · [ruflo · high · sonnet] · Charts and feature drill-down on the page
+
+### Open work by group
+
+**finish now**
+- P-04 0%
+- P-08 0%
 
 ## Exact next action
 
