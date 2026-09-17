@@ -14,6 +14,9 @@ Run:  python3 -m unittest discover -s tests -q
 """
 from __future__ import annotations
 
+import importlib.machinery
+import importlib.util
+import os
 import re
 import subprocess
 import sys
@@ -23,6 +26,21 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 QUIET = ROOT / "bin" / "quiet"
+
+
+def _load_quiet_module():
+    """`bin/quiet` has no .py extension (it's a script), so it's loaded the
+    same way tests/test_derecord.py loads bin/conformance: by explicit
+    SourceFileLoader, to unit-test its internal helpers (shard ordering,
+    --jobs auto) without going through a subprocess for every case."""
+    loader = importlib.machinery.SourceFileLoader("quiet_module_for_tests", str(QUIET))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    mod = importlib.util.module_from_spec(spec)
+    loader.exec_module(mod)
+    return mod
+
+
+quiet = _load_quiet_module()
 
 
 def py(code: str) -> list[str]:
@@ -290,6 +308,110 @@ class TestQuietParallelDiscover(unittest.TestCase):
         par, _ = self._run(["--jobs", "4"], fixture)
         lines = [l for l in par.stdout.split("\n") if l != ""]
         self.assertEqual(len(lines), 1, f"expected exactly one line, got {par.stdout!r}")
+
+
+# -- shard duration cache and dispatch order (M-01, the coordinator's       --
+# -- correction, 2026-09-17): a shard is one file's own process, and the    --
+# -- whole run is only as fast as whichever one is submitted last and       --
+# -- happens to be the slow one -- so slowest-known-first dispatch matters, --
+# -- not just splitting the work across `jobs` workers.
+
+class TestOrderedShards(unittest.TestCase):
+    """Pure unit tests of `_ordered_shards`, the sort `_run_parallel_discover`
+    uses to decide submission order -- no subprocess, no timing, so these
+    can't be flaky."""
+
+    def test_the_slowest_known_module_goes_first(self):
+        files = [Path(n) for n in ("test_a.py", "test_slow.py", "test_b.py", "test_c.py")]
+        durations = {"test_a.py": 1.0, "test_slow.py": 575.0, "test_b.py": 2.0, "test_c.py": 0.5}
+        ordered = quiet._ordered_shards(files, durations)
+        self.assertEqual(ordered[0].name, "test_slow.py")
+        # and otherwise strictly by descending duration
+        self.assertEqual([p.name for p in ordered],
+                          ["test_slow.py", "test_b.py", "test_a.py", "test_c.py"])
+
+    def test_a_cold_cache_still_orders_every_file_and_drops_none(self):
+        files = [Path(n) for n in ("test_a.py", "test_b.py", "test_c.py")]
+        ordered = quiet._ordered_shards(files, {})
+        self.assertEqual({p.name for p in ordered}, {"test_a.py", "test_b.py", "test_c.py"})
+        # no durations known at all -> the incoming (alphabetical) order is
+        # kept, a plain round-robin.
+        self.assertEqual([p.name for p in ordered], ["test_a.py", "test_b.py", "test_c.py"])
+
+    def test_unknown_files_sort_after_every_timed_file(self):
+        files = [Path(n) for n in ("test_new.py", "test_timed.py")]
+        ordered = quiet._ordered_shards(files, {"test_timed.py": 3.0})
+        self.assertEqual([p.name for p in ordered], ["test_timed.py", "test_new.py"])
+
+
+class TestAutoJobs(unittest.TestCase):
+    """--jobs auto (or a bare trailing --jobs) resolves to os.cpu_count() -
+    2, floor 2, both as a unit (the resolver itself) and end to end
+    (through the real quiet subprocess, in the discover-shape it changes
+    behaviour for)."""
+
+    def test_auto_jobs_resolver_matches_cpu_count_minus_two_floored_at_two(self):
+        n = quiet._auto_jobs()
+        self.assertIsInstance(n, int)
+        self.assertGreaterEqual(n, 2)
+        self.assertEqual(n, max(2, (os.cpu_count() or 2) - 2))
+
+    def test_jobs_auto_end_to_end_runs_and_agrees_with_sequential(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / "fixture_tests"
+            fixture.mkdir()
+            for i in range(3):
+                (fixture / f"test_p{i}.py").write_text(PASSING_MODULE.format(n=i))
+            log = str(Path(tmp) / "auto.log")
+            cmd = [str(QUIET), "--log", log, "--jobs", "auto", "--",
+                   sys.executable, "-m", "unittest", "discover", "-s", str(fixture), "-q"]
+            r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            self.assertTrue(r.stdout.startswith("quiet: OK"), r.stdout)
+            self.assertIn("6 tests", r.stdout)
+
+    def test_bare_trailing_jobs_also_means_auto(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / "fixture_tests"
+            fixture.mkdir()
+            (fixture / "test_p0.py").write_text(PASSING_MODULE.format(n=0))
+            log = str(Path(tmp) / "bare.log")
+            cmd = [str(QUIET), "--log", log, "--jobs", "--",
+                   sys.executable, "-m", "unittest", "discover", "-s", str(fixture), "-q"]
+            r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            self.assertTrue(r.stdout.startswith("quiet: OK"), r.stdout)
+            self.assertIn("2 tests", r.stdout)
+
+
+class TestShardDurationCache(unittest.TestCase):
+    """The cache `_run_parallel_discover` writes after a real parallel run --
+    following tools/tracker/history.py's own placement rule (system temp,
+    keyed by the repo's absolute path, when .cache/ isn't gitignored)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_a_real_parallel_run_populates_the_duration_cache(self):
+        fixture = Path(self.tmp.name) / "fixture_tests"
+        fixture.mkdir()
+        for i in range(3):
+            (fixture / f"test_p{i}.py").write_text(PASSING_MODULE.format(n=i))
+        cache_path = quiet._duration_cache_path(fixture)
+        self.assertFalse(cache_path.exists(), "cache must start cold for this fixture")
+
+        log = str(Path(self.tmp.name) / "run.log")
+        cmd = [str(QUIET), "--log", log, "--jobs", "3", "--",
+               sys.executable, "-m", "unittest", "discover", "-s", str(fixture), "-q"]
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        self.assertTrue(r.stdout.startswith("quiet: OK"), r.stdout)
+
+        cache = quiet._load_duration_cache(cache_path)
+        self.assertEqual(set(cache), {"test_p0.py", "test_p1.py", "test_p2.py"})
+        for v in cache.values():
+            self.assertIsInstance(v, (int, float))
+            self.assertGreaterEqual(v, 0)
 
 
 if __name__ == "__main__":
