@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 07:31
+# Checkpoint — 2026-09-17 08:36
 
-Reason: manual · branch: due-interim · HEAD: 97d4dc5
+Reason: manual · branch: close-f03-f04 · HEAD: 7026aba
 
-<!-- ledger-digest: b8b6a89faa33b944e73f340931d557b49daa5ef2239efc26030ab0b3bdbef121 -->
+<!-- ledger-digest: 090ca52925cbb46f7443015bc949aa5adbf7b30c609a781440d3d291a89efa44 -->
 
 ## Proposal 19 · Warm-up
 
