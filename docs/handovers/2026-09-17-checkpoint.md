@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 21:59
+# Checkpoint — 2026-09-17 22:03
 
-Reason: manual · branch: o10-shard · HEAD: db760bd
+Reason: manual · branch: finding-claude-md · HEAD: a3c5821
 
-<!-- ledger-digest: 0b4916ee44f10f3089f139454f709b843114a0fd54973ae9e3b130e028767e7e -->
+<!-- ledger-digest: 65dbfec1e1c015da616cd780331d12468f7e0b62f8ac5c2c80e8e68f9ebdf358 -->
 
 ## Proposal 19 · Warm-up
 
