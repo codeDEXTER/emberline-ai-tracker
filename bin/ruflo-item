@@ -64,23 +64,30 @@ plain Ctrl-C (`KeyboardInterrupt`), for the same reason. Exit code on a
 caught terminating signal is `128 + signum` (143 for SIGTERM, 129 for
 SIGHUP), the same convention a shell uses for a killed job.
 
-BINARY RESOLUTION. `$RUFLO`, if set, is a full command line, split with
-`shlex` -- so `RUFLO="npx -y ruflo@latest"` (the app's own wrapper's call)
-works, and its first word must resolve to something executable (via
-`shutil.which`) or ruflo-item refuses, naming the word, rather than handing
-a command to `subprocess` that cannot run. Then `claude-flow` on PATH, then
-`ruflo` on PATH. Only `$RUFLO` may ever name `npx` -- ruflo-item never adds
-it on its own initiative, since a bare `npx` call downloads a package and
-auto-starts the daemon on its own. No binary resolves: say so, name the fix
+BINARY RESOLUTION (RF-01: tools/ruflo.py, shared with bin/warmup and bin/
+conformance -- never two copies of this logic). `$RUFLO`, if set, is a full
+command line, split with `shlex` -- so `RUFLO="npx -y ruflo@latest"` (the
+app's own wrapper's call) works, and its first word must resolve to
+something executable (via `shutil.which`) or ruflo-item refuses, naming the
+word, rather than handing a command to `subprocess` that cannot run. Then
+`claude-flow` on PATH, then `ruflo` on PATH. Then the npx cache
+(`~/.npm/_npx/*/node_modules/.bin/{claude-flow,ruflo}`), picking the highest
+version by each candidate's own package.json, never mtime or glob order --
+this machine's cache alone has held several versions at once. Only `$RUFLO`
+may ever name `npx` -- ruflo-item never adds it on its own initiative, since
+a bare `npx` call downloads a package and auto-starts the daemon on its own.
+No binary resolves: say so, naming all three places searched, name the fix
 (`set RUFLO, e.g. RUFLO="npx -y ruflo@latest"`), exit 2 -- there is nothing
-to call `daemon stop` on, so that step is skipped, not attempted.
+to call `daemon stop` on, so that step is skipped, not attempted. The binary
+actually used is printed on every run, like the namespace already is.
 
-NAMESPACE. `--namespace NS` when given, else `$RUFLO_NAMESPACE`, else the
-project directory's own name (the app's wrapper used one fixed namespace,
-`photovault-app`; ruflo-item serves every project, so it needs one it can
-derive without being told, but a wrong guess must be visible rather than
-silently losing `recall`'s history -- so the namespace in use is printed on
-every run).
+NAMESPACE (tools/ruflo.py). `--namespace NS` when given, else
+`$RUFLO_NAMESPACE`, else `.common-rules.json`'s `ruflo_namespace` key
+(tools/project.py), else the project directory's own name (the app's
+wrapper used one fixed namespace, `photovault-app`; ruflo-item serves every
+project, so it needs one it can derive without being told, but a wrong
+guess must be visible rather than silently losing `recall`'s history -- so
+the namespace in use is printed on every run).
 
 RUFLO STATE CWD (proposal 23, F-03). `.swarm/` and whatever else Ruflo keeps
 as state exist only in the main checkout -- a linked worktree's own root is
@@ -107,8 +114,6 @@ from __future__ import annotations
 import argparse
 import datetime
 import os
-import shlex
-import shutil
 import signal
 import subprocess
 import sys
@@ -118,6 +123,7 @@ RULES_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RULES_DIR))
 
 from tools import project as P  # noqa: E402
+from tools import ruflo as RU  # noqa: E402
 
 PREFIX = "ruflo-item:"
 
@@ -140,29 +146,13 @@ def _install_signal_handlers() -> None:
 
 
 def resolve_binary() -> tuple[list[str] | None, str | None]:
-    """(argv prefix, None) on success; (None, the message to print) when
-    nothing usable resolves. $RUFLO is split with shlex so a full command
-    line such as `npx -y ruflo@latest` works; its first word must be an
-    existing executable. Otherwise: claude-flow on PATH, then ruflo on PATH.
-    Never npx by default -- only $RUFLO may name it."""
-    env = os.environ.get("RUFLO", "").strip()
-    if env:
-        try:
-            parts = shlex.split(env)
-        except ValueError as e:
-            return None, f"{PREFIX} $RUFLO could not be parsed as a command ({e})"
-        if not parts:
-            return None, f"{PREFIX} $RUFLO is empty"
-        word = parts[0]
-        if not shutil.which(word):
-            return None, f"{PREFIX} $RUFLO names {word!r}, which is not an executable"
-        return parts, None
-    for name in ("claude-flow", "ruflo"):
-        found = shutil.which(name)
-        if found:
-            return [found], None
-    return None, (f'{PREFIX} no Ruflo binary found -- '
-                  f'set RUFLO, e.g. RUFLO="npx -y ruflo@latest"')
+    """(argv prefix, None) on success; (None, the message to print, prefixed)
+    when nothing usable resolves. tools/ruflo.py does the actual resolution
+    (RF-01), shared with bin/warmup and bin/conformance -- never two copies."""
+    argv, err = RU.resolve_binary()
+    if argv is None:
+        return None, f"{PREFIX} {err}"
+    return argv, None
 
 
 def project_root(explicit: str | None) -> Path:
@@ -204,14 +194,11 @@ def ruflo_cwd_for(project: Path) -> Path:
 
 
 def namespace_for(project: Path, explicit: str | None) -> str:
-    """--namespace NS when given; else $RUFLO_NAMESPACE; else the project
-    directory's own name."""
-    if explicit:
-        return explicit
-    env = os.environ.get("RUFLO_NAMESPACE", "").strip()
-    if env:
-        return env
-    return project.name
+    """--namespace NS when given; else $RUFLO_NAMESPACE; else
+    .common-rules.json's ruflo_namespace; else the project directory's own
+    name. tools/ruflo.py does the actual resolution (RF-01), shared with
+    bin/warmup and bin/conformance."""
+    return RU.namespace_for(project, explicit)
 
 
 def now_iso() -> str:
@@ -404,6 +391,7 @@ def main(argv: list[str]) -> int:
     if binary is None:
         print(err, file=sys.stderr)
         return 2
+    print(f"{PREFIX} binary: {' '.join(binary)}")
 
     project = project_root(args.project)
     ruflo_cwd = ruflo_cwd_for(project)
