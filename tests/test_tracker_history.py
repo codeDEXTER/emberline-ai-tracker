@@ -259,5 +259,83 @@ class TestHistorySvg(unittest.TestCase):
         self.assertNotIn("polyline", out)
 
 
+def _rows_for_chart_content():
+    """Five days of a spread-out series, so the axes have real ticks to
+    check and the first/last dates differ (proposal 30, P-08 round 2 --
+    the sponsor's "17%, I don't have the formula in my mind" complaint,
+    repeated by a scaleless line)."""
+    dates = ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05"]
+    totals = [2, 3, 4, 5, 6]
+    dones = [1, 1, 2, 3, 5]
+    completion = [10.0, 20.0, 40.0, 70.0, 90.0]
+    return [
+        {"date": d, "tickets_total": t, "tickets_done": dn, "completion_pct": c,
+         "added": 0, "closed": 0, "added_ids": 0, "closed_ids": 0, "by_proposal": {}}
+        for d, t, dn, c in zip(dates, totals, dones, completion)
+    ]
+
+
+class TestHistorySvgContent(unittest.TestCase):
+    """P-08 round 2 (the coordinator's own review of the first chart
+    render): a labelled y-axis, a labelled x-axis, a legend, an
+    end-of-line value per series, a visible title, and a responsive
+    (width=100% + viewBox) svg -- on both the counts chart and the
+    completion chart."""
+
+    def setUp(self):
+        self.rows = _rows_for_chart_content()
+        self.out = history.svg(self.rows)
+        self.counts, self.pct = self.out.split("</svg>", 1)
+
+    def test_responsive_viewbox(self):
+        self.assertEqual(self.out.count('width="100%"'), 2)
+        self.assertEqual(self.out.count("viewBox="), 2)
+
+    def test_visible_titles(self):
+        self.assertIn(">Tickets over time<", self.out)
+        self.assertIn(">Completion over time<", self.out)
+
+    def test_y_axis_ticks_are_values_the_line_actually_reaches(self):
+        # The counts chart spans both `total` and `done`: 1..6.
+        for tv in history._nice_ticks(1, 6, 4):
+            self.assertIn(f">{history._fmt_count(tv)}<", self.counts)
+        # The completion chart spans its own data: 10..90, never a fixed
+        # 0-100 the line rarely reaches.
+        for tv in history._nice_ticks(10.0, 90.0, 4):
+            self.assertIn(f">{history._fmt_percent(tv)}<", self.pct)
+
+    def test_x_axis_shows_first_and_last_date_not_iso(self):
+        self.assertIn(">1 Sep<", self.counts)
+        self.assertIn(">5 Sep<", self.counts)
+        self.assertNotIn("2026-09-01", self.out)
+        self.assertNotIn("2026-09-05", self.out)
+
+    def test_legend_has_an_entry_per_series(self):
+        self.assertIn('data-legend="total"', self.counts)
+        self.assertIn('data-legend="done"', self.counts)
+        self.assertIn('data-legend="completion"', self.pct)
+
+    def test_end_of_line_labels_carry_the_final_value(self):
+        self.assertIn('data-endlabel="total">6<', self.counts)
+        self.assertIn('data-endlabel="done">5<', self.counts)
+        self.assertIn('data-endlabel="completion">90%<', self.pct)
+
+    def test_gridlines_and_axis_text_use_theme_tokens(self):
+        self.assertIn("var(--tracker-chart-axis", self.out)
+        self.assertIn("var(--tracker-chart-grid", self.out)
+        self.assertIn("var(--tracker-chart-title", self.out)
+
+    def test_charts_stay_separate(self):
+        self.assertEqual(self.out.count("<svg"), 2)
+
+    def test_no_external_urls_or_script_still_holds(self):
+        self.assertNotIn("<script", self.out)
+        self.assertNotIn("href=", self.out)
+        self.assertNotIn('src="http', self.out)
+        non_xmlns_urls = [line for line in self.out.splitlines()
+                          if ("http://" in line or "https://" in line) and "xmlns=" not in line]
+        self.assertEqual(non_xmlns_urls, [])
+
+
 if __name__ == "__main__":
     unittest.main()
