@@ -24,6 +24,13 @@ Rules, decided 2026-09-17 ("go with your recommendations", D1-D5):
   risk        the lead's call, with a stated reason (D3).
 Shares are whole percents set by the lead when splitting (D2) and add up to
 100. Letters run in order from A and are never reused.
+
+Parts nest ("if there are more sub sub items", the sponsor, 17 Sep 2026): a
+part may carry its own `parts`, named after it with numbers at the second
+level (W-10.A.1, W-10.A.2) and lowercase letters at the third (W-10.A.1.a).
+Sub-part shares add up to 100 within their parent; a part with sub-parts is
+as complete as its done sub-parts' shares, and may only be done when they all
+are.
 """
 from __future__ import annotations
 
@@ -42,12 +49,22 @@ def parts(item: dict) -> list[dict]:
     return [p for p in value if isinstance(p, dict)] if isinstance(value, list) else []
 
 
-def validate_parts(item: dict) -> list[str]:
-    """Every problem with `item`'s parts, as sentences naming the part."""
+def _label(depth: int, n: int) -> str | None:
+    """The n-th sub-id at `depth` (0: A.., 1: 1.., 2: a..)."""
+    if depth == 1:
+        return str(n + 1)
+    alphabet = _LETTERS if depth == 0 else _LETTERS.lower()
+    return alphabet[n] if n < len(alphabet) else None
+
+
+def validate_parts(item: dict, _depth: int = 0) -> list[str]:
+    """Every problem with `item`'s parts (at every depth), as sentences naming the part."""
     value = item.get("parts")
     if value is None:
         return []
     iid = item.get("id") or "item"
+    if _depth > 2:
+        return [f"{iid}: parts nest at most three levels (W-10.A.1.a)"]
     if not isinstance(value, list) or not value:
         return [f"{iid}: `parts` must be a non-empty list"]
     problems: list[str] = []
@@ -56,11 +73,13 @@ def validate_parts(item: dict) -> list[str]:
         if not isinstance(p, dict):
             problems.append(f"{iid}: parts[{n}] is not an object")
             continue
-        expected = f"{iid}.{_LETTERS[n]}" if n < len(_LETTERS) else None
+        label = _label(_depth, n)
+        expected = f"{iid}.{label}" if label else None
         pid = p.get("id")
         name = pid or f"{iid} parts[{n}]"
         if pid != expected:
-            problems.append(f"{name}: part {n + 1} must be named {expected} (letters in order from A)")
+            problems.append(f"{name}: part {n + 1} must be named {expected} "
+                            f"({'letters from A' if _depth == 0 else 'numbers from 1' if _depth == 1 else 'letters from a'}, in order)")
         if not isinstance(p.get("title"), str) or not p["title"].strip():
             problems.append(f"{name}: missing `title`")
         share = p.get("share")
@@ -84,7 +103,9 @@ def validate_parts(item: dict) -> list[str]:
                 problems.append(f"{name}: a risk needs a `risk_reason`")
         if p.get("log") is not None and not isinstance(p["log"], list):
             problems.append(f"{name}: `log` must be a list")
-    if not problems and total != 100:
+        if p.get("parts") is not None and pid == expected:
+            problems.extend(validate_parts(p, _depth + 1))
+    if not any("share" in x for x in problems) and total != 100:
         problems.append(f"{iid}: part shares add up to {total}, not 100")
     if item.get("status") == "done" and any(p.get("status") != "done" for p in parts(item)):
         problems.append(f"{iid}: status done while a part is still open")
@@ -92,11 +113,27 @@ def validate_parts(item: dict) -> list[str]:
 
 
 def completion(item: dict) -> int:
-    """Percent complete: the done parts' shares, or 100/0 for an item without parts."""
+    """Percent complete, rolled up through nested parts: each part contributes
+    its share times its own completion; a part without sub-parts is 100 when
+    done and 0 otherwise. An item without parts is 100 or 0."""
     ps = parts(item)
     if not ps:
         return 100 if item.get("status") == "done" else 0
-    return sum(p.get("share", 0) for p in ps if p.get("status") == "done" and type(p.get("share")) is int)
+    total = 0.0
+    for p in ps:
+        share = p.get("share") if type(p.get("share")) is int else 0
+        total += share * completion(p) / 100
+    return int(round(total))
+
+
+def tree(item: dict) -> dict:
+    """{id, title, status, share, completion, parts: [...]} at every depth --
+    what a drill-down view renders."""
+    return {"id": item.get("id"), "title": item.get("title"), "status": item.get("status"),
+            "share": item.get("share"), "owner": item.get("owner"),
+            "waiting_until": item.get("waiting_until"), "risk": item.get("risk"),
+            "risk_reason": item.get("risk_reason"), "completion": completion(item),
+            "parts": [tree(p) for p in parts(item)]}
 
 
 def open_parts(item: dict) -> list[dict]:

@@ -115,5 +115,51 @@ class TestCompletionAndGroups(unittest.TestCase):
         self.assertEqual("done", P.group(item([part("A", 100, "done")], status="done"), TODAY))
 
 
+
+class TestNestedParts(unittest.TestCase):
+    """Sub-parts: W-10.A.1 (numbers), W-10.A.1.a (lowercase letters)."""
+
+    def sub(self, n, share, status="not started", parent="W-10.A", **extra):
+        return {"id": f"{parent}.{n}", "title": f"sub {n}", "share": share, "status": status, **extra}
+
+    def test_well_formed_nesting_has_no_problems(self):
+        a = part("A", 60, "in progress", parts=[self.sub(1, 50, "done"), self.sub(2, 50)])
+        self.assertEqual([], P.validate_parts(item([a, part("B", 40)])))
+
+    def test_second_level_uses_numbers_in_order(self):
+        a = part("A", 100, parts=[self.sub("a", 100)])
+        self.assertTrue(any("W-10.A.1" in x for x in P.validate_parts(item([a]))))
+
+    def test_third_level_uses_lowercase_letters(self):
+        a1 = self.sub(1, 100, parts=[{"id": "W-10.A.1.a", "title": "x", "share": 100, "status": "done"}],
+                      status="done")
+        self.assertEqual([], P.validate_parts(item([part("A", 100, "done", parts=[a1])], status="done")))
+
+    def test_a_fourth_level_is_refused(self):
+        deep = {"id": "W-10.A.1.a", "title": "x", "share": 100, "status": "not started",
+                "parts": [{"id": "W-10.A.1.a.1", "title": "y", "share": 100, "status": "not started"}]}
+        a = part("A", 100, parts=[self.sub(1, 100, parts=[deep])])
+        self.assertTrue(any("three levels" in x for x in P.validate_parts(item([a]))))
+
+    def test_sub_shares_add_up_to_100_within_the_parent(self):
+        a = part("A", 100, parts=[self.sub(1, 30), self.sub(2, 30)])
+        self.assertTrue(any("W-10.A: part shares add up to 60" in x for x in P.validate_parts(item([a]))))
+
+    def test_a_part_cannot_be_done_with_an_open_sub_part(self):
+        a = part("A", 100, "done", parts=[self.sub(1, 50, "done"), self.sub(2, 50)])
+        self.assertTrue(any("W-10.A: status done" in x for x in P.validate_parts(item([a]))))
+
+    def test_completion_rolls_up(self):
+        # A is 60% of the item and half done (30); B is 40% and done (40): 70.
+        a = part("A", 60, "in progress", parts=[self.sub(1, 50, "done"), self.sub(2, 50)])
+        self.assertEqual(70, P.completion(item([a, part("B", 40, "done")])))
+
+    def test_tree_carries_completion_at_every_depth(self):
+        a = part("A", 60, "in progress", parts=[self.sub(1, 50, "done"), self.sub(2, 50)])
+        t = P.tree(item([a, part("B", 40, "done")]))
+        self.assertEqual((70, 50, 100), (t["completion"], t["parts"][0]["completion"],
+                                         t["parts"][0]["parts"][0]["completion"]))
+
+
 if __name__ == "__main__":
     unittest.main()
