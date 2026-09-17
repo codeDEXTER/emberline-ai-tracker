@@ -44,4 +44,4 @@ jobs:
       # machine either. Keep it that way -- a rules repo that cannot be checked
       # out and tested in one step is a rules repo nobody checks.
       - name: Run test suite
-        run: python3 -m unittest discover -s tests -q
+        run: bin/quiet --label merge-gate --jobs auto -- python3 -m unittest discover -s tests -q
