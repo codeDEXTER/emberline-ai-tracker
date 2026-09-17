@@ -48,6 +48,23 @@ PROJECTS = os.path.expanduser("~/.claude/projects")
 LOG = "AGENT-LOG.md"
 MANAGEMENT = "(management)"
 
+# One usage line per subcommand (proposal 23 F-04): `-h`/`--help` anywhere in
+# a subcommand's own args must print this and exit 0 *before* any work runs
+# -- `spend calibrate --help` used to fall straight into a real calibration
+# run against the default worklog dir, because only the no-args/top-level
+# `--help` case was ever checked.
+USAGE = {
+    "log": "spend log <task>          append one AGENT-LOG entry (legacy, see below)",
+    "report": "spend report              cost per task for this project\n"
+              "spend report --by-agent   which roles are expensive",
+    "agentlog": "spend agentlog [--write]  regenerate AGENT-LOG.md from the transcripts",
+    "today": "spend today               everything spent today, across all projects",
+    "calibrate": "spend calibrate [--force] [--project DIR] [--out DIR]\n"
+                 "                           after every 20 closed ledger items, flag any\n"
+                 "                           one costing over 2x its points class's median\n"
+                 "                           (proposal 25, Z-05; see tools/calibrate.py)",
+}
+
 
 def _sessions():
     """Yield (project_dir_name, path) for every transcript on this machine,
@@ -484,6 +501,12 @@ def main(argv):
         print(__doc__)
         return 0
     cmd, rest = argv[0], argv[1:]
+    if cmd not in USAGE:
+        print(f"unknown command: {cmd}", file=sys.stderr)
+        return 2
+    if "-h" in rest or "--help" in rest:
+        print(USAGE[cmd])
+        return 0
     if cmd == "log":
         if not rest:
             print("spend log <task-name>", file=sys.stderr)
