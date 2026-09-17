@@ -986,8 +986,8 @@ padding:6px 12px 6px 22px;font-size:12.5px;border-top:1px solid var(--rule)}
 /* -- proposal 30, P-08: progress charts and the feature drill-down -- */
 .progress{margin-top:16px}
 .progress h3{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}
-.charts{display:flex;flex-wrap:wrap;gap:20px}
-.charts svg{max-width:100%;height:auto;color:var(--dim)}
+.charts{display:flex;flex-direction:column;gap:16px}
+.charts svg{display:block;width:100%;height:auto;color:var(--dim)}
 .features{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
 .features h2{margin:0 0 6px}
 .fnote{margin:0 0 10px;font-size:12.5px}
