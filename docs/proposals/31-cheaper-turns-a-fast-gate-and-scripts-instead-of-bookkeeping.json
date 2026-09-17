@@ -259,13 +259,27 @@
       "tests": [],
       "done": "bin/land knows the staging target; the standard says where the full suite runs and when main advances; a red staging branch cannot reach main; tested on a fixture repo.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "high",
       "model": "sonnet",
       "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-17T22:03:25+02:00",
+          "event": "bin/land learns staging_branch (.common-rules.json): a reviewed branch lands there instead of main, creating it from main on first use, same gate unchanged; main only ever moves through 'land --advance-staging', which re-runs the gate on staging and fast-forwards main on a green verdict only, refusing on red, on staging behind main, or on an unreadable verdict. tools/project.py documents/validates the key. Standard change (mandatory) in CLAUDE-workflow.md's Tests section, pointed to from Git, lead-prompt.md and brief.md. tests/test_land_staging.py, 11 cases. No test deleted; no project declares it yet.",
+          "by": "session:o08-staging-branch",
+          "evidence": "",
+          "status": "done"
+        },
+        {
+          "at": "2026-09-17T22:03:34+02:00",
+          "event": "Recorded evidence: commit a54eccb on branch o08-staging-branch.",
+          "by": "session:o08-staging-branch",
+          "evidence": "a54eccb"
+        }
+      ],
       "points": 5,
       "value": "high"
     },
@@ -405,6 +419,25 @@
       "log": [
         {
           "at": "2026-09-17T22:03:46+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": "F-04",
+      "source": "review",
+      "file": "bin/land",
+      "severity": "high",
+      "state": "catalogued",
+      "line": 553,
+      "title": "land_one trusts its gate's exit code alone, the failure OPERATING-RULES S3 records; it should read the verdict line the way bin/quiet does",
+      "value": "high",
+      "points": 2,
+      "log": [
+        {
+          "at": "2026-09-17T22:20:21+02:00",
           "event": "catalogued",
           "by": "session:common-rules lead",
           "evidence": ""

@@ -1,14 +1,33 @@
 #!/usr/bin/env bash
 # land -- take a finished task branch to main without waiting for a human.
 #
-#   land            land the current branch
-#   land --check    say what would happen, change nothing
-#   land --all      land every branch in this project that is ready
+#   land                    land the current branch
+#   land --check            say what would happen, change nothing
+#   land --all              land every branch in this project that is ready
+#   land --advance-staging  run the merge gate on staging, fast-forward main
+#                           on a green verdict (only when staging_branch is
+#                           declared -- see below)
 #
 # Branches that are green and past the gate merge themselves. Nothing sits in
 # a queue waiting to be noticed. On 2026-08-05 five finished branches sat for
 # hours and two of them collided on the same file while they waited -- the
 # collision existed only because the branches lived long enough to collide.
+#
+# O-08: a project can declare "staging_branch": "<name>" in .common-rules.json
+# (tools/project.py documents the key). When it does, `land` merges a
+# reviewed branch onto that branch instead of main -- creating it from main
+# first if it doesn't exist yet -- running the same gate it always has. main
+# only ever moves through `land --advance-staging`, which runs the gate again
+# on staging itself and fast-forwards main to staging's tip on a green
+# verdict only. It refuses -- never guesses -- when the gate is red, when
+# staging is behind main (a commit reached main some other way), or when the
+# verdict cannot be read (no test suite declared, or a broken gate
+# declaration). No test is deleted by any of this: staging_branch reduces how
+# often the full suite runs against main, not what it covers -- a smaller
+# suite would have been just as green and just as wrong (finance-tracker:
+# 1,753 green tests sitting over 16 wrong-money defects). A project that
+# never declares staging_branch is unaffected: `land` goes straight to main,
+# exactly as before this key existed.
 #
 # It refuses to land, and says why, when:
 #   - the working tree is dirty
@@ -43,11 +62,12 @@
 set -euo pipefail
 
 GIT=git; command -v git >/dev/null 2>&1 || GIT=/Library/Developer/CommandLineTools/usr/bin/git
-CHECK_ONLY=0; ALL=0
+CHECK_ONLY=0; ALL=0; ADVANCE=0
 for a in "$@"; do
     case "$a" in
-        --check) CHECK_ONLY=1 ;;
-        --all)   ALL=1 ;;
+        --check)            CHECK_ONLY=1 ;;
+        --all)               ALL=1 ;;
+        --advance-staging)   ADVANCE=1 ;;
         *) echo "unknown flag: $a" >&2; exit 2 ;;
     esac
 done
@@ -162,6 +182,46 @@ if "merge" in g:
     fi
 }
 
+# O-08: the integration branch a reviewed branch lands on instead of main --
+# .common-rules.json's staging_branch, tools/project.py's staging_target()
+# is this function's python twin (same reason test_command() is test_cmd()'s:
+# tests need a way to check the two agree). Prints the branch name, or
+# nothing when it is not declared or not usable -- in which case land_one
+# below falls back to "main", exactly as it always has.
+#
+# Same validation as a declared gate (project.py's staging_branch check):
+# a non-empty, one-line, valid-UTF-8 string. Unlike a gate, an unusable
+# declaration here is not a refusal -- it is silently equivalent to not
+# declaring one, because there is no unsafe action a bad value could cause
+# land to take (it only ever chooses a branch NAME land itself creates and
+# merges onto, never a command land evaluates).
+staging_branch() {
+    if [ -f .common-rules.json ]; then
+        python3 -I -c '
+import json, sys
+try:
+    d = json.loads(open(".common-rules.json", "rb").read())
+except (OSError, ValueError):
+    sys.exit(0)
+if not isinstance(d, dict):
+    sys.exit(0)
+v = d.get("staging_branch")
+if not isinstance(v, str):
+    sys.exit(0)
+v = v.strip()
+if not v or "\n" in v:
+    sys.exit(0)
+try:
+    v.encode("utf-8")
+except UnicodeEncodeError:
+    sys.exit(0)
+if any(ord(c) < 32 or 127 <= ord(c) < 160 for c in v):
+    sys.exit(0)
+print(v)
+' 2>/dev/null || true
+    fi
+}
+
 # "Closes #N" lines for the issues this branch's commits name, or nothing.
 #
 # A PR that finishes an issue has to say "Closes #N" in its *body* or the
@@ -227,9 +287,32 @@ land_one() {
 
     [ -z "$($GIT status --porcelain)" ] || { refuse "working tree is dirty"; return 1; }
 
+    # O-08: a declared staging_branch is where this branch actually lands.
+    # main is untouched here either way -- it only ever moves through
+    # `land --advance-staging`, below. Created from main on first use, so a
+    # project that declares one for the first time doesn't have to make it
+    # by hand. `--check` says what would happen without creating anything --
+    # a not-yet-created staging branch is identical to main until it exists,
+    # so the diffs below compare against main in that case, same result.
+    local target want_target
+    want_target="$(staging_branch)"
+    target="${want_target:-main}"
+    local creating_target=0
+    if [ -n "$want_target" ] && ! $GIT rev-parse --verify -q "refs/heads/$want_target" >/dev/null; then
+        creating_target=1
+        if [ "$CHECK_ONLY" = 1 ]; then
+            say "  would create $want_target from main"
+            target="main"
+        else
+            say "  creating $want_target from main"
+            $GIT branch "$want_target" main
+        fi
+    fi
+    [ -n "$want_target" ] && say "  landing onto $want_target, not main"
+
     local ahead
-    ahead=$($GIT rev-list --count "main..$branch")
-    [ "$ahead" -gt 0 ] || { refuse "nothing main doesn't already have"; return 1; }
+    ahead=$($GIT rev-list --count "$target..$branch")
+    [ "$ahead" -gt 0 ] || { refuse "nothing $target doesn't already have"; return 1; }
 
     # Say what is actually about to land, not just how much.
     #
@@ -241,7 +324,7 @@ land_one() {
     #
     # The cheapest guard is to print the subjects. If a line here is not
     # yours, stop -- `git fetch && git rebase origin/main` before landing.
-    $GIT log "main..$branch" --pretty='      %h %s' | head -12
+    $GIT log "$target..$branch" --pretty='      %h %s' | head -12
     [ "$ahead" -gt 12 ] && say "      … and $((ahead - 12)) more"
 
     # --- aligned with common-rules -----------------------------------------
@@ -425,7 +508,7 @@ $tk_out
     fi
 
     local touched
-    touched=$($GIT diff --name-only "main...$branch" | grep -E "$RESERVED" || true)
+    touched=$($GIT diff --name-only "$target...$branch" | grep -E "$RESERVED" || true)
     if [ -n "$touched" ]; then
         refuse "touches paths reserved for the user:"
         printf '%s\n' "$touched" | sed 's/^/      /'
@@ -434,10 +517,10 @@ $tk_out
 
     # Would the merge conflict? Ask git without touching the working tree.
     local base
-    base=$($GIT merge-base main "$branch")
-    if ! $GIT merge-tree --write-tree main "$branch" >/dev/null 2>&1; then
-        if $GIT merge-tree "$base" main "$branch" 2>/dev/null | grep -q '^<<<<<<<'; then
-            refuse "would conflict with main -- merge main in and resolve first"
+    base=$($GIT merge-base "$target" "$branch")
+    if ! $GIT merge-tree --write-tree "$target" "$branch" >/dev/null 2>&1; then
+        if $GIT merge-tree "$base" "$target" "$branch" 2>/dev/null | grep -q '^<<<<<<<'; then
+            refuse "would conflict with $target -- merge $target in and resolve first"
             return 1
         fi
     fi
@@ -453,9 +536,9 @@ $tk_out
     # already written by hand to land in tests/ instead of a chat message.
     # Docs, HTML and config changes are not code and do not trip it.
     local code_touched tests_touched
-    code_touched=$($GIT diff --name-only "main...$branch" \
+    code_touched=$($GIT diff --name-only "$target...$branch" \
         | grep -vE '^tests/' | grep -E '\.(py|sh|swift|js|ts|rb|go)$|^bin/' || true)
-    tests_touched=$($GIT diff --name-only "main...$branch" | grep -E '^tests/' || true)
+    tests_touched=$($GIT diff --name-only "$target...$branch" | grep -E '^tests/' || true)
     if [ -n "$code_touched" ] && [ -z "$tests_touched" ] && [ "${LAND_ALLOW_UNTESTED:-0}" != 1 ]; then
         refuse "changes code but no test -- the probe you ran belongs in tests/"
         printf '%s\n' "$code_touched" | sed 's/^/      /'
@@ -481,6 +564,15 @@ $tk_out
 
     if [ "$CHECK_ONLY" = 1 ]; then say "  READY (check only, nothing done)"; return 0; fi
 
+    # A freshly created staging branch is local-only so far (the branch
+    # creation above is a plain `git branch`); it has to exist on the remote
+    # before a PR can target it. Best-effort, same as everything else in this
+    # function that talks to origin -- a project with no remote configured
+    # (every land test's throwaway repo, deliberately) just carries on local.
+    if [ "$creating_target" = 1 ] && [ "$target" != "main" ]; then
+        $GIT push -q -u origin "$target" 2>/dev/null || true
+    fi
+
     local body closes
     body="Landed by \`common-rules/bin/land\`: $ahead commit(s), tests green, no reserved paths touched."
     closes="$(closes_trailer "$($GIT log "main..$branch" --pretty='%s%n%b')" \
@@ -489,7 +581,7 @@ $tk_out
 
     if $GIT push -q origin "$branch" 2>/dev/null && command -v gh >/dev/null 2>&1; then
         local url
-        url=$(gh pr create --base main --head "$branch" \
+        url=$(gh pr create --base "$target" --head "$branch" \
               --title "$($GIT log -1 --format=%s "$branch")" \
               --body "$body" \
               2>/dev/null || gh pr view "$branch" --json url -q .url 2>/dev/null)
@@ -508,7 +600,7 @@ $tk_out
             local state
             state=$(gh pr view "$url" --json state -q .state 2>/dev/null || echo "")
             if [ "$state" = "MERGED" ]; then
-                say "  LANDED"
+                say "  LANDED${target:+ on $target}"
                 # Best-effort tidy-up; a branch held by a worktree stays, and
                 # that is fine -- it is deleted when the worktree is removed.
                 gh api -X DELETE "repos/{owner}/{repo}/git/refs/heads/$branch" >/dev/null 2>&1 || true
@@ -520,11 +612,152 @@ $tk_out
         fi
     fi
 
+    # No remote path (no gh, or nothing to push to): merging locally onto
+    # main would be exactly the silent, ungated merge this whole script
+    # exists to avoid, so this always stays a no-op there -- but a *local*
+    # staging branch is nobody's protected branch and nothing downstream
+    # trusts it the way main is trusted, so merging onto it here is safe:
+    # `--advance-staging` is the only path that ever moves main, and it does
+    # its own gate, its own ancestor check, and its own fast-forward-only
+    # merge regardless of how the commits got onto staging.
+    if [ "$target" != "main" ]; then
+        # Plumbing, not `git checkout && git merge`: this function never
+        # switches the working tree away from the branch it was invoked on
+        # (the conflict check above already proved this merge is clean, with
+        # the same `merge-tree --write-tree`, so there is nothing left to
+        # resolve here).
+        local mtree mcommit
+        mtree=$($GIT merge-tree --write-tree "$target" "$branch")
+        mcommit=$($GIT commit-tree "$mtree" -p "$target" -p "$branch" \
+                   -m "Merge $branch into $target")
+        $GIT update-ref "refs/heads/$target" "$mcommit"
+        say "  LANDED on $target (local merge; no remote path available)"
+        return 0
+    fi
+
     say "  no remote path available; leaving the branch pushed"
     return 0
 }
 
-if [ "$ALL" = 1 ]; then
+# O-08: the only path that ever moves main once a project declares
+# staging_branch. Runs the merge gate on staging itself (accumulated commits
+# from however many branches landed there since the last advance) and
+# fast-forwards main to it -- never anything else: not a merge commit, not a
+# reset, so main's history stays a straight line through what staging proved
+# green. "I could not tell" is a refusal here, same as a red gate -- never
+# treated as a pass.
+advance_staging() {
+    local target
+    target="$(staging_branch)"
+    if [ -z "$target" ]; then
+        refuse "no staging branch declared in .common-rules.json -- nothing to advance"
+        return 1
+    fi
+    say "── advance main to $target"
+
+    if ! $GIT rev-parse --verify -q "refs/heads/$target" >/dev/null; then
+        refuse "no $target branch here yet -- nothing has landed on it"
+        return 1
+    fi
+    [ -z "$($GIT status --porcelain)" ] || { refuse "working tree is dirty"; return 1; }
+
+    # staging must still contain every commit on main. It only ever
+    # shouldn't when something reached main some other way -- a hotfix
+    # pushed straight to main, or main advanced from a *different* staging
+    # state. Either way, guessing which commits to keep is exactly the wrong
+    # instinct; ask the person to reconcile it.
+    if ! $GIT merge-base --is-ancestor main "$target" 2>/dev/null; then
+        refuse "staging is behind main -- a commit reached main some other way; merge main into $target and resolve first"
+        return 1
+    fi
+
+    local ahead
+    ahead=$($GIT rev-list --count "main..$target")
+    [ "$ahead" -gt 0 ] || { refuse "$target has nothing main doesn't already have"; return 1; }
+    say "  $ahead commit(s) to advance"
+
+    local original
+    original="$($GIT rev-parse --abbrev-ref HEAD)"
+    restore_original() {
+        [ "$original" = "HEAD" ] && return 0
+        $GIT checkout -q "$original" >/dev/null 2>&1 || true
+    }
+
+    $GIT checkout -q "$target"
+
+    local tc; tc="$(test_cmd)"
+    case "$tc" in
+        ""|"false  #"*)
+            restore_original
+            refuse "the verdict cannot be read -- ${tc:-no test suite declared for this project}"
+            return 1 ;;
+    esac
+
+    # This gate now guards main, not just a branch review -- so it is held
+    # to the same rule `bin/commit-if-green` already holds itself to, and
+    # `bin/land`'s own gate at land_one() (still exit-code-only; logged as a
+    # finding, its own item) does not yet: docs/OPERATING-RULES.md S3, `grep
+    # ... && git commit` once shipped a failing test because grep exits 0 on
+    # a line containing "FAILED". `eval`ing $tc directly and trusting its
+    # exit code has that identical shape. `bin/quiet` exists precisely to
+    # read the runner's own summary line, not just its exit code, so route
+    # through it rather than repeating that parsing here.
+    #
+    # `bash -c "$tc"`, not a split argv: $tc is a single string this whole
+    # file already `eval`s (test_cmd()'s contract -- a project's declared
+    # gate command, which may contain a pipe, a quoted argument or `&&`),
+    # and quiet execs its CMD directly with no shell of its own. Splitting
+    # $tc into words here would silently mis-parse or drop exactly that.
+    if [ ! -x "$RULES_DIR/bin/quiet" ]; then
+        restore_original
+        refuse "the verdict cannot be read -- $RULES_DIR/bin/quiet is missing or not executable"
+        return 1
+    fi
+
+    say "  running: $RULES_DIR/bin/quiet -- $tc"
+    local quiet_out quiet_rc=0
+    quiet_out="$("$RULES_DIR/bin/quiet" --label land-staging -- bash -c "$tc")" || quiet_rc=$?
+    if [ "$quiet_rc" = 0 ] && [[ "$quiet_out" == "quiet: OK"* ]]; then
+        say "  staging gate green -- $quiet_out"
+    else
+        restore_original
+        refuse "staging's gate did not say OK -- main stays where it is
+      ${quiet_out:-quiet printed no verdict line} (quiet exit $quiet_rc)"
+        return 1
+    fi
+
+    if [ "$CHECK_ONLY" = 1 ]; then
+        restore_original
+        say "  READY (check only, main not advanced)"
+        return 0
+    fi
+
+    $GIT checkout -q main
+    $GIT merge -q --ff-only "$target"
+    say "  main advanced to $target ($ahead commit(s)) locally"
+
+    # A silent push failure here is worse than a silent push failure
+    # anywhere else in this file: main is commonly protected (this file's
+    # own header), so "cannot push to main" is the expected failure mode,
+    # not a rare one -- and "main advanced" printed over a push that never
+    # happened would tell every caller main is published when it is not.
+    local push_err
+    if push_err="$($GIT push origin main 2>&1)"; then
+        say "  pushed"
+        restore_original
+        return 0
+    fi
+    say "  main moved locally but the push to origin failed -- main is NOT published:"
+    printf '%s\n' "$push_err" | sed 's/^/      /'
+    say "  push it yourself once this is resolved (main is a straight fast-forward, so a plain"
+    say "  \`git push origin main\` from here will do it -- nothing needs re-testing)."
+    restore_original
+    return 1
+}
+
+if [ "$ADVANCE" = 1 ]; then
+    advance_staging
+elif [ "$ALL" = 1 ]; then
     for w in $($GIT worktree list --porcelain | awk '/^branch /{print $2}' | sed 's#refs/heads/##'); do
         [ "$w" = "main" ] && continue
         ( cd "$($GIT worktree list --porcelain | grep -B2 "refs/heads/$w\$" | awk '/^worktree /{print $2}' | tail -1)" \

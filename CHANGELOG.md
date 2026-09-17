@@ -41,6 +41,47 @@ quiet): `bin/warmup --project . --no-recall --no-pull` 3.7-4.2s before, 2.1s
 after, three runs each; `bin/conformance --project .` 3.7s before, 2.1s
 after. A pure speed-up, not a Standard change -- no project has to do
 anything differently.
+## 2026-09-17 · a staging branch, so main is never red (O-08)
+
+**Standard change (mandatory):** a project can declare `"staging_branch":
+"<name>"` in `.common-rules.json`. Once it does, `bin/land` merges a
+reviewed branch onto that branch instead of main -- creating it from main
+the first time it's needed -- running the exact same gate it always has:
+this changes *where* a branch lands, never what it's tested against. `main`
+then only ever moves through `bin/land --advance-staging`, which re-runs
+the gate on staging itself and fast-forwards main to staging's tip on a
+green verdict only. It refuses, never guesses, when the gate is red, when
+staging is behind main (a commit reached main some other way), or when the
+verdict cannot be read at all -- no declared test suite is a refusal, same
+as a red one, never a pass. A project that never declares `staging_branch`
+is unaffected: `land` goes straight to main, exactly as before this key
+existed. No project under `apps/` declares it yet -- the switch is the
+sponsor's to throw.
+
+The sponsor, this session: *"We can also reduce the number of tests so we
+can have a development branch or a staging branch where we can keep
+merging changes and then after a considerable amount of changes are done,
+we can test in one go. Rather than testing again and again in smaller
+batches. We can test larger batches."* What this reduces is how often the
+full suite runs against main, never what it covers -- **no test is
+deleted**. A smaller suite would have been just as green and just as
+wrong: finance-tracker once carried 1,753 green tests over 16 wrong-money
+defects, and only the negative cases nobody had cut ever found them. And
+batch by time, not by commit count -- a batch big enough that a red
+staging verdict can't be traced to the branch that caused it costs more to
+untangle than the runs it saved; bisecting several already-merged branches
+is worse than testing each as it landed.
+
+`tools/project.py` documents and validates the key (`staging_target()`);
+`bin/land` carries its own self-contained reader, the same pattern as its
+`gates.merge` reader (`test_cmd()`/`test_command()`). Full rule in
+`CLAUDE-workflow.md`'s Tests section, pointed to from the Git section, from
+`templates/lead-prompt.md` §3 and from `templates/brief.md`'s MUST section.
+`tests/test_land_staging.py` covers: a branch lands on staging and not on
+main, staging created from main when missing, `--check` changes nothing, a
+green staging verdict fast-forwards main, a red one leaves main untouched,
+an unreadable verdict refuses rather than passing, staging behind main
+refuses, and a project without the declaration behaves exactly as today.
 
 ## 2026-09-17 · pr-body and item-notes draft bookkeeping prose from recorded facts (O-05, O-06)
 

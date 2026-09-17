@@ -81,6 +81,10 @@ this job and is not watching in real time. You are.
 - You merge, reconcile and decide — shared files are edited only by you,
   when reconciling. You never certify your own work, or an agent's, as
   done without re-running the tests yourself.
+- If `{{PROJECT}}` declares `staging_branch`, "land" above means land onto
+  staging — `main` only advances through `bin/land --advance-staging`, run
+  by you, never an item's own gate (proposal 31, O-08 — mandatory Standard
+  change; full rule in `CLAUDE-workflow.md`'s gate section).
 
 ## 4 Keep the ledger current
 
