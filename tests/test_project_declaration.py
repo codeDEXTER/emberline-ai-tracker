@@ -766,6 +766,10 @@ class TestTheStateKeysWithNoDeclaration(unittest.TestCase):
                 # to avoid recursing into conformance's own `warmup --check`
                 # subprocess -- see bin/warmup's gather()).
                 "conformance", "mandatory_pending", "rules_head",
+                # added by proposal 30, P-04: every open item (with or
+                # without parts) counted into PT.GROUPS, for the card's
+                # "open work" line.
+                "groups",
             }, set(json.loads(r.stdout)))
         finally:
             p.close()
