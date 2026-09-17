@@ -18,6 +18,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 BIN = Path(__file__).resolve().parent.parent / "bin" / "spend"
 
@@ -237,6 +238,99 @@ class TestAgentLog(SpendHarness):
             self.spend.cmd_agentlog(write=True)
         self.assertNotIn("hand-written", log.read_text())
         self.assertIn("3,500", log.read_text())
+
+
+class TestHelp(SpendHarness):
+    """Proposal 23 F-04: `-h`/`--help` on any subcommand must print usage and
+    exit 0 without doing any work. Before this fix, `spend calibrate --help`
+    fell straight through to `cmd_calibrate`, running a real calibration
+    against the default worklog dir (16 Sep 2026: an agent wrote a false
+    `last_calibrated_at` into the real repo this way).
+
+    Each case below patches the subcommand's own worker function to raise if
+    it is ever called at all -- proof that `--help` short-circuits before any
+    work, not just before its visible side effect.
+    """
+
+    def test_calibrate_help_never_calls_calibrate(self):
+        with patch.object(self.spend, "_calibrate") as fake_calibrate:
+            fake_calibrate.calibrate.side_effect = AssertionError(
+                "spend calibrate --help must never run a real calibration")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = self.spend.main(["calibrate", "--help"])
+        self.assertEqual(rc, 0)
+        self.assertIn("spend calibrate", buf.getvalue())
+        fake_calibrate.calibrate.assert_not_called()
+
+    def test_calibrate_dash_h_also_short_circuits(self):
+        with patch.object(self.spend, "_calibrate") as fake_calibrate:
+            fake_calibrate.calibrate.side_effect = AssertionError("must not run")
+            rc = self.spend.main(["calibrate", "-h"])
+        self.assertEqual(rc, 0)
+        fake_calibrate.calibrate.assert_not_called()
+
+    def test_calibrate_help_writes_no_state_or_log_file(self):
+        """Belt and braces on top of the mock above: even pointing at a
+        fresh temp --out dir, --help must leave it untouched (empty or
+        nonexistent), never create `.calibration-state.json` or
+        `calibration-log.jsonl` there."""
+        out_dir = Path(self.tmp.name) / "would-be-worklog-out"
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            rc = self.spend.main(["calibrate", "--help", "--out", str(out_dir)])
+        self.assertEqual(rc, 0)
+        self.assertFalse(out_dir.exists(),
+                          "spend calibrate --help must not create the --out dir")
+
+    def test_report_help_never_calls_cmd_report(self):
+        with patch.object(self.spend, "cmd_report") as fake:
+            fake.side_effect = AssertionError("must not run")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = self.spend.main(["report", "--help"])
+        self.assertEqual(rc, 0)
+        self.assertIn("spend report", buf.getvalue())
+        fake.assert_not_called()
+
+    def test_agentlog_help_never_writes_the_log(self):
+        log = self.repo / "AGENT-LOG.md"
+        with patch.object(self.spend, "cmd_agentlog") as fake:
+            fake.side_effect = AssertionError("must not run")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = self.spend.main(["agentlog", "--help"])
+        self.assertEqual(rc, 0)
+        self.assertIn("spend agentlog", buf.getvalue())
+        fake.assert_not_called()
+        self.assertFalse(log.exists())
+
+    def test_log_help_never_appends_an_entry(self):
+        log = self.repo / "AGENT-LOG.md"
+        with patch.object(self.spend, "cmd_log") as fake:
+            fake.side_effect = AssertionError("must not run")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = self.spend.main(["log", "--help"])
+        self.assertEqual(rc, 0)
+        self.assertIn("spend log", buf.getvalue())
+        fake.assert_not_called()
+        self.assertFalse(log.exists())
+
+    def test_today_help_never_calls_cmd_today(self):
+        with patch.object(self.spend, "cmd_today") as fake:
+            fake.side_effect = AssertionError("must not run")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = self.spend.main(["today", "--help"])
+        self.assertEqual(rc, 0)
+        fake.assert_not_called()
+
+    def test_unknown_command_is_unaffected(self):
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            rc = self.spend.main(["bogus", "--help"])
+        self.assertEqual(rc, 2)
 
 
 if __name__ == "__main__":

@@ -492,5 +492,128 @@ class TestProjectResolution(RufloItemCase):
             self.assertEqual(cwd, str(self.proj.resolve()))
 
 
+class TestWorktreeRufloCwd(RufloItemCase):
+    """Proposal 23 F-03: `.swarm/` only exists in the main checkout, so every
+    Ruflo call from a linked worktree used to run with the worktree itself as
+    cwd and fail there ("Database not initialized"), silently recording
+    nothing. `ruflo-item` must resolve `git rev-parse --git-common-dir`'s
+    parent -- the main checkout's own root -- for every Ruflo/daemon call,
+    while the merge gate in `done` still runs in the actual worktree.
+
+    Each fake `claude-flow` call logs its own cwd (see FAKE_RUFLO above), so
+    this asserts on that log directly -- no real Ruflo binary or real
+    `.swarm/` is ever touched.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # `git branch`/`worktree add` both need at least one commit to branch
+        # from -- `git init` alone leaves HEAD unborn.
+        subprocess.run(["git", "-C", str(self.proj), "-c", "user.email=t@example.com",
+                         "-c", "user.name=t", "commit", "--allow-empty", "-q", "-m", "init"],
+                        check=True, capture_output=True)
+        # A linked worktree off self.proj, on its own branch.
+        self.worktree = Path(self.tmp.name) / "wt"
+        subprocess.run(["git", "-C", str(self.proj), "branch", "task-branch"], check=True,
+                        capture_output=True)
+        subprocess.run(["git", "-C", str(self.proj), "worktree", "add", "-q",
+                         str(self.worktree), "task-branch"], check=True, capture_output=True)
+
+    def declare_gate_in_worktree(self, merge_cmd: str):
+        # `.common-rules.json` is a working-tree file, not shared through
+        # `.git` -- a linked worktree needs its own copy, same as any other
+        # untracked file would.
+        (self.worktree / ".common-rules.json").write_text(json.dumps({"gates": {"merge": merge_cmd}}))
+
+    def test_red_without_the_fix_worktree_cwd_would_be_the_worktree_itself(self):
+        """Documents the bug this fixes: naively using `project_root()` (the
+        worktree's own toplevel) as the Ruflo cwd is exactly the wrong
+        answer -- it differs from the main checkout, which is what broke
+        F-03. This is the failure mode ruflo_cwd_for() must not reproduce."""
+        naive = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                                capture_output=True, text=True, cwd=str(self.worktree)).stdout.strip()
+        self.assertEqual(Path(naive).resolve(), self.worktree.resolve())
+        self.assertNotEqual(Path(naive).resolve(), self.proj.resolve(),
+                             "the bug: a worktree's own toplevel is not the main checkout")
+
+    def test_green_ruflo_calls_from_the_worktree_use_the_main_checkout_as_cwd(self):
+        r = self.run_item("recall", "keywords", cwd=self.worktree, project=self.worktree)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = self.log_lines()
+        self.assertTrue(calls, "no calls were logged")
+        for cwd, *_ in calls:
+            self.assertEqual(cwd, str(self.proj.resolve()),
+                              "Ruflo/daemon calls from a worktree must run in the main checkout")
+
+    def test_green_start_stores_successfully_from_the_worktree(self):
+        r = self.run_item("start", "V-06", "worktree task", cwd=self.worktree, project=self.worktree)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        self.assertEqual(flag(calls[3], "--key"), "item:V-06:start")
+
+    def test_main_checkout_behaviour_is_unchanged(self):
+        """The main checkout's own resolution must still be itself (the
+        pre-existing TestProjectResolution / TestStart cwd assertions), which
+        this pins again specifically alongside the worktree case."""
+        r = self.run_item("recall", "keywords")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        for cwd, *_ in self.log_lines():
+            self.assertEqual(cwd, str(self.proj.resolve()))
+
+    def test_gate_in_done_still_runs_in_the_actual_worktree_not_the_main_checkout(self):
+        marker = self.worktree / "gate-ran-here.txt"
+        self.declare_gate_in_worktree(f"pwd > {marker}")
+        r = self.run_item("done", "V-06", "shipped", cwd=self.worktree, project=self.worktree)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(marker.read_text().strip(), str(self.worktree.resolve()),
+                          "the gate must run in the worktree being worked on, not the main checkout")
+
+
+class TestRequiredMemoryStore(RufloItemCase):
+    """A failed `memory store` -- the call that actually persists an item's
+    Ruflo record -- must never look like success (proposal 23 F-03): nonzero
+    exit and a one-line stderr message, unlike the best-effort pre-task/
+    route/search/list/post-task/testgaps calls, which stay non-fatal."""
+
+    def test_start_exits_nonzero_and_says_so_when_store_fails(self):
+        self.declare_gate("true")
+        env = dict(self.env)
+        env["FAKE_RUFLO_FAIL"] = "memory store"
+        r = self.run_item("start", "V-06", "text", env=env)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("memory store", r.stdout + r.stderr)
+        self.assertIn("not recorded", r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        self.assertEqual(calls[-1], ["daemon", "stop"], "daemon stop must still be attempted")
+
+    def test_note_exits_nonzero_when_store_fails(self):
+        env = dict(self.env)
+        env["FAKE_RUFLO_FAIL"] = "memory store"
+        r = self.run_item("note", "V-06", "a note", env=env)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("not recorded", r.stdout + r.stderr)
+
+    def test_done_exits_nonzero_when_store_fails_after_a_green_gate(self):
+        self.declare_gate("true")
+        env = dict(self.env)
+        env["FAKE_RUFLO_FAIL"] = "memory store"
+        r = self.run_item("done", "V-06", "shipped", env=env)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("not recorded", r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        # gate ran (post-task attempted, best-effort) but testgaps dispatch
+        # never runs once the store for an id has failed.
+        testgaps = [c for c in calls if c[:3] == ["hooks", "worker", "dispatch"]]
+        self.assertEqual(testgaps, [])
+
+    def test_start_still_exits_zero_when_only_best_effort_calls_fail(self):
+        """Unchanged from before: pre-task/route/search failing is still
+        merely noted, not fatal -- only the store call is now required."""
+        env = dict(self.env)
+        env["FAKE_RUFLO_FAIL"] = "hooks"
+        r = self.run_item("start", "V-06", "text", env=env)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
