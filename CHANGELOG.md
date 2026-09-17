@@ -1,5 +1,25 @@
 # Changelog — common-rules
 
+## 2026-09-17 · `tracker ask` can close an existing ask (ASK-01)
+
+`tools/tracker/ask.py` only ever created A-nn rows. Nothing could move one
+from `open` to `answered`/`became-item`/`declined` except hand-editing
+ledger JSON, which the rules forbid -- so answered asks stayed `open` on
+the card forever. Found 2026-09-17 by the lead closing A-29/A-30 in
+`docs/proposals/23-eight-levers-for-token-spend.json`.
+
+Fixed: `tracker ask LEDGER --close A-nn --state answered|became-item|declined
+[--became ITEM-ID] [--note TEXT] [--by NAME] [--at ISO]` finds the ask,
+sets its state, sets `became` when given (required for `became-item`, and
+the item id must exist in that ledger), appends `--note` to any existing
+note (joined with " · "), and records `answered_at`/`answered_by`
+(mirroring the `answered_by` requests already carry, P20 D7; `--by`
+defaults to "lead" when closing). Refuses, nothing written: `--close`
+together with `--quote`/`--kind`; an unknown ask id; `--state open`;
+`became-item` without a real `--became`; closing an ask that is not
+currently `open`, unless `--force`. Validates the whole ledger before
+writing, same as the create path.
+
 ## 2026-09-17 · the mandatory Ruflo loop actually runs: binary discovery, a declared namespace, and conformance on real evidence (RF-01)
 
 **Standard change (mandatory):** projects declare `ruflo_namespace` in
