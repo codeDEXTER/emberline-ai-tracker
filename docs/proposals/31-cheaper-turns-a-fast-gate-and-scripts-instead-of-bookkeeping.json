@@ -279,13 +279,21 @@
       "tests": [],
       "done": "bin/warmup's wall clock measured before and after on the same commit; conformance reports identical verdicts for the same repo state; the 12-check suite stays green.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "high",
       "model": "sonnet",
       "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-17T22:06:16+02:00",
+          "event": "Item 12 and item 7 now call bin/warmup and bin/proposalcheck in process instead of as subprocesses; the 12 checks run concurrently in a thread pool, order preserved. Byte identical output proven before and after. Measured on the same loaded machine, load average about 5.7 to 8.2, three runs each, same commit: bin/warmup 3.7 to 4.2 seconds down to 2.1 seconds; bin/conformance 3.7 seconds down to 2.1 seconds. Subprocess spawns 47 git plus 2 python interpreters down to 62 git plus 0 python interpreters, the 15 extra git calls were always made, just previously hidden inside the two eliminated child processes (measured in isolation: warmup --check alone makes 13, proposalcheck alone makes 2). run_inprocess catches exceptions and reports a crash as a failed check rather than propagating through the thread pool. Gate: test_conformance plus test_rulecheck, 150 tests in 115.080 seconds, OK. test_warmup's own before/after is O-02's to measure on a quiet machine, in its own worktree.",
+          "by": "session:o09-warmup-speed",
+          "evidence": "22980b8e1987aed0e080a106ba449a8bc1a98577",
+          "status": "done"
+        }
+      ],
       "points": 5,
       "value": "high"
     },

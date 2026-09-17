@@ -1,5 +1,47 @@
 # Changelog — common-rules
 
+## 2026-09-17 · warm-up stops shelling out 23 times to measure conformance (O-09)
+
+31/F-01 measured `bin/warmup`'s own cost: 1.9s on a quiet machine, of which
+1.21s was `bin/conformance measure()` running 23 subprocesses -- two of
+them a whole extra Python interpreter (`bin/warmup --check` and
+`bin/proposalcheck`, each re-importing and re-compiling every module they
+touch from scratch, since conformance's subprocess env sets
+`PYTHONDONTWRITEBYTECODE=1`). Every session pays this at startup and after
+every compaction; `tests/test_warmup.py` pays it 122 times, which is most
+of that file's 575s.
+
+Two changes, same verdicts:
+
+- `check_card` (item 12) and `check_proposals` (item 7) now import
+  `bin/warmup` and `bin/proposalcheck` and call their `main(argv)`
+  in-process (`run_inprocess()`), capturing stdout/stderr into the same
+  `subprocess.CompletedProcess` shape the rest of the code already expects,
+  instead of spawning `sys.executable` on each. This cut the interpreter
+  spawns from 2 to 0 (measured with a `subprocess.run` counter): the
+  remaining subprocess calls are all `git`. `_load()` now registers the
+  loaded module in `sys.modules` before `exec_module()`, which
+  `bin/proposalcheck`'s `@dataclass` needs (it looks its own module up
+  there; loaded by path, without this it wasn't present) -- the same reason
+  `Result` above is a `NamedTuple`, not a `@dataclass`.
+- The twelve checks only read the repo, so `measure()` now runs them
+  concurrently in a thread pool. `ThreadPoolExecutor.map` returns results
+  in the order its iterable was given, not completion order, so the
+  card's text is identical run to run -- proved by diffing
+  `bin/conformance`'s and `bin/warmup`'s full output before and after
+  against the same commit (empty diff both ways). `Context.ledgers()` gained
+  a lock, since two checks racing its `_ledgers is None` cache would
+  otherwise compute and overwrite it twice; `run_inprocess()` gained one
+  too, since `contextlib.redirect_stdout`/`redirect_stderr` swap the
+  process-global `sys.stdout`/`sys.stderr`, not a thread-local, and two of
+  the twelve checks (7 and 12) call it.
+
+Measured on the same commit, machine under load (`vm.loadavg` ~5.7-7.3, not
+quiet): `bin/warmup --project . --no-recall --no-pull` 3.7-4.2s before, 2.1s
+after, three runs each; `bin/conformance --project .` 3.7s before, 2.1s
+after. A pure speed-up, not a Standard change -- no project has to do
+anything differently.
+
 ## 2026-09-17 · pr-body and item-notes draft bookkeeping prose from recorded facts (O-05, O-06)
 
 Proposal 31 measured a lead re-composing the same facts into prose three

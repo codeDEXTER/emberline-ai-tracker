@@ -428,11 +428,11 @@ def find_project(start: Path) -> Path:
     return p
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="proposalcheck", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--project", default=None, help="default: nearest project above cwd")
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
 
     proj = Path(a.project).resolve() if a.project else find_project(Path.cwd())
     proposals_dir = proj / "docs" / "proposals"
