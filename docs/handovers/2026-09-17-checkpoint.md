@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 22:06
+# Checkpoint — 2026-09-17 22:21
 
-Reason: manual · branch: o09-warmup-speed · HEAD: 22980b8
+Reason: manual · branch: o08-staging-branch · HEAD: 15f555c
 
-<!-- ledger-digest: 43d5a063f14f7fcc5ee040c4e305dbd3e492e76b27eb381ae01f1033ce961bb0 -->
+<!-- ledger-digest: a6164e3c4dec9abae8096fa0d000da3667fbefd0572d197fbde754bfdece71ff -->
 
 ## Proposal 19 · Warm-up
 
@@ -111,11 +111,11 @@ Reason: manual · branch: o09-warmup-speed · HEAD: 22980b8
 
 ## Proposal 31 · Cheaper turns: a fast gate and scripts instead of bookkeeping
 
-7 done / 0 in progress / 0 blocked / 3 not started
+8 done / 1 in progress / 0 blocked / 1 not started
 
 ### In progress
 
-- none
+- O-10 · [ruflo · high · sonnet] · Shards split within a file, not just between files · Sharding now splits within a file: a Unit is a file or a group of its test classes, planned against the balanced target from the duration cache. 38 test_quiet tests green. The real-suite measurement is deliberately left to O-02, on a quiet machine.
 
 ### Blocked, and why
 
@@ -128,15 +128,12 @@ Reason: manual · branch: o09-warmup-speed · HEAD: 22980b8
 ### Next unblocked
 
 - O-02 · [ruflo · high · sonnet] · The merge gate runs the parallel runner that already exists
-- O-08 · [ruflo · high · sonnet] · A staging branch, so main is never red
-- O-10 · [ruflo · high · sonnet] · Shards split within a file, not just between files
 
 ### Open work by group
 
 **finish now**
 - O-02 0%
-- O-08 0%
-- O-10 0%
+- O-10 70% · next O-10.B
 
 ## Exact next action
 
