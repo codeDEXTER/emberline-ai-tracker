@@ -1468,6 +1468,43 @@
           "evidence": "fixed (PR #223)"
         }
       ]
+    },
+    {
+      "id": "F-06",
+      "source": "review",
+      "file": "tests/test_warmup.py",
+      "severity": "high",
+      "state": "catalogued",
+      "line": 148,
+      "title": "test_warmup rebuilds a git repo and three tracker subprocesses per test: measured 574.9s for 122 tests, a third of the suite, and it caps sharding (--jobs 8 gave 610s wall)",
+      "value": "high",
+      "points": 3,
+      "log": [
+        {
+          "at": "2026-09-17T20:50:47+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": "F-07",
+      "source": "review",
+      "file": ".common-rules.json",
+      "severity": "medium",
+      "state": "catalogued",
+      "title": "M-01 was closed without its own done criterion: the parallel suite was never measured before/after and gates.merge still runs the serial discover with no --jobs",
+      "value": "high",
+      "points": 2,
+      "log": [
+        {
+          "at": "2026-09-17T20:50:47+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead",
+          "evidence": ""
+        }
+      ]
     }
   ]
 }
