@@ -1,8 +1,8 @@
 # Checkpoint — 2026-09-17 21:31
 
-Reason: manual · branch: o04-commit-if-green · HEAD: d6579ee
+Reason: manual · branch: o04-commit-if-green · HEAD: 3a59e5c
 
-<!-- ledger-digest: 977404f273204a182a9eb57af9602a6c149d0b57d7efd195f047f8c76c6b7712 -->
+<!-- ledger-digest: 675b2ee50e87c61e5e8a2bd9c02d098d7b20c7233b5f97c8e2cd758087f1d9f7 -->
 
 ## Proposal 19 · Warm-up
 

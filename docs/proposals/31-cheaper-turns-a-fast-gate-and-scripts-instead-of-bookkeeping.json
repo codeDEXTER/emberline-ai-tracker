@@ -137,6 +137,12 @@
           "by": "session:o04-commit-if-green",
           "evidence": "",
           "status": "done"
+        },
+        {
+          "at": "2026-09-17T21:31:42+02:00",
+          "event": "Recorded evidence: commit 3a59e5c on branch o04-commit-if-green.",
+          "by": "session:o04-commit-if-green",
+          "evidence": "commit 3a59e5c on branch o04-commit-if-green: bin/commit-if-green + tests/test_commit_if_green.py (16 cases, python3 -m unittest test_commit_if_green test_quiet -q ran green -- narrow set, since affected_tests.py names two dozen modules only because the ledger json changed, not because the tool touches them)"
         }
       ],
       "points": 3,
