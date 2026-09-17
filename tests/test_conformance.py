@@ -29,6 +29,7 @@ import importlib.util
 import json
 import os
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -46,6 +47,11 @@ RULECHECK = ROOT / "bin" / "rulecheck"
 TEMPLATE = ROOT / "templates" / "lead-prompt.md"
 MARKER = "<!-- common-rules:lead-prompt proposal/21 -->"
 NOW = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+# RF-01: item 9's own cutoff is a fixed date (2026-09-17). A done log entry
+# dated with a fixed pre-cutoff timestamp, rather than NOW, keeps the
+# conforming fixture's one done item (B-01) out of item 9's "needs a Ruflo
+# record" set regardless of when these tests actually run.
+PRE_CUTOFF_DONE_AT = "2026-09-10T09:00:00+02:00"
 
 HOLDS, NOT, WAITING = "holds", "does not hold", "waiting"
 
@@ -102,6 +108,23 @@ def ledger_path(root: Path) -> Path:
     return found[0]
 
 
+def write_swarm_db(root: Path, rows: list[tuple[str, str]] = ()):
+    """A minimal Ruflo memory.db -- the memory_entries(key, namespace) table
+    bin/conformance item 9 reads read-only. Written under .swarm/, which
+    derecord's own ignore lines already exclude, so it never shows up in
+    `git status`."""
+    db = root / ".swarm" / "memory.db"
+    db.parent.mkdir(parents=True, exist_ok=True)
+    db.unlink(missing_ok=True)  # overwrite, not append, when a fixture already wrote one
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute("CREATE TABLE memory_entries (key TEXT, namespace TEXT)")
+        conn.executemany("INSERT INTO memory_entries (key, namespace) VALUES (?, ?)", rows)
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def edit_ledger(root: Path, change):
     p = ledger_path(root)
     data = json.loads(p.read_text())
@@ -110,7 +133,8 @@ def edit_ledger(root: Path, change):
 
 
 def plan(data: dict):
-    done_log = [{"at": NOW, "event": "done", "by": "lead", "evidence": "ruflo-item done B-01: memory stored"}]
+    done_log = [{"at": PRE_CUTOFF_DONE_AT, "event": "done", "by": "lead",
+                "evidence": "ruflo-item done B-01: memory stored"}]
     data["phases"] = [{"id": "B", "name": "Build", "goal": "build it", "exit": "built"}]
     data["items"] = [
         {"id": "B-01", "phase": "B", "cx": "C2", "title": "first", "status": "done",
@@ -154,6 +178,11 @@ def build_conforming(root: Path):
         # without it; the regenerated prompt /standard asks for carries it.
         prompt.write_text(MARKER + "\n" + prompt.read_text())
     commit(root, "standard")                    # the pre-commit hook renders the page and the checkpoint
+    # item 9 (RF-01): B-01's own done log entry predates the 2026-09-17
+    # cutoff, so no record is required for it -- but item 9 still requires a
+    # readable .swarm/memory.db to exist at all, so the conforming fixture
+    # gets an empty one.
+    write_swarm_db(root)
     status = git(root, "status", "--porcelain").stdout
     assert status == "", f"the conforming fixture left changes behind:\n{status}"
 
@@ -769,39 +798,126 @@ class TestItem8Duplicates(Copy):
         self.assertEqual(states_of(data)[8], HOLDS)
 
 
+POST_CUTOFF_DONE_AT = "2026-09-17T10:00:00+02:00"  # on the RF-01 cutoff itself
+AFTER_CUTOFF_DONE_AT = "2026-09-20T10:00:00+02:00"
+
+
 class TestItem9Ruflo(Copy):
+    """RF-01: item 9 now reads .swarm/memory.db read-only with sqlite3
+    (table memory_entries(key, namespace)) instead of treating a non-empty
+    database, or a log line merely mentioning a Ruflo step, as proof. The
+    conforming fixture's own B-01 is done, dated before the 2026-09-17
+    cutoff, and needs no record; these tests close a second item (B-02) on
+    or after the cutoff to exercise the evidence path."""
 
-    def unlog(self):
-        edit_ledger(self.p, lambda d: d["items"][0]["log"][0].update(event="done", evidence="merged abc123"))
-        commit(self.p, "no ruflo in the log")
+    def close_b02(self, at=POST_CUTOFF_DONE_AT):
+        edit_ledger(self.p, lambda d: d["items"][1].update(
+            status="done", log=[{"at": at, "event": "done", "by": "lead", "evidence": "shipped"}]))
+        commit(self.p, "close B-02")
 
-    def test_no_ruflo_trace_does_not_hold(self):
-        self.unlog()
+    def test_a_post_cutoff_done_item_without_records_does_not_hold(self):
+        self.close_b02()
         data = self.assert_breaks({9})
-        self.assertIn("proxy", self.item(data, 9)["why"])
+        self.assertIn("B-02", self.item(data, 9)["why"])
+        self.assertIn("2026-09-17", self.item(data, 9)["why"])
+
+    def test_a_post_cutoff_done_item_with_both_records_holds(self):
+        self.close_b02()
+        write_swarm_db(self.p, [("item:B-02:start", "demo"), ("item:B-02:done", "demo")])
+        data, _ = report(self.p)
+        self.assertEqual(states_of(data)[9], HOLDS)
+
+    def test_only_a_start_record_still_does_not_hold(self):
+        self.close_b02()
+        write_swarm_db(self.p, [("item:B-02:start", "demo")])
+        data = self.assert_breaks({9})
+        self.assertIn("B-02", self.item(data, 9)["why"])
+
+    def test_a_record_under_the_wrong_namespace_does_not_count(self):
+        self.close_b02()
+        write_swarm_db(self.p, [("item:B-02:start", "other-namespace"), ("item:B-02:done", "other-namespace")])
+        self.assert_breaks({9})
+
+    def test_pre_cutoff_items_are_ignored_but_counted(self):
+        # B-01 (done, pre-cutoff) alone: nothing required, and the baseline
+        # empty .swarm/memory.db already holds -- this pins the "not
+        # counted" note appears once a pre-cutoff item exists.
+        data, code = report(self.p)
+        self.assertEqual(states_of(data)[9], HOLDS)
+        self.assertIn("2026-09-17", self.item(data, 9)["why"])
+        self.assertIn("not counted", self.item(data, 9)["why"])
+
+    def test_an_id_shared_by_two_ledgers_needs_only_one_record(self):
+        run([sys.executable, NEW_PROPOSAL, "--project", self.p, "Second plan"])
+        second = sorted((self.p / "docs" / "proposals").glob("02-*.json"))[0]
+        data2 = json.loads(second.read_text())
+        data2["phases"] = [{"id": "B", "name": "Build", "goal": "build it", "exit": "built"}]
+        data2["items"] = [{"id": "B-02", "phase": "B", "cx": "C2", "title": "same id, other ledger",
+                           "status": "done", "tier": "medium", "model": "sonnet", "tag": TAG,
+                           "log": [{"at": AFTER_CUTOFF_DONE_AT, "event": "done", "by": "lead",
+                                    "evidence": "shipped"}]}]
+        second.write_text(json.dumps(data2, indent=2) + "\n")
+        self.close_b02(at=AFTER_CUTOFF_DONE_AT)  # also commits the second ledger's own edits
+        write_swarm_db(self.p, [("item:B-02:start", "demo"), ("item:B-02:done", "demo")])
+        data, code = report(self.p)
+        self.assertEqual(states_of(data)[9], HOLDS, self.item(data, 9))
 
     def test_switched_off_holds_and_says_by_whom(self):
-        self.unlog()
+        self.close_b02()
         edit_ledger(self.p, lambda d: d.update(switches={"ruflo": {"on": False, "by": "sponsor", "at": NOW}}))
         commit(self.p, "ruflo off")
         data, _ = report(self.p)
         self.assertEqual(states_of(data)[9], HOLDS)
         self.assertIn("switched off by sponsor", self.item(data, 9)["why"])
 
-    def test_ruflo_memory_state_holds(self):
-        self.unlog()
-        write(self.p, ".swarm/memory.db", "SQLite format 3\0")
-        data, _ = report(self.p)
-        self.assertEqual(states_of(data)[9], HOLDS)
+    def test_no_ledger_does_not_hold(self):
+        mod = load_module()
+        tmp = tempfile.TemporaryDirectory()
+        try:
+            root = Path(tmp.name) / "empty"
+            build_empty(root)
+            result = mod.check_ruflo(mod.Context(root))
+            self.assertEqual(result.state, NOT)
+            self.assertIn("no ledger", result.why)
+        finally:
+            tmp.cleanup()
 
-    def test_an_empty_memory_database_does_not_count(self):
-        self.unlog()
-        write(self.p, ".swarm/memory.db", "")
+    def test_a_status_keyed_close_entry_is_read_over_a_non_done_event(self):
+        """`tracker set --status done --event "<free text>"` (RF-01 lead
+        review): the event text does not say "done", but the entry's own
+        `status` key does, and that is what must be read."""
+        edit_ledger(self.p, lambda d: d["items"][1].update(
+            status="done", log=[{"at": POST_CUTOFF_DONE_AT, "event": "shipped in PR #99",
+                                  "by": "lead", "evidence": "", "status": "done"}]))
+        commit(self.p, "close B-02 the tracker-set way")
+        data = self.assert_breaks({9})
+        self.assertIn("B-02", self.item(data, 9)["why"])
+
+    def test_an_older_row_with_no_status_key_still_falls_back_to_the_event(self):
+        self.close_b02()  # writes event="done", no status key -- the pre-RF-01 shape
+        data = self.assert_breaks({9})
+        self.assertIn("B-02", self.item(data, 9)["why"])
+
+    def test_the_last_matching_entry_wins_when_a_row_logs_several(self):
+        edit_ledger(self.p, lambda d: d["items"][1].update(status="done", log=[
+            {"at": PRE_CUTOFF_DONE_AT, "event": "in progress", "by": "lead", "evidence": ""},
+            {"at": POST_CUTOFF_DONE_AT, "event": "shipped", "by": "lead", "evidence": "", "status": "done"},
+        ]))
+        commit(self.p, "close B-02 with an earlier non-done entry first")
+        data = self.assert_breaks({9})
+        self.assertIn("B-02", self.item(data, 9)["why"])
+        self.assertIn("2026-09-17", self.item(data, 9)["why"])
+
+    def test_missing_swarm_database_does_not_hold(self):
+        shutil.rmtree(self.p / ".swarm")
         self.assert_breaks({9})
 
-    def test_a_log_that_only_says_ruflo_does_not_count(self):
-        edit_ledger(self.p, lambda d: d["items"][0]["log"][0].update(event="done", evidence="ruflo was used"))
-        commit(self.p, "a bare mention")
+    def test_an_unreadable_swarm_database_does_not_hold(self):
+        write(self.p, ".swarm/memory.db", "not a sqlite database")
+        self.assert_breaks({9})
+
+    def test_a_zero_byte_swarm_database_does_not_hold(self):
+        write(self.p, ".swarm/memory.db", "")
         self.assert_breaks({9})
 
 

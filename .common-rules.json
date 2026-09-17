@@ -12,5 +12,6 @@
     "worklog": "medium",
     "docs": "low"
   },
-  "risk_always": "restricted"
+  "risk_always": "restricted",
+  "ruflo_namespace": "patterns"
 }

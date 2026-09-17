@@ -105,7 +105,8 @@ class TestLoad(Scratch):
         decl = {"read_order": ["CLAUDE.md", "SPONSOR-CONSTRAINTS.md"],
                 "safety_rules": "CLAUDE.md#Hard safety rules",
                 "gates": {"quick": "sh tools/gate.sh --quick", "merge": "sh tools/gate.sh"},
-                "plan_check": "python3 tools/build_plan.py --check", "plan_page": "python3 tools/build_plan.py"}
+                "plan_check": "python3 tools/build_plan.py --check", "plan_page": "python3 tools/build_plan.py",
+                "ruflo_namespace": "patterns"}
         self.write(".common-rules.json", decl)
         d = P().load(self.root)
         for key, value in decl.items():
@@ -125,6 +126,48 @@ class TestLoad(Scratch):
         self.write(".common-rules.json", {"safety_rules": ["CLAUDE.md#Hard safety rules", "SAFETY.md#never"]})
         self.assertEqual(["CLAUDE.md#Hard safety rules", "SAFETY.md#never"], P().load(self.root)["safety_rules"])
         self.assertEqual([], P().problems(self.root))
+
+
+class TestRufloNamespace(Scratch):
+    """RF-01: .common-rules.json's ruflo_namespace -- the namespace a
+    project's existing Ruflo memories use, read by tools/ruflo.py's
+    namespace_for()."""
+
+    def test_no_declaration_defaults_to_none(self):
+        self.assertIsNone(P().load(self.root)["ruflo_namespace"])
+        self.assertEqual([], P().problems(self.root))
+
+    def test_a_declared_namespace_is_read(self):
+        self.write(".common-rules.json", {"ruflo_namespace": "patterns"})
+        self.assertEqual("patterns", P().load(self.root)["ruflo_namespace"])
+        self.assertEqual([], P().problems(self.root))
+
+    def test_it_is_trimmed(self):
+        self.write(".common-rules.json", {"ruflo_namespace": "  patterns \n"})
+        self.assertEqual("patterns", P().load(self.root)["ruflo_namespace"])
+
+    def test_an_empty_or_blank_string_is_rejected(self):
+        for bad in ("", "   "):
+            with self.subTest(bad=bad):
+                self.write(".common-rules.json", {"ruflo_namespace": bad})
+                self.assertIsNone(P().load(self.root)["ruflo_namespace"])
+                found = " ".join(P().problems(self.root))
+                self.assertIn("ruflo_namespace", found)
+                self.assertIn("non-empty", found)
+
+    def test_a_non_string_is_rejected(self):
+        for bad in (5, ["patterns"], {"a": 1}, None, True):
+            with self.subTest(bad=bad):
+                self.write(".common-rules.json", {"ruflo_namespace": bad})
+                self.assertIsNone(P().load(self.root)["ruflo_namespace"])
+                self.assertIn("ruflo_namespace", " ".join(P().problems(self.root)))
+
+    def test_multiple_lines_are_rejected(self):
+        self.write(".common-rules.json", {"ruflo_namespace": "patterns\nother"})
+        self.assertIsNone(P().load(self.root)["ruflo_namespace"])
+        found = " ".join(P().problems(self.root))
+        self.assertIn("ruflo_namespace", found)
+        self.assertIn("one line", found)
 
 
 class TestProblems(Scratch):
@@ -711,7 +754,7 @@ class TestTheStateKeysWithNoDeclaration(unittest.TestCase):
                                capture_output=True, text=True, check=False)
             self.assertEqual({
                 "project", "name", "branch", "head", "checkout", "prohibitions", "problems", "chain",
-                "ledgers", "files", "test_command", "rules", "ruflo", "checkpoint", "superseded",
+                "ledgers", "files", "test_command", "rules", "ruflo", "ruflo_namespace", "checkpoint", "superseded",
                 "read_order", "read_bytes", "recall",
                 # added by proposal 20, V-00:
                 "prohibitions_from", "prose", "quick_gate", "merge_gate_declared",
