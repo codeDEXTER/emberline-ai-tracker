@@ -93,6 +93,41 @@ This is not a Standard change: the tool is available for a builder to use,
 not yet required.
 
 ## 2026-09-17 · lettered parts are the standard way to split an item (P-06)
+## 2026-09-17 · `tests/test_warmup.py` builds its seeded fixture once; `bin/quiet --jobs` dispatches longest-known-shard-first (M-01)
+
+The sponsor asked why the suite needs so many tokens and whether it can run
+locally. Measured: 1566 tests, ~16 minutes single-process; `tests/test_warmup.py`
+alone was 575s for 122 tests (4.7s/test) -- a third of the whole suite in one
+file. Its `Case.setUp` built a fresh `Project(seeded=True)` per test: `git
+init` plus three git commands plus three separate `python3 bin/tracker`
+subprocesses (render, board, checkpoint) -- about 5 interpreter starts per
+test, before the test's own `bin/warmup` subprocess even ran.
+
+Fixed: `tests/test_warmup.py`'s `Project` now builds that seeded fixture once
+per test process (`_seeded_template()`) and gives each test its own
+`shutil.copytree` (`.git` included) into a fresh temp dir -- a directory copy
+is milliseconds, the five subprocesses were seconds. `Project(seeded=False)`
+is unchanged. No test's assertions changed; same test count.
+
+Also (M-01's own `done` criterion -- suite wall-clock measured before/after,
+merge gate and land use it -- was never finished): `bin/quiet --jobs` sharded
+one `unittest discover` process per file, but only balanced work by *count* of
+files across a thread pool, not by each file's known runtime -- so one slow
+file among several fast ones gave no wall-clock win if it happened to be
+submitted last. `bin/quiet` now keeps a small cache of each shard file's last
+measured duration (same placement rule as `tools/tracker/history.py`'s own
+cache: `.cache/quiet-shard-durations.json` when the project already
+gitignores `.cache/`, else system temp keyed by the repo's absolute path) and
+dispatches longest-known-first, so the slow file starts at t=0 instead of
+last; a cold cache still runs every file (round-robin). `--jobs auto` (or a
+bare trailing `--jobs`) now resolves to `os.cpu_count() - 2`, floor 2.
+`bin/quiet`'s verdict-line shape is unchanged.
+
+Not a Standard change: neither `.common-rules.json`'s `gates.merge` nor
+`bin/land` pass `--jobs` today -- confirmed by reading `bin/land`'s
+`test_cmd()`, which reads `gates.merge` verbatim
+(`python3 -m unittest discover -s tests -q`, sequential, no `--jobs`).
+Wiring `--jobs` into the merge gate is the sponsor's call, not made here.
 
 **Standard change (mandatory):** every item that cannot reach 100% in one
 piece is split into lettered parts, ITEM.A, ITEM.B, ... (letters in order,

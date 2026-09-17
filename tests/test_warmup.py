@@ -21,7 +21,9 @@ Run:  python3 -m unittest discover -s tests -q
 """
 from __future__ import annotations
 
+import atexit
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -83,21 +85,83 @@ def ledger_data(w02="in progress", asks=None):
     }
 
 
+# A seeded Project's __init__ used to pay for a `git init` plus three commits
+# and *three* `python3 bin/tracker` subprocess starts (render, board,
+# checkpoint) -- every single time, even though every seeded test starts
+# from the exact same bytes (HANDOFF.md, the rules, ledger_data(), and their
+# rendered page/checkpoint). test_warmup.py:86-148 was ~5 interpreter starts
+# per test before the test's own `bin/warmup` subprocess even ran, and with
+# 122 tests in this file that dominated the whole suite (575s of it).
+#
+# Fix: build that fixture once per process into a template directory, then
+# give each test a `shutil.copytree` of it -- a directory copy is
+# milliseconds, the five subprocesses were seconds. The template's `.git` is
+# copied too (git repos are just files), and nothing in the seeded output
+# embeds the template's own absolute path (checked by hand: render/checkpoint
+# compare ledger digests, never a baked-in path), so a copy elsewhere is a
+# fully independent, fully valid git working tree. `seeded=False` projects
+# stay as cheap as they already were (one `git init`, no tracker calls) and
+# are left alone.
+_TEMPLATE_ROOT: Path | None = None
+
+
+def _seeded_template() -> Path:
+    """Build the seeded fixture once per test process and return its root.
+    Later callers get the same directory back; nobody may write into it --
+    copy it first (Project does)."""
+    global _TEMPLATE_ROOT
+    if _TEMPLATE_ROOT is not None:
+        return _TEMPLATE_ROOT
+
+    tmp = tempfile.TemporaryDirectory(prefix="warmup-template-")
+    atexit.register(tmp.cleanup)
+    root = Path(tmp.name) / "demo"
+    root.mkdir()
+
+    def git(*a):
+        return subprocess.run(["git", "-C", str(root), *a], capture_output=True, text=True, check=False)
+
+    def write(rel, body):
+        p = root / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(body)
+
+    git("init", "-q", "-b", "main")
+    git("config", "user.email", "t@example.com")
+    git("config", "user.name", "t")
+    write("README.md", "seed\n")
+    write("HANDOFF.md", HANDOFF)
+    write("docs/OPERATING-RULES.md", RULES)
+    write(LEDGER, json.dumps(ledger_data(), indent=2))
+    subprocess.run([sys.executable, str(TRACKER), "render", str(root / LEDGER)], capture_output=True, check=True)
+    subprocess.run([sys.executable, str(TRACKER), "board", "--project", str(root)], capture_output=True, check=True)
+    subprocess.run([sys.executable, str(TRACKER), "checkpoint", "--project", str(root)], capture_output=True,
+                    check=True)
+    git("add", "-A")
+    git("commit", "-qm", "seed")
+
+    _TEMPLATE_ROOT = root
+    return root
+
+
 class Project:
     def __init__(self, seeded=True):
         self.tmp = tempfile.TemporaryDirectory()
+        if seeded:
+            # Copy the shared template -- .git included -- into our own temp
+            # dir so this project is fully independent (tests mutate the
+            # ledger, commit, run hooks against it).
+            self.root = Path(self.tmp.name) / "demo"
+            shutil.copytree(_seeded_template(), self.root, symlinks=True)
+            status = self.git("status", "--porcelain")
+            assert status.returncode == 0, f"copied repo is broken: {status.stderr}"
+            return
         self.root = Path(self.tmp.name) / "demo"
         self.root.mkdir()
         self.git("init", "-q", "-b", "main")
         self.git("config", "user.email", "t@example.com")
         self.git("config", "user.name", "t")
         self.write("README.md", "seed\n")
-        if seeded:
-            self.write("HANDOFF.md", HANDOFF)
-            self.write("docs/OPERATING-RULES.md", RULES)
-            self.set_ledger(ledger_data())
-            self.render()
-            self.checkpoint()
         self.commit("seed")
 
     def git(self, *a):

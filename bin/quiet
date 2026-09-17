@@ -2,7 +2,7 @@
 """quiet -- run a gate, keep its output in a file, print one verdict line
 (common-rules proposal 23, lever L3).
 
-  quiet [--log FILE] [--label NAME] [--jobs N] -- CMD [ARGS...]
+  quiet [--log FILE] [--label NAME] [--jobs N|auto] -- CMD [ARGS...]
 
 Runs CMD directly (no shell). All of its stdout and stderr go to FILE only
 -- never to this process's own stdout. Default FILE is
@@ -46,10 +46,31 @@ does not know, e.g. `-t`), it is ignored and CMD runs exactly as before --
 sequential, unchanged. The project's own CI/`bin/land` command,
 `bin/quiet -- python3 -m unittest discover -s tests -q` (no `--jobs`), is
 therefore untouched by this feature: parallel running is opt-in.
+
+`--jobs auto` (same as a bare trailing `--jobs`, with no number after it)
+resolves to `os.cpu_count() - 2`, floor 2, so a caller does not have to
+pick a number by hand.
+
+Shards are dispatched longest-known-first, not in file order: a shard is
+one file's own `unittest discover -p <file>` in its own process, and the
+whole run is only as fast as the slowest one -- a 575s file among six
+15-222s files gives a 610s wall clock if it happens to be submitted last,
+no better than serial, because it starts only once a worker frees up.
+Submitting it first instead means it starts at t=0 and every faster file
+fills in around it. Each file's last measured duration is kept in a small
+cache next to the one `tools/tracker/history.py` keeps for the same
+reason (see its module docstring) -- `.cache/quiet-shard-durations.json`
+under the project root when that root's `.gitignore` already ignores
+`.cache/`, else a file under the system temp dir keyed by the root's own
+absolute path. A file never timed before (cold cache) sorts after every
+timed file, in their original order -- correctness never depends on the
+cache, every file still runs exactly once either way.
 """
 from __future__ import annotations
 
 import concurrent.futures
+import hashlib
+import json
 import os
 import re
 import subprocess
@@ -200,13 +221,75 @@ def _shard_files(start_dir: str, pattern: str) -> list[Path]:
     return sorted(p for p in base.glob(pattern) if p.is_file())
 
 
+def _auto_jobs() -> int:
+    """os.cpu_count() - 2, floor 2 -- a sane default so a caller of
+    `--jobs auto` (or a bare `--jobs`) does not have to pick a number."""
+    n = os.cpu_count() or 2
+    return max(2, n - 2)
+
+
+def _repo_root_for(path: Path) -> Path:
+    r = subprocess.run(["git", "-C", str(path), "rev-parse", "--show-toplevel"],
+                        capture_output=True, text=True, timeout=10)
+    if r.returncode == 0:
+        return Path(r.stdout.strip())
+    return path.resolve()
+
+
+def _gitignores_cache_dir(root: Path) -> bool:
+    gitignore = root / ".gitignore"
+    if not gitignore.is_file():
+        return False
+    for line in gitignore.read_text(errors="replace").splitlines():
+        s = line.strip()
+        if s in (".cache/", ".cache"):
+            return True
+    return False
+
+
+def _duration_cache_path(start_dir: Path) -> Path:
+    """Same placement rule as tools/tracker/history.py's own cache (see its
+    module docstring): inside the repo's .cache/ when that's already
+    gitignored, else a file under the system temp dir keyed by the repo's
+    absolute path, so nothing lands in the repo uninvited."""
+    root = _repo_root_for(start_dir)
+    if _gitignores_cache_dir(root):
+        return root / ".cache" / "quiet-shard-durations.json"
+    key = hashlib.sha256(str(root).encode()).hexdigest()[:16]
+    return Path(tempfile.gettempdir()) / "common-rules-quiet-durations" / f"{key}.json"
+
+
+def _load_duration_cache(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_duration_cache(path: Path, cache: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(cache, sort_keys=True))
+    tmp.replace(path)
+
+
 def _run_one_shard(python: str, start_dir: str, filename: str):
+    t0 = time.monotonic()
     proc = subprocess.run(
         [python, "-m", "unittest", "discover", "-s", start_dir, "-p", filename, "-q"],
         capture_output=True,
         text=True,
     )
-    return filename, proc.returncode, proc.stdout + proc.stderr
+    return filename, proc.returncode, proc.stdout + proc.stderr, time.monotonic() - t0
+
+
+def _ordered_shards(files: list[Path], durations: dict) -> list[Path]:
+    """Longest-known-first (see the module docstring): unknown files (cold
+    cache, or a file that never ran before) get -1 so they sort after
+    every timed file, in `files`'s incoming (already-alphabetical) order --
+    a plain round-robin among themselves. A pure function of its inputs so
+    the dispatch order can be checked without running any tests."""
+    return sorted(files, key=lambda f: durations.get(f.name, -1.0), reverse=True)
 
 
 def _run_parallel_discover(python: str, start_dir: str, pattern: str, jobs: int):
@@ -220,20 +303,29 @@ def _run_parallel_discover(python: str, start_dir: str, pattern: str, jobs: int)
         return None
     jobs = max(1, min(jobs, len(files)))
 
+    cache_path = _duration_cache_path(Path(start_dir))
+    durations = _load_duration_cache(cache_path)
+    ordered = _ordered_shards(files, durations)
+
     shard_start = time.monotonic()
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as ex:
-        futures = [ex.submit(_run_one_shard, python, start_dir, f.name) for f in files]
+        futures = [ex.submit(_run_one_shard, python, start_dir, f.name) for f in ordered]
         for fut in futures:
             results.append(fut.result())
     shard_elapsed = time.monotonic() - shard_start
+
+    new_durations = dict(durations)
+    for filename, code, out, elapsed in results:
+        new_durations[filename] = elapsed
+    _save_duration_cache(cache_path, new_durations)
 
     total_tests = 0
     total_failures = 0
     total_errors = 0
     any_unrecognised_failure = False
     parts = []
-    for filename, code, out in results:
+    for filename, code, out, elapsed in results:
         parts.append(f"--- {filename} ---\n{out.rstrip(chr(10))}\n")
         m = _RAN_RE.search(out)
         if m:
@@ -289,14 +381,22 @@ def _parse_args(argv):
             i += 2
             continue
         if a == "--jobs":
-            if i + 1 >= len(argv):
-                print("quiet: --jobs requires a value", file=sys.stderr)
-                raise SystemExit(2)
-            try:
-                jobs = int(argv[i + 1])
-            except ValueError:
-                print(f"quiet: --jobs wants an integer, got {argv[i + 1]!r}", file=sys.stderr)
-                raise SystemExit(2)
+            # A bare trailing --jobs (nothing after it, or immediately
+            # followed by the -- that introduces CMD) means "auto", same
+            # as an explicit --jobs auto -- see _auto_jobs().
+            if i + 1 >= len(argv) or argv[i + 1] == "--":
+                jobs = _auto_jobs()
+                i += 1
+                continue
+            value = argv[i + 1]
+            if value == "auto":
+                jobs = _auto_jobs()
+            else:
+                try:
+                    jobs = int(value)
+                except ValueError:
+                    print(f"quiet: --jobs wants an integer or 'auto', got {value!r}", file=sys.stderr)
+                    raise SystemExit(2)
             i += 2
             continue
         print(f"quiet: unknown option {a!r} (expected -- before the command)", file=sys.stderr)
