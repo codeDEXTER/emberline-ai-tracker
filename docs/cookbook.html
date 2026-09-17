@@ -99,6 +99,20 @@
   .stepcell{font-family:var(--mono); font-size:11px; color:var(--accent); font-weight:600; white-space:nowrap}
   td.num{font-family:var(--mono); white-space:nowrap}
 
+  .lanekey{display:flex; flex-wrap:wrap; gap:8px; margin:0 0 10px}
+  .lk{font-family:var(--mono); font-size:11px; font-weight:600; padding:4px 10px; border-radius:99px; border:1px solid var(--border); white-space:nowrap}
+  .lk.ai{background:rgba(91,79,174,0.16); color:var(--accent-2)}
+  .lk.script{background:rgba(15,110,92,0.16); color:var(--accent)}
+  .lk.both{background:var(--warn-bg); color:var(--warn)}
+  td.who{font-family:var(--mono); font-size:11px; font-weight:600; white-space:nowrap}
+  td.who.w-ai{color:var(--accent-2)}
+  td.who.w-script{color:var(--accent)}
+  td.who.w-both{color:var(--warn)}
+
+  .proprow{display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:1px}
+  .proprow > div{padding:10px 14px; border-bottom:1px solid var(--border); background:var(--surface)}
+  .proprow .lbl{font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-faint); margin-bottom:3px}
+
   footer{margin-top:40px; padding-top:16px; border-top:1px solid var(--border); font-size:11px; color:var(--text-faint); font-family:var(--mono)}
 </style>
 
@@ -121,6 +135,7 @@
     <div class="grp">One task</div>
     <a href="#onetask">The flow</a>
     <a href="#costs">What it costs</a>
+    <a href="#whoruns">Script instead?</a>
     <div class="grp">Flow</div>
     <a href="#lifecycle">Lifecycle</a>
     <a href="#compare">Warmup / reheat</a>
@@ -138,58 +153,104 @@
 
     <section id="onetask">
       <h2 class="h"><span class="n">00</span> One task, start to finish</h2>
-      <p class="dim">The sponsor gives one task in chat. This is the actual path it takes through the standard, item CB-01 -- five lanes: sponsor, lead, builder, gate, ledger/Ruflo.</p>
+      <p class="dim">The sponsor gives one task in chat. This is the actual path it takes through the standard, item CB-01 -- five lanes: sponsor, lead, builder, gate, ledger/Ruflo. Every step is now marked <b>who does it</b>: a model turn that spends tokens, or a deterministic script that spends none -- read against the code in <code>bin/</code>, <code>tools/</code> and the installed pre-commit hook, not guessed. See <a href="#whoruns">&sect;00c</a> for the full per-step reasoning.</p>
+      <div class="lanekey">
+        <span class="lk ai">&#129302; AI &mdash; a model turn, spends tokens</span>
+        <span class="lk script">&#9881;&#65039; script &mdash; deterministic, spends 0 tokens</span>
+        <span class="lk both">&#9685; both &mdash; AI judgment feeds a script step</span>
+      </div>
       <pre class="mermaid">
 sequenceDiagram
     autonumber
     actor Sponsor
-    participant Lead as Lead (Opus)
-    participant Builder as Builder (Sonnet/Haiku)
-    participant Gate as Gate (bin/quiet)
-    participant Tracker as Ledger + Ruflo
+    box rgba(91,79,174,0.16) AI lane -- every message here is a model turn
+        participant Lead as Lead (Opus)
+        participant Builder as Builder (Sonnet/Haiku)
+    end
+    box rgba(15,110,92,0.16) Script lane -- every message here is 0 tokens
+        participant Gate as Gate (bin/quiet)
+        participant Tracker as Ledger + Ruflo
+    end
 
-    Sponsor->>Lead: Task, in chat
-    Lead->>Tracker: tracker ask (A-nn)<br/>+ ledger item, or lettered<br/>part W-10.A (proposal 30)
-    Note over Lead: tracker route -> tier<br/>C1 haiku / C2-C3 sonnet / C4 opus-lead
-    Note over Lead,Builder: optional Haiku scout writes<br/>the CONTEXT pack first (P23 L-06)
-    Lead->>Lead: write 5-heading brief<br/>(templates/brief.md)
-    Lead->>Tracker: ruflo-item start (before)
-    Lead->>Builder: dispatch, own git worktree<br/>(Agent tool, isolation:"worktree")
+    Sponsor->>Lead: [AI] Task, in chat
+    Lead->>Tracker: [both] tracker ask (A-nn) + ledger item --<br/>AI writes the ask, bin/tracker records it
+    Note over Lead,Tracker: [script] tracker route -> tier: deterministic<br/>risk/value lookup (points/value set by AI upstream)
+    Note over Lead,Builder: [AI] optional Haiku scout writes<br/>the CONTEXT pack first (P23 L-06)
+    rect rgba(91,79,174,0.10)
+    Lead->>Lead: [AI] write 5-heading brief<br/>(templates/brief.md) -- judgment, no script exists for this
+    end
+    Lead->>Tracker: [both] ruflo-item start --<br/>AI supplies the task text, script runs hooks/memory
+    rect rgba(91,79,174,0.10)
+    Lead->>Builder: [AI] dispatch, own worktree<br/>(Agent tool, isolation:"worktree")
+    end
 
-    Builder->>Builder: red, then green -- write<br/>the test before the fix
-    Builder->>Gate: own gate: AFFECTED tests only<br/>(tools/affected_tests.py, P23 M-02)
-    Gate-->>Builder: verdict line: OK, no FAILED
-    Builder->>Builder: commit only on OK, push branch,<br/>opens no PR
+    Builder->>Builder: [AI] red, then green -- write<br/>the test before the fix
+    rect rgba(15,110,92,0.10)
+    Builder->>Gate: [script] own gate: AFFECTED tests only<br/>(tools/affected_tests.py, P23 M-02)
+    Gate-->>Builder: [script] verdict line: OK, no FAILED
+    end
+    Builder->>Builder: [both] commit only on OK, push branch --<br/>AI applies the rule, then the pre-commit hook does the writing
 
-    Builder->>Lead: branch ready
-    Lead->>Lead: review the diff, open the PR
-    Lead->>Gate: squash-merge once green<br/>(adopting project -- standing ruling)<br/>-- common-rules itself reserves this<br/>merge for the sponsor (bin/land)
-    Lead->>Gate: full suite once, on merged main<br/>("verify the merge result, not the branch")
-    Gate-->>Lead: verdict line: OK, no FAILED
+    Builder->>Lead: [AI] branch ready
+    rect rgba(91,79,174,0.10)
+    Lead->>Lead: [AI] review the diff, open the PR
+    end
+    rect rgba(15,110,92,0.10)
+    Lead->>Gate: [script] squash-merge once green (bin/land) --<br/>common-rules itself reserves this merge for the sponsor
+    Lead->>Gate: [script] full suite once, on merged main<br/>("verify the merge result, not the branch")
+    Gate-->>Lead: [script] verdict line: OK, no FAILED
+    end
 
-    Lead->>Tracker: ruflo-item done (after) --<br/>merge gate once per whole bundle
-    Lead->>Tracker: tracker set --status done --event
-    Note over Tracker: pre-commit hook regenerates<br/>the tracker page + checkpoint
-    Lead->>Sponsor: republish tracker page,<br/>tracker published (sidecar)
-    Lead->>Lead: bin/worktree-sweep --apply<br/>(session end housekeeping)
+    Lead->>Tracker: [both] ruflo-item done -- AI writes the<br/>summary, script runs the merge gate + memory once per bundle
+    Lead->>Tracker: [both] tracker set --status done --event --<br/>AI writes the event text, script records + re-renders
+    Note over Tracker: [script] pre-commit hook regenerates<br/>the tracker page + checkpoint
+    Lead->>Sponsor: [both] republish tracker page --<br/>AI calls Artifact, script renders + records "tracker published"
+    rect rgba(15,110,92,0.10)
+    Lead->>Lead: [script] bin/worktree-sweep --apply<br/>(session end housekeeping, fixed criteria, no judgment)
+    end
       </pre>
-      <p class="dim">A sequence diagram, not a flowchart: the sponsor's ask was "how many tests, when, and why" across actors over time, which lanes-by-actor show directly; a flowchart would need subgraphs per actor and loses the time axis.</p>
+      <p class="dim">A sequence diagram, not a flowchart: the sponsor's ask was "how many tests, when, and why" across actors over time, which lanes-by-actor show directly; a flowchart would need subgraphs per actor and loses the time axis. The two boxes are the scripted-lane participants the sponsor asked for (Gate, Tracker) versus the token-spending lane (Lead, Builder) -- but several messages cross the boundary in both directions, which is why every message also carries its own <code>[AI]</code> / <code>[script]</code> / <code>[both]</code> tag rather than relying on box colour alone.</p>
     </section>
 
     <section id="costs">
       <h2 class="h"><span class="n">00b</span> What runs when, and what it costs</h2>
+      <p class="dim">New <b>who</b> column: <span class="pill accent" style="background:rgba(91,79,174,0.16); color:var(--accent-2)">AI</span> a model turn, <span class="pill accent" style="background:rgba(15,110,92,0.16); color:var(--accent)">script</span> deterministic, always <code>0</code> tokens by itself, <span class="pill warn">both</span> a script step whose input is an AI judgment call. Where a dollar figure sits next to a script-only action, that figure is the AI's time spent invoking the tool and reading its output -- never the script's own execution, which is <code>0</code> either way.</p>
       <div class="tw"><table>
-        <tr><th>Step</th><th>What runs</th><th>Tests</th><th>Tokens</th><th>$</th></tr>
-        <tr><td class="stepcell">1 Ask + ledger</td><td>Lead: <code>tracker ask</code>, <code>tracker set</code></td><td>none</td><td>share of ledger bookkeeping</td><td class="num">~$96 / bundle</td></tr>
-        <tr><td class="stepcell">2 Route + brief + dispatch</td><td>Lead: <code>tracker route</code>, brief.md; optional Haiku scout</td><td>none</td><td>scout ~0.9M each</td><td class="num">~$26 / bundle (briefs)</td></tr>
-        <tr><td class="stepcell">3 Builder implements</td><td>Builder, own worktree, red-then-green</td><td>affected only: ~25 of 73 modules,<br/>~980 of 1,661 tests, ~13 min</td><td>8-10M / builder (Sonnet); 27 builders = 601M</td><td class="num">$258 (25% of the money)</td></tr>
-        <tr><td class="stepcell">4 Review, merge, full suite</td><td>Lead: diff review, PR, merge, full suite on main</td><td>full suite once: 1,661 tests, ~18 min</td><td>git/merge/suite $242 + reading diffs $155 of lead spend</td><td class="num">part of $753 (72%)</td></tr>
-        <tr><td class="stepcell">5 Ruflo wrap</td><td>Lead + builder: <code>bin/ruflo-item start</code>/<code>done</code></td><td><code>bin/conformance</code> item 9 checks the record</td><td>folded into orchestration spend</td><td class="num">--</td></tr>
-        <tr><td class="stepcell">6 Record done + republish</td><td>Lead: <code>tracker set</code>, republish, <code>tracker published</code></td><td>--</td><td>bookkeeping $96 + publishing $16</td><td class="num">part of $753</td></tr>
-        <tr><td class="stepcell">7 Housekeeping</td><td>Lead: <code>bin/worktree-sweep --apply</code></td><td>--</td><td>negligible</td><td class="num">--</td></tr>
-        <tr><td class="stepcell">Whole bundle</td><td>27 builders + 2 lead sessions (1,556 requests) + 34 measuring/4 review agents</td><td>~980 affected per builder gate,<br/>1,661 full suite at integration</td><td>1.19B tokens total</td><td class="num">~$1,044</td></tr>
+        <tr><th>Step</th><th>Who</th><th>What runs</th><th>Tests</th><th>Tokens</th><th>$</th></tr>
+        <tr><td class="stepcell">1 Ask + ledger</td><td class="who w-both">both</td><td>Lead composes the ask (AI); <code>tracker ask</code>, <code>tracker set</code> record it (script, 0 tokens)</td><td>none</td><td>share of ledger bookkeeping</td><td class="num">~$96 / bundle</td></tr>
+        <tr><td class="stepcell">2 Route + brief + dispatch</td><td class="who w-both">both</td><td><code>tracker route</code> is a deterministic risk/value&rarr;tier lookup (script, 0 tokens); the brief and dispatch are Lead judgment (AI); optional Haiku scout writes CONTEXT (AI)</td><td>none</td><td>scout ~0.9M each</td><td class="num">~$26 / bundle (briefs)</td></tr>
+        <tr><td class="stepcell">3 Builder implements</td><td class="who w-ai">AI (gate step is script)</td><td>Builder writes the test and the fix (AI); its own gate run is <code>tools/affected_tests.py</code> + the test suite (script, 0 tokens)</td><td>affected only: ~25 of 73 modules,<br/>~980 of 1,661 tests, ~13 min, <b>0 tokens</b></td><td>8-10M / builder (Sonnet); 27 builders = 601M</td><td class="num">$258 (25% of the money)</td></tr>
+        <tr><td class="stepcell">4 Review, merge, full suite</td><td class="who w-both">both</td><td>Lead reads the diff and decides (AI); the squash-merge (<code>bin/land</code>) and the full suite are deterministic scripts, 0 tokens by themselves</td><td>full suite once: 1,661 tests, ~18 min, <b>0 tokens</b></td><td>merge/suite invocation+reading $242 + reading diffs $155 of lead spend</td><td class="num">part of $753 (72%)</td></tr>
+        <tr><td class="stepcell">5 Ruflo wrap</td><td class="who w-both">both</td><td><code>bin/ruflo-item start</code>/<code>done</code> run hooks + memory deterministically (script, 0 tokens); the task text and the done summary are written by the Lead/builder (AI)</td><td><code>bin/conformance</code> item 9 checks the record (script)</td><td>folded into orchestration spend</td><td class="num">--</td></tr>
+        <tr><td class="stepcell">6 Record done + republish</td><td class="who w-both">both</td><td><code>tracker set</code>, <code>tracker published</code> write deterministically (script, 0 tokens); the event text and the Artifact republish call are Lead actions (AI)</td><td>--</td><td>bookkeeping $96 + publishing $16</td><td class="num">part of $753</td></tr>
+        <tr><td class="stepcell">7 Housekeeping</td><td class="who w-script">script</td><td>Lead: <code>bin/worktree-sweep --apply</code> -- fixed CLEAN+MERGED criteria, no judgment</td><td>--</td><td>negligible (one tool call)</td><td class="num">--</td></tr>
+        <tr><td class="stepcell">Whole bundle</td><td class="who w-both">mostly AI</td><td>27 builders + 2 lead sessions (1,556 requests) + 34 measuring/4 review agents</td><td>~980 affected per builder gate,<br/>1,661 full suite at integration, <b>tests: 0 tokens throughout</b></td><td>1.19B tokens total</td><td class="num">~$1,044</td></tr>
       </table></div>
-      <p class="costnote">Measured, not modelled: list prices, from ~/.agent-data/projects transcripts 14-17 Sep 2026, deduped by message id. Varies with the item -- a fresh dispatcher lead ran a whole bundle at a 96k context peak; one long-running lead hit 843k, and 90% of lead spend came from requests carrying over 200k of context. Builders: 601M tokens, 49% of output tokens, $258. Lead orchestration: 523M tokens, $753 across two sessions. Measuring/research agents (34): 52.7M tokens, $26. Review/verify agents (4): 11.4M tokens, $6.</p>
+      <p class="costnote">Measured, not modelled: list prices, from ~/.agent-data/projects transcripts 14-17 Sep 2026, deduped by message id. Varies with the item -- a fresh dispatcher lead ran a whole bundle at a 96k context peak; one long-running lead hit 843k, and 90% of lead spend came from requests carrying over 200k of context. Builders: 601M tokens, 49% of output tokens, $258. Lead orchestration: 523M tokens, $753 across two sessions. Measuring/research agents (34): 52.7M tokens, $26. Review/verify agents (4): 11.4M tokens, $6. The 1,566-test suite itself is ~16 minutes single-process and costs <b>0 tokens</b> to run -- every dollar figure in this table pays for a model turn invoking or reading a tool, never for the tool's own work. A single builder tool-call action is approx 134k cache-read context tokens plus a few hundred written tokens (this session's own transcripts) -- so the expensive thing is <b>how many model turns a task takes</b>, not the tests.</p>
+    </section>
+
+    <section id="whoruns">
+      <h2 class="h"><span class="n">00c</span> What a script could do instead</h2>
+      <p class="dim">Three places in the flow above where a Lead or Builder spends tokens today on something mechanical, not judgment. The judgment stays with the AI in every case below -- these candidates only remove the surrounding bookkeeping. None are implemented in this branch; this is a proposal for the sponsor to pick from.</p>
+      <div class="tw"><table>
+        <tr><th>Today, by hand</th><th>Could become</th><th>Roughly saves</th></tr>
+        <tr>
+          <td>Builder reads the gate's verdict line, then separately decides to run <code>git add</code>, <code>git commit</code>, <code>git push</code> -- three more tool calls, each one a model turn re-reading state that was already known</td>
+          <td>A single <code>bin/commit-if-green</code> wrapper: runs the gate, and only on a verdict line matching <code>^OK</code> with no <code>^FAILED</code> does it commit-and-push itself. The builder makes one call and reads one result, instead of four</td>
+          <td>~3 tool-call round trips per builder commit -- at ~27 builders/bundle, several hundred thousand tokens of pure "read output, issue the next mechanical command" overhead</td>
+        </tr>
+        <tr>
+          <td>Lead writes the PR title and body from memory of the item and the diff, after already having read both to review them</td>
+          <td>A script fills a PR body skeleton from the ledger item (id, title, files touched, test delta) the moment the branch is pushed; the Lead only edits it, rather than composing it from a blank page</td>
+          <td>A partial re-read/re-compose of information the Lead already holds in context -- smaller than the review itself, but it recurs on every single item</td>
+        </tr>
+        <tr>
+          <td>Lead composes the <code>ruflo-item done</code> summary and the <code>tracker set --event</code> text separately, by hand, from the same underlying facts (item id, PR, files, test counts)</td>
+          <td>A script drafts both from the ledger item and the merge/PR metadata; the Lead reviews and adjusts wording rather than assembling the facts itself</td>
+          <td>Two short compose-from-scratch turns collapsed into one edit turn, per item closed</td>
+        </tr>
+      </table></div>
+      <p class="dim">Not proposed: anything that decides -- what tier a task is, whether a diff is correct, what a brief should say, whether to merge. Those stay AI on purpose; a script that guessed at them would just move the judgment somewhere less visible.</p>
     </section>
 
     <section id="lifecycle">
