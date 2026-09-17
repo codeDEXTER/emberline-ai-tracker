@@ -424,6 +424,25 @@
           "evidence": ""
         }
       ]
+    },
+    {
+      "id": "F-04",
+      "source": "review",
+      "file": "bin/land",
+      "severity": "high",
+      "state": "catalogued",
+      "line": 553,
+      "title": "land_one trusts its gate's exit code alone, the failure OPERATING-RULES S3 records; it should read the verdict line the way bin/quiet does",
+      "value": "high",
+      "points": 2,
+      "log": [
+        {
+          "at": "2026-09-17T22:20:21+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead",
+          "evidence": ""
+        }
+      ]
     }
   ]
 }
