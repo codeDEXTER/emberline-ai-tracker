@@ -1,5 +1,30 @@
 # Changelog — common-rules
 
+## 2026-09-17 · pr-body and item-notes draft bookkeeping prose from recorded facts (O-05, O-06)
+
+Proposal 31 measured a lead re-composing the same facts into prose three
+times per item -- the PR body, the `ruflo-item done` summary, and the
+`tracker set --event` text -- each a full model turn (~134k cache-read
+tokens, measured) spent on words, not decisions.
+
+`tools/itemfacts.py` gathers the facts once (the ledger item and its parts
+via `tools/tracker/ledger.py`/`parts.py`, the diff and the branch's commits
+via git) for both new scripts to read. `bin/pr-body [--project DIR] --item
+ITEM_ID [--ledger LEDGER] [--base REF] [--title-only]` prints a PR title
+and a body skeleton: the item's what/done/parts, the diff against --base
+(default `origin/main`) with insertion/deletion counts and a test-file
+count, the branch's commits, an unfilled `Gate:` line, and the trailer.
+`bin/item-notes [--project DIR] --item ITEM_ID [--ledger LEDGER] [--commit
+SHA] [--pr N]` prints a `ruflo-item done` summary and a `tracker set
+--event` sentence from the same facts, in the voice real log entries
+already use.
+
+Per proposal 31's Decided section (D4): these scripts draft bookkeeping
+prose from recorded facts. Neither decides whether work is done, whether to
+merge, or what tier something is -- both print a draft to stdout and write
+nothing, anywhere; the lead's own edits are what lands. Not a Standard
+change -- available to any project that wants them, not required.
+
 ## 2026-09-17 · lettered parts are the standard way to split an item (P-06)
 
 **Standard change (mandatory):** every item that cannot reach 100% in one

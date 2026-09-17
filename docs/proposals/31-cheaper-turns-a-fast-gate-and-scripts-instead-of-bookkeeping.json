@@ -136,13 +136,21 @@
       "tests": [],
       "done": "Prints a usable body for a real branch and item; the lead's edits are what lands; tested on a fixture ledger and diff.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-17T21:20:47+02:00",
+          "event": "bin/pr-body prints a PR title and body skeleton (item what/done/parts, diff counts against --base, branch commits, an unfilled Gate: line, trailer) from tools/itemfacts.py, shared with O-06; commit d15ecd6.",
+          "by": "session:o05-o06-drafts",
+          "evidence": "",
+          "status": "done"
+        }
+      ],
       "points": 2,
       "value": "medium"
     },
@@ -156,13 +164,21 @@
       "tests": [],
       "done": "Both texts drafted from one call on a fixture item; the lead's wording still wins; tested.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "medium",
       "model": "sonnet",
       "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-17T21:20:49+02:00",
+          "event": "bin/item-notes drafts the ruflo-item done summary and the tracker set --event sentence from the same tools/itemfacts.py facts as O-05, in the voice real log entries already use, marked as drafts; --commit/--pr appear only when given; commit d15ecd6.",
+          "by": "session:o05-o06-drafts",
+          "evidence": "",
+          "status": "done"
+        }
+      ],
       "points": 2,
       "value": "medium"
     },
