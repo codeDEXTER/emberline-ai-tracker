@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 11:04
+# Checkpoint — 2026-09-17 12:48
 
-Reason: manual · branch: close-asks · HEAD: 9b43cc0
+Reason: manual · branch: ledger-l01-f05 · HEAD: 69be197
 
-<!-- ledger-digest: 47fc77b400404199bc980f5623a3b5ec378a3ef00d7313556915019486084cf8 -->
+<!-- ledger-digest: e23048a176adbdc3116a1fef35c8481e6af89df4b1dfc250a3d239577c5a4c75 -->
 
 ## Proposal 19 · Warm-up
 
@@ -47,31 +47,11 @@ Reason: manual · branch: close-asks · HEAD: 9b43cc0
 
 ## Proposal 23 · Eight levers for token spend
 
-18 done / 1 in progress / 0 blocked / 0 not started / 2 in testing
+19 done / 0 in progress / 0 blocked / 0 not started / 2 in testing
 
 ### In progress
 
-- L-01 · [ruflo · lead · opus] · Fresh lead per milestone or day · correction: final figures are 95 requests / 10.4M tokens / 0.0% above 500k / peak 157,059
-
-### Blocked, and why
-
 - none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- none
-
-## Proposal 24 · Autonomous work without missing anything
-
-3 done / 1 in progress / 0 blocked / 0 not started
-
-### In progress
-
-- H-02 · [ruflo · medium · sonnet] · Thin dispatcher and short item leads · correction: this session finished at 157,059 peak context and BREACHED the 150k cap; one artifact read caused it
 
 ### Blocked, and why
 
