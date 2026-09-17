@@ -35,9 +35,11 @@ import json
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from tools.tracker import cluster as CLUSTER
+from tools.tracker import history as HIST
 from tools.tracker import lanes as LANES
 from tools.tracker import ledger as L
 from tools.tracker import parts as PARTS
@@ -507,17 +509,138 @@ def completion_legend() -> str:
     return f'<div class="clegend">{items}</div>'
 
 
-def completion_section(entries) -> str:
-    """The top overview (proposal 30): four tiles, then finish now / back
-    burner / waiting, each open feature with its parts visible underneath.
-    Everything here is plain server-rendered markup -- correct with the
-    page's script disabled, per the brief."""
+_HISTORY_BUDGET = 10.0  # seconds -- P-08's "keep the page's generation time sane"
+
+
+def progress_block(project) -> str:
+    """P-08: history.series(project)'s two charts, server-rendered SVG, no
+    JS and no external resources. Quietly omitted when the project has no
+    git history yet or series() cannot be computed (a plain directory, a
+    shallow clone, git missing) -- a graph nobody can trust is worse than no
+    graph. If a first, uncached run takes over ~10s, a second call bounded
+    to the last 60 days is used instead -- the sponsor asked for "a progress
+    graph over time", not a slow tracker page."""
+    if project is None:
+        return ""
+    try:
+        started = time.monotonic()
+        rows = HIST.series(project)
+        if time.monotonic() - started > _HISTORY_BUDGET:
+            since = (datetime.date.today() - datetime.timedelta(days=60)).isoformat()
+            rows = HIST.series(project, since=since)
+    except Exception:
+        return ""
+    if not rows:
+        return ""
+    return (f'<section class="progress" id="progress"><h3>Progress over time</h3>'
+            f'<div class="charts">{HIST.svg(rows)}</div></section>')
+
+
+def completion_section(entries, project=None) -> str:
+    """The top overview (proposal 30): four tiles, a Progress block (P-08),
+    then finish now / back burner / waiting, each open feature with its
+    parts visible underneath. Everything here is plain server-rendered
+    markup -- correct with the page's script disabled, per the brief."""
     if not entries:
         return ""
     return ('<section class="completion" id="completion"><h2>Completion</h2>'
             f'<div class="tiles">{completion_tiles(entries)}</div>'
+            f'{progress_block(project)}'
             f'{completion_groups(entries)}'
             f'{completion_legend()}</section>')
+
+
+# ---------------------------------------------------------------------------
+# proposal 30, P-08: the feature-level drill-down. One row per proposal (the
+# feature), expanding to its items, each expanding to its parts, to any
+# depth parts.tree() carries -- pure <details>/<summary>, so it works with
+# the page's script disabled. Every rule (completion, grouping, the "next"
+# part, the pill) still comes from tools/tracker/parts.py; this only walks
+# and renders what that module already computed.
+
+def feature_children(item: dict) -> list[dict]:
+    """The item's parts as parts.tree() nodes -- or, when it has none, one
+    implicit node standing for the whole item, using the same convention as
+    the completion overview's `display_parts()` above, so the two sections
+    agree on what an item without parts looks like."""
+    ps = PARTS.parts(item)
+    if ps:
+        return [PARTS.tree(p) for p in ps]
+    node = dict(display_parts(item)[0])
+    node["completion"] = 100 if node.get("status") == "done" else 0
+    node["parts"] = []
+    return [node]
+
+
+def feature_node_row(node: dict) -> str:
+    """One part (or sub-part, at any depth) as a row -- a <details> when it
+    has its own sub-parts (recursing to any depth parts.tree() carries), a
+    plain row otherwise."""
+    cls, label, title = part_pill(node)
+    title_attr = f' title="{e(title)}"' if title else ""
+    share = node.get("share")
+    share_html = f'<span class="pshare">{share}%</span>' if share is not None else ""
+    completion = node.get("completion")
+    compl_html = f'<span class="pcompl">{completion}%</span>' if completion is not None else ""
+    summary = (f'<span class="pid">{e(node.get("id"))}</span>'
+               f'<span class="ptitle">{e(node.get("title"))}</span>'
+               f'{share_html}{compl_html}'
+               f'<span class="pill p-{cls}"{title_attr}>{e(label)}</span>')
+    children = node.get("parts") or []
+    if children:
+        body = "".join(feature_node_row(c) for c in children)
+        return (f'<details class="prow-details"><summary class="prow">{summary}</summary>'
+                f'<div class="fparts">{body}</div></details>')
+    return f'<div class="prow">{summary}</div>'
+
+
+def feature_item_row(item: dict, number) -> str:
+    """One item under a feature (proposal) row: its own completion %, bar,
+    group pill and next part, expanding to its parts."""
+    pct = PARTS.completion(item)
+    grp = PARTS.group(item)
+    nxt = PARTS.next_part(item)
+    next_text = f'next: {e(nxt.get("id"))} · {e(nxt.get("title"))}' if nxt else "all parts done"
+    body = "".join(feature_node_row(c) for c in feature_children(item))
+    return (f'<details class="item-row" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}">'
+            f'<summary class="ihead"><span class="iid">{e(item.get("id"))}</span>'
+            f'<span class="ititle">{e(item.get("title"))}</span>'
+            f'<span class="ipct">{pct}%</span>'
+            f'<span class="ibar fbar">{feature_bar(item)}</span>'
+            f'<span class="pill g-{slug(grp)}">{e(GROUP_LABEL.get(grp, grp))}</span>'
+            f'<span class="inext dim">{next_text}</span></summary>'
+            f'<div class="fitems">{body}</div></details>')
+
+
+def proposal_feature_row(number, data, counts) -> str:
+    items = L.items(data)
+    total = len(items)
+    done = sum(1 for it in items if PARTS.group(it) == "done")
+    pct = round(sum(PARTS.completion(it) for it in items) / total) if total else 0
+    rows = "".join(feature_item_row(it, number) for it in items)
+    return (f'<details class="feature-row" data-proposal="{e(number)}">'
+            f'<summary class="fphead"><span class="fpn">P{e(number)}</span>'
+            f'<span class="fptitle">{e(data.get("title"))}</span>'
+            f'<span class="fppct">{pct}%</span>'
+            f'<span class="fpbar">{mini_bar(counts)}</span>'
+            f'<span class="fpcount">{done}/{total} items done</span></summary>'
+            f'<div class="fitems">{rows}</div></details>')
+
+
+def features_section(ledgers: list[tuple[Path, dict]]) -> str:
+    """P-08: "at the end of the day there can be a feature level ... graph
+    where I can drop down and it can show me what sub action items and
+    action items are there ... top level feature graph ... what is the
+    completion for each thing and ... once I expand the drop down then it
+    can show me what sub items are there and if there are more sub sub
+    items". One row per proposal, collapsed by default."""
+    if not ledgers:
+        return ""
+    rows = "".join(proposal_feature_row(data.get("proposal"), data, L.counts(data)) for _, data in ledgers)
+    return ('<section class="features" id="features"><h2>Features</h2>'
+            '<p class="fnote dim">Completion % is the average of each item’s completion, '
+            'weighted equally per item.</p>'
+            f'<div class="frows">{rows}</div></section>')
 
 
 def column_order(status: str, entries: list) -> list:
@@ -583,7 +706,8 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
     group_opts = '<option value="">Any group</option>' + "".join(
         f'<option value="{e(g)}">{e(GROUP_LABEL[g])}</option>' for g in ("finish now", "back burner", "waiting", "done"))
 
-    completion = completion_section(entries)
+    completion = completion_section(entries, project)
+    features = features_section(ledgers)
 
     attention = ""
     if open_asks or requests:
@@ -642,6 +766,7 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         f'data-in-review="{totals["in review"]}" data-in-testing="{totals["in testing"]}">'
         f'<p class="line">{e(status_line)}</p>{mini_bar(totals)}</section></header>'
         f'{completion}'
+        f'{features}'
         f'<nav class="proposals" aria-label="Proposals">{blocks}</nav>'
         '<h2 id="details">Details</h2>'
         '<div class="filters" role="search">'
@@ -858,6 +983,42 @@ padding:6px 12px 6px 22px;font-size:12.5px;border-top:1px solid var(--rule)}
 .card .pct{margin:0;font:600 12.5px var(--mono);display:flex;align-items:center;gap:8px}
 .card .pct .fbar{width:60px;height:5px;display:inline-flex;border-radius:2px;overflow:hidden}
 .card .pct .next{font:12px var(--sans);font-weight:400}
+/* -- proposal 30, P-08: progress charts and the feature drill-down -- */
+.progress{margin-top:16px}
+.progress h3{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}
+.charts{display:flex;flex-direction:column;gap:16px}
+.charts svg{display:block;width:100%;height:auto;color:var(--dim)}
+.features{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
+.features h2{margin:0 0 6px}
+.fnote{margin:0 0 10px;font-size:12.5px}
+.frows{display:flex;flex-direction:column;gap:6px}
+.feature-row{background:var(--raise);border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.fphead{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:10px;align-items:center;
+padding:9px 12px;cursor:pointer;list-style:none}
+.fphead::-webkit-details-marker{display:none}
+.fphead .fpn{font:600 12.5px var(--mono);color:var(--dim)}
+.fphead .fptitle{font:14px var(--sans)}
+.fphead .fppct{font:600 12.5px var(--mono);font-variant-numeric:tabular-nums}
+.fphead .fpbar{width:90px;height:6px}
+.fphead .fpcount{font:12px var(--mono);color:var(--dim);white-space:nowrap}
+.fitems{border-top:1px solid var(--rule);background:var(--ground);padding:4px 0}
+.item-row{margin:2px 8px}
+.item-row .ihead{display:grid;grid-template-columns:auto 1fr auto 70px auto auto;gap:10px;align-items:center;
+padding:6px 8px;cursor:pointer;list-style:none;font-size:13px}
+.item-row .ihead::-webkit-details-marker{display:none}
+.item-row .iid{font:600 12px var(--mono);color:var(--dim)}
+.item-row .ipct{font:600 12px var(--mono);font-variant-numeric:tabular-nums}
+.item-row .ibar{height:5px}
+.item-row .inext{font-size:11.5px;white-space:nowrap}
+.pill.g-s-finish-now,.pill.g-s-back-burner,.pill.g-s-waiting,.pill.g-s-done{border-color:var(--rule);color:var(--dim)}
+.prow-details,.item-row .fitems .prow{margin-left:14px}
+.prow-details>summary.prow,.fitems>.prow{list-style:none;cursor:pointer}
+.prow-details>summary.prow::-webkit-details-marker{display:none}
+.prow{display:grid;grid-template-columns:90px 1fr 50px 50px 130px;gap:10px;align-items:center;
+padding:4px 8px;font-size:12px;color:var(--ink)}
+.prow .pid{font-family:var(--mono);color:var(--dim)}
+.prow .pshare,.prow .pcompl{font-family:var(--mono);color:var(--dim);text-align:right}
+.prow-details .fparts{margin-left:14px;border-left:1px solid var(--rule)}
 @media (prefers-reduced-motion:no-preference){.card,.proposal,.chip{transition:border-color .12s,background-color .12s}}
 """
 

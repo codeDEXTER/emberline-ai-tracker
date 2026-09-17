@@ -305,56 +305,157 @@ def _esc(text: str) -> str:
             .replace('"', "&quot;"))
 
 
-def _polyline(values: list[float], width: int, height: int, pad: int, y_range=None) -> str:
+_SVG_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
+def _short_date(value: str) -> str:
+    d = datetime.date.fromisoformat(value)
+    return f"{d.day} {_SVG_MONTHS[d.month - 1]}"
+
+
+def _fmt_count(v: float) -> str:
+    return f"{round(v):g}"
+
+
+def _fmt_percent(v: float) -> str:
+    s = f"{v:.1f}"
+    if s.endswith(".0"):
+        s = s[:-2]
+    return s + "%"
+
+
+def _nice_ticks(lo: float, hi: float, n: int = 4) -> list[float]:
+    """`n` evenly spaced ticks from `lo` to `hi` inclusive -- every one of
+    them a value the line actually spans, never a padded or rounded axis
+    the data never reaches. The sponsor's complaint about the old tracker
+    was exactly this: "the percentage does not give me a right figure
+    because 17%, I don't have the formula in my mind" -- a scaleless line
+    repeats it."""
+    if hi <= lo:
+        return [lo]
+    step = (hi - lo) / (n - 1)
+    return [lo + step * i for i in range(n)]
+
+
+def _x_tick_indexes(count: int, n: int = 4) -> list[int]:
+    """Up to `n` row indexes, evenly spaced, always including the first and
+    the last (P-08: "at minimum the first and last date")."""
+    if count <= 0:
+        return []
+    if count == 1:
+        return [0]
+    n = max(2, min(n, count))
+    seen: set = set()
+    idxs = []
+    for i in range(n):
+        idx = round(i * (count - 1) / (n - 1))
+        if idx not in seen:
+            seen.add(idx)
+            idxs.append(idx)
+    return idxs
+
+
+def _polyline(values: list[float], x, y) -> str:
     if not values:
         return ""
-    lo, hi = y_range if y_range is not None else (min(values), max(values))
-    if hi == lo:
-        hi = lo + 1
-    n = len(values)
-    span = max(n - 1, 1)
-
-    def x(i):
-        return pad + (width - 2 * pad) * (i / span)
-
-    def y(v):
-        return height - pad - (height - 2 * pad) * ((v - lo) / (hi - lo))
-
     return " ".join(f"{x(i):.1f},{y(v):.1f}" for i, v in enumerate(values))
 
 
-def _line_chart(width: int, height: int, series_list, title: str, y_range=None) -> str:
-    """One inline <svg> line chart with one polyline per (label, values,
-    color) in `series_list`. Colors are CSS custom properties with a
-    fallback, so the chart follows whatever page it is embedded in, in
+def _line_chart(width: int, height: int, series_list, dates: list[str], title: str, fmt) -> str:
+    """One inline, responsive <svg> line chart: a title, a labelled y-axis
+    (2-4 ticks with values the line actually reaches, plus a faint
+    gridline each), a labelled x-axis (first date, last date, one or two
+    between), a legend, and each line's own final value printed at its
+    last point -- the number a reader actually reads (P-08). `width` /
+    `height` size the viewBox; the element itself is `width="100%"` with a
+    `preserveAspectRatio`, so it fills whatever card holds it rather than
+    sitting in a fixed-size box with blank space around it. Colors --
+    lines, axis text, gridlines, the title -- are all CSS custom
+    properties with a fallback, so the chart follows the page's theme in
     light or dark mode, with no external stylesheet or script."""
-    pad = 24
+    left, right, top, bottom = 42, 60, 40, 20
+    plot_w = max(width - left - right, 1)
+    plot_h = max(height - top - bottom, 1)
+
+    all_values = [v for _, values, _ in series_list for v in values]
+    lo, hi = (min(all_values), max(all_values)) if all_values else (0, 1)
+    if hi == lo:
+        hi = lo + 1
+    n = max((len(values) for _, values, _ in series_list), default=0)
+    span = max(n - 1, 1)
+
+    def x(i):
+        return left + plot_w * (i / span)
+
+    def y(v):
+        return top + plot_h - plot_h * ((v - lo) / (hi - lo))
+
     parts_svg = [
-        f'<svg viewBox="0 0 {width} {height}" width="{width}" height="{height}" '
+        f'<svg viewBox="0 0 {width} {height}" width="100%" preserveAspectRatio="xMinYMin meet" '
         f'xmlns="http://www.w3.org/2000/svg" role="img" aria-label="{_esc(title)}" '
         f'class="tracker-history-chart">',
         f'<title>{_esc(title)}</title>',
         f'<rect x="0" y="0" width="{width}" height="{height}" '
         f'fill="var(--tracker-chart-bg, transparent)"/>',
-        f'<line x1="{pad}" y1="{height - pad}" x2="{width - pad}" y2="{height - pad}" '
-        f'stroke="var(--tracker-chart-axis, currentColor)" stroke-opacity="0.35" stroke-width="1"/>',
+        f'<text x="{left}" y="14" font-size="12" font-weight="600" '
+        f'fill="var(--tracker-chart-title, currentColor)">{_esc(title)}</text>',
     ]
+
+    for tv in _nice_ticks(lo, hi, 4):
+        ty = y(tv)
+        parts_svg.append(
+            f'<line x1="{left}" y1="{ty:.1f}" x2="{width - right}" y2="{ty:.1f}" '
+            f'stroke="var(--tracker-chart-grid, currentColor)" stroke-opacity="0.15" stroke-width="1"/>')
+        parts_svg.append(
+            f'<text x="{left - 6}" y="{ty + 3:.1f}" font-size="10" text-anchor="end" '
+            f'fill="var(--tracker-chart-axis, currentColor)" fill-opacity="0.75">{_esc(fmt(tv))}</text>')
+
+    baseline_y = top + plot_h
+    parts_svg.append(
+        f'<line x1="{left}" y1="{baseline_y}" x2="{width - right}" y2="{baseline_y}" '
+        f'stroke="var(--tracker-chart-axis, currentColor)" stroke-opacity="0.35" stroke-width="1"/>')
+    for idx in _x_tick_indexes(n):
+        tx = x(idx)
+        anchor = "start" if idx == 0 else "end" if idx == n - 1 else "middle"
+        parts_svg.append(
+            f'<text x="{tx:.1f}" y="{height - 5}" font-size="10" text-anchor="{anchor}" '
+            f'fill="var(--tracker-chart-axis, currentColor)" fill-opacity="0.75">'
+            f'{_esc(_short_date(dates[idx]))}</text>')
+
+    legend_x = left
     for label, values, color in series_list:
-        points = _polyline(values, width, height, pad, y_range=y_range)
+        points = _polyline(values, x, y)
         if points:
             parts_svg.append(
                 f'<polyline points="{points}" fill="none" stroke="{color}" '
                 f'stroke-width="2" stroke-linejoin="round" stroke-linecap="round" '
                 f'data-series="{_esc(label)}"/>')
+            last_v = values[-1]
+            lx, ly = x(len(values) - 1), y(last_v)
+            parts_svg.append(f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="2.5" fill="{color}"/>')
+            parts_svg.append(
+                f'<text x="{lx + 5:.1f}" y="{ly + 3:.1f}" font-size="11" font-weight="600" '
+                f'fill="{color}" data-endlabel="{_esc(label)}">{_esc(fmt(last_v))}</text>')
+        parts_svg.append(
+            f'<g transform="translate({legend_x},28)" data-legend="{_esc(label)}">'
+            f'<rect x="0" y="-8" width="9" height="9" rx="2" fill="{color}"/>'
+            f'<text x="13" y="0" font-size="10" '
+            f'fill="var(--tracker-chart-axis, currentColor)">{_esc(label)}</text></g>')
+        legend_x += 20 + 6 * len(label)
+
     parts_svg.append("</svg>")
     return "\n".join(parts_svg)
 
 
-def svg(series_rows: list[dict], width: int = 640, height: int = 200) -> str:
+def svg(series_rows: list[dict], width: int = 640, height: int = 210) -> str:
     """Two small inline SVG line charts from `series()`'s rows: ticket
-    counts (total vs done) and completion percent -- kept as two charts
-    rather than one dual-scale chart, since a shared axis for counts and a
-    percent misleads at a glance. No external libraries or URLs."""
+    counts (total vs done) and completion percent -- kept as two separate
+    charts rather than one dual-scale chart, since a shared axis for
+    counts and a percent misleads at a glance. No external libraries or
+    URLs. Each chart's y-axis spans exactly its own data's min..max (P-08:
+    never a fixed 0-100 the completion line rarely reaches, which is what
+    left a tall blank region below or above the line)."""
+    dates = [r["date"] for r in series_rows]
     totals = [r["tickets_total"] for r in series_rows]
     dones = [r["tickets_done"] for r in series_rows]
     completion = [r["completion_pct"] for r in series_rows]
@@ -362,11 +463,11 @@ def svg(series_rows: list[dict], width: int = 640, height: int = 200) -> str:
         width, height,
         [("total", totals, "var(--tracker-line-total, #4C6FFF)"),
          ("done", dones, "var(--tracker-line-done, #2FB170)")],
-        title="Tickets over time (total vs. done)")
+        dates, title="Tickets over time", fmt=_fmt_count)
     pct = _line_chart(
         width, height,
         [("completion", completion, "var(--tracker-line-completion, #B15EFF)")],
-        title="Completion over time (%)", y_range=(0, 100))
+        dates, title="Completion over time", fmt=_fmt_percent)
     return counts + "\n" + pct
 
 
