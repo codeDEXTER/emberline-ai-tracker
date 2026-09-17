@@ -218,10 +218,38 @@
           "event": "interim rerun 2026-09-16 22:50: FAIL so far. Subagent spend from 2026-09-16, deduped by message id, classified by brief title: review/fix 19.2% (n=5, 12.6M tokens), measurement/scout 10.2% (n=4), build 70.6% (n=8) -- all in one lead session, thin. Defects after merge not measurable as a rate: the 8 reopenings and 7 findings dated 16 Sep are the review of P19-29, not new defects. Final measurement scheduled for 2026-09-23 09:00",
           "by": "lead",
           "evidence": "docs/research/l02-measure.py"
+        },
+        {
+          "at": "2026-09-17T15:36:59+02:00",
+          "event": "split into lettered parts (proposal 30, P-05)",
+          "by": "lead",
+          "evidence": "docs/research/p30-migrate-parts.py"
         }
       ],
       "points": 2,
-      "value": "high"
+      "value": "high",
+      "parts": [
+        {
+          "id": "L-02.A",
+          "title": "rule and brief template changed",
+          "share": 60,
+          "status": "done"
+        },
+        {
+          "id": "L-02.B",
+          "title": "review/fix agents under 10% of subagent spend",
+          "share": 30,
+          "status": "in testing",
+          "waiting_until": "2026-09-23"
+        },
+        {
+          "id": "L-02.C",
+          "title": "no rise in defects after merge",
+          "share": 10,
+          "status": "in testing",
+          "waiting_until": "2026-09-23"
+        }
+      ]
     },
     {
       "id": "L-03",
@@ -628,10 +656,31 @@
           "event": "interim rerun 2026-09-16 22:50 (sponsor: 'implement the due later tasks'): FAIL so far. cat/sed -n reads 12.80 -> 7.74 per 100 tool calls (needs <=6.40); hand-appended HANDOFF/AGENT-LOG 0.005 -> 0.094 per 100 (raw 2 -> 1, thin); flutter test not measurable (no Flutter sessions). AFTER sample thin: 3 sessions, 1,060 tool calls. Final measurement scheduled for 2026-09-23 09:00 (scheduled task common-rules-l07-l02-calibration-remeasure)",
           "by": "lead",
           "evidence": "docs/research/l07-m03-measure.py"
+        },
+        {
+          "at": "2026-09-17T15:36:59+02:00",
+          "event": "split into lettered parts (proposal 30, P-05)",
+          "by": "lead",
+          "evidence": "docs/research/p30-migrate-parts.py"
         }
       ],
       "points": 2,
-      "value": "medium"
+      "value": "medium",
+      "parts": [
+        {
+          "id": "L-07.A",
+          "title": "brief MUST lines name the right tool",
+          "share": 80,
+          "status": "done"
+        },
+        {
+          "id": "L-07.B",
+          "title": "mining rerun shows each cluster halved",
+          "share": 20,
+          "status": "in testing",
+          "waiting_until": "2026-09-23"
+        }
+      ]
     },
     {
       "id": "M-01",

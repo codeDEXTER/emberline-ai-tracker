@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-17 14:37
+# Checkpoint — 2026-09-17 19:37
 
-Reason: manual · branch: worktree-agent-a38e1ed1e329200d1 · HEAD: 0f8afe6
+Reason: manual · branch: p30-p05 · HEAD: 47fa799
 
-<!-- ledger-digest: ff2280e25add9f214777abfc2a462fb323c69de2ad7c09f62adfecb3b9143bb7 -->
+<!-- ledger-digest: 7a4fd754c89ae8e6c7f0b1aed59cb4e8c26b0945e3911e179a34c286f2c1a30a -->
 
 ## Proposal 19 · Warm-up
 
@@ -10,7 +10,7 @@ Reason: manual · branch: worktree-agent-a38e1ed1e329200d1 · HEAD: 0f8afe6
 
 ### In progress
 
-- W-10 · [ruflo · low · haiku] · Pilot on the PhotoVault engine; measure the exit conditions · interim reading of conditions 4 and 5, 2026-09-14 to 2026-09-16 22:47: common-rules NOT MET on both -- (4) 94 sponsor messages: 29 with an ask row, 11 answers, 54 unmatched; (5) 130 agent briefs, 74 with all five headings (missing CONTEXT 45, OWNS 54, MUST 48, MUST NOT 45, OUTPUT 44). Caveat: the -Users-the-sponsor-apps transcript slug mixes common-rules with other projects' sessions started in apps/. PhotoVault engine and app not measurable: no main-session transcripts in the window. Full-week measurement scheduled for 2026-09-21 09:00 (scheduled task common-rules-w10-pilot-week-measure)
+- W-10 · [ruflo · low · haiku] · Pilot on the PhotoVault engine; measure the exit conditions · split into lettered parts (proposal 30, P-05)
 
 ### Blocked, and why
 
