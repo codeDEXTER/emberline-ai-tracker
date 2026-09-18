@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 09:44
+# Checkpoint — 2026-09-18 09:50
 
-Reason: manual · branch: p32-versioning · HEAD: 7afc99f
+Reason: manual · branch: p32-baseline-decided · HEAD: cb77a6c
 
-<!-- ledger-digest: 2335ce0f049fc822c44b6d829e2b32bd3d2fced8a4cab5753d9b60d2d1fd88a8 -->
+<!-- ledger-digest: ba5b762545e1f725b7944f88ab95fcd081e80cd2bf4a568e87e07759418c3ce0 -->
 
 ## Proposal 19 · Warm-up
 
@@ -62,7 +62,7 @@ Reason: manual · branch: p32-versioning · HEAD: 7afc99f
 
 ### In progress
 
-- L-07 · [ruflo · medium · sonnet] · Use the existing tool, not an inline copy · split into lettered parts (proposal 30, P-05)
+- L-07 · [ruflo · medium · sonnet] · Use the existing tool, not an inline copy · back burner, by the sponsor's decision
 
 ### Blocked, and why
 
@@ -120,7 +120,7 @@ Reason: manual · branch: p32-versioning · HEAD: 7afc99f
 
 ### Open asks
 
-- A-01 · "Can you version the common rule and release a baseline when the pending tasks are done. Use semantic version version and change Lock to maintain it going ahead"
+- none
 
 ### Next unblocked
 
