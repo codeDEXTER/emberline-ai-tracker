@@ -57,61 +57,56 @@
 <div class="wrap">
 
 <h1><span class="num">33</span> · <span class="status">proposed</span> · Why the standard gets missed, and what to cut</h1>
-<p class="sub">Proposal 33 · proposed 2026-09-18. <span class="fill">One paragraph: what this asks the sponsor to decide, and why now.</span></p>
+<p class="sub">Proposal 33 · proposed 2026-09-18. Twenty-one findings in one session, a release that had to be cut twice because main went red, and a rule the briefs themselves broke ten times. This is the review of why, measured rather than argued, and the five things that would change it. The cutting decisions are the sponsor's.</p>
 
 <h2>The ask</h2>
 <blockquote>
-  <span class="fill">The sponsor's words, verbatim, read from disk: a transcript line, a message, or a ledger ask. Never a summary or a paraphrase.</span>
-  <cite><span class="fill">The sponsor, the date and time, and where the words are recorded.</span></cite>
+  Can you do a thorough review and identify why we are missing these items? Can we optimize all these rules so when I warm up or reheat a project, they follow it to the point and not miss anything? Do we need to deprecate any of the old mechanisms and make it as concise and precise as possible?
+  <cite>The sponsor, 18 Sep 2026, in this session's chat; recorded as ask A-01 in the ledger beside this page.</cite>
 </blockquote>
 
 <h2>What was found</h2>
 <div class="card">
   <ul>
-    <li><span class="fill">A finding, measured, with the number and where it came from.</span></li>
-    <li><span class="fill">Another finding. Say what was not verified, too.</span></li>
+    <li><b>Nine of sixteen.</b> Of the 126 done-criteria across these ledgers, 16 demand a measurement — and <b>nine of those sixteen were closed without performing it</b> (finding 23/F-02: H-02, H-03, Z-05, M-03, L-01, L-02, L-06, L-07, T-06). The build half was done in every case. The verification half was skipped and the item closed anyway. <b>Nothing refuses.</b> 23/F-07 and 28/F-01 are two more of the same shape, found separately.</li>
+    <li><b>Checks that fire at the wrong moment.</b> <span class="m">docs/workflow.html</span> drifted behind the rules twice in two days and main went red both times. The check that catches it — <span class="m">bin/workflow-stamp --check</span> — exists and is correct, and it lives in <span class="m">gates.merge</span>, while a builder runs a scoped test set. So it only ever fires at integration, when the cost is highest and the author has moved on.</li>
+    <li><b>Copies that drift in silence.</b> <span class="m">.claude/skills/{warmup,reheat}/SKILL.md</span> are committed copies <span class="m">derecord</span> keeps identical to the source — but only when someone runs derecord. They sat two days stale, missing the very fixes shipped that morning, and Claude Code <em>prefers</em> those directory-scoped copies for files under that directory (31/F-07).</li>
+    <li><b>76 prose rules against 12 machine checks</b>, and a mandatory read of about <b>16,200 tokens</b> — 13% of a context window before any work begins. <span class="m">CLAUDE-workflow.md</span> alone is 10,100 of it.</li>
+    <li><b>What held was code; what failed was prose.</b> Held: parts validation, <span class="m">quiet</span>'s verdict read from the runner's own summary, <span class="m">land</span>'s refusals, <span class="m">proposalcheck</span>. Failed: "use the existing tool, not an inline copy" is <em>measurably</em> failing at 9.54 <span class="m">cat</span>/<span class="m">sed -n</span> calls per 100 tool calls against the 6.40 that would count as halved — and it moved backwards since the interim reading. "The ledger has one writer; a builder stages, never sets" was broken ten times in one day by the lead's own brief template (31/F-06).</li>
+    <li><b>Tool defects surface on first real use, not in tests.</b> Seven of the twenty-one findings are that shape: <span class="m">ruflo-item</span> failing in every worktree, <span class="m">spend calibrate --help</span> running a real calibration, <span class="m">--add-part</span> unable to build parts up, <span class="m">--waiting-until</span> silently ignored when editing, <span class="m">rulecheck --align</span> stamping unconditionally, <span class="m">land_one</span> trusting an exit code.</li>
+    <li><b>Not verified:</b> whether the same ratio holds outside this repo. Every number here is common-rules' own ledgers and transcripts; no project has enough closed items under the standard to compare against.</li>
   </ul>
 </div>
 
 <h2>Options</h2>
 <div class="opt">
   <div class="card">
-    <h3>A · <span class="fill">option name</span></h3>
-    <p><span class="fill">What gets built, what it costs, and what it rules out.</span></p>
+    <h3>A · Write the rules better</h3>
+    <p>Rewrite the prose so it is shorter, sharper and harder to skim past. Cheap, and it is what every previous round did — the must-read has a 3,000-word target and stands at 8,600. The evidence says a session that must remember 76 rules will follow the ones it happens to recall.</p>
   </div>
   <div class="card">
-    <h3>B · <span class="fill">option name</span></h3>
-    <p><span class="fill">What gets built, what it costs, and what it rules out.</span></p>
+    <h3>B · Make the machine refuse</h3>
+    <p>Convert rules into refusals wherever a refusal is possible, move the checks earlier so they fire on the author's own machine, and cut whatever is left that nothing enforces. Costs real work per rule, and some rules — judgment ones — cannot become code and must stay prose, deliberately and few.</p>
   </div>
 </div>
-<p><b>Recommended:</b> <span class="fill">the option, and the one reason that decides it.</span></p>
+<p><b>Recommended: B, and the reason is in the evidence above.</b> Every rule that held this session was enforced by code. Every rule that failed was prose asking a session to remember. A shorter document is still a document.</p>
 
 <h2>Decisions</h2>
 <p class="sub">Each numbered line is one thing the sponsor answers. Keep the numbers stable once shown: answers and ledger items cite them.</p>
 <ol class="decisions">
-  <li><b>D1.</b> <span class="fill">The first decision, as a question with one answer.</span></li>
-  <li><b>D2.</b> <span class="fill">The second decision. Add or remove lines; never leave the list empty.</span></li>
+  <li><b>D1.</b> Should closing an item be <em>refused</em> when its own done criterion demands a measurement and the closing event carries no number? → R-01</li>
+  <li><b>D2.</b> Should the cheap pre-checks move into the builder's own gate, so drift fails on the author's machine rather than at integration? → R-02</li>
+  <li><b>D3.</b> Should conformance fail a project whose skill copies have drifted from the source? → R-03</li>
+  <li><b>D4.</b> Every rule in the must-read gets one of three verdicts — enforced by code, moved to reference and out of the mandatory read, or cut. Is that inventory worth doing, knowing it will shrink what a session is told? → R-04</li>
+  <li><b>D5.</b> What may be deleted outright: <span class="m">/standard</span> (its own description says it is a shortcut for <span class="m">/warmup</span> and will be removed), the folded Lanes block, and <span class="m">tracker set --add-part</span>'s incremental path that cannot work. Deprecations that never delete are how a standard grows past being read. → R-05</li>
 </ol>
 
 <h2>Decided</h2>
 <section class="slot">
-  <p>Not decided yet. When the sponsor answers, change this page in this order.</p>
-  <ol>
-    <li><b>The date, first.</b> Copy this line into the head, directly under the status meta, and put the real date in place of YYYY-MM-DD:
-      <pre class="m">&lt;meta name="proposal-decided" content="YYYY-MM-DD"&gt;</pre>
-      Without it, bin/proposalcheck treats the page as decided before its rules existed and checks nothing.</li>
-    <li><b>Then the status.</b> Replace the proposed status meta with this line:
-      <pre class="m">&lt;meta name="proposal-status" content="accepted"&gt;</pre>
-      and change "proposed" to "accepted" in the title, the heading, and the "Proposal NN · proposed DATE" line under it.</li>
-    <li>Write both lines exactly as shown. Do not self-close them with <span class="m">/&gt;</span>: bin/proposalcheck does not read that form, and the page would read as undecided.</li>
-    <li>Give this section the id <span class="m">decided</span>, and replace this text with the sponsor's answer quoted from disk, the date, and what each of D1, D2 ... was decided as.</li>
-    <li>Add the items to the ledger beside this page (same number, <span class="m">.json</span>).</li>
-  </ol>
-  <p>The id is added by hand, on purpose. A page that shipped with an empty answers block would pass bin/proposalcheck while recording nothing.</p>
-  <p><b>Completed in part.</b> A proposal closed as <span class="m">completed in part</span> also needs a block with the id exceptions beside the <span class="m">&lt;ol class="decisions"&gt;</span> list, naming what was not built and why. The same rule applies: add it when it is true, never in advance.</p>
+  <p>Not decided yet. D4 and D5 delete things a session currently reads, and that is the sponsor's call rather than the lead's. D1 to D3 add refusals and cost nothing but the work.</p>
 </section>
 
-<p class="src"><span class="fill">Sources: every claim above, with the file, command, transcript or measurement it rests on, and what was not verified.</span></p>
+<p class="src">Sources: the nine-of-sixteen count is finding 23/F-02 plus a scan of every <span class="m">done</span> field in <span class="m">docs/proposals/*.json</span> (126 criteria, 16 demanding a measurement). The 76 prose rules are headed bold lines in <span class="m">CLAUDE-workflow.md</span>; the 16,200-token read is that file plus HANDOFF.md, CLAUDE.md, docs/OPERATING-RULES.md and the warm-up skill, measured in characters over four. The 9.54 per 100 figure is <span class="m">docs/research/l07-m03-measure.py</span> run 18 Sep. The twenty-one findings are the <span class="m">findings</span> arrays of proposals 21 to 31. Not verified: whether the same ratios hold in any project outside this repo.</p>
 
 </div>
 </body>
