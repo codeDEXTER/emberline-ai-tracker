@@ -36,11 +36,26 @@ class TestRealCheckoutVersion(unittest.TestCase):
         parse_semver(text.strip())  # raises ValueError if not MAJOR.MINOR.PATCH
 
     def test_version_file_content_is_pinned(self):
-        # Every other test in this suite reads VERSION rather than asserting
-        # a literal -- this is the one place the starting value (proposal 32,
-        # V-01: "starting at 0.9.0 -- not 1.0.0") is pinned, so a bump shows
-        # up as an intentional, reviewed diff to this one line.
-        self.assertEqual((ROOT / "VERSION").read_text(encoding="utf-8"), "0.9.0\n")
+        """The released version, pinned so a bump is a reviewed one-line diff.
+
+        Every other test here reads VERSION; this one asserts a literal, on
+        purpose (proposal 32, V-01), so raising the version cannot happen by
+        accident or by a tool nobody watched.
+
+        **Update this line in the same commit that edits VERSION.** It was
+        missed at 1.0.0 and again at 1.0.1: main sat red both times, and the
+        full suite that would have caught it ran just BEFORE the bump, not
+        after. That is finding 33/R-02's case exactly -- a check that exists
+        and fires too late to stop the thing it checks.
+        """
+        pinned = "1.0.1\n"
+        actual = (ROOT / "VERSION").read_text(encoding="utf-8")
+        self.assertEqual(
+            actual, pinned,
+            f"VERSION is {actual.strip()!r} but this test still pins "
+            f"{pinned.strip()!r}. If the bump was deliberate, update this one "
+            f"line in the same commit as VERSION; if it was not, that is what "
+            f"this test is for.")
 
     def test_rulecheck_reports_both_the_semver_and_the_count(self):
         """`--version --semver` is the human form; bare `--version` is not.
