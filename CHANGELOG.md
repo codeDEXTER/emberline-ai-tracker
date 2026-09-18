@@ -1,3 +1,29 @@
+## 2026-09-18 · two decisions the lead was asked to make itself (31/A-02)
+
+The sponsor: "make the decisions yourself for the pending items and complete
+the work." and "I will run the pilots myself."
+
+**Who merges a rule change here (finding 31/F-03) — no contradiction after
+all, and no file changed.** CLAUDE.md line 18 governs *initiative*: a session
+never starts a change to these rules of its own accord, and that line stands
+exactly as written. The ruling of 14 Sep 2026 governs *mechanics*: a change
+the sponsor directed, once its gate is green and its review has passed, is
+merged by the lead rather than handed back as a `gh pr merge` command.
+`bin/land` keeps refusing to land automatically inside common-rules, for the
+reason written beside that guard — landing automatically would let the AI
+change the rules it operates under without anyone saying yes. A reviewed PR
+merged by the lead is not that, because the change was directed and the
+review happened.
+
+**common-rules does not declare a `staging_branch` (O-08).** Three reasons.
+`bin/land` refuses inside this repo, so `--advance-staging` could never run
+here and the mechanism would sit inert. The merge gate is now 201.5s, so the
+red-main insurance a staging branch buys is already affordable by running the
+gate. And a feature that has only ever run against fixture repos should not
+debut on the repo every other project depends on. It ships available and
+undeclared; the sponsor pilots it where he chooses, in his words: "I will run
+the pilots myself."
+
 ## 2026-09-18 · the proposal tree is the top view, and a Kanban view sits beside it (P-09, P-10)
 
 The sponsor: "at the top, there should be like proposal nineteen. And when I
