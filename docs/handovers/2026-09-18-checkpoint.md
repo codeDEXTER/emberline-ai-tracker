@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 08:47
+# Checkpoint — 2026-09-18 09:00
 
-Reason: manual · branch: o11-ruflo-batch · HEAD: 6057c59
+Reason: manual · branch: p30-filters · HEAD: 2dadf08
 
-<!-- ledger-digest: 21029f1df1be08a7bbed050865f235e167e6ff5361358a065a1d69a9b19c3aad -->
+<!-- ledger-digest: 1bd1679a55198ede57182e678401a9bb9264273fd0280a8b27c37b8b74f95d07 -->
 
 ## Proposal 19 · Warm-up
 
@@ -81,31 +81,6 @@ Reason: manual · branch: o11-ruflo-batch · HEAD: 6057c59
 **waiting**
 - L-02 60% · next L-02.B (waiting 2026-09-23)
 - L-07 80% · next L-07.B (waiting 2026-09-23)
-
-## Proposal 30 · Tracker shows how complete each item is, by lettered parts
-
-10 done / 0 in progress / 0 blocked / 1 not started
-
-### In progress
-
-- none
-
-### Blocked, and why
-
-- none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- P-11 · [ruflo · high · sonnet] · One filter bar at the top, governing every view
-
-### Open work by group
-
-**finish now**
-- P-11 0%
 
 ## Exact next action
 

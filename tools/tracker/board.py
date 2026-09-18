@@ -594,7 +594,11 @@ def feature_children(item: dict) -> list[dict]:
 def feature_node_row(node: dict) -> str:
     """One part (or sub-part, at any depth) as a row -- a <details> when it
     has its own sub-parts (recursing to any depth parts.tree() carries), a
-    plain row otherwise."""
+    plain row otherwise. Carries data-pstatus/data-psearch (proposal 30,
+    P-11) so a status or search filter, or the Pending toggle, can hide one
+    part without touching its siblings -- "an item that does not match is
+    hidden; a part that does not match is hidden" is decided per node, not
+    per item."""
     cls, label, title = part_pill(node)
     title_attr = f' title="{e(title)}"' if title else ""
     share = node.get("share")
@@ -605,23 +609,32 @@ def feature_node_row(node: dict) -> str:
                f'<span class="ptitle" title="{e(node.get("title"))}">{e(node.get("title"))}</span>'
                f'{share_html}{compl_html}'
                f'<span class="pill p-{cls}"{title_attr}>{e(label)}</span>')
+    pdata = (f' data-pstatus="{e(node.get("status") or "")}" '
+             f'data-psearch="{e(search_text(node.get("id"), node.get("title")))}"')
     children = node.get("parts") or []
     if children:
         body = "".join(feature_node_row(c) for c in children)
-        return (f'<details class="prow-details"><summary class="prow">{summary}</summary>'
+        return (f'<details class="prow-details"><summary class="prow"{pdata}>{summary}</summary>'
                 f'<div class="fparts">{body}</div></details>')
-    return f'<div class="prow">{summary}</div>'
+    return f'<div class="prow"{pdata}>{summary}</div>'
 
 
 def feature_item_row(item: dict, number) -> str:
     """One item under a feature (proposal) row: its own completion %, bar,
-    group pill and next part, expanding to its parts."""
+    group pill and next part, expanding to its parts. Carries the same
+    data-status/owner/tier/group/search set as a Board card or List row
+    (proposal 30, P-11) so the one filter bar governs the Tree exactly like
+    every other view, through the same generic match()."""
     pct = PARTS.completion(item)
     grp = PARTS.group(item)
     nxt = PARTS.next_part(item)
     next_text = f'next: {e(nxt.get("id"))} · {e(nxt.get("title"))}' if nxt else "all parts done"
     body = "".join(feature_node_row(c) for c in feature_children(item))
-    return (f'<details class="item-row" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}">'
+    owner = item.get("owner") or ""
+    return (f'<details class="item-row" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
+            f'data-status="{e(item.get("status") or "")}" data-owner="{e(owner)}" '
+            f'data-tier="{e(item.get("tier") or "")}" data-group="{e(grp)}" '
+            f'data-search="{e(item_search(item, number))}">'
             f'<summary class="ihead"><span class="iid">{e(item.get("id"))}</span>'
             f'<span class="ititle" title="{e(item.get("title"))}">{e(item.get("title"))}</span>'
             f'<span class="ipct">{pct}%</span>'
@@ -642,7 +655,8 @@ def proposal_feature_row(number, data, counts) -> str:
             f'<span class="fptitle" title="{e(data.get("title"))}">{e(data.get("title"))}</span>'
             f'<span class="fppct">{pct}%</span>'
             f'<span class="fpbar">{mini_bar(counts)}</span>'
-            f'<span class="fpcount">{done}/{total} items done</span></summary>'
+            f'<span class="fpcount">{done}/{total} items done</span>'
+            f'<span class="fpmatched" hidden></span></summary>'
             f'<div class="fitems">{rows}</div></details>')
 
 
@@ -687,8 +701,14 @@ def kanban_card(item: dict, number) -> str:
         rows = "".join(part_sub_row(p) for p in parts)
         body = (f'<details class="kparts"><summary>{done} of {len(parts)} parts done</summary>'
                 f'<div class="fparts">{rows}</div></details>')
+    owner = item.get("owner") or ""
+    # Carries the same owner/tier/group/search set as a Board card or List
+    # row (proposal 30, P-11), so Kanban is filtered by the one bar exactly
+    # like every other view, through the same generic match().
     return (f'<article class="kcard" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
-            f'data-status="{e(item.get("status") or "")}">'
+            f'data-status="{e(item.get("status") or "")}" data-owner="{e(owner)}" '
+            f'data-tier="{e(item.get("tier") or "")}" data-group="{e(PARTS.group(item))}" '
+            f'data-search="{e(item_search(item, number))}">'
             f'<header><span class="kid">{e(item.get("id"))}</span><span class="pnum">P{e(number)}</span></header>'
             f'<h3 class="ktitle" title="{e(title)}">{e(title)}</h3>'
             f'<p class="kpct">{pct}% <span class="fbar kbar">{feature_bar(item)}</span></p>'
@@ -845,30 +865,33 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         f'data-blocked="{totals["blocked"]}" data-not-started="{totals["not started"]}" '
         f'data-in-review="{totals["in review"]}" data-in-testing="{totals["in testing"]}">'
         f'<p class="line">{e(status_line)}</p>{mini_bar(totals)}</section></header>'
-        f'{tiles_block}'
-        f'<div id="view-tree">{features}{progress}{completion_groups_block}</div>'
-        f'<div id="view-kanban">{kanban}</div>'
-        f'<nav class="proposals" aria-label="Proposals">{blocks}</nav>'
-        '<h2 id="details">Details</h2>'
         '<div class="filters" role="search">'
-        '<div class="views topview" role="group" aria-label="Top view">'
-        '<button type="button" data-topview="tree" aria-pressed="true">Tree</button>'
-        '<button type="button" data-topview="kanban" aria-pressed="false">Kanban</button></div>'
-        f'<label class="sel"><span>Group</span><select id="group">{group_opts}</select></label>'
+        '<div class="views" role="group" aria-label="View">'
+        '<button type="button" data-view="tree" aria-pressed="true">Tree</button>'
+        '<button type="button" data-view="kanban" aria-pressed="false">Kanban</button>'
+        '<button type="button" data-view="board" aria-pressed="false">Board</button>'
+        '<button type="button" data-view="list" aria-pressed="false">List</button></div>'
         '<input type="search" id="q" placeholder="Search ids, titles, tags, logs" aria-label="Search">'
         f'<div class="chips" role="group" aria-label="Status">{chips}</div>'
+        '<label class="toggle pending"><input type="checkbox" id="pending"><span>Pending</span></label>'
+        f'<label class="sel"><span>Group</span><select id="group">{group_opts}</select></label>'
         f'<label class="sel"><span>Owner</span><select id="owner">{owner_opts}</select></label>'
         f'<label class="sel"><span>Tier</span><select id="tier">{tier_opts}</select></label>'
-        '<div class="views" role="group" aria-label="View">'
-        '<button type="button" data-view="board" aria-pressed="true">Board</button>'
-        '<button type="button" data-view="list" aria-pressed="false">List</button></div>'
         '<label class="toggle"><input type="checkbox" id="show-finished"><span>Show finished</span></label>'
         '<button type="button" class="clear" id="clear">Clear</button>'
-        '<p class="shown" id="shown" aria-live="polite"></p></div>'
+        '<p class="shown" id="shown" aria-live="polite"></p>'
+        '<p class="pending-rule dim">Pending hides everything already done, at every level, and forces '
+        '"Show finished" off while it is on -- turn Pending off to let "Show finished" decide done work again.</p>'
+        '</div>'
+        f'{tiles_block}'
+        f'<div id="view-tree">{features}{progress}{completion_groups_block}</div>'
+        f'<div id="view-kanban" hidden>{kanban}</div>'
+        f'<nav class="proposals" aria-label="Proposals">{blocks}</nav>'
+        '<h2 id="details">Details</h2>'
         f'{attention}'
         f'{clusters}'
         f'{lanes}'
-        f'<div class="board" id="board">{"".join(columns)}</div>'
+        f'<div class="board" id="board" hidden>{"".join(columns)}</div>'
         '<div class="list" id="list" hidden><div class="scroll"><table><thead><tr>'
         '<th>ID</th><th>Proposal</th><th>Item</th><th>Status</th><th>Owner</th><th>Tag</th><th>Issue</th><th>Last</th>'
         f'</tr></thead><tbody>{list_rows}</tbody></table></div></div>'
@@ -1021,6 +1044,10 @@ td.mono a{color:var(--accent)}
 .answered .asks{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:12px 14px}
 .toggle{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;color:var(--dim);cursor:pointer}
 .toggle input{cursor:pointer}
+.toggle.pending{color:var(--ink);font-weight:600}
+.toggle.pending input{accent-color:var(--accent)}
+.toggle input:disabled+span{opacity:.5}
+.pending-rule{flex-basis:100%;margin:2px 0 0;font-size:11.5px;order:99}
 /* -- proposal 30: completion overview -- */
 .completion{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
 .completion h2{margin:0 0 12px}
@@ -1080,7 +1107,7 @@ max-height:2.6em;white-space:normal;overflow-wrap:anywhere}
 .fnote{margin:0 0 10px;font-size:12.5px}
 .frows{display:flex;flex-direction:column;gap:6px}
 .feature-row{background:var(--raise);border:1px solid var(--rule);border-radius:6px;overflow:hidden}
-.fphead{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:10px;align-items:center;
+.fphead{display:grid;grid-template-columns:auto 1fr auto auto auto auto;gap:10px;align-items:center;
 padding:9px 12px;cursor:pointer;list-style:none}
 .fphead::-webkit-details-marker{display:none}
 .fphead .fpn{font:600 12.5px var(--mono);color:var(--dim)}
@@ -1089,6 +1116,7 @@ overflow:hidden;max-height:2.8em;white-space:normal;overflow-wrap:anywhere}
 .fphead .fppct{font:600 12.5px var(--mono);font-variant-numeric:tabular-nums}
 .fphead .fpbar{width:90px;height:6px}
 .fphead .fpcount{font:12px var(--mono);color:var(--dim);white-space:nowrap}
+.fphead .fpmatched{font:600 12px var(--mono);color:var(--accent);white-space:nowrap}
 .fitems{border-top:1px solid var(--rule);background:var(--ground);padding:4px 0}
 .item-row{margin:2px 8px}
 .item-row .ihead{display:grid;grid-template-columns:auto 1fr auto 70px auto auto;gap:10px;align-items:center;
@@ -1110,7 +1138,6 @@ padding:4px 8px;font-size:12px;color:var(--ink)}
 .prow .pshare,.prow .pcompl{font-family:var(--mono);color:var(--dim);text-align:right}
 .prow-details .fparts{margin-left:14px;border-left:1px solid var(--rule)}
 /* -- proposal 30, P-10: the Tree/Kanban top view and the Kanban board -- */
-.topview{margin-right:4px}
 #view-kanban{margin-top:0}
 .kanban{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
 .kanban h2{margin:0 0 12px}
@@ -1140,14 +1167,51 @@ SCRIPT = r"""
 (function(){
   var $ = function(s, r){ return (r || document).querySelector(s); };
   var $$ = function(s, r){ return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
-  var state = {proposal: "", statuses: [], owner: "", tier: "", group: "", q: "", view: "board", showFinished: false,
-               topview: "tree"};
-  try { var v = localStorage.getItem("tracker-view"); if (v === "list" || v === "board") state.view = v; } catch (e) {}
-  try { var tv = localStorage.getItem("tracker-topview"); if (tv === "tree" || tv === "kanban") state.topview = tv; }
-  catch (e) {}
+  var VIEWS = ["tree", "kanban", "board", "list"];
+  // proposal 30, P-11: one filter bar, at the top, governing all four views
+  // (Tree/Kanban/Board/List) alike. State (view, every filter, the search
+  // text and the Pending toggle) persists per viewer in localStorage --
+  // every read and write of it is wrapped in try/catch, and a throwing or
+  // empty store still renders the page correctly (Tree, no filters, the
+  // built-in defaults below).
+  var state = {proposal: "", statuses: [], owner: "", tier: "", group: "", q: "",
+               view: "tree", pending: false, showFinished: false};
+  try {
+    var v = localStorage.getItem("tracker-view");
+    if (VIEWS.indexOf(v) >= 0) state.view = v;
+  } catch (e) {}
+  try {
+    var raw = localStorage.getItem("tracker-filters");
+    var f = raw ? JSON.parse(raw) : null;
+    if (f && typeof f === "object") {
+      if (typeof f.proposal === "string") state.proposal = f.proposal;
+      if (Array.isArray(f.statuses)) state.statuses = f.statuses.filter(function(s){ return typeof s === "string"; });
+      if (typeof f.owner === "string") state.owner = f.owner;
+      if (typeof f.tier === "string") state.tier = f.tier;
+      if (typeof f.group === "string") state.group = f.group;
+      if (typeof f.q === "string") state.q = f.q;
+      if (typeof f.pending === "boolean") state.pending = f.pending;
+      if (typeof f.showFinished === "boolean") state.showFinished = f.showFinished;
+    }
+  } catch (e) {}
+  function persist(){
+    try { localStorage.setItem("tracker-view", state.view); } catch (e) {}
+    try {
+      localStorage.setItem("tracker-filters", JSON.stringify({
+        proposal: state.proposal, statuses: state.statuses, owner: state.owner, tier: state.tier,
+        group: state.group, q: state.q, pending: state.pending, showFinished: state.showFinished
+      }));
+    } catch (e) {}
+  }
+  // Pending hides everything already done, at every level, and always wins
+  // over "Show finished" -- the two controls can never disagree because
+  // "Show finished" is forced off (and disabled) for as long as Pending is
+  // on. With Pending off, "Show finished" decides done work exactly as
+  // before.
+  function hideFinished(){ return state.pending || !state.showFinished; }
   var items = $$("[data-item]");
   var searchById = {};
-  $$("article[data-item]").forEach(function(card){ searchById[card.dataset.id] = card.dataset.search || ""; });
+  $$("article[data-item],[data-item].item-row").forEach(function(card){ searchById[card.dataset.id] = card.dataset.search || ""; });
   var rows = $$("tr[data-item]");
   rows.forEach(function(row){ row.dataset.search = searchById[row.dataset.id] || ""; });
   function match(el, ignoreStatus, ignoreFinished){
@@ -1157,20 +1221,91 @@ SCRIPT = r"""
     if (state.owner && d.owner !== state.owner) return false;
     if (state.tier && d.tier !== state.tier) return false;
     if (state.group && d.group !== state.group) return false;
-    if (!ignoreFinished && !state.showFinished && d.group === "done" && state.group !== "done") return false;
+    if (!ignoreFinished && hideFinished() && d.group === "done" && state.group !== "done") return false;
     if (state.q && (d.search || "").indexOf(state.q) < 0) return false;
     return true;
   }
+  // Every part (or sub-part, at any depth) in the Proposals tree, filtered
+  // on its own: a part that does not match the active status/Pending/search
+  // filters is hidden without touching its siblings. A part with sub-parts
+  // (a <details class="prow-details">) stays visible when it, or any
+  // descendant, matches -- and opens to reveal the match.
+  function partOwnMatches(row){
+    if (!row) return true;
+    if (state.statuses.length && state.statuses.indexOf(row.dataset.pstatus) < 0) return false;
+    if (state.pending && row.dataset.pstatus === "done") return false;
+    if (state.q && (row.dataset.psearch || "").indexOf(state.q) < 0) return false;
+    return true;
+  }
+  function filterPartNode(el){
+    if (!el || !el.classList) return true;
+    if (el.classList.contains("prow-details")) {
+      var summary = $(":scope > summary.prow", el);
+      var childWrap = $(":scope > .fparts", el);
+      var childVisible = false;
+      if (childWrap) {
+        Array.prototype.forEach.call(childWrap.children, function(c){
+          if (filterPartNode(c)) childVisible = true;
+        });
+      }
+      var visible = partOwnMatches(summary) || childVisible;
+      el.hidden = !visible;
+      if (visible && childVisible) el.open = true;
+      return visible;
+    }
+    if (el.classList.contains("prow")) {
+      var ok = partOwnMatches(el);
+      el.hidden = !ok;
+      return ok;
+    }
+    return true;
+  }
+  function anyPartFilterActive(){ return state.statuses.length > 0 || state.pending || !!state.q; }
+  function applyTreeParts(){
+    $$(".item-row").forEach(function(irow){
+      var wrap = $(".fitems", irow);
+      if (!wrap) return;
+      var any = false;
+      Array.prototype.forEach.call(wrap.children, function(node){
+        if (filterPartNode(node)) any = true;
+      });
+      if (any && anyPartFilterActive() && !irow.hidden) irow.open = true;
+    });
+  }
+  // A proposal shows how many of its items matched -- "3 of 16 items" --
+  // next to its real done-count, which never moves: a filter narrows what
+  // is shown, never what the numbers say is true. A proposal left with no
+  // matching items is hidden entirely, and one that still has a match
+  // opens on its own so the sponsor sees what matched without a second
+  // click -- he is filtering in order to see the matches. It never closes
+  // itself back while a filter is active, only Clear does that, so a
+  // proposal the sponsor opened by hand is never fought.
+  function applyFeatures(anyFilter){
+    $$(".feature-row").forEach(function(frow){
+      var rows2 = $$(".item-row", frow);
+      var total = rows2.length, matched = 0;
+      rows2.forEach(function(r){ if (!r.hidden) matched++; });
+      var mEl = $(".fpmatched", frow);
+      if (mEl) {
+        mEl.hidden = !anyFilter;
+        mEl.textContent = anyFilter ? matched + " of " + total + " items" : "";
+      }
+      frow.hidden = anyFilter && matched === 0;
+      if (anyFilter && matched > 0) frow.open = true;
+    });
+  }
   function apply(){
     var shown = 0, total = 0, byStatus = {};
-    // Count only the Details section's own board cards / list rows (class
-    // "card" / "row") -- never the Kanban board's cards (class "kcard").
-    // Both carry [data-item] and a card is an <article> same as a kcard, so
-    // a bare tagName check double-counts a kcard into "#shown" and every
-    // status chip whenever the Kanban view exists in the page, whether or
-    // not it is the one currently shown (sponsor correction, 2026-09-18:
-    // these are the numbers he reads to trust the page).
-    var counted = state.view === "list" ? "row" : "card";
+    // Count only the current view's own copy of an item -- Tree ("item-row"),
+    // Kanban ("kcard"), Board ("card") or List ("row") -- never another
+    // view's, even though every view carries [data-item] for the same
+    // items. A bare tagName check (an <article> is both a card and a
+    // kcard) double-counted a kcard into "#shown" and every status chip
+    // whenever the Kanban view existed in the page, whether or not it was
+    // the one shown (sponsor correction, 2026-09-18: these are the numbers
+    // he reads to trust the page) -- the same rule now applies across all
+    // four views, so switching views never changes a count.
+    var counted = {tree: "item-row", kanban: "kcard", board: "card", list: "row"}[state.view] || "card";
     items.forEach(function(el){
       var ok = match(el, false, false);
       el.hidden = !ok;
@@ -1179,11 +1314,16 @@ SCRIPT = r"""
         if (ok) shown++;
         // The chip count is the true count of each status among the other
         // filters (proposal/owner/tier/group/search) -- never zeroed out by
-        // the show-finished toggle, or "Done" would misreport as 0 (D4).
+        // Pending or the show-finished toggle, or "Done" would misreport
+        // as 0 (D4).
         if (match(el, true, true)) byStatus[el.dataset.status] = (byStatus[el.dataset.status] || 0) + 1;
       }
     });
-    $$(".col").forEach(function(col){
+    var anyFilter = !!(state.proposal || state.statuses.length || state.owner || state.tier
+      || state.group || state.q || state.pending);
+    applyTreeParts();
+    applyFeatures(anyFilter);
+    $$(".col,.kcol").forEach(function(col){
       var n = $$("[data-item]", col).filter(function(el){ return !el.hidden; }).length;
       $(".n", col).textContent = n;
       col.hidden = state.statuses.length > 0 && state.statuses.indexOf(col.dataset.column) < 0;
@@ -1195,14 +1335,17 @@ SCRIPT = r"""
     $$(".proposal").forEach(function(b){
       b.setAttribute("aria-pressed", b.dataset.proposal === state.proposal ? "true" : "false");
     });
-    // The same show-finished toggle also governs the Kanban done column
-    // (sponsor correction, 2026-09-18): a "112 done -- show them" affordance
-    // stands in for the cards until it's checked, and back again once it
-    // isn't -- the column itself and its count never move either way.
+    // The same "hide finished" rule (Pending, or Show finished off) governs
+    // the Kanban done column: a "112 done -- show them" affordance stands
+    // in for the cards until it's revealed, and Pending removes the
+    // affordance itself -- there is no escape hatch back to done work
+    // while Pending is on. The column itself and its real count never move
+    // either way.
+    var hideDone = hideFinished();
     var kdone = $("[data-kanban-done]");
-    if (kdone) { kdone.hidden = !state.showFinished; }
+    if (kdone) { kdone.hidden = hideDone; }
     var kshow = $("[data-kanban-affordance]");
-    if (kshow) { kshow.hidden = state.showFinished; }
+    if (kshow) { kshow.hidden = state.pending || !hideDone; }
     $$("[data-ask],[data-request]").forEach(function(el){
       var d = el.dataset;
       el.hidden = (!!state.proposal && d.proposal !== state.proposal) || (!!state.owner && d.owner !== state.owner)
@@ -1222,53 +1365,65 @@ SCRIPT = r"""
       answered.hidden = done === 0;
     }
     $$("[data-view]").forEach(function(b){ b.setAttribute("aria-pressed", b.dataset.view === state.view ? "true" : "false"); });
+    var t = $("#view-tree"); if (t) t.hidden = state.view !== "tree";
+    var k = $("#view-kanban"); if (k) k.hidden = state.view !== "kanban";
     $("#board").hidden = state.view !== "board";
     $("#list").hidden = state.view !== "list";
     $("#none").hidden = shown > 0 || total === 0;
-    var filtered = state.proposal || state.statuses.length || state.owner || state.tier || state.q;
-    $("#shown").textContent = filtered ? shown + " of " + total + " items" : total + " items";
-    $("#clear").hidden = !filtered;
+    $("#shown").textContent = anyFilter ? shown + " of " + total + " items" : total + " items";
+    $("#clear").hidden = !anyFilter;
   }
   function clear(){
     state.proposal = ""; state.statuses = []; state.owner = ""; state.tier = ""; state.group = ""; state.q = "";
-    state.showFinished = false;
+    state.pending = false; state.showFinished = false;
     $("#q").value = ""; $("#owner").value = ""; $("#tier").value = ""; $("#group").value = "";
-    var sf = $("#show-finished"); if (sf) sf.checked = false;
+    var sf = $("#show-finished"); if (sf) { sf.checked = false; sf.disabled = false; }
+    var pd = $("#pending"); if (pd) pd.checked = false;
+    // Collapse the Proposals tree back to closed -- the auto-expand a
+    // filter causes never survives Clear, even a row the sponsor opened
+    // by hand while filtering.
+    $$(".feature-row,.item-row,.prow-details").forEach(function(d){ d.open = false; });
+    persist();
     apply();
   }
   $$(".proposal").forEach(function(b){ b.addEventListener("click", function(){
-    state.proposal = state.proposal === b.dataset.proposal ? "" : b.dataset.proposal; apply(); }); });
+    state.proposal = state.proposal === b.dataset.proposal ? "" : b.dataset.proposal; persist(); apply(); }); });
   $$('.chip[data-filter="status"]').forEach(function(c){ c.addEventListener("click", function(){
     var i = state.statuses.indexOf(c.dataset.value);
     if (i >= 0) state.statuses.splice(i, 1); else state.statuses.push(c.dataset.value);
-    apply(); }); });
-  $("#owner").addEventListener("change", function(ev){ state.owner = ev.target.value; apply(); });
-  $("#tier").addEventListener("change", function(ev){ state.tier = ev.target.value; apply(); });
-  $("#group").addEventListener("change", function(ev){ state.group = ev.target.value; apply(); });
+    persist(); apply(); }); });
+  $("#owner").addEventListener("change", function(ev){ state.owner = ev.target.value; persist(); apply(); });
+  $("#tier").addEventListener("change", function(ev){ state.tier = ev.target.value; persist(); apply(); });
+  $("#group").addEventListener("change", function(ev){ state.group = ev.target.value; persist(); apply(); });
   var showFinished = $("#show-finished");
-  if (showFinished) showFinished.addEventListener("change", function(ev){ state.showFinished = ev.target.checked; apply(); });
+  if (showFinished) showFinished.addEventListener("change", function(ev){
+    state.showFinished = ev.target.checked; persist(); apply(); });
+  var pending = $("#pending");
+  if (pending) pending.addEventListener("change", function(ev){
+    state.pending = ev.target.checked;
+    if (showFinished) { showFinished.disabled = state.pending; if (state.pending) showFinished.checked = false; }
+    if (state.pending) state.showFinished = false;
+    persist(); apply();
+  });
   $$("[data-kanban-affordance]").forEach(function(b){ b.addEventListener("click", function(){
+    if (state.pending) return;
     state.showFinished = true;
     if (showFinished) showFinished.checked = true;
-    apply(); }); });
-  $("#q").addEventListener("input", function(ev){ state.q = ev.target.value.trim().toLowerCase(); apply(); });
+    persist(); apply(); }); });
+  $("#q").addEventListener("input", function(ev){ state.q = ev.target.value.trim().toLowerCase(); persist(); apply(); });
   $$("[data-view]").forEach(function(b){ b.addEventListener("click", function(){
-    state.view = b.dataset.view;
-    try { localStorage.setItem("tracker-view", state.view); } catch (e) {}
-    apply(); }); });
+    state.view = b.dataset.view; persist(); apply(); }); });
   $("#clear").addEventListener("click", clear);
   $("#clear2").addEventListener("click", clear);
-  function applyTopview(){
-    $$("[data-topview]").forEach(function(b){
-      b.setAttribute("aria-pressed", b.dataset.topview === state.topview ? "true" : "false"); });
-    var t = $("#view-tree"); if (t) t.hidden = state.topview !== "tree";
-    var k = $("#view-kanban"); if (k) k.hidden = state.topview !== "kanban";
-  }
-  $$("[data-topview]").forEach(function(b){ b.addEventListener("click", function(){
-    state.topview = b.dataset.topview;
-    try { localStorage.setItem("tracker-topview", state.topview); } catch (e) {}
-    applyTopview(); }); });
-  applyTopview();
+  // Sync the controls that carry their own value/checked state to what was
+  // just restored from localStorage -- apply() below only sets aria-pressed
+  // on buttons and chips, never a form control's own value.
+  $("#q").value = state.q;
+  $("#owner").value = state.owner;
+  $("#tier").value = state.tier;
+  $("#group").value = state.group;
+  if (showFinished) { showFinished.checked = state.showFinished; showFinished.disabled = state.pending; }
+  if (pending) pending.checked = state.pending;
   apply();
 })();
 """
