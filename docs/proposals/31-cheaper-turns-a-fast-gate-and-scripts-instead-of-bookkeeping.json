@@ -49,7 +49,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -96,7 +96,7 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -124,13 +124,13 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
         {
           "at": "2026-09-17T21:30:49+02:00",
-          "event": "Extended the gate rule into CLAUDE-workflow.md's gate section, templates/lead-prompt.md §2 and templates/brief.md's MUST section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
+          "event": "Extended the gate rule into CLAUDE-workflow.md's gate section, templates/lead-prompt.md \u00a72 and templates/brief.md's MUST section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
           "by": "session:o03-o07-turn-rules",
           "evidence": "cc1806f45e5cd799c084b3c4fe0a1e88e04f7eb6",
           "status": "done"
@@ -152,7 +152,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -186,7 +186,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -214,7 +214,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -242,13 +242,13 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
         {
           "at": "2026-09-17T21:31:01+02:00",
-          "event": "Extended batch dispatch as a cost rule into templates/lead-prompt.md §3 and CLAUDE-workflow.md's Issues section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
+          "event": "Extended batch dispatch as a cost rule into templates/lead-prompt.md \u00a73 and CLAUDE-workflow.md's Issues section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
           "by": "session:o03-o07-turn-rules",
           "evidence": "cc1806f45e5cd799c084b3c4fe0a1e88e04f7eb6",
           "status": "done"
@@ -270,7 +270,7 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -304,7 +304,7 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -334,7 +334,7 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -389,13 +389,21 @@
       "tests": [],
       "done": "Several ids recorded in one invocation with one daemon start and one stop, measured against the same ids one at a time; the daemon is still stopped in a finally on every exit path, including a crash; tested on a fixture.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-18T08:46:06+02:00",
+          "event": "start/done accept repeatable --item ID:TEXT to batch several ids in one invocation (one binary resolution, one daemon start/stop); new from-ledger LEDGER [--since DATE] backfills item:<ID>:start/done from a ledger's done items without re-running the gate. Measured on a scratch repo, real binary: baseline 4 single calls for 2 items = 11.4s; batched start+done for the same 2 ids = 8.6s; from-ledger for 2 items = 3.3s. Gate: tests/test_ruflo_item.py + test_ruflo + test_conformance, 163 tests, OK.",
+          "by": "session:o11-ruflo-batch",
+          "evidence": "d2a584c64f9695923e769dffde0911ba7b21b892",
+          "status": "done"
+        }
+      ],
       "points": 3,
       "value": "high"
     },
@@ -412,7 +420,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -549,7 +557,7 @@
       "source": "review",
       "file": "bin/ruflo-item",
       "severity": "medium",
-      "state": "catalogued",
+      "state": "decided",
       "line": 212,
       "title": "Every ruflo-item call stops the daemon in a finally, so the next one cold-starts it: a single call is 3.3s but ten items back to back did not finish in 500s. There is no way to record several items in one invocation, so a lead closing a batch pays the cold start every time",
       "value": "high",
@@ -560,6 +568,12 @@
           "event": "catalogued",
           "by": "session:common-rules lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-18T08:47:32+02:00",
+          "event": "corrected",
+          "by": "session:common-rules lead",
+          "evidence": "My premise was wrong. I wrote this finding claiming the daemon's cold start dominates, from a backfill where ten items recorded two in 500s. O-11's careful measurement at load 4-5 says a single call is ~3.3s (start) and ~2.5s (done), so four calls are 11.4s, not 250s each. The 500s backfill was machine contention -- three test suites were running -- not daemon churn. What O-11 actually buys, measured: batching two items 11.4s -> 8.6s (25%), and `from-ledger` 11.4s -> 3.3s (3.4x) because it skips the gate and the hooks. The ergonomic win stands -- one call instead of twenty for a backfill -- but the cold-start rationale in this finding's title does not."
         }
       ]
     }
