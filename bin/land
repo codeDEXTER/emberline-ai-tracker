@@ -324,8 +324,15 @@ land_one() {
     #
     # The cheapest guard is to print the subjects. If a line here is not
     # yours, stop -- `git fetch && git rebase origin/main` before landing.
-    $GIT log "$target..$branch" --pretty='      %h %s' | head -12
-    [ "$ahead" -gt 12 ] && say "      … and $((ahead - 12)) more"
+    # `-n 12`, never `| head -12`: this file runs under `set -euo pipefail`
+    # (line 62), and when `head` closes the pipe early `git log` takes SIGPIPE
+    # and the whole pipeline fails, which under `set -e` ends land right here
+    # -- silently, mid-run, with the guard below never printed. Whether git is
+    # killed or finishes into the pipe buffer first is a race, so it failed
+    # intermittently and only under load. `land died silently` is already in
+    # this file's history once (#103); the pipe is how it happens.
+    $GIT log "$target..$branch" --pretty='      %h %s' -n 12
+    [ "$ahead" -gt 12 ] && say "      … and $((ahead - 12)) more" || true
 
     # --- aligned with common-rules -----------------------------------------
     #
