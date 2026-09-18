@@ -215,7 +215,8 @@ class FeaturesDrilldownCase(unittest.TestCase):
         text = self.render([
             item("A-01", parts=[part("A-01.A", "first", 60, "done"), part("A-01.B", "second", 40, "in progress")]),
         ])
-        self.assertIn('<details class="item-row" data-item data-id="A-01" data-proposal="30">', text)
+        self.assertIn('<details class="item-row" data-item data-id="A-01" data-proposal="30" '
+                      'data-status="not started" data-owner="" data-tier="medium" data-group="finish now"', text)
         self.assertIn('<span class="ipct">60%</span>', text)
         self.assertIn("next: A-01.B", text)
         self.assertIn('class="pill g-s-finish-now"', text)
@@ -295,9 +296,14 @@ class KanbanCase(unittest.TestCase):
         return board.render([(path, led)], "demo", None, self.root)
 
     def test_tree_and_kanban_buttons_exist_and_tree_is_the_default(self):
+        # proposal 30, P-11: one group of four view buttons -- Tree, Kanban,
+        # Board, List -- Tree pressed by default, in the one filter bar at
+        # the top of the page.
         text = self.render([item("A-01")])
-        self.assertIn('<button type="button" data-topview="tree" aria-pressed="true">Tree</button>', text)
-        self.assertIn('<button type="button" data-topview="kanban" aria-pressed="false">Kanban</button>', text)
+        self.assertIn('<button type="button" data-view="tree" aria-pressed="true">Tree</button>', text)
+        self.assertIn('<button type="button" data-view="kanban" aria-pressed="false">Kanban</button>', text)
+        self.assertIn('<button type="button" data-view="board" aria-pressed="false">Board</button>', text)
+        self.assertIn('<button type="button" data-view="list" aria-pressed="false">List</button>', text)
 
     def test_one_column_per_ledger_status_including_empty_ones(self):
         from tools.tracker import ledger as L
@@ -364,14 +370,16 @@ class KanbanCase(unittest.TestCase):
         self.assertIn('<span class="n">0</span>', done_col)
 
     def test_both_views_are_rendered_server_side(self):
-        # No page reload, no server round trip: the tree and the kanban board
-        # are both already in the markup: the inline script only toggles
-        # which is hidden.
+        # No page reload, no server round trip: all four views are already
+        # in the markup -- the inline script only toggles which is hidden.
+        # Tree is the default view, so it alone renders without a `hidden`
+        # attribute; Kanban, Board and List start hidden server-side (proposal
+        # 30, P-11), the same pattern List already used when Board was the
+        # default view.
         text = self.render([item("A-01", status="in progress")])
         self.assertIn('<div id="view-tree">', text)
-        self.assertIn('<div id="view-kanban">', text)
+        self.assertIn('<div id="view-kanban" hidden>', text)
         self.assertNotIn('id="view-tree" hidden', text)
-        self.assertNotIn('id="view-kanban" hidden', text)
 
     def test_kanban_cards_are_never_counted_alongside_the_details_board(self):
         # Sponsor correction, 2026-09-18: a kanban card is an <article
