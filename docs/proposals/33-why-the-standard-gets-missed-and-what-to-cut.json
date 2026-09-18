@@ -1,0 +1,152 @@
+{
+  "proposal": 33,
+  "title": "Why the standard gets missed, and what to cut",
+  "status": "proposed",
+  "updated": "2026-09-18",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "sonnet",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "opus",
+      "effort": "low or medium",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "R",
+      "name": "Make the rules hold"
+    }
+  ],
+  "items": [
+    {
+      "id": "R-01",
+      "phase": "R",
+      "cx": "C3",
+      "title": "Closing an item refuses without the evidence its own done line demands",
+      "what": "The measured cause: 9 of the 16 items whose done criterion demands a measurement were closed without performing it (finding 23/F-02, and 23/F-07 and 28/F-01 are two more of the same shape). The build half was done every time; the verification half was skipped and the item closed anyway. Nothing refuses. Make tracker set --status done read the item's own done line: when it demands a measurement -- measured, before and after, per 100, wall clock, a percentage -- the closing event must carry a number, or the close is refused with the done line quoted back.",
+      "files": [],
+      "tests": [],
+      "done": "An item whose done criterion demands a measurement cannot be closed with an event carrying no number; the refusal quotes the criterion; an item with no such criterion closes as it does today; tested against real closed items from the ledgers.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 5,
+      "value": "high"
+    },
+    {
+      "id": "R-02",
+      "phase": "R",
+      "cx": "C3",
+      "title": "The builder's own gate runs the checks the merge gate runs",
+      "what": "Twice today docs/workflow.html drifted behind the rules and main went red, because bin/workflow-stamp --check lives in gates.merge and a builder runs a scoped test set -- so a check that exists fires only at integration, when it is most expensive. Same shape for version-check. Put the cheap pre-checks in gates.quick too, and say in the brief template that a builder runs the quick gate before pushing.",
+      "files": [],
+      "tests": [],
+      "done": "gates.quick carries the same pre-checks as gates.merge; a branch that drifts the stamp or the version fails on the builder's own machine, not at integration; the brief template says so.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 3,
+      "value": "high"
+    },
+    {
+      "id": "R-03",
+      "phase": "R",
+      "cx": "C2",
+      "title": "Conformance catches a project's stale skill copies",
+      "what": "Finding 31/F-07: .claude/skills/{warmup,reheat}/SKILL.md are copies derecord keeps identical -- but only when someone runs derecord. They sat two days stale, missing the very fixes this session shipped, and Claude Code PREFERS those directory-scoped copies for files in that directory. A conformance check compares them to the source, so the card says so instead of nobody noticing.",
+      "files": [],
+      "tests": [],
+      "done": "Conformance fails when a project's skill copy differs from common-rules' source, naming the file and the fix; holds when they match or when the project keeps none.",
+      "depends": [],
+      "status": "not started",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 2,
+      "value": "high"
+    },
+    {
+      "id": "R-04",
+      "phase": "R",
+      "cx": "C4",
+      "title": "An inventory of every rule in the must-read: enforced, moved, or cut",
+      "what": "CLAUDE-workflow.md carries 76 prose rules against 12 machine checks, and the mandatory read is about 16,200 tokens -- 13% of a context window before any work. The rules that held today are code (parts validation, quiet's verdict, land's refusals, proposalcheck); the ones that failed are prose a session must remember (use the Read tool -- measurably failing; stage, do not set -- my own briefs broke it). Go through every rule with one of three verdicts: enforced by code, moved to reference and out of the mandatory read, or cut.",
+      "files": [],
+      "tests": [],
+      "done": "Every rule in the must-read carries a verdict and a reason; the mandatory read is measurably smaller, reported in tokens before and after; nothing enforced was lost in the move.",
+      "depends": [],
+      "status": "not started",
+      "tier": "lead",
+      "model": "opus",
+      "tag": "[ruflo \u00b7 lead \u00b7 opus]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 8,
+      "value": "high"
+    },
+    {
+      "id": "R-05",
+      "phase": "R",
+      "cx": "C3",
+      "title": "Deprecate and delete what has been replaced",
+      "what": "/standard's own description says it is a shortcut for /warmup and will be removed next release -- it is still here. The Lanes block is kept folded on a page that now has four better views. tracker set --add-part cannot build parts up incrementally (30/F-01) and its only working path is the whole --parts JSON. Deprecations that never delete are how a standard gets long enough to stop being read.",
+      "files": [],
+      "tests": [],
+      "done": "Each deprecated mechanism is either deleted or carries a dated removal note naming its replacement; nothing points at a removed thing; the CHANGELOG entry says what went and what took its place.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 5,
+      "value": "medium"
+    }
+  ],
+  "asks": [
+    {
+      "id": "A-01",
+      "at": "2026-09-18T11:16:44+02:00",
+      "kind": "decision",
+      "quote": "Can you do a thorough review and identify why we are missing these items? Can we optimize all these rules so when I warm up or reheat a project, they follow it to the point and not miss anything? Do we need to deprecate any of the old mechanisms and make it as concise and precise as possible?",
+      "became": null,
+      "state": "open"
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {}
+}
