@@ -1,7 +1,7 @@
 ---
 name: reheat
 description: Reheat a RUNNING session on the project's standard (common-rules proposal 28, R-01/R-02). Prints only what moved since the last /warmup or /reheat, plus the standard's own status every time, and queues what is pending. Use mid-session, after a compaction, or on resume ("what changed", "reheat", "catch me up").
-argument-hint: [context: one line about what changed or what he just asked for]
+argument-hint: "one line of context, or what he just asked for"
 ---
 
 # /reheat: a running lead
