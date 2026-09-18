@@ -49,7 +49,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -96,7 +96,7 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -124,13 +124,13 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
         {
           "at": "2026-09-17T21:30:49+02:00",
-          "event": "Extended the gate rule into CLAUDE-workflow.md's gate section, templates/lead-prompt.md \u00a72 and templates/brief.md's MUST section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
+          "event": "Extended the gate rule into CLAUDE-workflow.md's gate section, templates/lead-prompt.md §2 and templates/brief.md's MUST section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
           "by": "session:o03-o07-turn-rules",
           "evidence": "cc1806f45e5cd799c084b3c4fe0a1e88e04f7eb6",
           "status": "done"
@@ -152,7 +152,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -186,7 +186,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -214,7 +214,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -242,13 +242,13 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
         {
           "at": "2026-09-17T21:31:01+02:00",
-          "event": "Extended batch dispatch as a cost rule into templates/lead-prompt.md \u00a73 and CLAUDE-workflow.md's Issues section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
+          "event": "Extended batch dispatch as a cost rule into templates/lead-prompt.md §3 and CLAUDE-workflow.md's Issues section; CHANGELOG carries the mandatory Standard change entry; tests pin it in tests/test_templates.py",
           "by": "session:o03-o07-turn-rules",
           "evidence": "cc1806f45e5cd799c084b3c4fe0a1e88e04f7eb6",
           "status": "done"
@@ -270,7 +270,7 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -304,7 +304,7 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -334,7 +334,7 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -392,7 +392,7 @@
       "status": "not started",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [],
@@ -409,13 +409,27 @@
       "tests": [],
       "done": "One command stamps the page from git and regenerates the png; test_workflow_stamp still guards both; the pre-commit hook or the documented recipe calls it, so the number is never typed by hand again.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-18T08:40:33+02:00",
+          "event": "bin/workflow-stamp writes the stamp from tools/workflow_stamp.rules_version() (shared with tests/test_workflow_stamp.py, so tool and test can never disagree) and regenerates docs/workflow.png via the --headless=old recipe, refusing loudly on missing Chrome or a blank/missing capture. --check is now the first step of .common-rules.json's merge gate and the identical CI step. Rejected wiring it into derecord's pre-commit hook: that fires on most ledger-touching commits, which would violate rules_version()'s no-op-for-page-only-commits property. Run for real: stamp 562 -> 562 (already current), png regenerated (2360x22717px, byte-identical), opened and looked at -- not blank. Gate: 142 tests, OK.",
+          "by": "session:o12-workflow-stamp",
+          "evidence": "",
+          "status": "done"
+        },
+        {
+          "at": "2026-09-18T08:40:41+02:00",
+          "event": "Recorded evidence: commit 21956bc on branch o12-workflow-stamp.",
+          "by": "session:o12-workflow-stamp",
+          "evidence": "21956bc"
+        }
+      ],
       "points": 3,
       "value": "medium"
     }
