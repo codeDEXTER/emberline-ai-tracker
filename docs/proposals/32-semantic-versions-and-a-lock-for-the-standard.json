@@ -120,7 +120,14 @@
       "tag": "[ruflo \u00b7 lead \u00b7 opus]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-18T09:50:24+02:00",
+          "event": "scope decided",
+          "by": "session:common-rules lead",
+          "evidence": "The sponsor ruled L-07 stays on the back burner, so 1.0.0 does not wait for it. Scope: 1.0.0 covers the standard itself. W-10, S-07 and S-08 are adoption items owned by other projects' sessions and cannot block a release of the rulebook -- they are waiting, not unfinished. The real blockers are V-01 to V-03 and proposal 30's P-13."
+        }
+      ],
       "points": 3,
       "value": "high"
     }
@@ -132,7 +139,15 @@
       "kind": "decision",
       "quote": "Can you version the common rule and release a baseline when the pending tasks are done. Use semantic version version and change Lock to maintain it going ahead",
       "became": null,
-      "state": "open"
+      "state": "answered"
+    },
+    {
+      "id": "A-02",
+      "at": "2026-09-18T09:50:24+02:00",
+      "kind": "decision",
+      "quote": "L7 will remain on back burner",
+      "became": null,
+      "state": "answered"
     }
   ],
   "proposed_changes": [],
