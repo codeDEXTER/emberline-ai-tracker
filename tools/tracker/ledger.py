@@ -112,6 +112,40 @@ def findings_by_id(ledger: dict) -> dict[str, dict]:
     return {f["id"]: f for f in findings(ledger) if "id" in f}
 
 
+def _last_log_date(row: dict, *, matches) -> "datetime.date | None":
+    """The `at` of the last log entry `matches` accepts, or None. A malformed
+    or missing `at` is the same as no entry."""
+    found = None
+    for entry in (row.get("log") or []):
+        if not isinstance(entry, dict) or not matches(entry):
+            continue
+        at = entry.get("at")
+        if not isinstance(at, str):
+            continue
+        try:
+            found = datetime.date.fromisoformat(at[:10])
+        except ValueError:
+            continue
+    return found
+
+
+def closed_date(row: dict) -> "datetime.date | None":
+    """The date `row` closed, or None when nothing says. `tracker set
+    --status done` (and `apply-staged`, which shares its code) stamps the log
+    entry's own `status` key with the new status independently of `event` --
+    `event` is free text a lead writes with `--event`, and many done items in
+    the real ledgers close with one that is not literally "done", so a
+    status-keyed entry is preferred when there is one. Older rows never wrote
+    `status`: the last entry whose `event` is exactly "done" (case-
+    insensitive) is the fallback, as before this function existed. Shared by
+    bin/conformance (check 9) and bin/ruflo-item (`from-ledger`) so there is
+    exactly one reading of "when did this item close"."""
+    by_status = _last_log_date(row, matches=lambda e: str(e.get("status") or "").strip().lower() == "done")
+    if by_status is not None:
+        return by_status
+    return _last_log_date(row, matches=lambda e: str(e.get("event") or "").strip().lower() == "done")
+
+
 def qualify_finding_id(ledger: dict, fid: str | None) -> str | None:
     """A finding's id as it must read anywhere it can sit beside the same-
     numbered finding from another ledger -- a cross-ledger queue, `tracker

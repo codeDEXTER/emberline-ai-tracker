@@ -38,6 +38,52 @@ addition is to common-rules' own `.common-rules.json`.
 `tests/test_workflow_stamp.py` (12 new cases, real Chrome never run —
 `FAKE_CHROME_MODE` stands in for the capture step), `.common-rules.json`,
 `.github/workflows/ci.yml`, `docs/README.md`.
+## 2026-09-18 · `ruflo-item` records several items in one invocation (O-11, finding 31/F-05)
+
+Every `ruflo-item` call stops the Ruflo daemon in a `finally` -- correctly,
+since it spawns headless Claude sessions that burn tokens until told to stop
+-- so the *next* call cold-starts it again: one call measured 3.3s, and ten
+items recorded one at a time (twenty invocations) did not finish in 500s.
+This item was found backfilling conformance check 9 for fourteen items
+closed without their Ruflo records: fourteen `start`+`done` pairs, one call
+at a time, took about eight minutes.
+
+`start` and `done` now each accept a repeatable `--item ID:TEXT` flag
+(split on the first `:`, so TEXT may itself contain colons) instead of the
+positional `<ID> "<task>"` / `<ID> [<ID> ...] "<summary>"` form -- several
+ids, each with its own text, in one process: one binary resolution, one
+daemon start, one stop, whatever happens (a crash, Ctrl-C, a signal, or one
+id in the batch failing its memory store). Chose the flag form over a
+single-line-per-id summary because argparse cannot unambiguously split a
+flat list of ids from a shared trailing summary once both are optional --
+`--item` sidesteps that, and reads no worse for a lead typing two or three
+ids than the existing positional form does for one. The positional form is
+untouched: a plain single-id call behaves exactly as before, and existing
+callers (`bin/warmup`, the templates, every brief) need no changes.
+
+`ruflo-item from-ledger LEDGER [--since DATE]` is the same idea driven by a
+ledger file: it loads LEDGER once, finds every item with status "done" whose
+closed date (`tools/tracker/ledger.py`'s new `closed_date()`, shared with
+`bin/conformance` check 9's own reading of "when did this item close") is on
+or after DATE, and records `item:<ID>:start` / `item:<ID>:done` directly
+from each item's own `title`. It does **not** re-run the project's merge
+gate or call hooks pre-task/route/post-task/testgaps -- this is a memory
+*record* of history, not a re-run of it, and every stored value says so
+outright ("... -- backfilled 2026-09-18T..., originally closed 2026-09-17;
+recorded after the fact, not logged as the work happened"), so nothing
+reading Ruflo memory later mistakes it for a live start/done pair. This is
+what turns a fourteen-item backfill from eight minutes into one call, and
+what conformance check 9 now sends the next lead to.
+
+Not a Standard change: no existing call's behaviour moved, so no project is
+out of conformance for not adopting the batch form. It is available to every
+project on the standard the moment it pulls this change, and a lead closing
+several items at once should reach for it, but conformance does not (and
+should not) fail a project for still calling `start`/`done` one id at a
+time -- that path costs time, not correctness.
+
+`bin/ruflo-item`, `tools/tracker/ledger.py` (`closed_date()`, shared with
+`bin/conformance`), `tests/test_ruflo_item.py`.
 
 ## 2026-09-18 · two decisions the lead was asked to make itself (31/A-02)
 
