@@ -43,12 +43,26 @@ class TestRealCheckoutVersion(unittest.TestCase):
         self.assertEqual((ROOT / "VERSION").read_text(encoding="utf-8"), "0.9.0\n")
 
     def test_rulecheck_reports_both_the_semver_and_the_count(self):
-        out = subprocess.run([str(ROOT / "bin" / "rulecheck"), "--version"],
+        """`--version --semver` is the human form; bare `--version` is not.
+
+        This test asked for the semver from bare `--version` when V-01
+        landed, and that is exactly what broke `bin/land`: it parses that
+        output against the project's stamp file, so a label there made every
+        project read as "not aligned" (21 failures on main). The semver moved
+        behind `--semver`; see TestVersionFlagIsAMachineContract in
+        tests/test_rulecheck.py for the other half of this contract.
+        """
+        out = subprocess.run([str(ROOT / "bin" / "rulecheck"), "--version", "--semver"],
                              capture_output=True, text=True, check=True).stdout.strip()
         semver = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
         self.assertIn(semver, out)
         # the count-sha is still there, in parentheses, beside it
         self.assertRegex(out, r"\(\d+-[0-9a-f]+\)")
+
+    def test_bare_version_stays_machine_readable(self):
+        out = subprocess.run([str(ROOT / "bin" / "rulecheck"), "--version"],
+                             capture_output=True, text=True, check=True).stdout.strip()
+        self.assertRegex(out, r"^\d+-[0-9a-f]{7,}$")
 
 
 class FixtureRepo:
