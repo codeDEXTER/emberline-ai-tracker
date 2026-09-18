@@ -29,8 +29,13 @@ not a delta against nothing.
   non-holding standard item and every pending mandatory Standard change
   becomes a ledger item, owner `lead`, status `not started`, first in the
   queue. Safe to include every time.
-- Picking up new context this turn (something the sponsor just said, a
-  request answered by another session): add `--context "<one line>"`.
+- **Anything the sponsor typed after `/reheat` is context — pass it
+  through**, in the same run: `/reheat the sponsor wants the gate wired`
+  means `--context "the sponsor wants the gate wired"`. Quote him as he
+  typed it. Dropping it loses the only words of his the card carries.
+- Picking up new context he did not type on the command line (something he
+  said earlier this turn, a request answered by another session): same
+  flag, `--context "<one line>"`.
 - `--state` is written again after every run, so the next `/reheat` compares
   against this one.
 
