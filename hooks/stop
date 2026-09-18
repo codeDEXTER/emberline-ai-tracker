@@ -139,6 +139,10 @@ def main() -> int:
             return 0
         project = payload.get("cwd") or os.getcwd()
         _collect_worklog()
+        # Keep the generated tracker current after every Claude/Codex cycle.
+        # This is best-effort and deliberately does not stage or commit.
+        from tools.tracker import auto_update
+        auto_update.update(project)
         from tools.tracker import checkpoint
         with contextlib.redirect_stdout(io.StringIO()):
             checkpoint.main(["--project", str(project), "--reason", "stop", "--if-changed"])

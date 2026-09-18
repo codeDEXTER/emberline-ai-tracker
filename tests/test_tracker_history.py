@@ -168,13 +168,13 @@ class TestHistorySeries(unittest.TestCase):
         self.assertEqual(r["added_ids"], 5)
         self.assertEqual(r["closed_ids"], 2)
 
-    def test_day_d_completion_pct_uses_parts_completion_per_item(self):
+    def test_day_d_completion_pct_uses_the_same_ticket_denominator_as_statuses(self):
         rows = self.by_date(history.series(self.repo.root))
         r = rows[self.day_d.isoformat()]
-        # W-01=100, W-02=100, W-03=0, W-04=75: its A (50) is done, and its B
-        # (50) is half done through its own sub-parts -- completion rolls up
-        # through nested parts (proposal 30, the sponsor's "sub sub items").
-        self.assertAlmostEqual(r["completion_pct"], 68.8)
+        # Four of the eight tracked tickets are done. The percentage must use
+        # this same denominator as the status history, not an average of the
+        # four top-level item completion values.
+        self.assertAlmostEqual(r["completion_pct"], 50.0)
 
     def test_by_proposal_matches_overall_when_theres_one_proposal(self):
         rows = self.by_date(history.series(self.repo.root))
@@ -189,6 +189,15 @@ class TestHistorySeries(unittest.TestCase):
         rows = history.series(self.repo.root, since=self.day_d.isoformat())
         self.assertTrue(all(r["date"] >= self.day_d.isoformat() for r in rows))
         self.assertEqual(rows[0]["date"], self.day_d.isoformat())
+
+    def test_hourly_zoom_returns_hour_buckets_and_carries_snapshots(self):
+        rows = history.series(self.repo.root, since=self.day_a.isoformat(), granularity="hour")
+        self.assertTrue(rows)
+        self.assertTrue(all("T" in row["date"] for row in rows))
+        self.assertEqual(rows[0]["date"], f"{self.day_a.isoformat()}T00:00:00+01:00")
+        day_d = next(row for row in rows if row["date"] == f"{self.day_d.isoformat()}T10:00:00+01:00")
+        self.assertEqual(day_d["tickets_total"], 8)
+        self.assertEqual(day_d["by_status"]["done"], 4)
 
     def test_cache_reuse_reads_no_git_show_for_old_shas(self):
         history.series(self.repo.root)  # populates the cache
@@ -236,9 +245,11 @@ class TestHistorySvg(unittest.TestCase):
     def test_two_charts_no_external_urls(self):
         rows = [
             {"date": "2026-09-01", "tickets_total": 2, "tickets_done": 1, "completion_pct": 50.0,
-             "added": 2, "closed": 0, "added_ids": 2, "closed_ids": 0, "by_proposal": {}},
+             "added": 2, "closed": 0, "added_ids": 2, "closed_ids": 0, "by_proposal": {},
+             "by_status": {"done": 1, "not started": 1}},
             {"date": "2026-09-02", "tickets_total": 3, "tickets_done": 2, "completion_pct": 66.7,
-             "added": 1, "closed": 1, "added_ids": 1, "closed_ids": 1, "by_proposal": {}},
+             "added": 1, "closed": 1, "added_ids": 1, "closed_ids": 1, "by_proposal": {},
+             "by_status": {"done": 2, "not started": 1}},
         ]
         out = history.svg(rows)
         self.assertEqual(out.count("<svg"), 2)
@@ -251,7 +262,8 @@ class TestHistorySvg(unittest.TestCase):
         non_xmlns_urls = [line for line in out.splitlines()
                           if ("http://" in line or "https://" in line) and "xmlns=" not in line]
         self.assertEqual(non_xmlns_urls, [])
-        self.assertIn("var(--tracker-line-total", out)
+        self.assertIn("var(--tracker-status-done", out)
+        self.assertIn("var(--tracker-status-todo", out)
         self.assertIn("var(--tracker-line-completion", out)
 
     def test_empty_series_still_renders_two_empty_charts(self):
@@ -271,7 +283,8 @@ def _rows_for_chart_content():
     completion = [10.0, 20.0, 40.0, 70.0, 90.0]
     return [
         {"date": d, "tickets_total": t, "tickets_done": dn, "completion_pct": c,
-         "added": 0, "closed": 0, "added_ids": 0, "closed_ids": 0, "by_proposal": {}}
+         "added": 0, "closed": 0, "added_ids": 0, "closed_ids": 0, "by_proposal": {},
+         "by_status": {"done": dn, "not started": t - dn}}
         for d, t, dn, c in zip(dates, totals, dones, completion)
     ]
 
@@ -293,12 +306,12 @@ class TestHistorySvgContent(unittest.TestCase):
         self.assertEqual(self.out.count("viewBox="), 2)
 
     def test_visible_titles(self):
-        self.assertIn(">Tickets over time<", self.out)
+        self.assertIn(">Tasks by status over time<", self.out)
         self.assertIn(">Completion over time<", self.out)
 
     def test_y_axis_ticks_are_values_the_line_actually_reaches(self):
-        # The counts chart spans both `total` and `done`: 1..6.
-        for tv in history._nice_ticks(1, 6, 4):
+        # The status lines span their own observed values: one through five.
+        for tv in history._nice_ticks(1, 5, 4):
             self.assertIn(f">{history._fmt_count(tv)}<", self.counts)
         # The completion chart spans its own data: 10..90, never a fixed
         # 0-100 the line rarely reaches.
@@ -312,13 +325,13 @@ class TestHistorySvgContent(unittest.TestCase):
         self.assertNotIn("2026-09-05", self.out)
 
     def test_legend_has_an_entry_per_series(self):
-        self.assertIn('data-legend="total"', self.counts)
         self.assertIn('data-legend="done"', self.counts)
+        self.assertIn('data-legend="not started"', self.counts)
         self.assertIn('data-legend="completion"', self.pct)
 
     def test_end_of_line_labels_carry_the_final_value(self):
-        self.assertIn('data-endlabel="total">6<', self.counts)
         self.assertIn('data-endlabel="done">5<', self.counts)
+        self.assertIn('data-endlabel="not started">1<', self.counts)
         self.assertIn('data-endlabel="completion">90%<', self.pct)
 
     def test_gridlines_and_axis_text_use_theme_tokens(self):

@@ -116,7 +116,7 @@ class TestBoardPage(unittest.TestCase):
     def test_totals_are_the_sum_of_each_ledgers_counts(self):
         self.p.run()
         text = self.p.page.read_text()
-        m = re.search(r'<section class="totals" data-done="(\d+)" data-in-progress="(\d+)" '
+        m = re.search(r'<section class="totals" data-task-total="\d+" data-done="(\d+)" data-in-progress="(\d+)" '
                       r'data-blocked="(\d+)" data-not-started="(\d+)"', text)
         self.assertIsNotNone(m)
         self.assertEqual(tuple(int(x) for x in m.groups()), (2, 1, 1, 2))

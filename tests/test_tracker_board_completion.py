@@ -69,7 +69,7 @@ class CompletionOverviewCase(unittest.TestCase):
         # features finished" while M counts items, not proposals -- one
         # word for two different things on the same screen.
         text = self.render([item("D-01", status="done")])
-        self.assertIn('<span class="l">items done</span>', text)
+        self.assertIn('<span class="l">tasks done</span>', text)
         self.assertNotIn("features finished", text)
 
     def test_waiting_by_date_and_by_other_project_owner(self):
@@ -119,7 +119,9 @@ class CompletionOverviewCase(unittest.TestCase):
         self.assertIn('<span class="pid">P-01.A</span>', text)
         self.assertIn('<span class="ptitle" title="first half">first half</span>', text)
         self.assertIn('<span class="pshare">60%</span>', text)
-        self.assertIn('p-done">done</span>', text)
+        self.assertIn('p-done s-done">done</span>', text)
+        self.assertIn('data-pstatus="in progress"', text)
+        self.assertIn('.pill.p-s-in-progress', text)
         self.assertIn('<span class="pid">P-01.B</span>', text)
 
     def test_a_waiting_date_pill_shows_the_short_date(self):
@@ -217,7 +219,7 @@ class CompletionOverviewCase(unittest.TestCase):
         self.assertIn('<select id="group">', text)
         self.assertIn('<nav class="proposals"', text)  # the proposal filter
         self.assertIn('<select id="owner">', text)
-        self.assertIn('role="group" aria-label="Status"', text)
+        self.assertIn('role="group" aria-label="Task status"', text)
         self.assertIn('<input type="search" id="q"', text)
 
     def test_proposal_filter_nav_omitted_with_only_one_proposal(self):
@@ -258,7 +260,7 @@ class CompletionOverviewCase(unittest.TestCase):
             item("A-02", status="done"),
         ])
         body = text.split("<script>", 1)[0]
-        self.assertIn("1 of 2", body)
+        self.assertIn("1 of 3", body)
         self.assertIn("finish now", body)
         self.assertIn('<span class="pid">A-01.A</span>', body)
 

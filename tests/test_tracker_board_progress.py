@@ -111,8 +111,22 @@ class ProgressChartsCase(unittest.TestCase):
         path = repo.root / "docs" / "proposals" / "30-x.json"
         text = board.render([(path, led)], "demo", None, repo.root)
         self.assertIn('<section class="progress" id="progress">', text)
-        self.assertEqual(text.count("<svg"), 2)
+        self.assertEqual(text.count("<svg"), 4)  # daily + hourly, two charts each
         self.assertIn("Progress over time", text)
+        self.assertIn("1 of 1 nested tasks done · 100.0% overall", text)
+
+    def test_top_summary_uses_the_same_nested_task_counts_as_the_graph(self):
+        repo = Repo(self.root / "proj")
+        data = ledger(30, [item("A-01", status="in progress", parts=[
+            part("A-01.A", "done child", 50, "done"),
+            part("A-01.B", "open child", 50, "not started"),
+        ])])
+        repo.commit_ledger("30-x.json", data, datetime.date.today())
+        path = repo.root / "docs" / "proposals" / "30-x.json"
+        text = board.render([(path, data)], "demo", None, repo.root)
+        self.assertIn("3 tracked tasks", text)
+        self.assertIn("1 done / 1 in progress / 0 blocked / 1 not started", text)
+        self.assertIn("1 of 3 nested tasks done · 33.3% overall", text)
 
     def test_charts_omitted_without_git_history(self):
         # self.root is a plain directory, never `git init`-ed -- history.series()
@@ -130,32 +144,28 @@ class ProgressChartsCase(unittest.TestCase):
         text = board.render([(path, led)], "demo", None, None)
         self.assertNotIn('id="progress"', text)
 
-    def test_priority_groups_sit_before_progress_history(self):
+    def test_progress_history_sits_before_priority_groups(self):
         repo = Repo(self.root / "proj")
         repo.commit_ledger("30-x.json", ledger(30, [item("A-01", status="done")]), datetime.date.today())
         led = ledger(30, [item("A-01", status="done")])
         path = repo.root / "docs" / "proposals" / "30-x.json"
         text = board.render([(path, led)], "demo", None, repo.root)
-        tiles_at = text.index('<div class="tiles">')
         progress_at = text.index('<section class="progress"')
         groups_at = text.index('<section class="cgroup"')
-        self.assertTrue(tiles_at < groups_at < progress_at)
+        self.assertTrue(progress_at < groups_at)
 
-    def test_proposal_tree_sits_between_tiles_and_the_progress_charts(self):
-        # Sponsor correction, 2026-09-18: "at the top, there should be like
-        # proposal nineteen" -- the charts used to sit between the tiles and
-        # the tree, pushing the tree below the fold. Tiles, then the tree,
-        # then the actionable priority queue, then historical charts.
+    def test_progress_history_sits_before_the_proposal_tree(self):
+        # Sponsor correction, 2026-09-18: the history is a top-level reading
+        # aid, before the proposal tree, with the actionable queue below it.
         repo = Repo(self.root / "proj")
         repo.commit_ledger("30-x.json", ledger(30, [item("A-01", status="done")]), datetime.date.today())
         led = ledger(30, [item("A-01", status="done")])
         path = repo.root / "docs" / "proposals" / "30-x.json"
         text = board.render([(path, led)], "demo", None, repo.root)
-        tiles_at = text.index('<div class="tiles">')
         features_at = text.index('<section class="features"')
         progress_at = text.index('<section class="progress"')
         groups_at = text.index('<details class="cgroups" id="cgroups">')
-        self.assertTrue(tiles_at < features_at < groups_at < progress_at)
+        self.assertTrue(progress_at < features_at < groups_at)
 
     def test_chart_height_is_capped_regardless_of_page_width(self):
         # Sponsor correction, 2026-09-18: "the container is stretching them"
@@ -207,17 +217,18 @@ class FeaturesDrilldownCase(unittest.TestCase):
         self.assertIn('<span class="fpn">P30</span>', text)
         self.assertIn('<span class="fptitle" title="Widgets">Widgets</span>', text)
         # A-01 is 100% (done, no parts), A-02 is 0% -- average 50%.
-        self.assertIn('<span class="fppct">50%</span>', text)
-        self.assertIn('<span class="fpcount">1/2 items done</span>', text)
+        self.assertIn('<span class="fppct">50.0%</span>', text)
+        self.assertIn('<span class="fpcount">1/2 tasks done</span>', text)
 
     def test_feature_row_collapsed_by_default(self):
         text = self.render([item("A-01")])
         self.assertNotRegex(text, r'<details class="feature-row"[^>]*\bopen\b')
         self.assertNotRegex(text, r'<details class="item-row"[^>]*\bopen\b')
 
-    def test_says_completion_is_averaged_per_item(self):
+    def test_explains_item_and_nested_task_denominators(self):
         text = self.render([item("A-01")])
-        self.assertIn("average of each item", text)
+        self.assertIn("All proposal totals and percentages count nested tasks", text)
+        self.assertIn("All proposal totals and percentages count nested tasks", text)
 
     def test_item_row_shows_completion_bar_group_and_next_part(self):
         text = self.render([
@@ -227,7 +238,8 @@ class FeaturesDrilldownCase(unittest.TestCase):
                       'data-status="not started" data-owner="" data-tier="medium" data-group="finish now"', text)
         self.assertIn('<span class="ipct">60%</span>', text)
         self.assertIn("next: A-01.B", text)
-        self.assertIn('class="pill g-s-finish-now"', text)
+        self.assertIn('class="pill group-pill g-s-finish-now"', text)
+        self.assertIn('class="pill status-pill s-not-started"', text)
 
     def test_item_without_parts_shows_one_implicit_part(self):
         text = self.render([item("I-01", status="in progress", title="no parts yet")])
@@ -267,7 +279,7 @@ class FeaturesDrilldownCase(unittest.TestCase):
             item("A-02", status="in progress", parts=[part("A-02.A", "a", 100, "done")]),
             item("A-03", status="not started"),
         ])
-        self.assertIn('<span class="fpcount">2/3 items done</span>', text)
+        self.assertIn('<span class="fpcount">2/4 tasks done</span>', text)
 
     def test_no_javascript_required(self):
         text = self.render([

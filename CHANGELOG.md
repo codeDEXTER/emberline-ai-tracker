@@ -1,3 +1,12 @@
+## 1.1.0 · Cross-Agent Project Operating Standard · 2026-09-18
+
+The shared tracker now uses one nested-task denominator across its header,
+status controls, proposal summaries, completion tiles, and history graph. It
+also shows a velocity-based completion projection, uses a true completion bar
+in expanded task rows, and separates work-group and task-status badges for
+readability. The generated tracker is kept aligned for both Claude Code and
+Codex consumers.
+
 ## 2026-09-18 · the board template's dropdown/heading defects, seen on a project with one proposal (P-14)
 
 The sponsor: "also the dropdowns created by app and engine are not visually

@@ -1,8 +1,8 @@
 {
   "project": "/Users/the-sponsor/apps/common-rules",
   "name": "common-rules",
-  "branch": "main",
-  "head": "aaa8e84",
+  "branch": "p33-accept",
+  "head": "77476b0",
   "checkout": "main checkout",
   "prohibitions": [
     "**1. Never change common-rules on your own initiative.** Every edit, merge and",
@@ -16,23 +16,26 @@
     "HANDOFF.md",
     "docs/OPERATING-RULES.md"
   ],
-  "problems": [],
+  "problems": [
+    "page docs/proposals/tracker/index.html is stale -- run: tracker board --project .",
+    "checkpoint is stale -- run: tracker checkpoint --project /Users/the-sponsor/apps/common-rules"
+  ],
   "chain": [
     [
       "✓",
-      ".common-rules.json · declares read_order, safety_rules, gates"
+      ".common-rules.json · declares read_order, safety_rules, gates, value_defaults, risk_always, ruflo_namespace"
     ],
     [
       "✓",
-      "CLAUDE.md · 7 commits behind HEAD"
+      "CLAUDE.md · 180 commits behind HEAD"
     ],
     [
       "✓",
-      "HANDOFF.md · 10 commits behind HEAD"
+      "HANDOFF.md · 101 commits behind HEAD"
     ],
     [
       "✓",
-      "docs/OPERATING-RULES.md · 10 commits behind HEAD"
+      "docs/OPERATING-RULES.md · 104 commits behind HEAD"
     ],
     [
       "✓",
@@ -40,15 +43,7 @@
     ],
     [
       "✓",
-      "page docs/proposals/tracker/19-proposal-warmup.html · matches the ledger"
-    ],
-    [
-      "✓",
       "ledger docs/proposals/20-proposal-warmup-from-the-app.json · well-formed"
-    ],
-    [
-      "✓",
-      "page docs/proposals/tracker/20-proposal-warmup-from-the-app.html · matches the ledger"
     ],
     [
       "✓",
@@ -56,102 +51,207 @@
     ],
     [
       "✓",
-      "page docs/proposals/tracker/21-standard-is-mandatory.html · matches the ledger"
+      "ledger docs/proposals/22-one-tracker-per-project.json · well-formed"
     ],
     [
       "✓",
-      "checkpoint docs/handovers/2026-09-14-checkpoint.md · matches the open ledgers"
+      "ledger docs/proposals/23-eight-levers-for-token-spend.json · well-formed"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/24-autonomous-work-without-missing-anything.json · well-formed"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/25-sizing-items-by-value-points-and-risk.json · well-formed"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/26-cluster-work-by-contribution-and-risk.json · well-formed"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/27-time-and-tokens-per-task-in-one-place.json · well-formed"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/28-two-commands-warmup-and-reheat.json · well-formed"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/29-taking-over-the-common-rules-chat-v1-work.json · well-formed"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/30-tracker-shows-how-complete-each-item-is-by-lettered-parts.json · well-formed"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/31-cheaper-turns-a-fast-gate-and-scripts-instead-of-bookkeeping.json · well-formed"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/32-semantic-versions-and-a-lock-for-the-standard.json · well-formed"
+    ],
+    [
+      "✓",
+      "ledger docs/proposals/33-why-the-standard-gets-missed-and-what-to-cut.json · well-formed"
+    ],
+    [
+      "✗",
+      "page docs/proposals/tracker/index.html · stale -- run: tracker board --project ."
+    ],
+    [
+      "✗",
+      "checkpoint docs/handovers/2026-09-18-checkpoint.md · stale"
     ]
   ],
   "ledgers": {
     "docs/proposals/19-proposal-warmup.json": {
       "proposal": 19,
       "title": "Warm-up",
-      "status_line": "13 done / 1 in progress / 0 blocked / 0 not started",
+      "status_line": "17 done / 1 in progress / 0 blocked / 1 not started",
       "items": {
+        "Q-05": {
+          "status": "not started",
+          "title": "standard item 2 Migrated: page docs/proposals/tracker/index.html is stale",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": true,
+          "parts": null
+        },
+        "Q-04": {
+          "status": "done",
+          "title": "standard item 12 Card: warmup --check: 1 problem(s), first: checkpoint is stale -- run: tracker checkpoint --project /Users/the-sponsor/apps/common-rules",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "Q-03": {
+          "status": "done",
+          "title": "standard item 9 Ruflo around items: V-04 closed on or after 2026-09-17 without both item:<ID>:start and item:<ID>:done in Ruflo memory (namespace patterns) -- 92 item(s) closed before 2026-09-17 not checked, of which 14 have records",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "Q-02": {
+          "status": "done",
+          "title": "standard item 10 Publishing recorded: docs/proposals/tracker/21-standard-is-mandatory.published.json records a page for 21-standard-is-mandatory.json, which records no tracker of its own -- the project publishes one page, and that record is docs/proposals/tracker/index.published.json; docs/proposals/tracker/23-eight-levers-for-token-spend.published.json records a page for 23-eight-levers-for-token-spend.json, which records no tracker of its own -- the project publishes one page, and that record is docs/proposals/tracker/index.published.json",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "Q-01": {
+          "status": "done",
+          "title": "standard item 4 Installed: the git pre-commit hook is not the one this common-rules' bin/derecord installs (edited by hand, from an older derecord, or naming another rules checkout)",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
         "W-00": {
           "status": "done",
           "title": "The ledger contract: tools/tracker/ledger.py, bin/tracker validate",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         },
         "W-01": {
           "status": "done",
           "title": "templates/ — the six seeds and the brief",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "W-02": {
           "status": "done",
           "title": "bin/tracker render — ledger.json to the proposal page",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         },
         "W-03": {
           "status": "done",
           "title": "bin/tracker check — land refuses a commit whose ledger row did not move",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         },
         "W-04": {
           "status": "done",
           "title": "bin/tracker sync — GitHub issues mirror the ledger one way",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "W-05": {
           "status": "done",
           "title": "/warmup skill and bin/warmup --check",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         },
         "W-06": {
           "status": "done",
           "title": "bin/recall and bin/remember",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "W-07": {
           "status": "done",
           "title": "Stop, PreCompact and SessionStart hooks; checkpoint writer",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "W-08": {
           "status": "done",
           "title": "derecord seeds the templates and installs the hooks",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "W-11": {
           "status": "done",
           "title": "derecord installs the /warmup skill into a project",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "W-09": {
           "status": "done",
           "title": "tracker import — an existing milestone plan becomes a ledger",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         },
         "W-12": {
           "status": "done",
           "title": "/warmup --migrate — a running project moves onto the standard",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         },
         "W-13": {
           "status": "done",
           "title": "Migrate the PhotoVault app onto the standard",
-          "tag": "[ruflo · lead · lead model]",
-          "next": false
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
         },
         "W-10": {
           "status": "in progress",
           "title": "Pilot on the PhotoVault engine; measure the exit conditions",
-          "tag": "[ruflo · lead · lead model]",
-          "next": false
+          "tag": "[ruflo · low · haiku]",
+          "next": false,
+          "parts": {
+            "completion": 20,
+            "group": "waiting",
+            "next": {
+              "id": "W-10.A",
+              "title": "warm-up --check passes in all four focus projects",
+              "waiting": "PhotoVault Engine"
+            }
+          }
         }
       },
       "asks": {
@@ -204,6 +304,11 @@
           "state": "answered",
           "kind": "decision",
           "quote": "merge 152, option 1 for the app"
+        },
+        "A-11": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "continue"
         }
       },
       "readiness": null,
@@ -224,16 +329,18 @@
           ],
           [
             "C3",
-            "opus"
+            "sonnet"
           ],
           [
             "C4",
-            "lead model"
+            "opus"
           ]
         ],
         0
       ],
-      "published": null
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
     },
     "docs/proposals/20-proposal-warmup-from-the-app.json": {
       "proposal": 20,
@@ -243,74 +350,86 @@
         "V-00": {
           "status": "done",
           "title": "Project declaration: .common-rules.json (D9)",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         },
         "V-01": {
           "status": "done",
           "title": "Ledger contract v2 (D2, D4, D5, D6, D7, D8)",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         },
         "V-02": {
           "status": "done",
           "title": "Card v2",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "V-03": {
           "status": "done",
           "title": "Tracker page v2",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "V-04": {
           "status": "done",
           "title": "sync honours switches.issues (D5)",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "V-05": {
           "status": "done",
           "title": "Agent tag hook (D3)",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "V-06": {
           "status": "done",
           "title": "bin/ruflo-item (D11)",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "V-07": {
           "status": "done",
           "title": "derecord v2 (D12, D13)",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "V-08": {
           "status": "done",
           "title": "Templates: parallel high tier, reviewer, verify level (D10)",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "V-09": {
           "status": "done",
           "title": "Publish (D1)",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         },
         "V-10": {
           "status": "done",
           "title": "Reheat the PhotoVault engine and app, then measure",
-          "tag": "[ruflo · lead · lead model]",
-          "next": false
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
         },
         "V-11": {
           "status": "done",
           "title": "Publish the declared plan page (D1 with D9)",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         }
       },
       "asks": {
@@ -343,16 +462,18 @@
           ],
           [
             "C3",
-            "opus"
+            "sonnet"
           ],
           [
             "C4",
-            "lead model"
+            "opus"
           ]
         ],
         0
       ],
-      "published": null
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
     },
     "docs/proposals/21-standard-is-mandatory.json": {
       "proposal": 21,
@@ -362,68 +483,95 @@
         "S-01": {
           "status": "done",
           "title": "/standard: the sponsor's mandatory command",
-          "tag": "[ruflo · lead · lead model]",
-          "next": false
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
         },
         "S-02": {
           "status": "done",
           "title": "Proposal template and bin/new-proposal",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         },
         "S-03": {
           "status": "done",
           "title": "proposalcheck: no unchecked proposal pages above the legacy floor",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "S-04": {
           "status": "done",
           "title": "bin/conformance: the 12-item checklist, measured",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         },
         "S-05": {
           "status": "done",
           "title": "Hooks from a parent start folder",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "S-06": {
           "status": "done",
           "title": "Templates and CLAUDE-workflow name the standard",
           "tag": "[ruflo · medium · sonnet]",
-          "next": false
+          "next": false,
+          "parts": null
         },
         "S-07": {
           "status": "not started",
           "title": "PhotoVault app on the standard",
-          "tag": "[ruflo · lead · lead model]",
-          "next": true
+          "tag": "[ruflo · low · haiku]",
+          "next": true,
+          "parts": {
+            "completion": 0,
+            "group": "waiting",
+            "next": {
+              "id": "S-07.A",
+              "title": "12 of 12 conformance items hold for PhotoVault app/engine",
+              "waiting": "PhotoVault App"
+            }
+          }
         },
         "S-08": {
           "status": "not started",
           "title": "PhotoVault engine on the standard",
-          "tag": "[ruflo · lead · lead model]",
-          "next": true
+          "tag": "[ruflo · low · haiku]",
+          "next": true,
+          "parts": {
+            "completion": 0,
+            "group": "waiting",
+            "next": {
+              "id": "S-08.A",
+              "title": "12 of 12 conformance items hold for PhotoVault app/engine",
+              "waiting": "PhotoVault Engine"
+            }
+          }
         },
         "S-09": {
           "status": "done",
           "title": "Unimplemented Standard changes fail the card",
-          "tag": "[ruflo · high · opus]",
-          "next": false
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
         },
         "S-10": {
           "status": "done",
           "title": "common-rules on its own standard",
-          "tag": "[ruflo · lead · lead model]",
-          "next": false
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
         },
         "S-11": {
           "status": "done",
           "title": "/standard in the common-rules session",
-          "tag": "[ruflo · lead · lead model]",
-          "next": false
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
         }
       },
       "asks": {
@@ -466,6 +614,26 @@
           "state": "answered",
           "kind": "decision",
           "quote": "/standard: the common-rules standard is mandatory"
+        },
+        "A-09": {
+          "state": "answered",
+          "kind": "feature",
+          "quote": "Show me the tracker for common rules#."
+        },
+        "A-10": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "automatically merge the, uh, pull requests."
+        },
+        "A-11": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Please don't use more than Sonnet."
+        },
+        "A-12": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Put some mandatory rule for uh, sub agents don't use Opus."
         }
       },
       "readiness": null,
@@ -486,46 +654,1822 @@
           ],
           [
             "C3",
-            "opus"
+            "sonnet"
           ],
           [
             "C4",
-            "lead model"
+            "opus"
           ]
         ],
         0
       ],
-      "published": {
-        "stem": "21-standard-is-mandatory",
-        "url": "https://claude.ai/code/artifact/c6e49aeb-6470-4d8a-90d4-4b9f293f17ee",
-        "digest": "bea2f8b89f2f47847bb1575438c7105c0cb2a160851735323ed4accb2f2fa755",
-        "at": "2026-09-14T19:15:05+02:00",
-        "by": "common-rules lead",
-        "page_digest": "bea2f8b89f2f47847bb1575438c7105c0cb2a160851735323ed4accb2f2fa755",
-        "changed": false,
-        "ledger_digest": "aac663b16cca1f994363b571e86f73f2cc6d59710757d890934e845dfcccbf83"
-      }
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
+    },
+    "docs/proposals/22-one-tracker-per-project.json": {
+      "proposal": 22,
+      "title": "One tracker per project",
+      "status_line": "6 done / 0 in progress / 0 blocked / 0 not started",
+      "items": {
+        "T-01": {
+          "status": "done",
+          "title": "tracker board: the project's one tracker page",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "T-02": {
+          "status": "done",
+          "title": "The chain reads the project page, not one page per proposal",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "T-03": {
+          "status": "done",
+          "title": "Publishing the project page",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "T-04": {
+          "status": "done",
+          "title": "common-rules on one tracker",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "T-05": {
+          "status": "done",
+          "title": "Deprecated -- app and engine each keep their own tracker, never shared",
+          "tag": "[ruflo · low · haiku]",
+          "next": false,
+          "parts": null
+        },
+        "T-06": {
+          "status": "done",
+          "title": "A published page's name is set once and never changes -- tracker, board, cookbook, any of them",
+          "tag": "[ruflo · low · haiku]",
+          "next": false,
+          "parts": null
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "Can we make the tracker a little bit visually readable with some filters or something like that? Like, a top level, uh, you know, where it filters everything, and I can see things in block, maybe visually appealing a little bit? Also, per project, there should be one tracker unless and until specified for a proposal if I need another tracker."
+        },
+        "A-02": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "don't change the name of the tracker again and again that should also be a mandatory rule"
+        },
+        "A-03": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Also, make it a mandatory rule not to rename the artifacts like cookbook and a trackers again and again."
+        },
+        "A-04": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "I don't want photovault app and engine on one tracker. I just said one tracker per project. So app will have its own tracker and engine will have its own tracker. Please correct or deprecate the tickets accordingly."
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "sonnet"
+          ],
+          [
+            "C4",
+            "opus"
+          ]
+        ],
+        0
+      ],
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
+    },
+    "docs/proposals/23-eight-levers-for-token-spend.json": {
+      "proposal": 23,
+      "title": "Eight levers for token spend",
+      "status_line": "20 done / 1 in progress / 0 blocked / 0 not started",
+      "items": {
+        "L-01": {
+          "status": "done",
+          "title": "Fresh lead per milestone or day",
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
+        },
+        "L-02": {
+          "status": "done",
+          "title": "Review only risky work",
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": {
+            "completion": 100,
+            "group": "done",
+            "next": null
+          }
+        },
+        "L-03": {
+          "status": "done",
+          "title": "Quiet builds: log to file, read the summary line",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "L-04": {
+          "status": "done",
+          "title": "One-line tracker commands for ledger updates",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "L-05": {
+          "status": "done",
+          "title": "Bundle small issues by surface",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "L-06": {
+          "status": "done",
+          "title": "Haiku scout writes the context pack",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "X-01": {
+          "status": "done",
+          "title": "Size items by value, points and risk (sponsor's L8 note)",
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
+        },
+        "X-02": {
+          "status": "done",
+          "title": "Catalogue and cluster issues for later (sponsor's L2 and L5 notes)",
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
+        },
+        "X-03": {
+          "status": "done",
+          "title": "Autonomous work without missing anything (sponsor's L1 note)",
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
+        },
+        "L-07": {
+          "status": "in progress",
+          "title": "Use the existing tool, not an inline copy",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": {
+            "completion": 80,
+            "group": "back burner",
+            "next": {
+              "id": "L-07.B",
+              "title": "mining rerun shows each cluster halved"
+            }
+          }
+        },
+        "M-01": {
+          "status": "done",
+          "title": "Parallel test suite",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "M-02": {
+          "status": "done",
+          "title": "Builders run only affected tests; one full suite at merge",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "M-03": {
+          "status": "done",
+          "title": "Trim Ruflo's tool loading",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "M-04": {
+          "status": "done",
+          "title": "One writer for ledger and tracker files",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "M-05": {
+          "status": "done",
+          "title": "A light path for tiny items",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "M-06": {
+          "status": "done",
+          "title": "Say where lead-prompt §4 stands on hand-editing ledgers",
+          "tag": "[ruflo · low · haiku]",
+          "next": false,
+          "parts": null
+        },
+        "M-07": {
+          "status": "done",
+          "title": "CLAUDE-workflow.md names the quick/merge two-gate exception",
+          "tag": "[ruflo · low · haiku]",
+          "next": false,
+          "parts": null
+        },
+        "M-08": {
+          "status": "done",
+          "title": "Six-category review list in CLAUDE-workflow.md gets replaced, not duplicated, when P26 routing lands",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "M-09": {
+          "status": "done",
+          "title": "Dedupe five rules stated in more than one file",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "M-10": {
+          "status": "done",
+          "title": "Move dated rationale out of CLAUDE-workflow.md into CHANGELOG",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "M-11": {
+          "status": "done",
+          "title": "Must-read under 3,000 words: card replaces raw ledger, OPERATING-RULES folds into HANDOFF, checkpoint stays",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "L1: picked \"A · Fresh lead per milestone or day\". Note: \"how we will ensure nothing important is missed. make a separate proposal. also the work needs to continue autonomsly.\""
+        },
+        "A-02": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "L2: picked \"A · Review only risky work\". Note: \"but the issues need to be catalauges and clustered together for later\""
+        },
+        "A-03": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L3: picked \"A · Log to file, read the summary line\"."
+        },
+        "A-04": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L4: picked \"A · One-line tracker commands\"."
+        },
+        "A-05": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "L5: picked \"A · Bundle by surface\". Note: \"issues need to be catalauges and clustered together for later\""
+        },
+        "A-06": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L6: picked \"B · Haiku scout writes the pack\"."
+        },
+        "A-07": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L7: picked \"K · Keep as is (the lead reads receipt images itself)\"."
+        },
+        "A-08": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "L8: picked \"K · Keep as is (models unchanged)\". Note: \"this needs to be rethaught. its not only the complexity of the task, but the importance and value of the feature. each feature or task should have a userstory point to understand complexitxy and effort. research how this could be implemented\""
+        },
+        "A-09": {
+          "state": "became-item",
+          "kind": "research",
+          "quote": "L2 and L5 notes: \"issues need to be catalauges and clustered together for later\""
+        },
+        "A-10": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "L1 note: \"how we will ensure nothing important is missed. make a separate proposal. also the work needs to continue autonomsly.\""
+        },
+        "A-11": {
+          "state": "became-item",
+          "kind": "research",
+          "quote": "Also, can you do an independent research on this analysis to analysis? If there are some repeating task can be create some python scripts, one time to automate them?"
+        },
+        "A-12": {
+          "state": "answered",
+          "kind": "feature",
+          "quote": "Make the artefacts, so I can use them on mobile"
+        },
+        "A-13": {
+          "state": "answered",
+          "kind": "question",
+          "quote": "Documented open decisions"
+        },
+        "A-14": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "Implement the eight levers of uh, token spending. to optimize token utilization. In the standards, and then give me the command to update the standards."
+        },
+        "A-15": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "Yeah, add this to the backlog."
+        },
+        "A-16": {
+          "state": "answered",
+          "kind": "research",
+          "quote": "I would like to know how much a review is efficient. Uh, does it find any bugs?"
+        },
+        "A-17": {
+          "state": "answered",
+          "kind": "research",
+          "quote": "also do a review of everything we are implementing on the rules are there any conflicts between the rules at the end of the day these rules need to be very concise and small so they can be easily consumed by the leads"
+        },
+        "A-18": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "review found: a lead's must-read is ~52,037 words (~70k tokens) in full, 72% of it ledger log text bin/warmup's card already compresses to ~1,061 words. Getting the must-read under 2,500 words needs one of: (a) drop the checkpoint from the mandatory read, kept as reference-only when non-empty, or (b) fold docs/OPERATING-RULES.md's non-duplicate content into HANDOFF.md as one file. Either gets to ~2,300-2,900 words. Which, or neither?"
+        },
+        "A-19": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "review found: should reading the ledger, wherever a rule file currently says to, mean reading bin/warmup's printed card (already compressed, ~1,061 words) instead of the raw ledger JSON (~37,672 words across the 11 active proposals), with the full JSON opened only for the one item currently being worked?"
+        },
+        "A-20": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "I don't know how many words we should decide on. Please make this decision yourself. And give me a recommendation."
+        },
+        "A-21": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "also the priority is on the word limit that we do not miss anything important"
+        },
+        "A-22": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "and i think leads should be atleact Opus with low of medium effort / we are finding too many gaps if sonnet is the lead"
+        },
+        "A-23": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Continue."
+        },
+        "A-24": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "continue"
+        },
+        "A-25": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "continue"
+        },
+        "A-26": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Clean the leftover work trees, make it a standard rule, and also implement the due later tasks. Run parallel agents."
+        },
+        "A-27": {
+          "state": "answered",
+          "kind": "question",
+          "quote": "Can you analyze how much tokens are actually spent on implementing and how much tokens are spent on other tasks?"
+        },
+        "A-28": {
+          "state": "answered",
+          "kind": "question",
+          "quote": "Why is Ruflo not working? Is it not set up correctly? Can you investigate?"
+        },
+        "A-29": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "fix ruflo"
+        },
+        "A-30": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "also continue other tasks"
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "sonnet"
+          ],
+          [
+            "C4",
+            "opus"
+          ]
+        ],
+        0
+      ],
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
+    },
+    "docs/proposals/24-autonomous-work-without-missing-anything.json": {
+      "proposal": 24,
+      "title": "Autonomous work without missing anything",
+      "status_line": "4 done / 0 in progress / 0 blocked / 0 not started",
+      "items": {
+        "H-01": {
+          "status": "done",
+          "title": "Closing check: bin/handover --check",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "H-02": {
+          "status": "done",
+          "title": "Thin dispatcher and short item leads",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "H-03": {
+          "status": "done",
+          "title": "The dispatcher starts the next lead without asking",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "H-04": {
+          "status": "done",
+          "title": "Background leads are visible and named apart from chat sessions",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "how we will ensure nothing important is missed. make a separate proposal. also the work needs to continue autonomsly."
+        },
+        "A-02": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D1: picked \"B · Thin dispatcher + short item leads\"."
+        },
+        "A-03": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D2: picked \"A · The four checks\"."
+        },
+        "A-04": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D3: picked \"A · The dispatcher starts the next lead, without asking\"."
+        },
+        "A-05": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D4: picked \"A · Keep today's three stops\"."
+        },
+        "A-06": {
+          "state": "answered",
+          "kind": "feature",
+          "quote": "implement the backlog"
+        },
+        "A-07": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "add an amendment I would like to see when uh, is it possible to see the leads in background tasks if so they should follow a different naming convention"
+        },
+        "A-08": {
+          "state": "answered",
+          "kind": "question",
+          "quote": "What do you mean by logged out?"
+        },
+        "A-09": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "in parallel can you run other tasks so we can finish faster"
+        },
+        "A-10": {
+          "state": "answered",
+          "kind": "question",
+          "quote": "Anything else pending?"
+        },
+        "A-11": {
+          "state": "answered",
+          "kind": "question",
+          "quote": "Is the new lead running?"
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "sonnet"
+          ],
+          [
+            "C4",
+            "opus"
+          ]
+        ],
+        0
+      ],
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
+    },
+    "docs/proposals/25-sizing-items-by-value-points-and-risk.json": {
+      "proposal": 25,
+      "title": "Sizing items by value, points and risk",
+      "status_line": "6 done / 0 in progress / 0 blocked / 0 not started",
+      "items": {
+        "Z-01": {
+          "status": "done",
+          "title": "Ledger fields: value, points, risk, cluster",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "Z-02": {
+          "status": "done",
+          "title": "Routing table from the four fields",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "Z-03": {
+          "status": "done",
+          "title": "Value defaults per surface",
+          "tag": "[ruflo · low · haiku]",
+          "next": false,
+          "parts": null
+        },
+        "Z-04": {
+          "status": "done",
+          "title": "Risk class from paths; common-rules always restricted",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "Z-05": {
+          "status": "done",
+          "title": "Calibrate points every 20 items",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "Z-06": {
+          "status": "done",
+          "title": "Issue catalogue clustered by files touched",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "this needs to be rethaught. its not only the complexity of the task, but the importance and value of the feature. each feature or task should have a userstory point to understand complexitxy and effort. research how this could be implemented"
+        },
+        "A-02": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "but the issues need to be catalauges and clustered together for later"
+        },
+        "A-03": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D1: picked \"A · Value + points + risk, with a routing table\"."
+        },
+        "A-04": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D2: picked \"A · Default per surface, override when needed\"."
+        },
+        "A-05": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D3: picked \"A · No, kept from the builder\"."
+        },
+        "A-06": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D4: picked \"A · Always restricted\"."
+        },
+        "A-07": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D5: picked \"A · Every 20 items\"."
+        },
+        "A-08": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: D6: picked \"A · Cluster by files touched, on the tracker page\"."
+        },
+        "A-09": {
+          "state": "answered",
+          "kind": "feature",
+          "quote": "implement the backlog"
+        },
+        "A-10": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "what about the block"
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "sonnet"
+          ],
+          [
+            "C4",
+            "opus"
+          ]
+        ],
+        0
+      ],
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
+    },
+    "docs/proposals/26-cluster-work-by-contribution-and-risk.json": {
+      "proposal": 26,
+      "title": "Cluster work by contribution and risk",
+      "status_line": "6 done / 0 in progress / 0 blocked / 0 not started",
+      "items": {
+        "C-01": {
+          "status": "done",
+          "title": "Impact and likelihood on items",
+          "tag": "[ruflo · low · haiku]",
+          "next": false,
+          "parts": null
+        },
+        "C-02": {
+          "status": "done",
+          "title": "tracker lanes: share, risk, the 80% cut and each item's lane",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "C-05": {
+          "status": "done",
+          "title": "Findings are catalogued, lane-sorted, triaged into batches and light-pathed",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "C-03": {
+          "status": "done",
+          "title": "One gate and review per bundle or batch",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "C-04": {
+          "status": "done",
+          "title": "Board shows lanes and the 14-day re-score",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "C-06": {
+          "status": "done",
+          "title": "Two more statuses: in review, in testing",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "So if the reviews and all that can be also done in clusters so reviews and main testing, so can you think of some kind of a formula where we can analyse and see what is the percentage of contribution by these changes in the overall changes, what might be the impact what might be the risk? Is it a user visible risk, or is it a pack and risk? Does it completely stop working? Everything? Does it improve something and based on the different priorities and different percentage of contribution and percentage of risk it prioritise how to cluster these tasks. So lower ones can be done like once in a day or once in a week or when something else is done, can be deferred for later. At least I want to get the 90% of the work done rather than focusing on the last 10% and the majority is completed, but things are tracked."
+        },
+        "A-02": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P26 D1\" Answered: \"A · Share + risk, cut, batch the tail\"."
+        },
+        "A-03": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P26 D2\" Answered: \"A · Value × points\"."
+        },
+        "A-04": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P26 D3\" Answered: \"B · 80%\"."
+        },
+        "A-05": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P26 D4\" Answered: \"A · By risk: daily, weekly, when touched\"."
+        },
+        "A-06": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P26 D5\" Answered: \"A · Once per bundle or batch\"."
+        },
+        "A-07": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P26 D6\" Answered: \"B · 14 days\"."
+        },
+        "A-08": {
+          "state": "answered",
+          "kind": "feature",
+          "quote": "implement the backlog"
+        },
+        "A-09": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "Also, I think reviews can have in groups. And the low priority findings are still getting cataloged. And they can have a light path once I decide or once it's decided based on the decisions uh, to implement them. So they don't need the full-fledged implementation. But still, they need to be cataloged and not worked immediately. Eighty percent is the threshold."
+        },
+        "A-10": {
+          "state": "answered",
+          "kind": "feature",
+          "quote": "So review findings and test findings can have similar uh, you know mathematical formula for priority deciding and then both low priority things can be handled later in batches"
+        },
+        "A-11": {
+          "state": "answered",
+          "kind": "feature",
+          "quote": "and those batches can be triaged to you know find common issues and concise and make things more effective so triaging is also a thing that needs to be considered"
+        },
+        "A-12": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "Can you also create in the tracker something like in review or in testing?"
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "sonnet"
+          ],
+          [
+            "C4",
+            "opus"
+          ]
+        ],
+        0
+      ],
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
+    },
+    "docs/proposals/27-time-and-tokens-per-task-in-one-place.json": {
+      "proposal": 27,
+      "title": "Time and tokens per task, in one place",
+      "status_line": "4 done / 0 in progress / 0 blocked / 0 not started",
+      "items": {
+        "W-01": {
+          "status": "done",
+          "title": "Fix bin/spend: subagents, once per response, all token kinds",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "W-02": {
+          "status": "done",
+          "title": "bin/worklog collect into common-rules/worklog/<date>.jsonl",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "W-03": {
+          "status": "done",
+          "title": "Stop hook after each turn and a nightly run with one commit",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "W-04": {
+          "status": "done",
+          "title": "Evening page and the /warmup line",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "Second thing, uh, it needs to be a low effort uh, thing that all the tasks and everything should be tracked, time and tokens. So at the end of the day, we can, you know, continuously review these things across different sessions. There could be a central database maintained for all sessions and everything, and we updated their regularly."
+        },
+        "A-02": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P27 D1\" Answered: \"B · Daily JSON files\". Note: \"A central folder revisioned under common rules\""
+        },
+        "A-03": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P27 D2\" Answered: \"A · After each session turn, plus nightly\"."
+        },
+        "A-04": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P27 D3\" Answered: \"A · Brief tag, then branch, then session\"."
+        },
+        "A-05": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P27 D4\" Answered: \"A · Active time\"."
+        },
+        "A-06": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P27 D5\" Answered: \"A · Both: evening page and a /warmup line\"."
+        },
+        "A-07": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P27 D6\" Answered: \"A · Fix them first\"."
+        },
+        "A-08": {
+          "state": "answered",
+          "kind": "feature",
+          "quote": "implement the backlog"
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "sonnet"
+          ],
+          [
+            "C4",
+            "opus"
+          ]
+        ],
+        0
+      ],
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
+    },
+    "docs/proposals/28-two-commands-warmup-and-reheat.json": {
+      "proposal": 28,
+      "title": "Two commands: warmup and reheat",
+      "status_line": "6 done / 0 in progress / 0 blocked / 0 not started",
+      "items": {
+        "R-01": {
+          "status": "done",
+          "title": "bin/warmup runs the standard every time, in both modes",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "R-02": {
+          "status": "done",
+          "title": "/warmup and /reheat skills with context; /standard becomes a shortcut",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "R-03": {
+          "status": "done",
+          "title": "Hooks run warmup and reheat by themselves",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "R-04": {
+          "status": "done",
+          "title": "Dispatcher starts a new lead with /warmup <item> [context]",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "R-05": {
+          "status": "done",
+          "title": "Fast-forward the shared common-rules checkout when behind",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "R-06": {
+          "status": "done",
+          "title": "A visual cookbook page: how warmup and reheat work, the standard's features, constraints and rules",
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "So currently there are standard, warmup and reheat… I want to keep just two warmup and reheat. Standard should always be included. Also if the lead needs to be created again then how will it work with these two or it happens automatically. Show me a visual proposal"
+        },
+        "A-02": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P28 D1\" Answered: \"A · Two: /warmup and /reheat\". Note: \"Also there should be a possibility to give some context\""
+        },
+        "A-03": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P28 D2\" Answered: \"A · Checked and queued every time\"."
+        },
+        "A-04": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P28 D3\" Answered: \"A · Yes, from the hooks\"."
+        },
+        "A-05": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P28 D4\" Answered: \"A · Dispatcher starts it with /warmup <item>\"."
+        },
+        "A-06": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P28 D5\" Answered: \"A · Shortcut to /warmup for one release, then gone\"."
+        },
+        "A-07": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Asked: \"P28 D6\" Answered: \"A · Yes, fast-forward only, when behind\"."
+        },
+        "A-08": {
+          "state": "answered",
+          "kind": "feature",
+          "quote": "implement the backlog"
+        },
+        "A-09": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "also going ahead, can you maintain a standard cookbook for common rules? Uh, how the warm up and reheat works? I need a visual cookbook. What features, what constraints, and what rules are there? Some sort of a workflow."
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "sonnet"
+          ],
+          [
+            "C4",
+            "opus"
+          ]
+        ],
+        0
+      ],
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
+    },
+    "docs/proposals/29-taking-over-the-common-rules-chat-v1-work.json": {
+      "proposal": 29,
+      "title": "Taking over the Common Rules chat v1 work",
+      "status_line": "7 done / 0 in progress / 0 blocked / 0 not started",
+      "items": {
+        "K-01": {
+          "status": "done",
+          "title": "Land p22 on main",
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
+        },
+        "K-02": {
+          "status": "done",
+          "title": "One tracker per project until the sponsor asks for another (P22 T-04)",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "K-03": {
+          "status": "done",
+          "title": "Deprecated -- app and engine each keep their own tracker, never shared (P22 T-05)",
+          "tag": "[ruflo · low · haiku]",
+          "next": false,
+          "parts": null
+        },
+        "K-04": {
+          "status": "done",
+          "title": "PhotoVault app and engine on the standard (P21 S-07, S-08)",
+          "tag": "[ruflo · low · haiku]",
+          "next": false,
+          "parts": null
+        },
+        "K-05": {
+          "status": "done",
+          "title": "Proposal 19 pilot exit conditions (W-10)",
+          "tag": "[ruflo · low · haiku]",
+          "next": false,
+          "parts": null
+        },
+        "K-06": {
+          "status": "done",
+          "title": "Check the two worktrees with uncommitted work, then clean up",
+          "tag": "[ruflo · low · haiku]",
+          "next": false,
+          "parts": null
+        },
+        "K-07": {
+          "status": "done",
+          "title": "Delete the Common Rules chat v1 session",
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "Also check what the other session was working on, common rules, chat, v1, and take it over in this session and create a different proposal of the pending work so we can track it."
+        },
+        "A-02": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "then I would like to delete the other chat."
+        },
+        "A-03": {
+          "state": "became-item",
+          "kind": "feature",
+          "quote": "Please maintain a single tracker for common rules. And also add that as a common rule to maintain a single tracker up until I have asked to create another tracker. Per project."
+        },
+        "A-04": {
+          "state": "answered",
+          "kind": "feature",
+          "quote": "Also in the board, refactor to utilize lower agents as much as possible."
+        },
+        "A-05": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "make a decision yourself on the blocked items."
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "sonnet"
+          ],
+          [
+            "C4",
+            "opus"
+          ]
+        ],
+        0
+      ],
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
+    },
+    "docs/proposals/30-tracker-shows-how-complete-each-item-is-by-lettered-parts.json": {
+      "proposal": 30,
+      "title": "Tracker shows how complete each item is, by lettered parts",
+      "status_line": "13 done / 0 in progress / 0 blocked / 0 not started",
+      "items": {
+        "P-01": {
+          "status": "done",
+          "title": "Ledger schema: parts on items, validated",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "P-02": {
+          "status": "done",
+          "title": "bin/tracker set addresses a part",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "P-03": {
+          "status": "done",
+          "title": "Board renders the completion view",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "P-04": {
+          "status": "done",
+          "title": "Warm-up card and checkpoint count parts",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "P-05": {
+          "status": "done",
+          "title": "Migrate the open items into parts",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "P-06": {
+          "status": "done",
+          "title": "Standard change entry and docs",
+          "tag": "[ruflo · low · haiku]",
+          "next": false,
+          "parts": null
+        },
+        "P-07": {
+          "status": "done",
+          "title": "Progress over time, computed from git history",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "P-08": {
+          "status": "done",
+          "title": "Charts and feature drill-down on the page",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": {
+            "completion": 100,
+            "group": "done",
+            "next": null
+          }
+        },
+        "P-09": {
+          "status": "done",
+          "title": "The proposal tree is the top view: proposal, then items, then parts",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "P-10": {
+          "status": "done",
+          "title": "A second button switches the tracker to Kanban",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "P-11": {
+          "status": "done",
+          "title": "One filter bar at the top, governing every view",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "P-12": {
+          "status": "done",
+          "title": "The item bar is completion, accumulated, not parts in letter order",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "P-13": {
+          "status": "done",
+          "title": "A button to pull a waiting item forward, instead of waiting for its date",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "i dont understand this overview in the tracker"
+        },
+        "A-02": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "So my understanding is uh, these are the elements which are getting completed. Based on the priority, and if anything is above 80%, a task which may be a subtask that is still pending to be completed, that ends up in that list. So, this needs to be refactored and revisualized properly so I can understand it a bit better. So, my basic requirement is every task gets to 100%. But if there are some tasks, for example, not able to get 100% in some part of the work is left, then that work is evaluated as a sub-item. For example, L-02.A, BC, then the percentage is calculated, okay, what would be what percentage of feature they would be completing? Based on that, if the overall feature is 80% completed, and the sub uh, remaining elements only complete maybe 2, 3, or the last remaining 10, 20%, then they can be added as a back burner. Backlog, which can be handled later. Or uh, you know that should be visualized here. And what would be the risk and all, you know, based on the that it's calculating how to do it. And also the percentage does not give me a right figure because 17%, I don't have the formula in my mind."
+        },
+        "A-03": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "This visualized widget is good and this is how it should be represented in the tracker. Uh, to get an estimate of the degree of completion. Please uh, make a proposal on how the tracker would look like so it's not completely overpopulated. And then it should also be possible to filter things out and get into the details."
+        },
+        "A-04": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "Also, I like the naming convention with ABC. That should be standardized as the standard approach. And each ticket should be tracked in the tracker or sub-ticket."
+        },
+        "A-05": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "go with your recommendations"
+        },
+        "A-06": {
+          "state": "became-item",
+          "kind": "decision",
+          "quote": "I really liked the widget style that was shown earlier. And I wouldn't mind if that is the top view and then you have some details below. That gives a clear overview and the bottom parts and I like the widget."
+        },
+        "A-07": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "okay, I see that uh, that's the same design implemented in the proposal as well. That's also fine. Please divide the tasks and implement it as fast as possible in parallel."
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "sonnet"
+          ],
+          [
+            "C4",
+            "opus"
+          ]
+        ],
+        0
+      ],
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
+    },
+    "docs/proposals/31-cheaper-turns-a-fast-gate-and-scripts-instead-of-bookkeeping.json": {
+      "proposal": 31,
+      "title": "Cheaper turns: a fast gate and scripts instead of bookkeeping",
+      "status_line": "12 done / 0 in progress / 0 blocked / 0 not started",
+      "items": {
+        "O-01": {
+          "status": "done",
+          "title": "The suite's slowest file stops rebuilding its world per test",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": {
+            "completion": 100,
+            "group": "done",
+            "next": null
+          }
+        },
+        "O-02": {
+          "status": "done",
+          "title": "The merge gate runs the parallel runner that already exists",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "O-03": {
+          "status": "done",
+          "title": "No waiting on a gate: one blocking call, one verdict line",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "O-04": {
+          "status": "done",
+          "title": "bin/commit-if-green: gate, verdict and commit in one call",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "O-05": {
+          "status": "done",
+          "title": "A PR body drafted from the ledger item and the diff",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "O-06": {
+          "status": "done",
+          "title": "One draft for the ruflo-item done note and the ledger event",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "O-07": {
+          "status": "done",
+          "title": "Batch dispatch: one message carries every unblocked brief",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "O-08": {
+          "status": "done",
+          "title": "A staging branch, so main is never red",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "O-09": {
+          "status": "done",
+          "title": "Warm-up stops shelling out 23 times to measure conformance",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "O-10": {
+          "status": "done",
+          "title": "Shards split within a file, not just between files",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": {
+            "completion": 100,
+            "group": "done",
+            "next": null
+          }
+        },
+        "O-11": {
+          "status": "done",
+          "title": "ruflo-item records several items in one invocation",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "O-12": {
+          "status": "done",
+          "title": "workflow.html's stamp is generated, not hand-typed",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Implement all the five recommendations with the recommended decisions."
+        },
+        "A-02": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "make the decisions yourself for the pending items and complete the work."
+        },
+        "A-03": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "I will run the pilots myself."
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "sonnet"
+          ],
+          [
+            "C4",
+            "opus"
+          ]
+        ],
+        0
+      ],
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
+    },
+    "docs/proposals/32-semantic-versions-and-a-lock-for-the-standard.json": {
+      "proposal": 32,
+      "title": "Semantic versions and a lock for the standard",
+      "status_line": "3 done / 0 in progress / 0 blocked / 1 not started",
+      "items": {
+        "V-01": {
+          "status": "done",
+          "title": "A semantic version for the standard, beside the stamp it replaces",
+          "tag": "[ruflo · high · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "V-02": {
+          "status": "done",
+          "title": "The changelog is the source of the bump, and a test says so",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "V-03": {
+          "status": "not started",
+          "title": "A lock a project can trust: what it is aligned to, and what is pending",
+          "tag": "[ruflo · high · sonnet]",
+          "next": true,
+          "parts": null
+        },
+        "V-04": {
+          "status": "done",
+          "title": "Release 1.0.0 once nothing is pending",
+          "tag": "[ruflo · lead · opus]",
+          "next": false,
+          "parts": null
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Can you version the common rule and release a baseline when the pending tasks are done. Use semantic version version and change Lock to maintain it going ahead"
+        },
+        "A-02": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "L7 will remain on back burner"
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "sonnet"
+          ],
+          [
+            "C4",
+            "opus"
+          ]
+        ],
+        0
+      ],
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
+    },
+    "docs/proposals/33-why-the-standard-gets-missed-and-what-to-cut.json": {
+      "proposal": 33,
+      "title": "Why the standard gets missed, and what to cut",
+      "status_line": "0 done / 0 in progress / 0 blocked / 5 not started",
+      "items": {
+        "R-01": {
+          "status": "not started",
+          "title": "Closing an item refuses without the evidence its own done line demands",
+          "tag": "[ruflo · high · sonnet]",
+          "next": true,
+          "parts": null
+        },
+        "R-02": {
+          "status": "not started",
+          "title": "The builder's own gate runs the checks the merge gate runs",
+          "tag": "[ruflo · high · sonnet]",
+          "next": true,
+          "parts": null
+        },
+        "R-03": {
+          "status": "not started",
+          "title": "Conformance catches a project's stale skill copies",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": true,
+          "parts": null
+        },
+        "R-04": {
+          "status": "not started",
+          "title": "An inventory of every rule in the must-read: enforced, moved, or cut",
+          "tag": "[ruflo · lead · opus]",
+          "next": true,
+          "parts": null
+        },
+        "R-05": {
+          "status": "not started",
+          "title": "Deprecate and delete what has been replaced",
+          "tag": "[ruflo · high · sonnet]",
+          "next": true,
+          "parts": null
+        }
+      },
+      "asks": {
+        "A-01": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Can you do a thorough review and identify why we are missing these items? Can we optimize all these rules so when I warm up or reheat a project, they follow it to the point and not miss anything? Do we need to deprecate any of the old mechanisms and make it as concise and precise as possible?"
+        },
+        "A-02": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "Make the necessary decisions and implement proposal 33."
+        }
+      },
+      "readiness": null,
+      "merged_waiting": [],
+      "yours": [],
+      "switches_off": [],
+      "requests": [],
+      "routing": [
+        "tiers",
+        [
+          [
+            "C1",
+            "haiku"
+          ],
+          [
+            "C2",
+            "sonnet"
+          ],
+          [
+            "C3",
+            "sonnet"
+          ],
+          [
+            "C4",
+            "opus"
+          ]
+        ],
+        0
+      ],
+      "published": null,
+      "own_tracker": false,
+      "overdue_tail": []
     }
   },
   "files": {
     "CLAUDE.md": "910fee09af9671fc4f17b2431a21d3bd0bd667ce04904791bbd3dcb706763e04",
-    "HANDOFF.md": "9ccbd916e83ef94742f412b199d735e4d5ffb118aadc588def501a9489213c7a",
-    "docs/OPERATING-RULES.md": "342638926256340c14b59f0eeea25998f520ad568981fac4097462dbdfd744c9",
-    "docs/proposals/19-proposal-warmup.json": "69935e6a171f66b27f8bd31fa63980fd4bf380eb290c15d8a5058ea6ceed78fe",
-    "docs/proposals/20-proposal-warmup-from-the-app.json": "4a1c8d5fb8fcddbe165e43c50d4fb4d3a6ecaf2be0c3a6f82334edc3490980a3",
-    "docs/proposals/21-standard-is-mandatory.json": "aac663b16cca1f994363b571e86f73f2cc6d59710757d890934e845dfcccbf83",
-    "docs/handovers/2026-09-14-checkpoint.md": "1f98fe9d1afd6f5cfc50229aa703a7d0abc2f1ed3914e262cefa6f90b118fa9d"
+    "HANDOFF.md": "9cc82f1d60331a7c3e93935f1e3fb62013d06707b90f7a40b6672f087f9d85fa",
+    "docs/OPERATING-RULES.md": "132bffeb8cd5a9f38ae4f82dfca074abcebf07472cfc2bd6c2f1e669bb250fe8",
+    "docs/proposals/19-proposal-warmup.json": "9058e6f9faaa04c4acf5c53d85694d5454339234ee75e309fade80c8a73eac35",
+    "docs/proposals/20-proposal-warmup-from-the-app.json": "29ee707685588f2b33dcb57fbd654b6acc649acc39b18cdd8890ffefc9b48be7",
+    "docs/proposals/21-standard-is-mandatory.json": "82bdaec0a0f436e5ed3cfbeb5373b7a1332b4e5abe37591274202eecc524c0e2",
+    "docs/proposals/22-one-tracker-per-project.json": "07e47febc9c98f9c5b3e09b2e047d80928092d75934f2a447182283099454da9",
+    "docs/proposals/23-eight-levers-for-token-spend.json": "c7a8b61864910c1c5da40aa13b00a5497e47d48e07fc98123060aeecd567e30e",
+    "docs/proposals/24-autonomous-work-without-missing-anything.json": "90e73e0a34d14ed995750b4a4c013198195fd63bfcfcd09264da51864bd19825",
+    "docs/proposals/25-sizing-items-by-value-points-and-risk.json": "72bb06aafd1750f9b8b0760235a68627f6480e69ddd711c5b2f17d38757e4fc7",
+    "docs/proposals/26-cluster-work-by-contribution-and-risk.json": "748342dc94b65cce4255e74105dfae52c1f51260ac3d94e3cc8c45707c481bf5",
+    "docs/proposals/27-time-and-tokens-per-task-in-one-place.json": "47eb8064573e1aca53e07d2cb3b6a17e419379dfc0a49a176db0592e05e550c6",
+    "docs/proposals/28-two-commands-warmup-and-reheat.json": "817145a52e057b7304b26798a5714cb2d6c2db13a648387cf4efc18efe57106f",
+    "docs/proposals/29-taking-over-the-common-rules-chat-v1-work.json": "2fdef272906cc9e6d0d0eca42e03597f1316f1a1aca09b86c682403dc0196412",
+    "docs/proposals/30-tracker-shows-how-complete-each-item-is-by-lettered-parts.json": "c0e8e88ac396c0ab72363174cb77868bbbf3c1c6427d14aee1ba8d4b488fa58a",
+    "docs/proposals/31-cheaper-turns-a-fast-gate-and-scripts-instead-of-bookkeeping.json": "dbefc00cba6ca708157e42c50eddc104adda5c56a5e85e12fd4f59ccfd0216ed",
+    "docs/proposals/32-semantic-versions-and-a-lock-for-the-standard.json": "57b47312a35d1074d924600071d99f945da9f240d3c52501d8cef454b5eafb75",
+    "docs/proposals/33-why-the-standard-gets-missed-and-what-to-cut.json": "d01c630fc008d17737ecd37c0f28b0362de12fccd1afa67bc9d87dcc3df972e5",
+    "docs/handovers/2026-09-18-checkpoint.md": "d2d8ebf2c60a90158cb50d949f7e6a934ea61d0a375de4e46c213020497727a8"
   },
-  "test_command": "python3 -m unittest discover -s tests -q",
+  "groups": {
+    "finish now": 7,
+    "back burner": 1,
+    "waiting": 3
+  },
+  "test_command": "bin/workflow-stamp --check && bin/version-check --check && bin/quiet --label merge-gate --jobs auto -- python3 -m unittest discover -s tests -q",
   "quick_gate": "python3 -m unittest discover -s tests -q -p 'test_tracker*.py'",
   "merge_gate_declared": true,
-  "rules": "not adopted (.common-rules-version absent) · 2 mandatory Standard change(s) in the rules CHANGELOG",
+  "rules": "not adopted (.common-rules-version absent) · 19 mandatory Standard change(s) in the rules CHANGELOG",
   "ruflo": "/Users/the-sponsor/.npm/_npx/85fb20e3e7e3a233/node_modules/.bin/claude-flow",
+  "ruflo_namespace": "patterns",
   "session": null,
-  "checkpoint": "ok",
-  "superseded": [
-    "2026-09-14 · superseded by proposal 19: “One plan, updated in place” → the ledger, docs/proposals/NN-*.json, is the plan of record; its page is generated by tracker render"
-  ],
+  "conformance": {
+    "project": "/Users/the-sponsor/apps/common-rules",
+    "hold": 9,
+    "total": 12,
+    "items": [
+      {
+        "n": 1,
+        "name": "Rules read and implemented",
+        "state": "holds",
+        "why": "this is the rules repository itself -- rulecheck: nothing to align against",
+        "fix": ""
+      },
+      {
+        "n": 2,
+        "name": "Migrated",
+        "state": "does not hold",
+        "why": "page docs/proposals/tracker/index.html is stale",
+        "fix": "fix what /Users/the-sponsor/apps/common-rules/bin/tracker validate names, then run /Users/the-sponsor/apps/common-rules/bin/tracker board --project /Users/the-sponsor/apps/common-rules, and /Users/the-sponsor/apps/common-rules/bin/tracker render <ledger> for a ledger that records its own tracker (the pre-commit hook does both on commit)"
+      },
+      {
+        "n": 3,
+        "name": "Declared",
+        "state": "holds",
+        "why": "declares read_order, safety_rules, gates.quick and gates.merge",
+        "fix": ""
+      },
+      {
+        "n": 4,
+        "name": "Installed",
+        "state": "holds",
+        "why": "derecord's pre-commit hook, checkpoint and agent hooks, and Ruflo ignore lines are in place",
+        "fix": ""
+      },
+      {
+        "n": 5,
+        "name": "Lead prompt",
+        "state": "holds",
+        "why": "1 lead prompt(s), each from the template",
+        "fix": ""
+      },
+      {
+        "n": 6,
+        "name": "The ledger speaks the common language",
+        "state": "holds",
+        "why": "15 ledger(s): owners, tags, one routing table, requests valid",
+        "fix": ""
+      },
+      {
+        "n": 7,
+        "name": "Proposals",
+        "state": "holds",
+        "why": "common-rules: 33 proposal(s), 15 asked decisions -- no violations.",
+        "fix": ""
+      },
+      {
+        "n": 8,
+        "name": "No hand-kept duplicates",
+        "state": "holds",
+        "why": "no hand-kept twin of a ledger",
+        "fix": ""
+      },
+      {
+        "n": 9,
+        "name": "Ruflo around items",
+        "state": "does not hold",
+        "why": "Q-03, Q-04 closed on or after 2026-09-17 without both item:<ID>:start and item:<ID>:done in Ruflo memory (namespace patterns) -- 92 item(s) closed before 2026-09-17 not checked, of which 15 have records",
+        "fix": "run /Users/the-sponsor/apps/common-rules/bin/ruflo-item start <ID> \"...\" and done <ID> \"...\" for each missing id, then re-run conformance"
+      },
+      {
+        "n": 10,
+        "name": "Publishing recorded",
+        "state": "holds",
+        "why": "1 publish record(s), each well-formed",
+        "fix": ""
+      },
+      {
+        "n": 11,
+        "name": "CLAUDE.md pointer",
+        "state": "holds",
+        "why": "CLAUDE.md carries the committed warm-up block for the declared read order",
+        "fix": ""
+      },
+      {
+        "n": 12,
+        "name": "Card",
+        "state": "does not hold",
+        "why": "warmup --check: 2 problem(s), first: page docs/proposals/tracker/index.html is stale -- run: tracker board --project .",
+        "fix": "run /Users/the-sponsor/apps/common-rules/bin/warmup --project /Users/the-sponsor/apps/common-rules --check and fix each problem it names"
+      }
+    ]
+  },
+  "mandatory_pending": [],
+  "rules_head": "77476b05c65698738cee52b301ee918d0686fe9f",
+  "published": {
+    "page": "docs/proposals/tracker/index.html",
+    "url": "https://claude.ai/artifact/QfwZgrGYQtJYmM75mbeogb",
+    "digest": "5f580c24c254c9b03f9f5c10faf1d5ac6df49bf5aa02ede827bc441ebaed8327",
+    "ledgers": "[[\"19-proposal-warmup.json\",\"345520b4d32dc0c6a9ec3a8a3d54b1948ba8db16b72a81387d45a3b7ec4c7338\"],[\"20-proposal-warmup-from-the-app.json\",\"29ee707685588f2b33dcb57fbd654b6acc649acc39b18cdd8890ffefc9b48be7\"],[\"21-standard-is-mandatory.json\",\"82bdaec0a0f436e5ed3cfbeb5373b7a1332b4e5abe37591274202eecc524c0e2\"],[\"22-one-tracker-per-project.json\",\"07e47febc9c98f9c5b3e09b2e047d80928092d75934f2a447182283099454da9\"],[\"23-eight-levers-for-token-spend.json\",\"c7a8b61864910c1c5da40aa13b00a5497e47d48e07fc98123060aeecd567e30e\"],[\"24-autonomous-work-without-missing-anything.json\",\"90e73e0a34d14ed995750b4a4c013198195fd63bfcfcd09264da51864bd19825\"],[\"25-sizing-items-by-value-points-and-risk.json\",\"72bb06aafd1750f9b8b0760235a68627f6480e69ddd711c5b2f17d38757e4fc7\"],[\"26-cluster-work-by-contribution-and-risk.json\",\"748342dc94b65cce4255e74105dfae52c1f51260ac3d94e3cc8c45707c481bf5\"],[\"27-time-and-tokens-per-task-in-one-place.json\",\"47eb8064573e1aca53e07d2cb3b6a17e419379dfc0a49a176db0592e05e550c6\"],[\"28-two-commands-warmup-and-reheat.json\",\"817145a52e057b7304b26798a5714cb2d6c2db13a648387cf4efc18efe57106f\"],[\"29-taking-over-the-common-rules-chat-v1-work.json\",\"2fdef272906cc9e6d0d0eca42e03597f1316f1a1aca09b86c682403dc0196412\"],[\"30-tracker-shows-how-complete-each-item-is-by-lettered-parts.json\",\"c0e8e88ac396c0ab72363174cb77868bbbf3c1c6427d14aee1ba8d4b488fa58a\"],[\"31-cheaper-turns-a-fast-gate-and-scripts-instead-of-bookkeeping.json\",\"d99b09e0c49caeb955758651d1ea5b14537667c012ced2760b91289c997ba7d1\"],[\"32-semantic-versions-and-a-lock-for-the-standard.json\",\"57b47312a35d1074d924600071d99f945da9f240d3c52501d8cef454b5eafb75\"]]",
+    "at": "2026-09-18T10:27:22+02:00",
+    "by": "session:common-rules lead",
+    "page_digest": "02bf0e11994bed813bf05fb50bc8834d5778ada4cd6583c0ab25fcb71f1dd7c0",
+    "changed": true
+  },
+  "checkpoint": "stale",
+  "superseded": [],
   "read_order": [
     "CLAUDE.md",
     "HANDOFF.md",
@@ -533,49 +2477,24 @@
     "docs/proposals/19-proposal-warmup.json",
     "docs/proposals/20-proposal-warmup-from-the-app.json",
     "docs/proposals/21-standard-is-mandatory.json",
-    "docs/handovers/2026-09-14-checkpoint.md",
+    "docs/proposals/22-one-tracker-per-project.json",
+    "docs/proposals/23-eight-levers-for-token-spend.json",
+    "docs/proposals/24-autonomous-work-without-missing-anything.json",
+    "docs/proposals/25-sizing-items-by-value-points-and-risk.json",
+    "docs/proposals/26-cluster-work-by-contribution-and-risk.json",
+    "docs/proposals/27-time-and-tokens-per-task-in-one-place.json",
+    "docs/proposals/28-two-commands-warmup-and-reheat.json",
+    "docs/proposals/29-taking-over-the-common-rules-chat-v1-work.json",
+    "docs/proposals/30-tracker-shows-how-complete-each-item-is-by-lettered-parts.json",
+    "docs/proposals/31-cheaper-turns-a-fast-gate-and-scripts-instead-of-bookkeeping.json",
+    "docs/proposals/32-semantic-versions-and-a-lock-for-the-standard.json",
+    "docs/proposals/33-why-the-standard-gets-missed-and-what-to-cut.json",
+    "docs/handovers/2026-09-18-checkpoint.md",
     "CLAUDE-workflow.md"
   ],
-  "read_bytes": 194644,
-  "recall": [
-    {
-      "item": "W-10",
-      "words": [
-        "pilot",
-        "photovault",
-        "engine",
-        "measure"
-      ],
-      "hits": [
-        "4  2026-09-14T01:31:11+02:00  /Users/the-sponsor/apps/common-rules/docs/proposals/19-proposal-warmup.json#W-10.log[8]  what remains Both PhotoVault projects are migrated and their cards read ready (engine 7cb0448/79151e3, app 941b479/36aa2dd/14d5e71). W-10's done-when is each of",
-        "3  2026-09-13T21:55:07+02:00  /Users/the-sponsor/apps/common-rules/docs/proposals/19-proposal-warmup.json#W-12.log[2]  dry runs on the real projects, read-only git status unchanged on all three. PhotoVault engine: ledger 71 present, nothing to import; would supersede 2 rules ('O",
-        "3  2026-09-13T21:32:37+02:00  /Users/the-sponsor/apps/common-rules/docs/proposals/19-proposal-warmup.json#W-05.log[2]  pilot, read-only bin/warmup run on /Users/the-sponsor/apps/PhotoVault/engine with git status porcelain 0 lines before and after. First card printed three wrong line"
-      ]
-    },
-    {
-      "item": "S-07",
-      "words": [
-        "photovault",
-        "standard"
-      ],
-      "hits": [
-        "2  2026-09-14T16:40:58+02:00  /Users/the-sponsor/apps/common-rules/docs/proposals/21-standard-is-mandatory.json#S-04.log[1]  reported origin/p21-s04 = 2d15234834651ed9edae01449bce733cda854274 (from git). bin/conformance: 'standard: N of 12 hold', one line per item (✓ holds, ✗ does not",
-        "2  2026-09-14T19:22:41+02:00  /Users/the-sponsor/apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json#Q-02.log[2]  done standard: 12 of 12 hold (common-rules bin/conformance --project ., at 4863eec); warmup --check: ready; rulecheck stamp aligned 422-0bd48e6. Commits: 6bc9b5",
-        "2  2026-09-14T19:21:16+02:00  /Users/the-sponsor/apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json#Q-02.log[1]  refactor under way Item 1: the two mandatory Standard change entries since no stamp (P21 S-02 bin/new-proposal and proposal_series; Later changes to the standar"
-      ]
-    },
-    {
-      "item": "S-08",
-      "words": [
-        "photovault",
-        "engine",
-        "standard"
-      ],
-      "hits": [
-        "3  2026-09-14T16:40:58+02:00  /Users/the-sponsor/apps/common-rules/docs/proposals/21-standard-is-mandatory.json#S-04.log[1]  reported origin/p21-s04 = 2d15234834651ed9edae01449bce733cda854274 (from git). bin/conformance: 'standard: N of 12 hold', one line per item (✓ holds, ✗ does not",
-        "3  2026-09-14T19:21:16+02:00  /Users/the-sponsor/apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json#Q-02.log[1]  refactor under way Item 1: the two mandatory Standard change entries since no stamp (P21 S-02 bin/new-proposal and proposal_series; Later changes to the standar",
-        "3  14 Sep 2026  /Users/the-sponsor/.claude/projects/-Users-the-sponsor-apps/memory/photovault-common-structure-mandatory.md:11  Sponsor ruling, 14 Sep 2026 (in the common-rules session): the common-rules warm-up standard (proposals 19 and 20) is **mandatory, not optional** for the PhotoV"
-      ]
-    }
-  ]
+  "read_bytes": 544615,
+  "recall": [],
+  "context": "picking up the engine work — does this reach the session?",
+  "rules_pull": "rules pull: skipped (--no-pull)",
+  "queue_report": "queue: nothing new (19-proposal-warmup.json)"
 }

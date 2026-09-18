@@ -16,10 +16,9 @@ showing a false dip to zero.
 
 A ticket is an item, or -- proposal 30 -- any of its lettered parts, at any
 depth (a part with its own `parts` counts itself AND its parts; a nested
-part such as W-10.A.1 counts too). `tools.tracker.parts` does not yet walk
-nested parts for `completion()`, so per-item completion here is exactly
-`parts.completion(item)`, unchanged: once that module learns to recurse,
-this one follows without edits.
+part such as W-10.A.1 counts too). Completion uses the same ticket
+denominator as the status history: done tickets divided by all tracked
+tickets, so nested work cannot make the percentage disagree with the graph.
 
 Two counters beyond the totals-per-day diff: `added_ids`/`closed_ids` count
 by comparing the day's ticket-id set against the previous day's, so a
@@ -72,8 +71,8 @@ def _repo_root(project: Path) -> Path:
     return Path(_git(project, "rev-parse", "--show-toplevel").strip())
 
 
-def _ledger_commits(repo: Path) -> list[tuple[str, datetime.date]]:
-    """(sha, Europe-local calendar date), oldest first, for every commit that
+def _ledger_commits(repo: Path) -> list[tuple[str, datetime.datetime]]:
+    """(sha, Europe-local commit time), oldest first, for every commit that
     touched a ledger file directly under docs/proposals."""
     out = _git(repo, "log", "--format=%H%x1f%cI", "--reverse", "--", f"docs/proposals/{LEDGER_GLOB}")
     commits = []
@@ -108,7 +107,7 @@ def _tickets(node: dict):
     ticket AND its parts are tickets (proposal 30): W-10 with parts W-10.A,
     W-10.B, and W-10.A itself split further into W-10.A.1, W-10.A.2, counts
     five tickets in total."""
-    yield node.get("id"), node.get("status") == "done"
+    yield node.get("id"), node.get("status") == "done", node.get("status") or "not started"
     for part in node.get("parts") or []:
         if isinstance(part, dict):
             yield from _tickets(part)
@@ -135,7 +134,7 @@ def _snapshot_at(repo: Path, sha: str) -> list[dict]:
             items.append({
                 "proposal": proposal,
                 "completion": P.completion(item),
-                "tickets": [[tid, done] for tid, done in _tickets(item)],
+                "tickets": [[tid, done, status] for tid, done, status in _tickets(item)],
             })
     return items
 
@@ -147,18 +146,17 @@ def _summarize(items: list[dict]) -> dict:
     returned."""
     total = 0
     done = 0
-    comp_sum = 0.0
     ids_all: set = set()
     ids_done: set = set()
     by_proposal: dict = {}
+    by_status = {key: 0 for key in ("done", "in progress", "in review", "in testing", "blocked", "not started")}
     for it in items:
-        comp_sum += it["completion"]
         prop = str(it["proposal"])
-        agg = by_proposal.setdefault(prop, {"tickets_total": 0, "tickets_done": 0, "_comp": []})
-        agg["_comp"].append(it["completion"])
-        for tid, tdone in it["tickets"]:
+        agg = by_proposal.setdefault(prop, {"tickets_total": 0, "tickets_done": 0})
+        for tid, tdone, status in it["tickets"]:
             total += 1
             agg["tickets_total"] += 1
+            by_status[status if status in by_status else "not started"] += 1
             if tid is not None:
                 ids_all.add(tid)
             if tdone:
@@ -167,12 +165,12 @@ def _summarize(items: list[dict]) -> dict:
                 if tid is not None:
                     ids_done.add(tid)
     for agg in by_proposal.values():
-        comps = agg.pop("_comp")
-        agg["completion_pct"] = round(sum(comps) / len(comps), 1) if comps else 0.0
-    completion_pct = round(comp_sum / len(items), 1) if items else 0.0
+        agg["completion_pct"] = round(100 * agg["tickets_done"] / agg["tickets_total"], 1) if agg["tickets_total"] else 0.0
+    completion_pct = round(100 * done / total, 1) if total else 0.0
     return {
         "tickets_total": total, "tickets_done": done, "completion_pct": completion_pct,
-        "by_proposal": by_proposal, "ids_all": ids_all, "ids_done": ids_done,
+        "by_proposal": by_proposal, "by_status": by_status,
+        "ids_all": ids_all, "ids_done": ids_done,
     }
 
 
@@ -213,7 +211,14 @@ def _save_cache(path: Path, cache: dict) -> None:
 
 def _snapshot_for(repo: Path, sha: str, cache: dict) -> list[dict]:
     cached = cache.get(sha)
-    if cached is not None:
+    # The ticket tuple gained a status field for the stacked chart. Discard
+    # pre-status cache entries instead of letting an old cache make the page
+    # silently omit its graph.
+    if cached is not None and all(
+        len(ticket) == 3
+        for item in cached
+        for ticket in item.get("tickets", [])
+    ):
         return cached
     snap = _snapshot_at(repo, sha)
     cache[sha] = snap
@@ -227,28 +232,56 @@ def _as_date(value) -> datetime.date | None:
         return None
     if isinstance(value, datetime.date):
         return value
-    return datetime.date.fromisoformat(value)
+    return datetime.date.fromisoformat(str(value).split("T", 1)[0])
 
 
-def series(project, since=None) -> list[dict]:
-    """One row per calendar day from the first commit that touched a ledger
-    to today, carrying forward days without a ledger-touching commit."""
+def series(project, since=None, granularity: str = "day") -> list[dict]:
+    """Progress rows from the first ledger commit to now.
+
+    The default is one row per calendar day. ``granularity="hour"`` keeps
+    one row per local hour, preserving the same snapshot/carry-forward rules
+    for a useful short-range zoom view.
+    """
+    if granularity not in {"day", "hour"}:
+        raise ValueError("granularity must be 'day' or 'hour'")
     project = Path(project)
     repo = _repo_root(project)
     commits = _ledger_commits(repo)
     if not commits:
         return []
 
-    last_sha_of_day: dict[datetime.date, str] = {}
-    for sha, day in commits:
-        last_sha_of_day[day] = sha  # ascending order -> last write wins
+    def bucket(when: datetime.datetime):
+        if granularity == "hour":
+            if isinstance(when, datetime.date) and not isinstance(when, datetime.datetime):
+                return datetime.datetime.combine(when, datetime.time.min, tzinfo=TZ)
+            return when.replace(minute=0, second=0, microsecond=0)
+        return when if isinstance(when, datetime.date) and not isinstance(when, datetime.datetime) else when.date()
+
+    last_sha_of_bucket = {}
+    for sha, when in commits:
+        last_sha_of_bucket[bucket(when)] = sha  # ascending order -> last write wins
 
     cache_path = _cache_path(project)
     cache = _load_cache(cache_path)
     dirty = False
 
-    start_day = commits[0][1]
-    today = datetime.datetime.now(TZ).date()
+    start_bucket = bucket(commits[0][1])
+    now = datetime.datetime.now(TZ)
+    end_bucket = bucket(now)
+    since_date = _as_date(since)
+    if since_date is not None:
+        requested = datetime.datetime.combine(since_date, datetime.time.min, tzinfo=TZ)
+        start_bucket = max(start_bucket, bucket(requested))
+
+    # A zoom window commonly starts between commits. Seed its first bucket
+    # with the latest snapshot at or before the requested start, then carry
+    # that state forward until the next real commit.
+    seed_sha = None
+    for sha, when in commits:
+        if bucket(when) <= start_bucket:
+            seed_sha = sha
+    if seed_sha is not None and start_bucket not in last_sha_of_bucket:
+        last_sha_of_bucket[start_bucket] = seed_sha
 
     rows: list[dict] = []
     prev_ids_all: set = set()
@@ -256,9 +289,10 @@ def series(project, since=None) -> list[dict]:
     prev_total = 0
     last_summary: dict | None = None
 
-    day = start_day
-    while day <= today:
-        sha = last_sha_of_day.get(day)
+    current = start_bucket
+    step = datetime.timedelta(hours=1) if granularity == "hour" else datetime.timedelta(days=1)
+    while current <= end_bucket:
+        sha = last_sha_of_bucket.get(current)
         if sha is not None:
             if sha not in cache:
                 dirty = True
@@ -268,7 +302,7 @@ def series(project, since=None) -> list[dict]:
             added_ids = len(ids_all - prev_ids_all)
             closed_ids = len(ids_done - prev_ids_done)
             row = {
-                "date": day.isoformat(),
+                "date": current.isoformat() if granularity == "hour" else current.isoformat(),
                 "tickets_total": summary["tickets_total"],
                 "tickets_done": summary["tickets_done"],
                 "added": max(0, summary["tickets_total"] - prev_total),
@@ -277,6 +311,7 @@ def series(project, since=None) -> list[dict]:
                 "closed_ids": closed_ids,
                 "completion_pct": summary["completion_pct"],
                 "by_proposal": summary["by_proposal"],
+                "by_status": summary["by_status"],
             }
             prev_ids_all, prev_ids_done = ids_all, ids_done
             prev_total = summary["tickets_total"]
@@ -284,17 +319,16 @@ def series(project, since=None) -> list[dict]:
         else:
             assert last_summary is not None  # start_day always has a commit
             row = dict(last_summary)
-            row["date"] = day.isoformat()
+            row["date"] = current.isoformat()
             row["added"] = row["closed"] = row["added_ids"] = row["closed_ids"] = 0
         rows.append(row)
-        day += datetime.timedelta(days=1)
+        current += step
 
     if dirty:
         _save_cache(cache_path, cache)
 
-    since_date = _as_date(since)
     if since_date is not None:
-        rows = [r for r in rows if datetime.date.fromisoformat(r["date"]) >= since_date]
+        rows = [r for r in rows if _as_date(r["date"]) >= since_date]
     return rows
 
 
@@ -309,6 +343,9 @@ _SVG_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "O
 
 
 def _short_date(value: str) -> str:
+    if "T" in value:
+        d = datetime.datetime.fromisoformat(value)
+        return f"{d.day} {_SVG_MONTHS[d.month - 1]} {d.hour:02d}:00"
     d = datetime.date.fromisoformat(value)
     return f"{d.day} {_SVG_MONTHS[d.month - 1]}"
 
@@ -414,7 +451,7 @@ def _line_chart(width: int, height: int, series_list, dates: list[str], title: s
     parts_svg.append(
         f'<line x1="{left}" y1="{baseline_y}" x2="{width - right}" y2="{baseline_y}" '
         f'stroke="var(--tracker-chart-axis, currentColor)" stroke-opacity="0.35" stroke-width="1"/>')
-    for idx in _x_tick_indexes(n):
+    for idx in _x_tick_indexes(len(dates)):
         tx = x(idx)
         anchor = "start" if idx == 0 else "end" if idx == n - 1 else "middle"
         parts_svg.append(
@@ -454,6 +491,27 @@ def _line_chart(width: int, height: int, series_list, dates: list[str], title: s
     return "\n".join(parts_svg)
 
 
+def _status_line_chart(width: int, height: int, rows: list[dict]) -> str:
+    """Plot one line per status; separate lines keep status changes readable
+    without the visual occlusion of a stacked area/bar chart."""
+    keys = ("done", "in progress", "in review", "in testing", "blocked", "not started")
+    colors = {
+        "done": "var(--tracker-status-done, #2FB170)",
+        "in progress": "var(--tracker-status-progress, #D97706)",
+        "in review": "var(--tracker-status-review, #8B5CF6)",
+        "in testing": "var(--tracker-status-testing, #0891B2)",
+        "blocked": "var(--tracker-status-blocked, #E05263)",
+        "not started": "var(--tracker-status-todo, #64748B)",
+    }
+    dates = [r["date"] for r in rows]
+    series = []
+    for key in keys:
+        values = [(r.get("by_status") or {}).get(key, 0) for r in rows]
+        if any(values):
+            series.append((key, values, colors[key]))
+    return _line_chart(width, height, series, dates, "Tasks by status over time", _fmt_count)
+
+
 def _spread_end_labels(end_labels, y_min, y_max, min_gap=14.0):
     """Nudge each end-of-line label's y away from its neighbours' when two
     series finish within `min_gap` px of each other (P-14: the engine's 73
@@ -487,22 +545,12 @@ def _spread_end_labels(end_labels, y_min, y_max, min_gap=14.0):
 
 
 def svg(series_rows: list[dict], width: int = 640, height: int = 210) -> str:
-    """Two small inline SVG line charts from `series()`'s rows: ticket
-    counts (total vs done) and completion percent -- kept as two separate
-    charts rather than one dual-scale chart, since a shared axis for
-    counts and a percent misleads at a glance. No external libraries or
-    URLs. Each chart's y-axis spans exactly its own data's min..max (P-08:
-    never a fixed 0-100 the completion line rarely reaches, which is what
-    left a tall blank region below or above the line)."""
+    """Two inline SVG line charts: one line per non-empty ticket status,
+    then the percentage line. Counts and percentage remain separate units;
+    each chart uses its own observed range."""
     dates = [r["date"] for r in series_rows]
-    totals = [r["tickets_total"] for r in series_rows]
-    dones = [r["tickets_done"] for r in series_rows]
     completion = [r["completion_pct"] for r in series_rows]
-    counts = _line_chart(
-        width, height,
-        [("total", totals, "var(--tracker-line-total, #4C6FFF)"),
-         ("done", dones, "var(--tracker-line-done, #2FB170)")],
-        dates, title="Tickets over time", fmt=_fmt_count)
+    counts = _status_line_chart(width, height, series_rows)
     pct = _line_chart(
         width, height,
         [("completion", completion, "var(--tracker-line-completion, #B15EFF)")],

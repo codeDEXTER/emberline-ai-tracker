@@ -468,6 +468,15 @@ def feature_bar(item: dict) -> str:
     return "".join(out)
 
 
+def completion_bar(item: dict) -> str:
+    """A progress bar whose filled width is exactly the adjacent percentage."""
+    pct = max(0, min(100, PARTS.completion(item)))
+    parts = [f'<span class="seg-done" style="width:{pct}%"></span>']
+    if pct < 100:
+        parts.append(f'<span class="seg-empty" style="width:{100 - pct}%"></span>')
+    return "".join(parts)
+
+
 def _ledger_glob(number) -> str:
     """The shell glob a pasted command names its ledger by -- the proposal
     number is stable and short; the rest of a ledger's filename is not
@@ -523,10 +532,11 @@ def part_sub_row(p: dict, number) -> str:
     cls, label, title = part_pill(p)
     title_attr = f' title="{e(title)}"' if title else ""
     muted = " muted" if p.get("status") == "done" else ""
-    return (f'<div class="prow{muted}"><span class="pid">{e(p.get("id"))}</span>'
+    status = p.get("status") or "not started"
+    return (f'<div class="prow{muted}" data-pstatus="{e(status)}"><span class="pid">{e(p.get("id"))}</span>'
             f'<span class="ptitle" title="{e(p.get("title"))}">{e(p.get("title"))}</span>'
             f'<span class="pshare">{p.get("share", 0)}%</span>'
-            f'<span class="pill p-{cls}"{title_attr}>{e(label)}</span></div>'
+            f'<span class="pill p-{cls} {slug(status)}"{title_attr}>{e(label)}</span></div>'
             f'{pull_forward(p, number)}')
 
 
@@ -542,16 +552,38 @@ def feature_overview_row(item: dict, number) -> str:
             f'<div class="fparts">{prows}</div></details>')
 
 
-def completion_tiles(entries) -> str:
+def nested_task_counts(data: dict) -> dict[str, int]:
+    """Count every item and nested part once, using the graph's denominator."""
+    counts = {s: 0 for s in L.STATUSES}
+
+    def visit(node: dict) -> None:
+        status = node.get("status") or "not started"
+        counts[status if status in counts else "not started"] += 1
+        for child in PARTS.parts(node):
+            visit(child)
+
+    for item in L.items(data):
+        visit(item)
+    return counts
+
+
+def add_counts(target: dict[str, int], source: dict[str, int]) -> None:
+    for status in L.STATUSES:
+        target[status] += source.get(status, 0)
+
+
+def completion_tiles(entries, task_totals: dict[str, int] | None = None) -> str:
     total = len(entries)
     counts = {"finish now": 0, "back burner": 0, "waiting": 0, "done": 0}
     for _, item, _, _ in entries:
         counts[PARTS.group(item)] += 1
+    task_total = sum(task_totals.values()) if task_totals else total
+    task_done = task_totals.get("done", counts["done"]) if task_totals else counts["done"]
     tiles = [
-        ("done", f'{counts["done"]} of {total}', "items done"),
-        ("finish", str(counts["finish now"]), "finish now"),
-        ("back", str(counts["back burner"]), "back burner"),
-        ("wait", str(counts["waiting"]), "waiting"),
+        ("done", f'{task_done} of {task_total}', "tasks done"),
+        ("finish", str(counts["finish now"]), "items · finish now"),
+        ("back", str(counts["back burner"]), "items · back burner"),
+        ("wait", str(counts["waiting"]), "items · waiting"),
     ]
     return "".join(f'<div class="tile t-{cls}"><span class="n">{e(n)}</span><span class="l">{e(label)}</span></div>'
                    for cls, n, label in tiles)
@@ -583,6 +615,28 @@ def completion_legend() -> str:
 _HISTORY_BUDGET = 10.0  # seconds -- P-08's "keep the page's generation time sane"
 
 
+def completion_projection(rows: list[dict]) -> str:
+    """Return a cautious velocity forecast from the same history as the graph."""
+    if not rows:
+        return '<span class="projection-unavailable">Projection unavailable · no history yet</span>'
+    current = rows[-1]
+    total = int(current.get("tickets_total", 0))
+    done = int(current.get("tickets_done", 0))
+    remaining = max(0, total - done)
+    if remaining == 0:
+        return '<span class="projection-done">Projected completion · complete</span>'
+    first_date = HIST._as_date(rows[0].get("date"))
+    last_date = HIST._as_date(current.get("date"))
+    elapsed = (last_date - first_date).days if first_date and last_date else 0
+    closed = sum(max(0, int(row.get("closed", 0))) for row in rows)
+    if elapsed <= 0 or closed <= 0:
+        return '<span class="projection-unavailable">Projected completion · insufficient velocity data</span>'
+    velocity = closed / elapsed
+    eta = last_date + datetime.timedelta(days=remaining / velocity)
+    return (f'<span class="projection-live">Projected completion · {eta.isoformat()} '
+            f'<span class="projection-meta">({velocity:.1f} tasks/day · {remaining} remaining)</span></span>')
+
+
 def progress_block(project) -> str:
     """P-08: history.series(project)'s two charts, server-rendered SVG, no
     JS and no external resources. Quietly omitted when the project has no
@@ -596,6 +650,8 @@ def progress_block(project) -> str:
     try:
         started = time.monotonic()
         rows = HIST.series(project)
+        hourly_since = (datetime.datetime.now(HIST.TZ) - datetime.timedelta(hours=72)).date().isoformat()
+        hourly_rows = HIST.series(project, since=hourly_since, granularity="hour")
         if time.monotonic() - started > _HISTORY_BUDGET:
             since = (datetime.date.today() - datetime.timedelta(days=60)).isoformat()
             rows = HIST.series(project, since=since)
@@ -603,6 +659,10 @@ def progress_block(project) -> str:
         return ""
     if not rows:
         return ""
+    current = (hourly_rows or rows)[-1]
+    current_total = current.get("tickets_total", 0)
+    current_done = current.get("tickets_done", 0)
+    current_pct = current.get("completion_pct", 0.0)
     # Sponsor correction, 2026-09-18: at `width:100%;height:auto` the chart's
     # rendered height was set only by how wide the page happened to be --
     # "the container is stretching them" -- not by anything about the data.
@@ -610,23 +670,44 @@ def progress_block(project) -> str:
     # label is a fixed px value in `history._line_chart`, so this does not
     # shrink them) plus `.charts`'s own max-width keep each chart to roughly
     # 180px of real height regardless of how wide the page's own column is.
-    return (f'<section class="progress" id="progress"><h3>Progress over time</h3>'
-            f'<div class="charts">{HIST.svg(rows, height=150)}</div></section>')
+    return (f'<section class="progress" id="progress">'
+            f'<div class="progress-head"><h3>Progress over time</h3>'
+            f'<label class="history-zoom"><span>Detail</span><select id="history-zoom" aria-label="History detail">'
+            f'<option value="day">Daily</option><option value="hour">Hourly · last 72 hours</option>'
+            f'</select></label></div>'
+            f'<p class="progress-summary">{current_done} of {current_total} nested tasks done · {current_pct:.1f}% overall</p>'
+            f'<p class="projection">{completion_projection(rows)}</p>'
+            f'<div class="charts" data-history-mode="day">{HIST.svg(rows, height=150)}</div>'
+            f'<div class="charts" data-history-mode="hour" hidden>{HIST.svg(hourly_rows, height=150)}</div></section>')
 
 
-def completion_tiles_block(entries) -> str:
+def history_current(project) -> dict | None:
+    """Return the current history snapshot used by the top summary.
+
+    The header is a reading aid for the same nested-task series as the graph;
+    falling back to the ledger's item totals would make the two surfaces show
+    different denominators again. Rendering remains best-effort for a plain
+    directory or a repository without ledger history.
+    """
+    if project is None:
+        return None
+    try:
+        rows = HIST.series(project)
+    except Exception:
+        return None
+    return rows[-1] if rows else None
+
+
+def completion_tiles_block(entries, task_totals: dict[str, int] | None = None) -> str:
     """The top of the page (proposal 30, P-09): the four tiles only. The
     sponsor's own proposal tree (P-08's drill-down, promoted by P-09)
-    follows immediately after this -- "at the top, there should be like
-    proposal nineteen" -- with the Progress charts (P-08) and the old
-    finish-now/back-burner/waiting grouping both pushed below the tree, so
-    nothing stands between him and his proposals (sponsor correction,
-    2026-09-18: the charts used to sit here and pushed the tree below the
-    fold)."""
+    follows immediately after the top-level progress reading aid -- "at the
+    top, there should be like proposal nineteen" -- while the old
+    finish-now/back-burner/waiting grouping stays below the tree."""
     if not entries:
         return ""
     return ('<section class="completion" id="completion"><h2>Completion</h2>'
-            f'<div class="tiles">{completion_tiles(entries)}</div></section>')
+            f'<div class="tiles">{completion_tiles(entries, task_totals)}</div></section>')
 
 
 def completion_groups_section(entries) -> str:
@@ -677,10 +758,13 @@ def feature_node_row(node: dict, number) -> str:
     share_html = f'<span class="pshare">{share}%</span>' if share is not None else ""
     completion = node.get("completion")
     compl_html = f'<span class="pcompl">{completion}%</span>' if completion is not None else ""
+    status = node.get("status") or "not started"
+    status_label = LABEL.get(status, status)
+    status_dot = f'<span class="state-dot s-{slug(status)}" aria-label="{e(status_label)}"></span>'
     summary = (f'<span class="pid">{e(node.get("id"))}</span>'
                f'<span class="ptitle" title="{e(node.get("title"))}">{e(node.get("title"))}</span>'
                f'{share_html}{compl_html}'
-               f'<span class="pill p-{cls}"{title_attr}>{e(label)}</span>')
+               f'{status_dot}<span class="pill p-{cls} s-{slug(status)}" title="Status: {e(status_label)}{(" · " + e(title)) if title else ""}">{e(label)}</span>')
     pdata = (f' data-pstatus="{e(node.get("status") or "")}" '
              f'data-psearch="{e(search_text(node.get("id"), node.get("title")))}"')
     pf = pull_forward(node, number)
@@ -707,31 +791,36 @@ def feature_item_row(item: dict, number) -> str:
     next_text = f'next: {e(nxt.get("id"))} · {e(nxt.get("title"))}' if nxt else "all parts done"
     body = "".join(feature_node_row(c, number) for c in feature_children(item))
     owner = item.get("owner") or ""
+    status = item.get("status") or "not started"
+    status_label = LABEL.get(status, status)
+    status_dot = f'<span class="state-dot s-{slug(status)}" aria-label="{e(status_label)}"></span>'
     return (f'<details class="item-row" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
-            f'data-status="{e(item.get("status") or "")}" data-owner="{e(owner)}" '
+            f'data-status="{e(status)}" data-owner="{e(owner)}" '
             f'data-tier="{e(item.get("tier") or "")}" data-group="{e(grp)}" '
             f'data-search="{e(item_search(item, number))}">'
-            f'<summary class="ihead"><span class="iid">{e(item.get("id"))}</span>'
+            f'<summary class="ihead"><span class="iid">{status_dot}{e(item.get("id"))}</span>'
             f'<span class="ititle" title="{e(item.get("title"))}">{e(item.get("title"))}</span>'
             f'<span class="ipct">{pct}%</span>'
-            f'<span class="ibar fbar">{feature_bar(item)}</span>'
-            f'<span class="pill g-{slug(grp)}">{e(GROUP_LABEL.get(grp, grp))}</span>'
+            f'<span class="ibar fbar">{completion_bar(item)}</span>'
+            f'<span class="pill group-pill g-{slug(grp)}" title="Work group: {e(GROUP_LABEL.get(grp, grp))}">{e(GROUP_LABEL.get(grp, grp))}</span>'
+            f'<span class="pill status-pill {slug(status)}" title="Status: {e(status_label)}">{e(status_label)}</span>'
             f'<span class="inext dim">{next_text}</span></summary>'
             f'<div class="fitems">{body}</div></details>')
 
 
-def proposal_feature_row(number, data, counts) -> str:
+def proposal_feature_row(number, data, counts=None) -> str:
     items = L.items(data)
-    total = len(items)
-    done = sum(1 for it in items if PARTS.group(it) == "done")
-    pct = round(sum(PARTS.completion(it) for it in items) / total) if total else 0
+    task_counts = nested_task_counts(data)
+    total = sum(task_counts.values())
+    done = task_counts["done"]
+    pct = round(100 * done / total, 1) if total else 0
     rows = "".join(feature_item_row(it, number) for it in items)
     return (f'<details class="feature-row" data-proposal="{e(number)}">'
             f'<summary class="fphead"><span class="fpn">P{e(number)}</span>'
             f'<span class="fptitle" title="{e(data.get("title"))}">{e(data.get("title"))}</span>'
-            f'<span class="fppct">{pct}%</span>'
-            f'<span class="fpbar">{mini_bar(counts)}</span>'
-            f'<span class="fpcount">{done}/{total} items done</span>'
+            f'<span class="fppct">{pct:.1f}%</span>'
+            f'<span class="fpbar">{mini_bar(task_counts)}</span>'
+            f'<span class="fpcount">{done}/{total} tasks done</span>'
             f'<span class="fpmatched" hidden></span></summary>'
             f'<div class="fitems">{rows}</div></details>')
 
@@ -747,8 +836,8 @@ def features_section(ledgers: list[tuple[Path, dict]]) -> str:
         return ""
     rows = "".join(proposal_feature_row(data.get("proposal"), data, L.counts(data)) for _, data in ledgers)
     return ('<section class="features" id="features"><h2>Proposals</h2>'
-            '<p class="fnote dim">Completion % is the average of each item’s completion, '
-            'weighted equally per item.</p>'
+            '<p class="fnote dim">All proposal totals and percentages count nested tasks. '
+            'Expanded rows show item-level detail.</p>'
             f'<div class="frows">{rows}</div></section>')
 
 
@@ -853,9 +942,19 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
             requests.append((number, req))
 
     total = sum(totals.values())
+    task_totals = {s: 0 for s in L.STATUSES}
+    proposal_tasks = {}
+    for _, data in ledgers:
+        task_counts = nested_task_counts(data)
+        add_counts(task_totals, task_counts)
+        proposal_tasks[str(data.get("proposal"))] = task_counts
     updated = max((str(d.get("updated") or "") for _, d in ledgers), default="")
-    status_line = " / ".join(f"{totals[s]} {s}" for s in ("done", "in progress", "blocked", "not started"))
-    extra_line = [f"{totals[s]} {s}" for s in ("in review", "in testing") if totals[s]]
+    current_history = history_current(project)
+    display_totals = (current_history.get("by_status", {}) if current_history else task_totals)
+    display_total = (current_history.get("tickets_total", 0) if current_history else sum(task_totals.values()))
+    status_line = " / ".join(f"{display_totals.get(s, 0)} {s}" for s in ("done", "in progress", "blocked", "not started"))
+    extra_line = [f"{display_totals.get(s, 0)} {s}" for s in ("in review", "in testing")
+                  if display_totals.get(s, 0)]
     if extra_line:
         status_line += " / " + " / ".join(extra_line)
 
@@ -864,18 +963,21 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
     # not do. With one proposal there is nothing to filter among, so it adds
     # no function and only repeats the tree's own completion line; omitted
     # in that case rather than kept as a bare duplicate.
-    blocks = "".join(
+    def proposal_nav(n, d):
+        pc = proposal_tasks.get(str(n), {})
+        ptotal = sum(pc.values())
+        return (
         f'<button class="proposal" type="button" data-proposal="{e(n)}" aria-pressed="false">'
         f'<span class="pn">{e(n)}</span>'
         f'<span class="pt">{e(d.get("title"))}</span>'
-        f'<span class="ps">{b(d.get("status"))} · {c["done"]}/{sum(c.values())} done'
-        f'{" · " + str(c["blocked"]) + " blocked" if c["blocked"] else ""}</span>'
-        f'{mini_bar(c)}</button>'
-        for n, d, c in proposals) if len(proposals) > 1 else ""
+        f'<span class="ps">{b(d.get("status"))} · {pc.get("done", 0)}/{ptotal} tasks done'
+        f'{" · " + str(pc.get("blocked", 0)) + " blocked" if pc.get("blocked", 0) else ""}</span>'
+        f'{mini_bar(pc)}</button>')
+    blocks = "".join(proposal_nav(n, d) for n, d, _ in proposals) if len(proposals) > 1 else ""
 
     chips = "".join(
-        f'<button class="chip" data-filter="status" data-value="{e(s)}" aria-pressed="false" type="button">'
-        f'<span class="dot {slug(s)}"></span>{LABEL[s]} <span class="n">{totals[s]}</span></button>'
+        f'<button class="chip" data-filter="status" data-value="{e(s)}" data-task-count="{display_totals.get(s, 0)}" aria-pressed="false" type="button">'
+        f'<span class="dot {slug(s)}"></span>{LABEL[s]} <span class="n">{display_totals.get(s, 0)}</span></button>'
         for s in COLUMNS)
     owner_opts = '<option value="">Anyone</option>' + "".join(
         f'<option value="{e(o)}">{e(o)}</option>' for o in sorted(owners))
@@ -884,7 +986,7 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
     group_opts = '<option value="">Any group</option>' + "".join(
         f'<option value="{e(g)}">{e(GROUP_LABEL[g])}</option>' for g in ("finish now", "back burner", "waiting", "done"))
 
-    tiles_block = completion_tiles_block(entries)
+    tiles_block = completion_tiles_block(entries, display_totals)
     features = features_section(ledgers)
     progress = progress_block(project)
     completion_groups_block = completion_groups_section(entries)
@@ -940,12 +1042,13 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         f"<style>{CSS}</style>\n"
         '<main class="wrap">'
         f'<header class="top"><p class="eyebrow">{b(name)} · {len(ledgers)} '
-        f'{"proposal" if len(ledgers) == 1 else "proposals"} · {total} items · updated {e(updated)}</p>'
+        f'{"proposal" if len(ledgers) == 1 else "proposals"} · {display_total} '
+        f'{"tracked task" if display_total == 1 else "tracked tasks"} · updated {e(updated)}</p>'
         f'<h1>Tracker</h1>'
-        f'<section class="totals" data-done="{totals["done"]}" data-in-progress="{totals["in progress"]}" '
-        f'data-blocked="{totals["blocked"]}" data-not-started="{totals["not started"]}" '
-        f'data-in-review="{totals["in review"]}" data-in-testing="{totals["in testing"]}">'
-        f'<p class="line">{e(status_line)}</p>{mini_bar(totals)}</section></header>'
+        f'<section class="totals" data-task-total="{display_total}" data-done="{display_totals.get("done", 0)}" data-in-progress="{display_totals.get("in progress", 0)}" '
+        f'data-blocked="{display_totals.get("blocked", 0)}" data-not-started="{display_totals.get("not started", 0)}" '
+        f'data-in-review="{display_totals.get("in review", 0)}" data-in-testing="{display_totals.get("in testing", 0)}">'
+        f'<p class="line">{e(status_line)}</p>{mini_bar(display_totals)}</section></header>'
         '<div class="filters" role="search">'
         '<div class="views" role="group" aria-label="View">'
         '<button type="button" data-view="tree" aria-pressed="true">Tree</button>'
@@ -953,7 +1056,7 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         '<button type="button" data-view="board" aria-pressed="false">Board</button>'
         '<button type="button" data-view="list" aria-pressed="false">List</button></div>'
         '<input type="search" id="q" placeholder="Search ids, titles, tags, logs" aria-label="Search">'
-        f'<div class="chips" role="group" aria-label="Status">{chips}</div>'
+        f'<div class="chips" role="group" aria-label="Task status"><span class="filter-caption">Tasks</span>{chips}</div>'
         '<label class="toggle pending"><input type="checkbox" id="pending"><span>Pending</span></label>'
         f'<label class="sel"><span>Group</span><select id="group">{group_opts}</select></label>'
         f'<label class="sel"><span>Owner</span><select id="owner">{owner_opts}</select></label>'
@@ -964,9 +1067,10 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         '<p class="pending-rule dim">Pending hides everything already done, at every level, and forces '
         '"Show finished" off while it is on -- turn Pending off to let "Show finished" decide done work again.</p>'
         '</div>'
+        + f'{progress}'
         + (f'<nav class="proposals" aria-label="Proposal scope">{blocks}</nav>' if blocks else "")
         + f'{tiles_block}'
-        + f'<div id="view-tree">{features}{completion_groups_block}{progress}</div>'
+        + f'<div id="view-tree">{features}{completion_groups_block}</div>'
         + f'<div id="view-kanban" hidden>{kanban}</div>'
         + '<h2 id="details">Details</h2>'
         + f'{attention}'
@@ -1033,6 +1137,7 @@ padding:10px 12px;margin:0 -12px;background:var(--ground);border-bottom:1px soli
 .filters input[type=search]{flex:1 1 220px;min-width:180px;padding:7px 10px;border:1px solid var(--rule);
 border-radius:5px;background:var(--raise)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
+.filter-caption{font:600 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-right:2px}
 .chip{display:inline-flex;align-items:center;padding:5px 10px;border:1px solid var(--rule);border-radius:5px;
 background:var(--raise);cursor:pointer;font-size:13.5px}
 .chip .n,.col h2 .n,.attention h2 .n,.clusters h2 .n{font:500 12px var(--mono);color:var(--dim);margin-left:6px;font-variant-numeric:tabular-nums}
@@ -1163,6 +1268,12 @@ padding:6px 12px 6px 22px;font-size:12.5px;border-top:1px solid var(--rule)}
 .prow:first-child{border-top:none}
 .prow.muted{opacity:.65}
 .prow .pid{font-family:var(--mono);color:var(--dim)}
+.prow[data-pstatus="done"]{border-left:3px solid var(--done);padding-left:5px}
+.prow[data-pstatus="in progress"]{border-left:3px solid var(--prog);padding-left:5px}
+.prow[data-pstatus="in review"]{border-left:3px solid var(--review);padding-left:5px}
+.prow[data-pstatus="in testing"]{border-left:3px solid var(--test);padding-left:5px}
+.prow[data-pstatus="blocked"]{border-left:3px solid var(--block);padding-left:5px}
+.prow[data-pstatus="not started"]{border-left:3px solid var(--todo);padding-left:5px}
 .prow .ptitle{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
 max-height:2.6em;white-space:normal;overflow-wrap:anywhere}
 .prow .pshare{font-family:var(--mono);color:var(--dim);text-align:right}
@@ -1190,8 +1301,15 @@ padding:3px 9px;font:500 11.5px var(--sans);cursor:pointer}
 .card .pct .fbar{width:60px;height:5px;display:inline-flex;border-radius:2px;overflow:hidden}
 .card .pct .next{font:12px var(--sans);font-weight:400}
 /* -- proposal 30, P-08: progress charts and the feature drill-down -- */
-.progress{margin-top:16px}
-.progress h3{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}
+.progress{margin:16px 0 0;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:12px 14px}
+.progress-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px}
+.progress-summary{margin:0 0 10px;color:var(--ink);font:12px var(--mono)}
+.projection{margin:-3px 0 12px;color:var(--dim);font:12px var(--mono);font-variant-numeric:tabular-nums}
+.projection-live{color:var(--accent)}.projection-done{color:var(--done)}
+.projection-unavailable{color:var(--dim)}.projection-meta{color:var(--dim)}
+.progress h3{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0}
+.history-zoom{display:inline-flex;align-items:center;gap:7px;font:12px var(--sans);color:var(--dim)}
+.history-zoom select{border:1px solid var(--rule);border-radius:5px;background:var(--raise);color:var(--ink);padding:4px 7px;font:12px var(--sans)}
 .charts{display:flex;flex-direction:column;gap:16px;max-width:min(100%,1040px)}
 .charts svg{display:block;width:100%;height:auto;color:var(--dim)}
 .features{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
@@ -1211,17 +1329,38 @@ overflow:hidden;max-height:2.8em;white-space:normal;overflow-wrap:anywhere}
 .fphead .fpmatched{font:600 12px var(--mono);color:var(--accent);white-space:nowrap}
 .fitems{border-top:1px solid var(--rule);background:var(--ground);padding:4px 0}
 .item-row{margin:2px 8px}
-.item-row .ihead{display:grid;grid-template-columns:max-content minmax(0,1fr) max-content minmax(70px,90px) max-content minmax(0,1.5fr);gap:10px;align-items:center;
-padding:6px 8px;cursor:pointer;list-style:none;font-size:13px}
+.item-row .ihead{display:grid;grid-template-columns:90px minmax(180px,1.5fr) 48px minmax(100px,1fr) max-content max-content minmax(180px,1.8fr);gap:10px;align-items:center;
+padding:7px 8px;cursor:pointer;list-style:none;font-size:14px}
 .item-row .ihead::-webkit-details-marker{display:none}
 .item-row .iid{font:600 12px var(--mono);color:var(--dim);white-space:nowrap}
-.item-row .ititle{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-width:0;
-max-height:2.6em;white-space:normal;overflow-wrap:anywhere}
+.state-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 6px 1px 0;vertical-align:middle;background:var(--todo);box-shadow:0 0 0 2px color-mix(in srgb,var(--todo) 18%,transparent)}
+.state-dot.s-done{background:var(--done);box-shadow:0 0 0 2px color-mix(in srgb,var(--done) 18%,transparent)}
+.state-dot.s-in-progress{background:var(--prog);box-shadow:0 0 0 2px color-mix(in srgb,var(--prog) 18%,transparent)}
+.state-dot.s-in-review{background:var(--review);box-shadow:0 0 0 2px color-mix(in srgb,var(--review) 18%,transparent)}
+.state-dot.s-in-testing{background:var(--test);box-shadow:0 0 0 2px color-mix(in srgb,var(--test) 18%,transparent)}
+.state-dot.s-blocked{background:var(--block);box-shadow:0 0 0 2px color-mix(in srgb,var(--block) 18%,transparent)}
+.item-row[data-status="done"]>.ihead{border-left:3px solid var(--done);padding-left:5px;background:color-mix(in srgb,var(--done) 8%,var(--raise))}
+.item-row[data-status="in progress"]>.ihead{border-left:3px solid var(--prog);padding-left:5px;background:color-mix(in srgb,var(--prog) 8%,var(--raise))}
+.item-row[data-status="in review"]>.ihead{border-left:3px solid var(--review);padding-left:5px;background:color-mix(in srgb,var(--review) 8%,var(--raise))}
+.item-row[data-status="in testing"]>.ihead{border-left:3px solid var(--test);padding-left:5px;background:color-mix(in srgb,var(--test) 8%,var(--raise))}
+.item-row[data-status="blocked"]>.ihead{border-left:3px solid var(--block);padding-left:5px;background:color-mix(in srgb,var(--block) 8%,var(--raise))}
+.item-row[data-status="not started"]>.ihead{border-left:3px solid var(--todo);padding-left:5px;background:color-mix(in srgb,var(--todo) 8%,var(--raise))}
+.item-row .pill{white-space:normal;line-height:1.25}
+.item-row .group-pill{color:var(--dim);border-color:var(--rule);background:transparent}
+.item-row .status-pill{font-weight:600}
+.item-row .ititle{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;min-width:0;
+max-height:4em;white-space:normal;overflow-wrap:anywhere}
 .item-row .ipct{font:600 12px var(--mono);font-variant-numeric:tabular-nums}
 .item-row .ibar{height:5px}
-.item-row .inext{font-size:11.5px;white-space:normal;overflow-wrap:anywhere;min-width:0}
+.item-row .inext{font-size:12px;line-height:1.35;white-space:normal;overflow-wrap:anywhere;min-width:0}
 @media (max-width:900px){.item-row .ihead{display:flex;flex-wrap:wrap;gap:8px}.item-row .ititle{flex:1 1 220px}.item-row .inext{flex:1 1 100%;width:100%}}
 .pill.g-s-finish-now,.pill.g-s-back-burner,.pill.g-s-waiting,.pill.g-s-done{border-color:var(--rule);color:var(--dim)}
+.item-row .pill.s-done{border-color:var(--done);color:var(--done);background:color-mix(in srgb,var(--done) 10%,transparent)}
+.item-row .pill.s-in-progress{border-color:var(--prog);color:var(--prog);background:color-mix(in srgb,var(--prog) 10%,transparent)}
+.item-row .pill.s-in-review{border-color:var(--review);color:var(--review);background:color-mix(in srgb,var(--review) 10%,transparent)}
+.item-row .pill.s-in-testing{border-color:var(--test);color:var(--test);background:color-mix(in srgb,var(--test) 10%,transparent)}
+.item-row .pill.s-blocked{border-color:var(--block);color:var(--block);background:color-mix(in srgb,var(--block) 10%,transparent)}
+.item-row .pill.s-not-started{border-color:var(--todo);color:var(--todo);background:color-mix(in srgb,var(--todo) 10%,transparent)}
 .prow-details,.item-row .fitems .prow{margin-left:14px}
 .prow-details>summary.prow,.fitems>.prow{list-style:none;cursor:pointer}
 .prow-details>summary.prow::-webkit-details-marker{display:none}
@@ -1229,13 +1368,15 @@ max-height:2.6em;white-space:normal;overflow-wrap:anywhere}
 padding:4px 8px;font-size:12px;color:var(--ink)}
 .prow .pid{font-family:var(--mono);color:var(--dim)}
 .prow .pshare,.prow .pcompl{font-family:var(--mono);color:var(--dim);text-align:right}
+.prow-details>summary.prow,.prow-details .fparts>.prow{grid-template-columns:90px minmax(0,1fr) 50px 50px 18px max-content}
+.fitems>.prow{grid-template-columns:90px minmax(0,1fr) 50px max-content}
 .prow-details .fparts{margin-left:14px;border-left:1px solid var(--rule)}
 /* -- proposal 30, P-10: the Tree/Kanban top view and the Kanban board -- */
 #view-kanban{margin-top:0}
 .kanban{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
 .kanban h2{margin:0 0 12px}
 .kanban-scroll{overflow-x:auto;overflow-y:hidden;margin:0 -4px;padding:0 4px}
-.kboard{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,280px);gap:12px;align-items:start}
+.kboard{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(300px,340px);gap:12px;align-items:start}
 .kcol{background:var(--raise);border:1px solid var(--rule);border-radius:6px;padding:10px}
 .kcol>h3{font:600 12px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--dim);
 margin:0 0 8px;display:flex;align-items:center}
@@ -1243,14 +1384,34 @@ margin:0 0 8px;display:flex;align-items:center}
 .kcards{display:flex;flex-direction:column;gap:8px}
 .kcard{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:9px 11px 10px;
 display:flex;flex-direction:column;gap:5px}
+.kcard[data-status="done"]{border-top:3px solid var(--done)}
+.kcard[data-status="in progress"]{border-top:3px solid var(--prog)}
+.kcard[data-status="in review"]{border-top:3px solid var(--review)}
+.kcard[data-status="in testing"]{border-top:3px solid var(--test)}
+.kcard[data-status="blocked"]{border-top:3px solid var(--block)}
+.kcard[data-status="not started"]{border-top:3px solid var(--todo)}
 .kcard header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .kcard .kid{font:600 12px var(--mono);color:var(--dim)}
-.ktitle{margin:0;font:500 13.5px/1.35 var(--sans);display:-webkit-box;-webkit-line-clamp:2;
--webkit-box-orient:vertical;overflow:hidden;max-height:2.6em;white-space:normal;overflow-wrap:anywhere}
+.ktitle{margin:0;font:500 13.5px/1.35 var(--sans);display:-webkit-box;-webkit-line-clamp:3;
+-webkit-box-orient:vertical;overflow:hidden;max-height:4em;white-space:normal;overflow-wrap:anywhere}
 .kpct{margin:0;font:600 12px var(--mono);display:flex;align-items:center;gap:8px}
 .kbar{width:100%;height:5px;display:inline-flex;border-radius:2px;overflow:hidden}
 .kparts{margin-top:2px}
 .kparts summary{font-size:11.5px}
+.kparts .prow{grid-template-columns:minmax(72px,90px) minmax(0,1fr) auto auto;gap:7px;padding:7px 8px;background:var(--ground);border:1px solid var(--rule);border-left-width:4px;border-radius:4px;margin:3px 0}
+.kparts .prow .ptitle{-webkit-line-clamp:3;max-height:4em;overflow-wrap:anywhere}
+.kparts .prow[data-pstatus="done"]{border-left-color:var(--done)}
+.kparts .prow[data-pstatus="in progress"]{border-left-color:var(--prog)}
+.kparts .prow[data-pstatus="in review"]{border-left-color:var(--review)}
+.kparts .prow[data-pstatus="in testing"]{border-left-color:var(--test)}
+.kparts .prow[data-pstatus="blocked"]{border-left-color:var(--block)}
+.kparts .prow[data-pstatus="not started"]{border-left-color:var(--todo)}
+.pill.p-done,.pill.p-s-done{color:var(--done);border-color:var(--done);background:color-mix(in srgb,var(--done) 12%,transparent)}
+.pill.p-s-in-progress{color:var(--prog);border-color:var(--prog);background:color-mix(in srgb,var(--prog) 12%,transparent)}
+.pill.p-s-in-review{color:var(--review);border-color:var(--review);background:color-mix(in srgb,var(--review) 12%,transparent)}
+.pill.p-s-in-testing{color:var(--test);border-color:var(--test);background:color-mix(in srgb,var(--test) 12%,transparent)}
+.pill.p-s-blocked{color:var(--block);border-color:var(--block);background:color-mix(in srgb,var(--block) 12%,transparent)}
+.pill.p-s-not-started{color:var(--todo);border-color:var(--todo);background:color-mix(in srgb,var(--todo) 12%,transparent)}
 .kdone-show{width:100%;text-align:left;padding:8px 10px;border:1px dashed var(--rule);border-radius:6px;
 background:var(--surface);color:var(--accent);font:500 12.5px var(--sans);cursor:pointer}
 @media (prefers-reduced-motion:no-preference){.card,.proposal,.chip{transition:border-color .12s,background-color .12s}}
@@ -1423,7 +1584,10 @@ SCRIPT = r"""
     });
     $$('.chip[data-filter="status"]').forEach(function(c){
       c.setAttribute("aria-pressed", state.statuses.indexOf(c.dataset.value) >= 0 ? "true" : "false");
-      $(".n", c).textContent = byStatus[c.dataset.value] || 0;
+      // Status chips are the canonical nested-task totals.  The filtered
+      // copies below remain item-level controls, so they must not overwrite
+      // the page's task denominator with top-level item counts.
+      $(".n", c).textContent = c.dataset.taskCount || 0;
     });
     $$(".proposal").forEach(function(b){
       b.setAttribute("aria-pressed", b.dataset.proposal === state.proposal ? "true" : "false");
@@ -1463,9 +1627,15 @@ SCRIPT = r"""
     $("#board").hidden = state.view !== "board";
     $("#list").hidden = state.view !== "list";
     $("#none").hidden = shown > 0 || total === 0;
-    $("#shown").textContent = anyFilter ? shown + " of " + total + " items" : total + " items";
+    var totalsPanel = $(".totals");
+    var taskTotal = totalsPanel ? +(totalsPanel.dataset.taskTotal || total) : total;
+    $("#shown").textContent = anyFilter ? shown + " of " + total + " items" : taskTotal + " tasks";
     $("#clear").hidden = !anyFilter;
   }
+  var historyZoom = $("#history-zoom");
+  if (historyZoom) historyZoom.addEventListener("change", function(ev){
+    $$('[data-history-mode]').forEach(function(chart){ chart.hidden = chart.dataset.historyMode !== ev.target.value; });
+  });
   function clear(){
     state.proposal = ""; state.statuses = []; state.owner = ""; state.tier = ""; state.group = ""; state.q = "";
     state.pending = false; state.showFinished = false;
@@ -1607,11 +1777,10 @@ def main(argv) -> int:
         out.write_text(text)
     totals = {s: 0 for s in L.STATUSES}
     for _, data in ledgers:
-        for s, n in L.counts(data).items():
-            totals[s] += n
+        add_counts(totals, nested_task_counts(data))
     line = " / ".join(f"{totals[s]} {s}" for s in ("done", "in progress", "blocked", "not started"))
     extra = [f"{totals[s]} {s}" for s in ("in review", "in testing") if totals[s]]
     if extra:
         line += " / " + " / ".join(extra)
-    print(f"rendered {out} · " + line)
+    print(f"rendered {out} · " + line + " · nested tasks")
     return 0

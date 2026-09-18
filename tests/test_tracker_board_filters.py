@@ -132,7 +132,7 @@ class FilterBarCase(unittest.TestCase):
 
     def test_a_proposal_shows_a_hidden_matched_count_span_next_to_its_done_count(self):
         text = self.render([item("A-01", status="done"), item("A-02", status="not started")])
-        m = re.search(r'<span class="fpcount">1/2 items done</span><span class="fpmatched" hidden></span>', text)
+        m = re.search(r'<span class="fpcount">1/2 tasks done</span><span class="fpmatched" hidden></span>', text)
         self.assertIsNotNone(m, "the real done-count and the (initially hidden) matched-count sit side by side")
 
     def test_proposal_row_and_item_row_and_part_row_are_all_present_for_js_to_filter(self):
