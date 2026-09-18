@@ -109,7 +109,7 @@ class CompletionOverviewCase(unittest.TestCase):
                                  part("P-01.B", "second half", 40, "in progress")]),
         ])
         self.assertIn('<span class="pid">P-01.A</span>', text)
-        self.assertIn('<span class="ptitle">first half</span>', text)
+        self.assertIn('<span class="ptitle" title="first half">first half</span>', text)
         self.assertIn('<span class="pshare">60%</span>', text)
         self.assertIn('p-done">done</span>', text)
         self.assertIn('<span class="pid">P-01.B</span>', text)
@@ -143,6 +143,22 @@ class CompletionOverviewCase(unittest.TestCase):
         text = self.render([item("X-01", status="done")])
         self.assertIn('<input type="checkbox" id="show-finished">', text)
         self.assertNotIn('id="show-finished" checked', text)
+
+    def test_proposal_tree_sits_above_the_folded_group_lists(self):
+        # proposal 30, P-09: the sponsor's proposal tree is the top view --
+        # the finish-now/back-burner/waiting grouping (by urgency) comes
+        # after it, folded into a closed <details>, not the first thing shown.
+        text = self.render([item("A-01", parts=[part("A-01.A", "a", 50, "not started")])])
+        tiles_at = text.index('<div class="tiles">')
+        features_at = text.index('<section class="features"')
+        groups_at = text.index('<details class="cgroups" id="cgroups">')
+        cgroup_at = text.index('<section class="cgroup"')
+        self.assertTrue(tiles_at < features_at < groups_at < cgroup_at)
+
+    def test_group_lists_are_folded_closed_by_default(self):
+        text = self.render([item("A-01", parts=[part("A-01.A", "a", 50, "not started")])])
+        self.assertIn('<details class="cgroups" id="cgroups">', text)
+        self.assertNotRegex(text, r'<details class="cgroups" id="cgroups"[^>]*\bopen\b')
 
     def test_overview_is_correct_without_javascript(self):
         # The tiles, group headers and feature/part rows are plain markup --

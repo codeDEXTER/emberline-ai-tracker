@@ -454,7 +454,7 @@ def part_sub_row(p: dict) -> str:
     title_attr = f' title="{e(title)}"' if title else ""
     muted = " muted" if p.get("status") == "done" else ""
     return (f'<div class="prow{muted}"><span class="pid">{e(p.get("id"))}</span>'
-            f'<span class="ptitle">{e(p.get("title"))}</span>'
+            f'<span class="ptitle" title="{e(p.get("title"))}">{e(p.get("title"))}</span>'
             f'<span class="pshare">{p.get("share", 0)}%</span>'
             f'<span class="pill p-{cls}"{title_attr}>{e(label)}</span></div>')
 
@@ -465,7 +465,7 @@ def feature_overview_row(item: dict, number) -> str:
     return (f'<details class="frow" data-feature data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
             f'data-group="{e(PARTS.group(item))}" data-owner="{e(item.get("owner") or "")}">'
             f'<summary class="fhead"><span class="fid">{e(item.get("id"))}</span>'
-            f'<span class="ftitle">{e(item.get("title"))}</span>'
+            f'<span class="ftitle" title="{e(item.get("title"))}">{e(item.get("title"))}</span>'
             f'<span class="fpct">{pct}%</span>'
             f'<span class="fbar">{feature_bar(item)}</span></summary>'
             f'<div class="fparts">{prows}</div></details>')
@@ -536,18 +536,28 @@ def progress_block(project) -> str:
             f'<div class="charts">{HIST.svg(rows)}</div></section>')
 
 
-def completion_section(entries, project=None) -> str:
-    """The top overview (proposal 30): four tiles, a Progress block (P-08),
-    then finish now / back burner / waiting, each open feature with its
-    parts visible underneath. Everything here is plain server-rendered
-    markup -- correct with the page's script disabled, per the brief."""
+def completion_top(entries, project=None) -> str:
+    """The top of the page (proposal 30, P-09): the four tiles and the
+    Progress block (P-08) only. The sponsor's own proposal tree (P-08's
+    drill-down, promoted by P-09) follows immediately after this, with the
+    old finish-now/back-burner/waiting grouping folded below that -- the
+    first thing he sees is his proposals, not items sorted by urgency."""
     if not entries:
         return ""
     return ('<section class="completion" id="completion"><h2>Completion</h2>'
             f'<div class="tiles">{completion_tiles(entries)}</div>'
-            f'{progress_block(project)}'
-            f'{completion_groups(entries)}'
-            f'{completion_legend()}</section>')
+            f'{progress_block(project)}</section>')
+
+
+def completion_groups_section(entries) -> str:
+    """P-09: the old finish-now/back-burner/waiting overview, folded into a
+    closed <details> below the proposal tree -- same pattern as the Lanes
+    "Advanced" block (`lanes_section`), not a new one invented for this."""
+    if not entries:
+        return ""
+    return (f'<details class="cgroups" id="cgroups"><summary>By urgency '
+            f'<span class="n">{len(entries)}</span></summary>'
+            f'{completion_groups(entries)}{completion_legend()}</details>')
 
 
 # ---------------------------------------------------------------------------
@@ -583,7 +593,7 @@ def feature_node_row(node: dict) -> str:
     completion = node.get("completion")
     compl_html = f'<span class="pcompl">{completion}%</span>' if completion is not None else ""
     summary = (f'<span class="pid">{e(node.get("id"))}</span>'
-               f'<span class="ptitle">{e(node.get("title"))}</span>'
+               f'<span class="ptitle" title="{e(node.get("title"))}">{e(node.get("title"))}</span>'
                f'{share_html}{compl_html}'
                f'<span class="pill p-{cls}"{title_attr}>{e(label)}</span>')
     children = node.get("parts") or []
@@ -604,7 +614,7 @@ def feature_item_row(item: dict, number) -> str:
     body = "".join(feature_node_row(c) for c in feature_children(item))
     return (f'<details class="item-row" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}">'
             f'<summary class="ihead"><span class="iid">{e(item.get("id"))}</span>'
-            f'<span class="ititle">{e(item.get("title"))}</span>'
+            f'<span class="ititle" title="{e(item.get("title"))}">{e(item.get("title"))}</span>'
             f'<span class="ipct">{pct}%</span>'
             f'<span class="ibar fbar">{feature_bar(item)}</span>'
             f'<span class="pill g-{slug(grp)}">{e(GROUP_LABEL.get(grp, grp))}</span>'
@@ -620,7 +630,7 @@ def proposal_feature_row(number, data, counts) -> str:
     rows = "".join(feature_item_row(it, number) for it in items)
     return (f'<details class="feature-row" data-proposal="{e(number)}">'
             f'<summary class="fphead"><span class="fpn">P{e(number)}</span>'
-            f'<span class="fptitle">{e(data.get("title"))}</span>'
+            f'<span class="fptitle" title="{e(data.get("title"))}">{e(data.get("title"))}</span>'
             f'<span class="fppct">{pct}%</span>'
             f'<span class="fpbar">{mini_bar(counts)}</span>'
             f'<span class="fpcount">{done}/{total} items done</span></summary>'
@@ -649,6 +659,52 @@ def column_order(status: str, entries: list) -> list:
     if status == "not started":
         return sorted(entries, key=lambda t: (-t[0], t[3]))
     return sorted(entries, key=lambda t: (str(last_entry(t[1]).get("at") or ""), -t[3]), reverse=True)
+
+
+# ---------------------------------------------------------------------------
+# proposal 30, P-10: the Kanban view -- one column per ledger status (the
+# statuses module's own order, never written out twice), one card per item.
+# A card whose item carries parts shows "N of M parts done" and expands in
+# place to list them; an item with no parts behaves as before, one implicit
+# part worth 100 (the same convention `display_parts()` already uses).
+
+def kanban_card(item: dict, number) -> str:
+    pct = PARTS.completion(item)
+    title = item.get("title")
+    parts = PARTS.parts(item)
+    body = ""
+    if parts:
+        done = sum(1 for p in parts if p.get("status") == "done")
+        rows = "".join(part_sub_row(p) for p in parts)
+        body = (f'<details class="kparts"><summary>{done} of {len(parts)} parts done</summary>'
+                f'<div class="fparts">{rows}</div></details>')
+    return (f'<article class="kcard" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
+            f'data-status="{e(item.get("status") or "")}">'
+            f'<header><span class="kid">{e(item.get("id"))}</span><span class="pnum">P{e(number)}</span></header>'
+            f'<h3 class="ktitle" title="{e(title)}">{e(title)}</h3>'
+            f'<p class="kpct">{pct}% <span class="fbar kbar">{feature_bar(item)}</span></p>'
+            f'{body}</article>')
+
+
+def kanban_section(entries) -> str:
+    """One column per `tools/tracker/ledger.py` status, in that module's own
+    order -- a column with no cards still renders, with a count of 0, so
+    the board's shape does not jump around as work moves between columns."""
+    if not entries:
+        return ""
+    by_status: dict[str, list] = {s: [] for s in L.STATUSES}
+    for _, item, number, _ in entries:
+        by_status.setdefault(item.get("status") or "not started", []).append((item, number))
+    cols = []
+    for status in L.STATUSES:
+        rows = by_status.get(status) or []
+        cards = "".join(kanban_card(item, number) for item, number in rows)
+        cols.append(f'<section class="kcol {slug(status)}" data-column="{e(status)}">'
+                    f'<h3><span class="dot {slug(status)}"></span>{LABEL.get(status, status)} '
+                    f'<span class="n">{len(rows)}</span></h3>'
+                    f'<div class="kcards">{cards}</div></section>')
+    return (f'<section class="kanban" id="kanban"><h2>Kanban</h2>'
+            f'<div class="kanban-scroll"><div class="kboard">{"".join(cols)}</div></div></section>')
 
 
 # ---------------------------------------------------------------------------
@@ -706,8 +762,10 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
     group_opts = '<option value="">Any group</option>' + "".join(
         f'<option value="{e(g)}">{e(GROUP_LABEL[g])}</option>' for g in ("finish now", "back burner", "waiting", "done"))
 
-    completion = completion_section(entries, project)
+    completion_top_block = completion_top(entries, project)
     features = features_section(ledgers)
+    completion_groups_block = completion_groups_section(entries)
+    kanban = kanban_section(entries)
 
     attention = ""
     if open_asks or requests:
@@ -765,11 +823,15 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         f'data-blocked="{totals["blocked"]}" data-not-started="{totals["not started"]}" '
         f'data-in-review="{totals["in review"]}" data-in-testing="{totals["in testing"]}">'
         f'<p class="line">{e(status_line)}</p>{mini_bar(totals)}</section></header>'
-        f'{completion}'
-        f'{features}'
+        f'{completion_top_block}'
+        f'<div id="view-tree">{features}{completion_groups_block}</div>'
+        f'<div id="view-kanban">{kanban}</div>'
         f'<nav class="proposals" aria-label="Proposals">{blocks}</nav>'
         '<h2 id="details">Details</h2>'
         '<div class="filters" role="search">'
+        '<div class="views topview" role="group" aria-label="Top view">'
+        '<button type="button" data-topview="tree" aria-pressed="true">Tree</button>'
+        '<button type="button" data-topview="kanban" aria-pressed="false">Kanban</button></div>'
         f'<label class="sel"><span>Group</span><select id="group">{group_opts}</select></label>'
         '<input type="search" id="q" placeholder="Search ids, titles, tags, logs" aria-label="Search">'
         f'<div class="chips" role="group" aria-label="Status">{chips}</div>'
@@ -957,7 +1019,8 @@ td.mono a{color:var(--accent)}
 column-gap:10px;align-items:center;padding:8px 12px;cursor:pointer;list-style:none}
 .fhead::-webkit-details-marker{display:none}
 .fhead .fid{font:600 12.5px var(--mono);color:var(--dim)}
-.fhead .ftitle{font:14px var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fhead .ftitle{font:14px var(--sans);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+overflow:hidden;max-height:2.8em;white-space:normal;overflow-wrap:anywhere}
 .fhead .fpct{font:600 12.5px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
 .fhead .fbar{grid-column:1/-1;height:5px;display:flex;overflow:hidden;border-radius:2px}
 .fbar span,.fparts .pshare{display:block}
@@ -970,6 +1033,8 @@ padding:6px 12px 6px 22px;font-size:12.5px;border-top:1px solid var(--rule)}
 .prow:first-child{border-top:none}
 .prow.muted{opacity:.65}
 .prow .pid{font-family:var(--mono);color:var(--dim)}
+.prow .ptitle{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+max-height:2.6em;white-space:normal;overflow-wrap:anywhere}
 .prow .pshare{font-family:var(--mono);color:var(--dim);text-align:right}
 .pill.p-done{color:var(--done);border-color:var(--done)}
 .pill.p-other{color:var(--dim)}
@@ -997,7 +1062,8 @@ padding:6px 12px 6px 22px;font-size:12.5px;border-top:1px solid var(--rule)}
 padding:9px 12px;cursor:pointer;list-style:none}
 .fphead::-webkit-details-marker{display:none}
 .fphead .fpn{font:600 12.5px var(--mono);color:var(--dim)}
-.fphead .fptitle{font:14px var(--sans)}
+.fphead .fptitle{font:14px var(--sans);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+overflow:hidden;max-height:2.8em;white-space:normal;overflow-wrap:anywhere}
 .fphead .fppct{font:600 12.5px var(--mono);font-variant-numeric:tabular-nums}
 .fphead .fpbar{width:90px;height:6px}
 .fphead .fpcount{font:12px var(--mono);color:var(--dim);white-space:nowrap}
@@ -1007,6 +1073,8 @@ padding:9px 12px;cursor:pointer;list-style:none}
 padding:6px 8px;cursor:pointer;list-style:none;font-size:13px}
 .item-row .ihead::-webkit-details-marker{display:none}
 .item-row .iid{font:600 12px var(--mono);color:var(--dim)}
+.item-row .ititle{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+max-height:2.6em;white-space:normal;overflow-wrap:anywhere}
 .item-row .ipct{font:600 12px var(--mono);font-variant-numeric:tabular-nums}
 .item-row .ibar{height:5px}
 .item-row .inext{font-size:11.5px;white-space:nowrap}
@@ -1019,6 +1087,28 @@ padding:4px 8px;font-size:12px;color:var(--ink)}
 .prow .pid{font-family:var(--mono);color:var(--dim)}
 .prow .pshare,.prow .pcompl{font-family:var(--mono);color:var(--dim);text-align:right}
 .prow-details .fparts{margin-left:14px;border-left:1px solid var(--rule)}
+/* -- proposal 30, P-10: the Tree/Kanban top view and the Kanban board -- */
+.topview{margin-right:4px}
+#view-kanban{margin-top:0}
+.kanban{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
+.kanban h2{margin:0 0 12px}
+.kanban-scroll{overflow-x:auto;overflow-y:hidden;margin:0 -4px;padding:0 4px}
+.kboard{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(240px,280px);gap:12px;align-items:start}
+.kcol{background:var(--raise);border:1px solid var(--rule);border-radius:6px;padding:10px}
+.kcol>h3{font:600 12px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--dim);
+margin:0 0 8px;display:flex;align-items:center}
+.kcol>h3 .n{font:500 12px var(--mono);color:var(--dim);margin-left:6px;font-variant-numeric:tabular-nums}
+.kcards{display:flex;flex-direction:column;gap:8px}
+.kcard{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:9px 11px 10px;
+display:flex;flex-direction:column;gap:5px}
+.kcard header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.kcard .kid{font:600 12px var(--mono);color:var(--dim)}
+.ktitle{margin:0;font:500 13.5px/1.35 var(--sans);display:-webkit-box;-webkit-line-clamp:2;
+-webkit-box-orient:vertical;overflow:hidden;max-height:2.6em;white-space:normal;overflow-wrap:anywhere}
+.kpct{margin:0;font:600 12px var(--mono);display:flex;align-items:center;gap:8px}
+.kbar{width:100%;height:5px;display:inline-flex;border-radius:2px;overflow:hidden}
+.kparts{margin-top:2px}
+.kparts summary{font-size:11.5px}
 @media (prefers-reduced-motion:no-preference){.card,.proposal,.chip{transition:border-color .12s,background-color .12s}}
 """
 
@@ -1026,8 +1116,11 @@ SCRIPT = r"""
 (function(){
   var $ = function(s, r){ return (r || document).querySelector(s); };
   var $$ = function(s, r){ return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
-  var state = {proposal: "", statuses: [], owner: "", tier: "", group: "", q: "", view: "board", showFinished: false};
+  var state = {proposal: "", statuses: [], owner: "", tier: "", group: "", q: "", view: "board", showFinished: false,
+               topview: "tree"};
   try { var v = localStorage.getItem("tracker-view"); if (v === "list" || v === "board") state.view = v; } catch (e) {}
+  try { var tv = localStorage.getItem("tracker-topview"); if (tv === "tree" || tv === "kanban") state.topview = tv; }
+  catch (e) {}
   var items = $$("[data-item]");
   var searchById = {};
   $$("article[data-item]").forEach(function(card){ searchById[card.dataset.id] = card.dataset.search || ""; });
@@ -1122,6 +1215,17 @@ SCRIPT = r"""
     apply(); }); });
   $("#clear").addEventListener("click", clear);
   $("#clear2").addEventListener("click", clear);
+  function applyTopview(){
+    $$("[data-topview]").forEach(function(b){
+      b.setAttribute("aria-pressed", b.dataset.topview === state.topview ? "true" : "false"); });
+    var t = $("#view-tree"); if (t) t.hidden = state.topview !== "tree";
+    var k = $("#view-kanban"); if (k) k.hidden = state.topview !== "kanban";
+  }
+  $$("[data-topview]").forEach(function(b){ b.addEventListener("click", function(){
+    state.topview = b.dataset.topview;
+    try { localStorage.setItem("tracker-topview", state.topview); } catch (e) {}
+    applyTopview(); }); });
+  applyTopview();
   apply();
 })();
 """

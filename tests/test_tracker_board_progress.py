@@ -156,7 +156,7 @@ class FeaturesDrilldownCase(unittest.TestCase):
         self.assertIn('<section class="features" id="features">', text)
         self.assertIn('<details class="feature-row" data-proposal="30">', text)
         self.assertIn('<span class="fpn">P30</span>', text)
-        self.assertIn('<span class="fptitle">Widgets</span>', text)
+        self.assertIn('<span class="fptitle" title="Widgets">Widgets</span>', text)
         # A-01 is 100% (done, no parts), A-02 is 0% -- average 50%.
         self.assertIn('<span class="fppct">50%</span>', text)
         self.assertIn('<span class="fpcount">1/2 items done</span>', text)
@@ -231,6 +231,75 @@ class FeaturesDrilldownCase(unittest.TestCase):
 
     def test_omitted_when_there_are_no_ledgers(self):
         self.assertEqual(board.features_section([]), "")
+
+    def test_a_long_title_carries_a_title_attribute_and_is_not_truncated_in_python(self):
+        # proposal 30, P-09: a title long enough to break the row's layout is
+        # clamped in CSS, never cut down in Python -- the full text is still
+        # in the markup, both as the row's own text and in a `title` attr.
+        long_title = "x" * 400
+        text = self.render([item("Q-02", status="done", title=long_title)])
+        self.assertIn(f'title="{long_title}"', text)
+        self.assertIn(f'>{long_title}<', text)
+
+
+class KanbanCase(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+
+    def render(self, items, number=30, title="a proposal"):
+        led = ledger(number, items, title=title)
+        path = write(self.root, number, led)
+        return board.render([(path, led)], "demo", None, self.root)
+
+    def test_tree_and_kanban_buttons_exist_and_tree_is_the_default(self):
+        text = self.render([item("A-01")])
+        self.assertIn('<button type="button" data-topview="tree" aria-pressed="true">Tree</button>', text)
+        self.assertIn('<button type="button" data-topview="kanban" aria-pressed="false">Kanban</button>', text)
+
+    def test_one_column_per_ledger_status_including_empty_ones(self):
+        from tools.tracker import ledger as L
+        text = self.render([item("A-01", status="not started")])
+        kanban = text.split('<section class="kanban"', 1)[1]
+        for status in L.STATUSES:
+            self.assertIn(f'data-column="{status}"', kanban)
+        # columns are in the ledger's own order, not the board's attention order
+        positions = [kanban.index(f'data-column="{s}"') for s in L.STATUSES]
+        self.assertEqual(positions, sorted(positions))
+        # an empty status still shows a column with a 0 count
+        blocked_col = kanban.split('data-column="blocked"', 1)[1].split('data-column=', 1)[0]
+        self.assertIn('<span class="n">0</span>', blocked_col)
+
+    def test_card_names_item_proposal_and_completion(self):
+        text = self.render([item("K-01", status="in progress", title="Kanban card title")], number=42)
+        self.assertIn('<article class="kcard" data-item data-id="K-01" data-proposal="42"', text)
+        self.assertIn('<span class="kid">K-01</span>', text)
+        self.assertIn('<span class="pnum">P42</span>', text)
+        self.assertIn('title="Kanban card title">Kanban card title</h3>', text)
+        self.assertIn('0% <span class="fbar kbar">', text)
+
+    def test_a_card_with_parts_shows_the_count_and_expands_to_list_them(self):
+        text = self.render([
+            item("K-02", parts=[part("K-02.A", "first", 60, "done"), part("K-02.B", "second", 40, "in progress")]),
+        ])
+        kanban = text.split('<section class="kanban"', 1)[1]
+        self.assertIn('<summary>1 of 2 parts done</summary>', kanban)
+        self.assertIn('<span class="pid">K-02.A</span>', kanban)
+        self.assertIn('<span class="pid">K-02.B</span>', kanban)
+
+    def test_kanban_omitted_when_there_are_no_entries(self):
+        self.assertEqual(board.kanban_section([]), "")
+
+    def test_both_views_are_rendered_server_side(self):
+        # No page reload, no server round trip: the tree and the kanban board
+        # are both already in the markup: the inline script only toggles
+        # which is hidden.
+        text = self.render([item("A-01", status="in progress")])
+        self.assertIn('<div id="view-tree">', text)
+        self.assertIn('<div id="view-kanban">', text)
+        self.assertNotIn('id="view-tree" hidden', text)
+        self.assertNotIn('id="view-kanban" hidden', text)
 
 
 if __name__ == "__main__":

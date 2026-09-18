@@ -1,3 +1,34 @@
+## 2026-09-18 · the proposal tree is the top view, and a Kanban view sits beside it (P-09, P-10)
+
+The sponsor: "at the top, there should be like proposal nineteen. And when I
+expand it, then there should be P1, P2, P3. And then when I expand P1, then
+there should be P1, A, B, C, D" and "there could be a second button which can
+switch to the Kanban style." `tools/tracker board`'s drill-down (P-08) already
+did the first part, but it sat under the finish-now/back-burner/waiting
+grouping, so the first thing the page showed was items sorted by urgency, not
+his proposals.
+
+P-09: the page now reads header totals, tiles, progress charts, the proposal
+tree, then that old grouping folded into a closed `<details>` below it --
+same pattern as the existing Lanes "Advanced" block, not a new one invented
+for this. A title long enough to break a row (an item title that is an
+entire conformance error dump, live on P19) is clamped to two lines in CSS
+(`-webkit-line-clamp` plus a plain `max-height` fallback) and carried in full
+in a `title` attribute -- never truncated in Python.
+
+P-10: two buttons, Tree and Kanban, sit beside the Details filters. Kanban
+columns are `tools/tracker/ledger.py`'s own status order (not the board's
+attention order), one column per status including empty ones, one card per
+item with its id, title, proposal, completion % and bar; a card whose item
+has parts shows "N of M parts done" and expands in place to list them. Both
+views are rendered server-side into the same page; the inline script only
+toggles which `hidden` -- no reload, no round trip -- and remembers the
+choice per viewer in `localStorage` (`tracker-topview`), wrapped in
+try/catch, defaulting to Tree when it throws or returns nothing.
+
+tools/tracker/board.py, tests/test_tracker_board_completion.py,
+tests/test_tracker_board_progress.py.
+
 ## 2026-09-17 · the merge gate runs in parallel, and the suite is four times faster (O-02)
 
 **Standard change (mandatory):** a project's `gates.merge` runs its suite
