@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import re
 import os
 import subprocess
 import sys
@@ -37,6 +38,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from tools.tracker import board  # noqa: E402
+from tools.tracker import parts as PARTS  # noqa: E402
 
 
 def ledger(number, items, title="a proposal"):
@@ -400,3 +402,48 @@ class KanbanCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheBarFillsFromTheLeft(unittest.TestCase):
+    """An item's bar is its completion, accumulated -- not its parts in
+    letter order.
+
+    The sponsor: "also some of the progress bars are wrong". W-10 was the
+    live case: five parts of 20% with only C done rendered
+    amber/amber/GREEN/amber/amber, a filled stripe floating in the middle of
+    an empty bar, while the row beside it read 20%. A bar next to a
+    percentage is read as a progress bar, so it has to fill like one.
+    """
+
+    @staticmethod
+    def item(*statuses):
+        share = 100 // len(statuses)
+        return {"id": "W-10", "status": "in progress", "parts": [
+            {"id": f"W-10.{chr(65 + n)}", "share": share, "status": s}
+            for n, s in enumerate(statuses)]}
+
+    def widths(self, html):
+        return re.findall(r'class="(seg-[\w-]+)" style="width:(\d+)%"', html)
+
+    def test_a_done_part_in_the_middle_still_fills_from_the_left(self):
+        bar = board.feature_bar(self.item(
+            "not started", "not started", "done", "not started", "not started"))
+        self.assertEqual([("seg-done", "20"), ("seg-empty", "80")], self.widths(bar))
+
+    def test_the_done_width_equals_the_completion_percent(self):
+        for statuses in (("done", "not started"),
+                         ("not started", "done"),
+                         ("done", "done", "not started", "not started")):
+            with self.subTest(statuses=statuses):
+                item = self.item(*statuses)
+                first = self.widths(board.feature_bar(item))[0]
+                self.assertEqual("seg-done", first[0])
+                self.assertEqual(PARTS.completion(item), int(first[1]))
+
+    def test_one_segment_per_bucket_not_one_per_part(self):
+        bar = board.feature_bar(self.item("done", "done", "done", "not started"))
+        self.assertEqual([("seg-done", "75"), ("seg-empty", "25")], self.widths(bar))
+
+    def test_a_bucket_with_no_share_is_left_out_entirely(self):
+        bar = board.feature_bar(self.item("done", "done"))
+        self.assertEqual([("seg-done", "100")], self.widths(bar))

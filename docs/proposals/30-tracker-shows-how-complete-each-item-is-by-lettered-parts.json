@@ -449,6 +449,54 @@
       ],
       "points": 5,
       "value": "high"
+    },
+    {
+      "id": "P-12",
+      "phase": "P",
+      "cx": "C2",
+      "title": "The item bar is completion, accumulated, not parts in letter order",
+      "what": "The sponsor: \"also some of the progress bars are wrong\". W-10 -- five parts of 20%, only C done -- drew amber/amber/GREEN/amber/amber, a filled stripe floating mid-bar, beside a row reading 20%. Every other item looked right only because its done part happened to be first. The bar now sums each bucket and fills from the left.",
+      "files": [],
+      "tests": [],
+      "done": "An item whose done part is not its first still fills from the left; the done width equals the completion percent; one segment per bucket, none for an empty bucket; tests pin all four.",
+      "depends": [],
+      "status": "done",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [
+        {
+          "at": "2026-09-18T09:34:15+02:00",
+          "event": "Bar sums each bucket and fills from the left; W-10's 20% now draws 20% green then 80% waiting instead of a stripe in the middle. Four tests pin it.",
+          "by": "session:common-rules lead",
+          "evidence": "",
+          "status": "done"
+        }
+      ],
+      "points": 2,
+      "value": "high"
+    },
+    {
+      "id": "P-13",
+      "phase": "P",
+      "cx": "C3",
+      "title": "A button to pull a waiting item forward, instead of waiting for its date",
+      "what": "The sponsor: \"make a button in the tracker where I can trigger the tasks to be uh, completed sooner. Instead of on 23rd September or things like that.\" The dates on waiting parts are the lead's choice, not a constraint, and he should not have to ask a session to bring one forward. The published page is static, so decide honestly what a button can do: at minimum hand him the exact command; better, record the request where a session will see it at warm-up.",
+      "files": [],
+      "tests": [],
+      "done": "Every waiting part offers a way to pull it forward that works from the published page; whatever it does is honest about it -- no button that looks like it ran something when it only copied a command; the mechanism is written down for the next session.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo · high · sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 3,
+      "value": "high"
     }
   ],
   "asks": [
