@@ -2,13 +2,29 @@
 """ruflo-item -- the mandatory Ruflo loop around one plan item (proposal 20, D11).
 
   ruflo-item start  <ID> "<task>"           hooks pre-task, memory search, hooks route, memory store
+  ruflo-item start  --item ID:TEXT [--item ID:TEXT ...]
+                                             several ids, each with its own task text, in one invocation
   ruflo-item done   <ID> [<ID> ...] "<summary>"
                                              the project's merge gate ONCE for the whole bundle, then
                                              hooks post-task + memory store per id, then testgaps once
+  ruflo-item done   --item ID:TEXT [--item ID:TEXT ...]
+                                             several ids, each with its own done summary; gate still runs once
   ruflo-item note   <ID> "<text>"           memory store, keyed to the item, timestamped from the real clock
   ruflo-item recall "<keywords>"            memory list, then memory search
+  ruflo-item from-ledger <LEDGER.json> [--since YYYY-MM-DD]
+                                             record start+done for every item closed on or after --since
+                                             (or every done item, with no --since), from one ledger file
   ruflo-item ... --project DIR              default: `git rev-parse --show-toplevel` of the current directory
   ruflo-item ... --namespace NS             default: $RUFLO_NAMESPACE, else the project directory name
+
+  Example (a lead closing a batch): after landing O-11, O-12 and O-13 in one
+  sweep, instead of three cold-started `done` calls --
+
+    ruflo-item done --item O-11:"batch start/done, from-ledger backfill mode" \\
+                     --item O-12:"workflow.html stamp now generated" \\
+                     --item O-13:"routing table dedup"
+
+  -- one process, one daemon start, one stop, the merge gate run once.
 
 `done` takes one or more item ids followed by one summary shared by all of
 them (proposal 26, C-03: `bin/ruflo-item done` accepts several item ids and
@@ -20,6 +36,53 @@ ledger row needs its own done record (the same "an item without start and
 done in Ruflo memory is not done" rule `start` already satisfies per id);
 `hooks worker dispatch --trigger testgaps` runs once at the end of the call,
 not once per id, matching the single gate run it follows.
+
+BATCHING (proposal 31, O-11 / finding 31/F-05). Every Ruflo call auto-starts
+its daemon and every `ruflo-item` invocation stops it again in a `finally`
+(see "WHY THE DAEMON STOPS ON EVERY EXIT" below) -- correctly, but it means
+the *next* invocation cold-starts it again: one call measured 3.3s, and ten
+items recorded one at a time (twenty invocations) did not finish in 500s.
+`start` and `done` each accept several ids in a *single* invocation via a
+repeatable `--item ID:TEXT` flag (split on the first `:`, so TEXT itself may
+contain colons) instead of the positional `<ID> "<task>"` /
+`<ID> [<ID> ...] "<summary>"` form -- one process, one binary resolution, one
+daemon start and one stop for the whole bundle, whatever else changes. A
+plain positional call with exactly one id (today's shape) behaves exactly as
+before; `--item` and the positional form are mutually exclusive within one
+call. `done --item ...` still runs the merge gate exactly once for the
+bundle, before any store, same as the positional multi-id form.
+
+Each id in a batch is independent: a failing id (its own `memory store`
+failing) is reported on stderr and does not stop the rest of the batch from
+being recorded -- `start`/`done` exit nonzero if *any* id in the call failed,
+but every id that succeeded is still stored. `done` skips its final testgaps
+dispatch when any id in the batch failed, matching single-id behaviour today
+(a failed store there already means "no testgaps"). The daemon still stops
+exactly once, in the same `finally`, on a clean run, a partial failure, a
+crash, or a signal -- batching never adds a second start or a second stop.
+
+`from-ledger LEDGER [--since DATE]` is the same idea driven by a ledger file
+instead of typing ids by hand: proposal 31, O-11's own backfill needed
+fourteen `start`+`done` pairs for items already shipped, and doing that one
+call at a time (28 invocations) took about eight minutes of cold starts.
+`from-ledger` loads LEDGER once, finds every item with status "done" whose
+closed date (`tools/tracker/ledger.py`'s `closed_date` -- the same reading
+`bin/conformance` check 9 uses) is on or after `--since` (every done item,
+with no `--since`), and for each one stores `item:<ID>:start` and
+`item:<ID>:done` directly, using the item's own `title` as the text. This is
+a memory *record* of history, not a re-run of history: it does **not**
+re-run the project's merge gate (the code shipped and was gated long ago;
+re-running it now proves nothing new and would dominate the very cold-start
+cost this mode exists to avoid), and it does not run `hooks pre-task` /
+`route` / `post-task` / the testgaps dispatch, which are live-work signals
+that would misrepresent when the work actually happened. Every stored value
+says outright that it was backfilled and when, e.g. "... -- backfilled
+2026-09-18T09:00:00Z from 31-....json, originally closed 2026-09-17;
+recorded after the fact, not logged as the work happened" -- so nothing
+reading Ruflo memory later can mistake this for a live start/done pair. Like
+`start`/`done`, a failing id is reported and does not stop the rest; the
+call exits nonzero if any id failed, and the daemon still stops exactly
+once.
 
 This lifts PhotoVault app's own `tools/ruflo_task.sh` into common-rules, so
 every project gets the same four commands instead of the four steps as prose
@@ -105,7 +168,8 @@ its failure now exits ruflo-item nonzero with a one-line message, rather than
 being folded into the same `|| true` telemetry as pre-task/route/search.
 
 Exit codes: 0 ok, 1 the gate refused or failed, a required memory store
-failed (or a bad done/note/recall argument), 2 no Ruflo binary found,
+failed for one or more ids in the call (or a bad done/note/recall/from-ledger
+argument), 2 no Ruflo binary found or a malformed CLI invocation,
 128+signum on SIGTERM/SIGHUP (143/129),
 130 on Ctrl-C.
 """
@@ -124,6 +188,7 @@ sys.path.insert(0, str(RULES_DIR))
 
 from tools import project as P  # noqa: E402
 from tools import ruflo as RU  # noqa: E402
+from tools.tracker import ledger as LED  # noqa: E402
 
 PREFIX = "ruflo-item:"
 
@@ -281,29 +346,67 @@ def _run_gate(gate: str, project: Path) -> int:
         raise
 
 
-def cmd_start(binary: list[str], project: Path, ruflo_cwd: Path, item_id: str, task: str, ns: str) -> int:
-    print(f"{PREFIX} pre-task for {item_id}")
-    _note_ignored("hooks pre-task", run_ruflo(
-        binary, ruflo_cwd, "hooks", "pre-task", "--description", f"{item_id}: {task}"))
+def _split_item_flags(specs: list[str], parser: argparse.ArgumentParser) -> list[tuple[str, str]]:
+    """Parse repeated `--item ID:TEXT` flags into [(id, text), ...], split on
+    the *first* `:` only, so TEXT itself may contain colons. `parser.error()`
+    (exit 2, matching argparse's own usage errors) on anything malformed, so
+    a bad batch call fails before any Ruflo binary is even resolved."""
+    items = []
+    for spec in specs:
+        if ":" not in spec:
+            parser.error(f"--item {spec!r} is not ID:TEXT (missing ':')")
+        item_id, text = spec.split(":", 1)
+        item_id, text = item_id.strip(), text.strip()
+        if not item_id or not text:
+            parser.error(f"--item {spec!r} needs both a non-empty id and text")
+        items.append((item_id, text))
+    return items
 
-    print(f"{PREFIX} searched memory for {item_id!r} (namespace {ns})")
-    _note_ignored("memory search", run_ruflo(
-        binary, ruflo_cwd, "memory", "search", "--query", item_id, "--namespace", ns))
 
-    print(f"{PREFIX} routed via hooks route --task")
-    _note_ignored("hooks route", run_ruflo(
-        binary, ruflo_cwd, "hooks", "route", "--task", f"{item_id}: {task}"))
+def cmd_start(binary: list[str], project: Path, ruflo_cwd: Path,
+              items: list[tuple[str, str]], ns: str) -> int:
+    """items: [(id, task), ...] -- one id (today's shape) or several, each
+    with its own task text (`--item ID:TEXT`, repeatable). One id failing its
+    (required) memory store does not stop the rest of the batch; the call
+    still returns nonzero if any id failed."""
+    failed = []
+    for item_id, task in items:
+        print(f"{PREFIX} pre-task for {item_id}")
+        _note_ignored("hooks pre-task", run_ruflo(
+            binary, ruflo_cwd, "hooks", "pre-task", "--description", f"{item_id}: {task}"))
 
-    key = f"item:{item_id}:start"
-    value = f"{now_iso()} {task}"
-    if not _note_required("memory store", run_ruflo(
-            binary, ruflo_cwd, "memory", "store", "--namespace", ns, "--key", key, "--value", value)):
+        print(f"{PREFIX} searched memory for {item_id!r} (namespace {ns})")
+        _note_ignored("memory search", run_ruflo(
+            binary, ruflo_cwd, "memory", "search", "--query", item_id, "--namespace", ns))
+
+        print(f"{PREFIX} routed via hooks route --task")
+        _note_ignored("hooks route", run_ruflo(
+            binary, ruflo_cwd, "hooks", "route", "--task", f"{item_id}: {task}"))
+
+        key = f"item:{item_id}:start"
+        value = f"{now_iso()} {task}"
+        if not _note_required("memory store", run_ruflo(
+                binary, ruflo_cwd, "memory", "store", "--namespace", ns, "--key", key, "--value", value)):
+            failed.append(item_id)
+            continue
+        print(f"{PREFIX} stored {key}")
+
+    if failed:
+        print(f"{PREFIX} start failed to record: {', '.join(failed)}", file=sys.stderr)
         return 1
-    print(f"{PREFIX} stored {key}")
     return 0
 
 
-def cmd_done(binary: list[str], project: Path, ruflo_cwd: Path, item_ids: list[str], summary: str, ns: str) -> int:
+def cmd_done(binary: list[str], project: Path, ruflo_cwd: Path,
+             items: list[tuple[str, str]], ns: str) -> int:
+    """items: [(id, summary), ...] -- either several ids sharing one summary
+    (the positional `<ID> [<ID> ...] "<summary>"` form) or several ids each
+    with their own summary (`--item ID:TEXT`, repeatable). The gate still
+    runs exactly once for the whole call either way. One id's (required)
+    memory store failing does not stop the rest of the batch from being
+    recorded; the call returns nonzero if any id failed, and skips the final
+    testgaps dispatch in that case -- unchanged from today's single-id
+    behaviour, where a failed store already meant "no testgaps"."""
     gate = P.test_command(project)
     if not gate:
         print(f"{PREFIX} no merge gate declared, and none could be guessed -- "
@@ -314,6 +417,7 @@ def cmd_done(binary: list[str], project: Path, ruflo_cwd: Path, item_ids: list[s
     if gate.strip().startswith("false") and "#" in gate:
         reason = gate.split("#", 1)[1].strip()
 
+    item_ids = [item_id for item_id, _ in items]
     print(f"{PREFIX} running gate once for {', '.join(item_ids)}: {gate}")
     returncode = _run_gate(gate, project)
     if returncode != 0:
@@ -324,7 +428,8 @@ def cmd_done(binary: list[str], project: Path, ruflo_cwd: Path, item_ids: list[s
         return 1
     print(f"{PREFIX} gate green")
 
-    for item_id in item_ids:
+    failed = []
+    for item_id, summary in items:
         _note_ignored("hooks post-task", run_ruflo(
             binary, ruflo_cwd, "hooks", "post-task", "--task-id", item_id,
             "--success", "true", "--store-results", "true"))
@@ -333,8 +438,13 @@ def cmd_done(binary: list[str], project: Path, ruflo_cwd: Path, item_ids: list[s
         value = f"{now_iso()} {summary}"
         if not _note_required("memory store", run_ruflo(
                 binary, ruflo_cwd, "memory", "store", "--namespace", ns, "--key", key, "--value", value)):
-            return 1
+            failed.append(item_id)
+            continue
         print(f"{PREFIX} stored {key}")
+
+    if failed:
+        print(f"{PREFIX} done failed to record: {', '.join(failed)}", file=sys.stderr)
+        return 1
 
     _note_ignored("hooks worker dispatch", run_ruflo(
         binary, ruflo_cwd, "hooks", "worker", "dispatch", "--trigger", "testgaps"))
@@ -362,6 +472,77 @@ def cmd_recall(binary: list[str], project: Path, ruflo_cwd: Path, keywords: str,
     return 0
 
 
+def _ledger_closed_items(ledger_path: Path, since) -> list[dict]:
+    """Every row in `ledger_path` with status "done" whose `closed_date`
+    (tools/tracker/ledger.py -- the same reading bin/conformance check 9
+    uses) is on or after `since` (every done row, when `since` is None).
+    Raises ValueError naming the file when it is not valid JSON."""
+    data = LED.load(ledger_path)
+    out = []
+    for row in LED.items(data):
+        if not isinstance(row, dict) or row.get("status") != "done" or not row.get("id"):
+            continue
+        date = LED.closed_date(row)
+        if since is not None and (date is None or date < since):
+            continue
+        out.append(row)
+    return out
+
+
+def cmd_from_ledger(binary: list[str], project: Path, ruflo_cwd: Path,
+                     ledger_path: Path, since, ns: str) -> int:
+    """Backfills item:<ID>:start and item:<ID>:done into Ruflo memory for
+    every item in `ledger_path` closed on or after `since` -- a memory
+    *record* of history, not a re-run of it: no merge gate, no hooks
+    pre-task/route/post-task, no testgaps dispatch (see the module docstring,
+    "BATCHING", for why). Each stored value says plainly that it was
+    backfilled and when, and names its original closed date. One id's
+    (required) memory store failing does not stop the rest of the batch; the
+    call returns nonzero if any id failed."""
+    try:
+        rows = _ledger_closed_items(ledger_path, since)
+    except ValueError as exc:
+        print(f"{PREFIX} {exc}", file=sys.stderr)
+        return 1
+
+    if not rows:
+        since_note = f" on or after {since.isoformat()}" if since else ""
+        print(f"{PREFIX} no closed items in {ledger_path}{since_note} -- nothing to record")
+        return 0
+
+    backfilled_at = now_iso()
+    failed = []
+    for row in rows:
+        item_id = row["id"]
+        title = str(row.get("title") or item_id).strip() or item_id
+        closed = LED.closed_date(row)
+        closed_note = f"originally closed {closed.isoformat()}" if closed else "closed date unknown"
+        note = (f"{title} -- backfilled {backfilled_at} from {ledger_path.name}, {closed_note}; "
+                f"recorded after the fact, not logged as the work happened")
+
+        print(f"{PREFIX} backfilling {item_id} from {ledger_path.name}")
+        start_key = f"item:{item_id}:start"
+        if not _note_required("memory store", run_ruflo(
+                binary, ruflo_cwd, "memory", "store", "--namespace", ns,
+                "--key", start_key, "--value", f"{backfilled_at} {note}")):
+            failed.append(item_id)
+            continue
+        print(f"{PREFIX} stored {start_key}")
+
+        done_key = f"item:{item_id}:done"
+        if not _note_required("memory store", run_ruflo(
+                binary, ruflo_cwd, "memory", "store", "--namespace", ns,
+                "--key", done_key, "--value", f"{backfilled_at} {note}")):
+            failed.append(item_id)
+            continue
+        print(f"{PREFIX} stored {done_key}")
+
+    if failed:
+        print(f"{PREFIX} from-ledger failed to record: {', '.join(sorted(set(failed)))}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="ruflo-item", description=__doc__.splitlines()[0])
     ap.add_argument("--project", help="the project root (default: git rev-parse --show-toplevel of cwd)")
@@ -370,13 +551,21 @@ def main(argv: list[str]) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p_start = sub.add_parser("start")
-    p_start.add_argument("id")
-    p_start.add_argument("task")
+    p_start.add_argument("args", nargs="*", metavar="ID TASK",
+                          help="an id and its task text (today's shape)")
+    p_start.add_argument("--item", action="append", default=[], metavar="ID:TEXT",
+                          help="a batch id and its own task text; repeatable, split on the first "
+                               "':'. Mutually exclusive with the positional ID TASK form. Example: "
+                               "start --item O-11:'wire it up' --item O-12:'stamp workflow.html'")
 
     p_done = sub.add_parser("done")
-    p_done.add_argument("ids", nargs="+", help="one or more item ids; the last "
-                         "positional argument is always the shared summary")
-    p_done.add_argument("summary")
+    p_done.add_argument("args", nargs="*", metavar="ID [ID ...] SUMMARY",
+                         help="one or more item ids followed by one summary shared by all of them "
+                              "(today's shape) -- the last positional argument is always the summary")
+    p_done.add_argument("--item", action="append", default=[], metavar="ID:TEXT",
+                         help="a batch id and its own done summary; repeatable, split on the first "
+                              "':'. Mutually exclusive with the positional ID... SUMMARY form. The "
+                              "merge gate still runs exactly once for the whole call.")
 
     p_note = sub.add_parser("note")
     p_note.add_argument("id")
@@ -385,7 +574,42 @@ def main(argv: list[str]) -> int:
     p_recall = sub.add_parser("recall")
     p_recall.add_argument("keywords")
 
+    p_from_ledger = sub.add_parser("from-ledger")
+    p_from_ledger.add_argument("ledger", type=Path, help="the ledger JSON file, e.g. "
+                                "docs/proposals/31-....json")
+    p_from_ledger.add_argument("--since", metavar="YYYY-MM-DD",
+                                help="only items closed on or after this date (default: every done item)")
+
     args = ap.parse_args(argv)
+
+    # Batch-shape validation happens before any Ruflo binary is resolved --
+    # a malformed call should fail fast, not after a cold start.
+    start_items = done_items = since = None
+    if args.cmd == "start":
+        if args.item:
+            if args.args:
+                p_start.error("pass either ID TASK or one or more --item ID:TEXT, not both")
+            start_items = _split_item_flags(args.item, p_start)
+        else:
+            if len(args.args) != 2:
+                p_start.error("need exactly ID and TASK, or one or more --item ID:TEXT")
+            start_items = [(args.args[0], args.args[1])]
+    elif args.cmd == "done":
+        if args.item:
+            if args.args:
+                p_done.error("pass either ID... SUMMARY or one or more --item ID:TEXT, not both")
+            done_items = _split_item_flags(args.item, p_done)
+        else:
+            if len(args.args) < 2:
+                p_done.error("need one or more ids and a shared SUMMARY, or one or more --item ID:TEXT")
+            *ids, summary = args.args
+            done_items = [(item_id, summary) for item_id in ids]
+    elif args.cmd == "from-ledger":
+        if args.since:
+            try:
+                since = datetime.date.fromisoformat(args.since)
+            except ValueError:
+                p_from_ledger.error(f"--since {args.since!r} is not YYYY-MM-DD")
 
     binary, err = resolve_binary()
     if binary is None:
@@ -401,13 +625,15 @@ def main(argv: list[str]) -> int:
     _install_signal_handlers()
     try:
         if args.cmd == "start":
-            return cmd_start(binary, project, ruflo_cwd, args.id, args.task, ns)
+            return cmd_start(binary, project, ruflo_cwd, start_items, ns)
         if args.cmd == "done":
-            return cmd_done(binary, project, ruflo_cwd, args.ids, args.summary, ns)
+            return cmd_done(binary, project, ruflo_cwd, done_items, ns)
         if args.cmd == "note":
             return cmd_note(binary, project, ruflo_cwd, args.id, args.text, ns)
         if args.cmd == "recall":
             return cmd_recall(binary, project, ruflo_cwd, args.keywords, ns)
+        if args.cmd == "from-ledger":
+            return cmd_from_ledger(binary, project, ruflo_cwd, args.ledger, since, ns)
         return 2  # pragma: no cover -- argparse's `required=True` rules this out
     except _Signaled as sig:
         return 128 + sig.signum

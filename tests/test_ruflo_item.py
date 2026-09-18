@@ -16,6 +16,15 @@ group before the daemon stops; the gate's output streams live rather than
 being captured; `done` dispatches the testgaps worker, best-effort, after its
 store.
 
+Proposal 31, O-11 additions: `start`/`done --item ID:TEXT` (repeatable)
+batches several ids, each with its own text, into one invocation -- one
+process, so one binary resolution and one daemon stop regardless of how many
+ids are inside; `from-ledger LEDGER [--since DATE]` backfills item:<ID>:start
+and item:<ID>:done for every "done" item in a ledger closed on or after DATE,
+without running the merge gate or any of the live-work hooks calls. None of
+these tests ever touch a real `.swarm/memory.db` or start a real daemon --
+the fake `claude-flow` from FAKE_RUFLO above stands in throughout.
+
 Run:  python3 -m unittest discover -s tests -q
 """
 from __future__ import annotations
@@ -33,6 +42,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RUFLO_ITEM = ROOT / "bin" / "ruflo-item"
+PREFIX = "ruflo-item:"
 
 FAKE_RUFLO = """#!/bin/sh
 # Appends this call's cwd and argv (tab-separated) as one line to
@@ -621,6 +631,283 @@ class TestRequiredMemoryStore(RufloItemCase):
         env["FAKE_RUFLO_FAIL"] = "hooks"
         r = self.run_item("start", "V-06", "text", env=env)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+
+class TestBatchStart(RufloItemCase):
+    """`start --item ID:TEXT` (repeatable): several ids, each with its own
+    task text, in one invocation."""
+
+    def test_several_items_each_get_full_pretask_search_route_store(self):
+        r = self.run_item("start", "--item", "O-11:wire it up", "--item", "O-12:stamp workflow.html")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        self.assertEqual(calls[0], ["hooks", "pre-task", "--description", "O-11: wire it up"])
+        self.assertEqual(calls[1], ["memory", "search", "--query", "O-11", "--namespace", "proj"])
+        self.assertEqual(calls[2], ["hooks", "route", "--task", "O-11: wire it up"])
+        self.assertEqual(flag(calls[3], "--key"), "item:O-11:start")
+        self.assertEqual(calls[4], ["hooks", "pre-task", "--description", "O-12: stamp workflow.html"])
+        self.assertEqual(calls[5], ["memory", "search", "--query", "O-12", "--namespace", "proj"])
+        self.assertEqual(calls[6], ["hooks", "route", "--task", "O-12: stamp workflow.html"])
+        self.assertEqual(flag(calls[7], "--key"), "item:O-12:start")
+        self.assertEqual(calls[8], ["daemon", "stop"])
+        self.assertEqual(len(calls), 9)
+
+    def test_binary_resolved_and_daemon_stopped_exactly_once_for_a_batch(self):
+        """The whole point of batching: one process means one binary
+        resolution and one daemon stop, no matter how many ids are inside."""
+        r = self.run_item("start", "--item", "O-11:a", "--item", "O-12:b", "--item", "O-13:c")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(r.stdout.count(f"{PREFIX} binary:"), 1)
+        calls = [c[1:] for c in self.log_lines()]
+        stops = [c for c in calls if c == ["daemon", "stop"]]
+        self.assertEqual(len(stops), 1)
+        self.assertEqual(calls[-1], ["daemon", "stop"])
+
+    def test_split_is_on_the_first_colon_only_so_text_may_contain_colons(self):
+        r = self.run_item("start", "--item", "O-11:note: mind the gap")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        self.assertEqual(calls[0], ["hooks", "pre-task", "--description", "O-11: note: mind the gap"])
+
+    def test_a_failing_id_leaves_the_others_stored_reports_it_and_exits_nonzero(self):
+        env = dict(self.env)
+        env["FAKE_RUFLO_FAIL"] = "item:O-12:start"
+        r = self.run_item("start", "--item", "O-11:a", "--item", "O-12:b", "--item", "O-13:c", env=env)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("O-12", r.stdout + r.stderr)
+        # The fake logs every attempted call whether or not it then exits 7,
+        # so "attempted" (in the log) and "actually recorded" (printed as
+        # "stored <key>", since the fake's own exit 7 is what makes
+        # _note_required report failure) must be checked separately.
+        calls = [c[1:] for c in self.log_lines()]
+        attempted_keys = [flag(c, "--key") for c in calls if c[:2] == ["memory", "store"]]
+        self.assertEqual(attempted_keys, ["item:O-11:start", "item:O-12:start", "item:O-13:start"],
+                          "O-12's failure must not stop O-13 from being attempted")
+        self.assertIn(f"{PREFIX} stored item:O-11:start", r.stdout)
+        self.assertIn(f"{PREFIX} stored item:O-13:start", r.stdout)
+        self.assertNotIn(f"{PREFIX} stored item:O-12:start", r.stdout,
+                          "O-12's failed store must not be reported as recorded")
+        self.assertEqual(calls[-1], ["daemon", "stop"], "the daemon must still stop after a partial failure")
+
+    def test_item_and_positional_form_are_mutually_exclusive(self):
+        r = self.run_item("start", "V-06", "text", "--item", "O-11:a")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertFalse(self.log.exists(), "a malformed call must fail before any Ruflo call")
+
+    def test_malformed_item_flag_refuses_with_exit_2_before_any_ruflo_call(self):
+        r = self.run_item("start", "--item", "no-colon-here")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertFalse(self.log.exists())
+
+    def test_a_single_id_via_positional_form_behaves_exactly_as_before(self):
+        r = self.run_item("start", "V-06", "bin/ruflo-item (D11)")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        self.assertEqual(len(calls), 5, calls)
+        self.assertEqual(calls[0], ["hooks", "pre-task", "--description", "V-06: bin/ruflo-item (D11)"])
+        self.assertEqual(flag(calls[3], "--key"), "item:V-06:start")
+        self.assertEqual(calls[4], ["daemon", "stop"])
+
+
+class TestBatchDone(RufloItemCase):
+    """`done --item ID:TEXT` (repeatable): several ids, each with its own
+    done summary, gate still run exactly once for the whole call."""
+
+    def test_gate_runs_once_and_each_item_gets_its_own_post_task_and_store(self):
+        counter = self.proj / "gate-runs.txt"
+        self.declare_gate(f"printf x >> {counter}")
+        r = self.run_item("done", "--item", "M-08:first summary", "--item", "C-03:second summary")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(counter.read_text(), "x", "the gate ran more than once for one batch")
+        calls = [c[1:] for c in self.log_lines()]
+        stores = [c for c in calls if c[:2] == ["memory", "store"]]
+        self.assertEqual([flag(c, "--key") for c in stores], ["item:M-08:done", "item:C-03:done"])
+        self.assertIn("first summary", flag(stores[0], "--value"))
+        self.assertIn("second summary", flag(stores[1], "--value"))
+        testgaps = [c for c in calls if c[:3] == ["hooks", "worker", "dispatch"]]
+        self.assertEqual(len(testgaps), 1)
+        self.assertEqual(calls[-1], ["daemon", "stop"])
+
+    def test_a_failing_id_leaves_the_others_stored_reports_it_exits_nonzero_and_skips_testgaps(self):
+        self.declare_gate("true")
+        env = dict(self.env)
+        env["FAKE_RUFLO_FAIL"] = "item:C-03:done"
+        r = self.run_item("done", "--item", "M-08:first", "--item", "C-03:second", env=env)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("C-03", r.stdout + r.stderr)
+        # The fake logs every attempted call even when it then exits 7 -- see
+        # TestBatchStart's equivalent case for why "attempted" and "actually
+        # recorded" must be checked separately.
+        calls = [c[1:] for c in self.log_lines()]
+        attempted_keys = [flag(c, "--key") for c in calls if c[:2] == ["memory", "store"]]
+        self.assertEqual(attempted_keys, ["item:M-08:done", "item:C-03:done"],
+                          "C-03's failure must not stop M-08 (already stored before it) "
+                          "or its own attempt")
+        self.assertIn(f"{PREFIX} stored item:M-08:done", r.stdout)
+        self.assertNotIn(f"{PREFIX} stored item:C-03:done", r.stdout,
+                          "C-03's failed store must not be reported as recorded")
+        testgaps = [c for c in calls if c[:3] == ["hooks", "worker", "dispatch"]]
+        self.assertEqual(testgaps, [], "a partial failure must skip the final testgaps dispatch")
+        self.assertEqual(calls[-1], ["daemon", "stop"])
+
+    def test_item_and_positional_form_are_mutually_exclusive(self):
+        r = self.run_item("done", "V-06", "shipped", "--item", "O-11:a")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertFalse(self.log.exists())
+
+    def test_a_single_id_via_positional_form_behaves_exactly_as_before(self):
+        self.declare_gate("true")
+        r = self.run_item("done", "V-06", "shipped, 12 OK")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        self.assertEqual(flag(calls[0], "--task-id"), "V-06")
+        self.assertEqual(flag(calls[1], "--key"), "item:V-06:done")
+
+    def test_several_ids_via_positional_form_still_share_one_summary(self):
+        self.declare_gate("true")
+        r = self.run_item("done", "M-08", "C-03", "bundle-k shipped")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        stores = [c for c in calls if c[:2] == ["memory", "store"]]
+        for s in stores:
+            self.assertIn("bundle-k shipped", flag(s, "--value"))
+
+
+class TestFromLedger(RufloItemCase):
+    """`from-ledger LEDGER [--since DATE]`: backfills item:<ID>:start and
+    item:<ID>:done for every "done" item closed on or after DATE, without
+    running the merge gate or any hooks pre-task/route/post-task/testgaps
+    call -- it is a record of history, not a re-run of it."""
+
+    def _write_ledger(self, name: str, items: list[dict]) -> Path:
+        path = self.proj / name
+        path.write_text(json.dumps({"proposal": 31, "items": items}))
+        return path
+
+    def test_picks_only_items_closed_on_or_after_since_and_skips_the_rest(self):
+        ledger = self._write_ledger("31-x.json", [
+            {"id": "O-01", "status": "done", "title": "old one",
+             "log": [{"at": "2026-09-10T00:00:00Z", "event": "done", "status": "done"}]},
+            {"id": "O-02", "status": "done", "title": "recent one",
+             "log": [{"at": "2026-09-17T00:00:00Z", "event": "done", "status": "done"}]},
+            {"id": "O-03", "status": "not started", "title": "not done yet"},
+        ])
+        r = self.run_item("from-ledger", str(ledger), "--since", "2026-09-17")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        stores = [c for c in calls if c[:2] == ["memory", "store"]]
+        keys = [flag(c, "--key") for c in stores]
+        self.assertEqual(keys, ["item:O-02:start", "item:O-02:done"])
+
+    def test_with_no_since_every_done_item_is_picked(self):
+        ledger = self._write_ledger("31-x.json", [
+            {"id": "O-01", "status": "done", "title": "old one",
+             "log": [{"at": "2026-01-01T00:00:00Z", "event": "done", "status": "done"}]},
+            {"id": "O-02", "status": "not started", "title": "not done yet"},
+        ])
+        r = self.run_item("from-ledger", str(ledger))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        stores = [c for c in calls if c[:2] == ["memory", "store"]]
+        keys = [flag(c, "--key") for c in stores]
+        self.assertEqual(keys, ["item:O-01:start", "item:O-01:done"])
+
+    def test_stored_text_uses_the_items_title_and_says_it_was_backfilled(self):
+        ledger = self._write_ledger("31-x.json", [
+            {"id": "O-02", "status": "done", "title": "ruflo-item records several items",
+             "log": [{"at": "2026-09-17T00:00:00Z", "event": "done", "status": "done"}]},
+        ])
+        r = self.run_item("from-ledger", str(ledger), "--since", "2026-09-01")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        stores = [c for c in calls if c[:2] == ["memory", "store"]]
+        for s in stores:
+            value = flag(s, "--value")
+            self.assertIn("ruflo-item records several items", value)
+            self.assertIn("backfilled", value)
+            self.assertIn("recorded after the fact, not logged as the work happened", value)
+
+    def test_never_runs_the_merge_gate_or_any_hooks_call(self):
+        """A backfill must not re-run the project's merge gate, and must not
+        call hooks pre-task/route/post-task or the testgaps dispatch -- only
+        the two required memory store calls per item."""
+        counter = self.proj / "gate-runs.txt"
+        self.declare_gate(f"printf x >> {counter}")
+        ledger = self._write_ledger("31-x.json", [
+            {"id": "O-02", "status": "done", "title": "t",
+             "log": [{"at": "2026-09-17T00:00:00Z", "event": "done", "status": "done"}]},
+        ])
+        r = self.run_item("from-ledger", str(ledger), "--since", "2026-09-01")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertFalse(counter.exists(), "from-ledger must never run the merge gate")
+        calls = [c[1:] for c in self.log_lines()]
+        for label in (["hooks", "pre-task"], ["hooks", "route"], ["hooks", "post-task"],
+                      ["hooks", "worker", "dispatch"]):
+            self.assertFalse(any(c[:len(label)] == label for c in calls), label)
+
+    def test_a_failing_id_leaves_the_others_stored_reports_it_and_exits_nonzero(self):
+        env = dict(self.env)
+        env["FAKE_RUFLO_FAIL"] = "item:O-01:done"
+        ledger = self._write_ledger("31-x.json", [
+            {"id": "O-01", "status": "done", "title": "one",
+             "log": [{"at": "2026-09-17T00:00:00Z", "event": "done", "status": "done"}]},
+            {"id": "O-02", "status": "done", "title": "two",
+             "log": [{"at": "2026-09-17T00:00:00Z", "event": "done", "status": "done"}]},
+        ])
+        r = self.run_item("from-ledger", str(ledger), "--since", "2026-09-01", env=env)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("O-01", r.stdout + r.stderr)
+        # The fake logs every attempted call even when it then exits 7 -- see
+        # TestBatchStart's equivalent case for why "attempted" and "actually
+        # recorded" must be checked separately.
+        calls = [c[1:] for c in self.log_lines()]
+        stores = [c for c in calls if c[:2] == ["memory", "store"]]
+        attempted_keys = [flag(c, "--key") for c in stores]
+        self.assertEqual(attempted_keys, ["item:O-01:start", "item:O-01:done",
+                                           "item:O-02:start", "item:O-02:done"],
+                          "O-01's failing done-store must not stop O-02 from being attempted")
+        self.assertIn(f"{PREFIX} stored item:O-01:start", r.stdout)
+        self.assertIn(f"{PREFIX} stored item:O-02:start", r.stdout)
+        self.assertIn(f"{PREFIX} stored item:O-02:done", r.stdout)
+        self.assertNotIn(f"{PREFIX} stored item:O-01:done", r.stdout,
+                          "O-01's failed done-store must not be reported as recorded")
+        self.assertEqual(calls[-1], ["daemon", "stop"])
+
+    def test_daemon_started_and_stopped_exactly_once_for_the_whole_ledger(self):
+        ledger = self._write_ledger("31-x.json", [
+            {"id": f"O-{n:02d}", "status": "done", "title": f"item {n}",
+             "log": [{"at": "2026-09-17T00:00:00Z", "event": "done", "status": "done"}]}
+            for n in range(1, 6)
+        ])
+        r = self.run_item("from-ledger", str(ledger), "--since", "2026-09-01")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(r.stdout.count(f"{PREFIX} binary:"), 1)
+        calls = [c[1:] for c in self.log_lines()]
+        self.assertEqual(sum(1 for c in calls if c == ["daemon", "stop"]), 1)
+        self.assertEqual(calls[-1], ["daemon", "stop"])
+
+    def test_no_closed_items_is_not_an_error(self):
+        ledger = self._write_ledger("31-x.json", [
+            {"id": "O-01", "status": "not started", "title": "t"},
+        ])
+        r = self.run_item("from-ledger", str(ledger), "--since", "2026-09-01")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = [c[1:] for c in self.log_lines()]
+        stores = [c for c in calls if c[:2] == ["memory", "store"]]
+        self.assertEqual(stores, [])
+
+    def test_bad_ledger_json_refuses_with_a_named_message(self):
+        bad = self.proj / "31-bad.json"
+        bad.write_text("{not valid json")
+        r = self.run_item("from-ledger", str(bad))
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("not valid JSON", r.stdout + r.stderr)
+
+    def test_bad_since_date_refuses_with_exit_2_before_any_ruflo_call(self):
+        ledger = self._write_ledger("31-x.json", [])
+        r = self.run_item("from-ledger", str(ledger), "--since", "not-a-date")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertFalse(self.log.exists())
 
 
 if __name__ == "__main__":
