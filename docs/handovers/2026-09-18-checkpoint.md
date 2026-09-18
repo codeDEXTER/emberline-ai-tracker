@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 08:28
+# Checkpoint — 2026-09-18 08:31
 
-Reason: manual · branch: p31-item-12 · HEAD: c822723
+Reason: manual · branch: p30-item-11 · HEAD: d01ef42
 
-<!-- ledger-digest: ec1c8ded95b043f20eded9c0b5706021fe79cc6315da181abfee5f1f38e7342a -->
+<!-- ledger-digest: 2d77bae586838d2112bb2c5023686859b50da6c52da2e91ca27ae058beb3d210 -->
 
 ## Proposal 19 · Warm-up
 
@@ -81,6 +81,31 @@ Reason: manual · branch: p31-item-12 · HEAD: c822723
 **waiting**
 - L-02 60% · next L-02.B (waiting 2026-09-23)
 - L-07 80% · next L-07.B (waiting 2026-09-23)
+
+## Proposal 30 · Tracker shows how complete each item is, by lettered parts
+
+10 done / 0 in progress / 0 blocked / 1 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- P-11 · [ruflo · high · sonnet] · One filter bar at the top, governing every view
+
+### Open work by group
+
+**finish now**
+- P-11 0%
 
 ## Proposal 31 · Cheaper turns: a fast gate and scripts instead of bookkeeping
 
