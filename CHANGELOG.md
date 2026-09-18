@@ -46,6 +46,37 @@ now shows a semver alongside the count-sha it already showed.
 `VERSION`, `bin/rulecheck` (`current_semver()`, `version_label()`),
 `bin/version-check`, `tools/version_check.py`, `tests/test_version.py` (23
 cases), `CLAUDE-workflow.md`, `.common-rules.json`, `.github/workflows/ci.yml`.
+## 2026-09-18 · pull a waiting part forward from the tracker page (P-13)
+
+The sponsor: "make a button in the tracker where I can trigger the tasks to
+be uh, completed sooner. Instead of on 23rd September or things like that."
+The published tracker is a static page that can run nothing on his Mac, so
+every part that `tools/tracker/parts.py`'s `is_waiting()` calls waiting --
+a `waiting_until` date, or an owner of the form `session:<name>` -- now
+carries a "Pull forward" row: what it is waiting for, in text; a button
+labelled "Copy the command that pulls this forward"; and, once clicked, a
+confirmation that states plainly nothing has run yet and shows the exact
+command to paste into a session for this project. `navigator.clipboard`
+copies it, with a `document.execCommand("copy")` fallback. The page still
+reads correctly with JavaScript off -- the waiting reason stays visible as
+text, the button is just inert.
+
+The command needed `tracker set` to actually clear a date, which it could
+not do before this: `--waiting-until` only ever took effect from
+`--add-part`, so editing an already-waiting part or item silently ignored
+it. `--waiting-until` now edits an existing item's or part's own
+`waiting_until` directly, and `none` (or `now`) removes the key instead of
+setting it to anything -- `tools/tracker/set.py`'s `_apply_waiting_until()`,
+covered in `tests/test_tracker_set.py`. A session-owned wait has no date to
+clear, so its command reclaims the part with `--owner lead` instead --
+honest about what it can do (say the ledger no longer waits on that
+session), not about making that session act.
+
+Assessed and deliberately not built: a `db`-capability queue on the page
+itself, so a pull-forward request is recorded for a session to read at
+warm-up instead of needing to be pasted by hand. Left for the sponsor to
+weigh against a clipboard button that always works and never rots silently
+unread.
 
 ## 2026-09-18 · what the sponsor types after /warmup or /reheat is context
 

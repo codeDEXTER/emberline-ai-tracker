@@ -212,7 +212,7 @@ def item_card(item: dict, number, repo) -> str:
     if explicit_parts:
         nxt = PARTS.next_part(item)
         next_text = f'next: {e(nxt.get("id"))} · {e(nxt.get("title"))}' if nxt else "all parts done"
-        parts_rows = "".join(part_sub_row(p) for p in explicit_parts)
+        parts_rows = "".join(part_sub_row(p, number) for p in explicit_parts)
         pct_line = (f'<p class="pct">{PARTS.completion(item)}% <span class="fbar">{feature_bar(item)}</span> '
                     f'<span class="next dim">{next_text}</span></p>'
                     f'<details class="parts-details"><summary>Parts · {len(explicit_parts)}</summary>'
@@ -468,19 +468,71 @@ def feature_bar(item: dict) -> str:
     return "".join(out)
 
 
-def part_sub_row(p: dict) -> str:
+def _ledger_glob(number) -> str:
+    """The shell glob a pasted command names its ledger by -- the proposal
+    number is stable and short; the rest of a ledger's filename is not
+    something anyone should have to type or the page should have to know
+    (proposal 30, P-13)."""
+    return f"docs/proposals/{number}-*.json"
+
+
+def pull_forward(p: dict, number) -> str:
+    """The "Pull forward" affordance for one waiting part (proposal 30,
+    P-13): the sponsor asked for a button "where I can trigger the tasks to
+    be ... completed sooner. Instead of on 23rd September or things like
+    that." The page is static and can run nothing, so this is honest about
+    its mechanism -- it copies the exact `tracker set` command that clears
+    the wait, to the clipboard, and says plainly that nothing has run yet.
+    Nothing is rendered for a part that PARTS.is_waiting() does not call
+    waiting -- the same function the pill and the bar already use, so this
+    can never disagree with either about what counts as waiting.
+
+    Two shapes of wait, two commands: a date-based wait is cleared with
+    `--waiting-until none` (P-13's own addition to `tracker set`, since
+    editing an existing wait previously ignored that flag); a wait owned by
+    another project's session is reclaimed with `--owner lead` -- the page
+    cannot make that session act, only say the ledger no longer waits on
+    it."""
+    if not PARTS.is_waiting(p):
+        return ""
+    pid = p.get("id")
+    owner = p.get("owner")
+    wait = p.get("waiting_until")
+    ledger = _ledger_glob(number)
+    if isinstance(owner, str) and owner.startswith("session:"):
+        reason = f"waiting for {owner}"
+        cmd = (f'bin/tracker set {ledger} {pid} --owner lead '
+               f'--event "pulled forward from {owner}" --by "sponsor"')
+    else:
+        reason = f"waiting until {wait}"
+        cmd = (f'bin/tracker set {ledger} {pid} --waiting-until none '
+               f'--event "pulled forward from {wait}" --by "sponsor"')
+    return (
+        f'<div class="pull-forward" data-pull-forward data-cmd="{e(cmd)}">'
+        f'<span class="pf-reason dim">{e(reason)}</span>'
+        f'<button type="button" class="pf-btn" data-pull-forward-btn>'
+        f'Copy the command that pulls this forward</button>'
+        f'<p class="pf-confirm dim" data-pull-forward-confirm hidden>'
+        f'Copied — nothing has run yet. Paste this into a session for this project: '
+        f'<code>{e(cmd)}</code></p>'
+        f'</div>'
+    )
+
+
+def part_sub_row(p: dict, number) -> str:
     cls, label, title = part_pill(p)
     title_attr = f' title="{e(title)}"' if title else ""
     muted = " muted" if p.get("status") == "done" else ""
     return (f'<div class="prow{muted}"><span class="pid">{e(p.get("id"))}</span>'
             f'<span class="ptitle" title="{e(p.get("title"))}">{e(p.get("title"))}</span>'
             f'<span class="pshare">{p.get("share", 0)}%</span>'
-            f'<span class="pill p-{cls}"{title_attr}>{e(label)}</span></div>')
+            f'<span class="pill p-{cls}"{title_attr}>{e(label)}</span></div>'
+            f'{pull_forward(p, number)}')
 
 
 def feature_overview_row(item: dict, number) -> str:
     pct = PARTS.completion(item)
-    prows = "".join(part_sub_row(p) for p in display_parts(item))
+    prows = "".join(part_sub_row(p, number) for p in display_parts(item))
     return (f'<details class="frow" data-feature data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
             f'data-group="{e(PARTS.group(item))}" data-owner="{e(item.get("owner") or "")}">'
             f'<summary class="fhead"><span class="fid">{e(item.get("id"))}</span>'
@@ -610,7 +662,7 @@ def feature_children(item: dict) -> list[dict]:
     return [node]
 
 
-def feature_node_row(node: dict) -> str:
+def feature_node_row(node: dict, number) -> str:
     """One part (or sub-part, at any depth) as a row -- a <details> when it
     has its own sub-parts (recursing to any depth parts.tree() carries), a
     plain row otherwise. Carries data-pstatus/data-psearch (proposal 30,
@@ -630,12 +682,16 @@ def feature_node_row(node: dict) -> str:
                f'<span class="pill p-{cls}"{title_attr}>{e(label)}</span>')
     pdata = (f' data-pstatus="{e(node.get("status") or "")}" '
              f'data-psearch="{e(search_text(node.get("id"), node.get("title")))}"')
+    pf = pull_forward(node, number)
     children = node.get("parts") or []
     if children:
-        body = "".join(feature_node_row(c) for c in children)
+        body = "".join(feature_node_row(c, number) for c in children)
+        # `pf` sits beside `.fparts`, never inside the <summary> -- a button
+        # inside a <summary> would toggle the <details> on every click along
+        # with whatever the button itself does.
         return (f'<details class="prow-details"><summary class="prow"{pdata}>{summary}</summary>'
-                f'<div class="fparts">{body}</div></details>')
-    return f'<div class="prow"{pdata}>{summary}</div>'
+                f'{pf}<div class="fparts">{body}</div></details>')
+    return f'<div class="prow"{pdata}>{summary}</div>{pf}'
 
 
 def feature_item_row(item: dict, number) -> str:
@@ -648,7 +704,7 @@ def feature_item_row(item: dict, number) -> str:
     grp = PARTS.group(item)
     nxt = PARTS.next_part(item)
     next_text = f'next: {e(nxt.get("id"))} · {e(nxt.get("title"))}' if nxt else "all parts done"
-    body = "".join(feature_node_row(c) for c in feature_children(item))
+    body = "".join(feature_node_row(c, number) for c in feature_children(item))
     owner = item.get("owner") or ""
     return (f'<details class="item-row" data-item data-id="{e(item.get("id"))}" data-proposal="{e(number)}" '
             f'data-status="{e(item.get("status") or "")}" data-owner="{e(owner)}" '
@@ -717,7 +773,7 @@ def kanban_card(item: dict, number) -> str:
     body = ""
     if parts:
         done = sum(1 for p in parts if p.get("status") == "done")
-        rows = "".join(part_sub_row(p) for p in parts)
+        rows = "".join(part_sub_row(p, number) for p in parts)
         body = (f'<details class="kparts"><summary>{done} of {len(parts)} parts done</summary>'
                 f'<div class="fparts">{rows}</div></details>')
     owner = item.get("owner") or ""
@@ -1108,6 +1164,17 @@ max-height:2.6em;white-space:normal;overflow-wrap:anywhere}
 .pill.p-other{color:var(--dim)}
 .pill.p-waiting{color:var(--waiting);border-color:var(--waiting)}
 .pill.p-risk{color:var(--risk);border-color:var(--risk);cursor:help;border-style:dashed}
+/* -- proposal 30, P-13: "pull forward" on a waiting part. Its own row,
+   never inside .prow's grid (which would misalign the fixed columns) --
+   just the next sibling, so it wraps to its own line at any width. */
+.pull-forward{margin:0 8px 6px 22px;padding:6px 10px;background:var(--raise);border:1px solid var(--rule);
+border-radius:6px;font-size:11.5px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}
+.pf-reason{color:var(--dim)}
+.pf-btn{border:1px solid var(--rule);background:var(--surface);color:var(--accent);border-radius:5px;
+padding:3px 9px;font:500 11.5px var(--sans);cursor:pointer}
+.pf-btn:hover{border-color:var(--accent)}
+.pf-confirm{flex-basis:100%;margin:2px 0 0;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.pf-confirm code{font-family:var(--mono);background:var(--ground);padding:1px 4px;border-radius:3px;color:var(--ink)}
 .clegend{display:flex;gap:16px;font-size:12px;color:var(--dim);margin-top:12px;flex-wrap:wrap}
 .clegend .litem{display:inline-flex;align-items:center;gap:5px}
 .clegend .sw{display:inline-block;width:10px;height:10px;border-radius:2px}
@@ -1434,6 +1501,34 @@ SCRIPT = r"""
     state.view = b.dataset.view; persist(); apply(); }); });
   $("#clear").addEventListener("click", clear);
   $("#clear2").addEventListener("click", clear);
+  // proposal 30, P-13: "pull forward" copies the exact command that clears
+  // one part's wait to the clipboard -- it never runs anything itself, so
+  // the only job here is to get `data-cmd` onto the clipboard and reveal
+  // the confirmation that already says so.
+  function fallbackCopy(text){
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    } catch (e) {}
+  }
+  $$("[data-pull-forward-btn]").forEach(function(btn){
+    btn.addEventListener("click", function(ev){
+      ev.preventDefault();
+      var wrap = btn.closest("[data-pull-forward]");
+      if (!wrap) return;
+      var cmd = wrap.getAttribute("data-cmd") || "";
+      var confirmEl = $("[data-pull-forward-confirm]", wrap);
+      function reveal(){ if (confirmEl) confirmEl.hidden = false; }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cmd).then(reveal, function(){ fallbackCopy(cmd); reveal(); });
+      } else {
+        fallbackCopy(cmd); reveal();
+      }
+    });
+  });
   // Sync the controls that carry their own value/checked state to what was
   // just restored from localStorage -- apply() below only sets aria-pressed
   // on buttons and chips, never a form control's own value.
