@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 09:14
+# Checkpoint — 2026-09-18 09:34
 
-Reason: manual · branch: adoption-handover · HEAD: db4b7ea
+Reason: manual · branch: fix-progress-bars · HEAD: 6df17fc
 
-<!-- ledger-digest: cca6bef1c06a7bcaccbb9890f8dc26740d52d61951729d58360ba5b3840761be -->
+<!-- ledger-digest: 58210d1a015bdf85b8e5b6fe271fbc34c959214811ca142a7de27b65c05c6eb5 -->
 
 ## Proposal 19 · Warm-up
 
@@ -81,6 +81,31 @@ Reason: manual · branch: adoption-handover · HEAD: db4b7ea
 **waiting**
 - L-02 60% · next L-02.B (waiting 2026-09-23)
 - L-07 80% · next L-07.B (waiting 2026-09-23)
+
+## Proposal 30 · Tracker shows how complete each item is, by lettered parts
+
+12 done / 0 in progress / 0 blocked / 1 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- P-13 · [ruflo · high · sonnet] · A button to pull a waiting item forward, instead of waiting for its date
+
+### Open work by group
+
+**finish now**
+- P-13 0%
 
 ## Exact next action
 

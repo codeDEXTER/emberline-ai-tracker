@@ -444,9 +444,28 @@ def part_bar_class(p: dict) -> str:
     return "seg-running"
 
 
+_BAR_ORDER = ("seg-done", "seg-running", "seg-waiting", "seg-empty")
+
+
 def feature_bar(item: dict) -> str:
-    return "".join(f'<span class="{part_bar_class(p)}" style="width:{p.get("share", 0)}%"></span>'
-                   for p in display_parts(item))
+    """The item's completion as one filled bar: done share first, then in
+    progress, waiting, and not started.
+
+    Ordered, not positional. Before this the segments came out in letter
+    order, so an item whose done part was not its first one drew a filled
+    stripe floating in the middle of an empty bar -- W-10, five parts of 20%
+    with only C done, rendered amber/amber/GREEN/amber/amber while the row
+    beside it read 20%. A bar that sits next to a percentage is read as a
+    progress bar, so it has to fill from the left like one; which particular
+    parts are done is what the part rows underneath are for.
+    """
+    parts = display_parts(item)
+    out = []
+    for cls in _BAR_ORDER:
+        share = sum(p.get("share", 0) for p in parts if part_bar_class(p) == cls)
+        if share > 0:
+            out.append(f'<span class="{cls}" style="width:{share}%"></span>')
+    return "".join(out)
 
 
 def part_sub_row(p: dict) -> str:
