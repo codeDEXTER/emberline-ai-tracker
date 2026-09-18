@@ -371,6 +371,12 @@
           "by": "session:p30-views",
           "evidence": "",
           "status": "done"
+        },
+        {
+          "at": "2026-09-18T07:58:30+02:00",
+          "event": "Coordinator review: reordered so the proposal tree sits above the progress charts (tiles -> tree -> charts -> folded groups), not below them; capped chart height to ~178px real (viewBox height 150, .charts max-width:760px) without touching axis label font sizes.",
+          "by": "session:p30-views",
+          "evidence": ""
         }
       ],
       "points": 3,
@@ -399,6 +405,12 @@
           "by": "session:p30-views",
           "evidence": "",
           "status": "done"
+        },
+        {
+          "at": "2026-09-18T07:58:35+02:00",
+          "event": "Coordinator review: the Kanban done column now collapses behind the existing show-finished toggle (a 'N done -- show them' affordance) instead of rendering 100+ cards; the column keeps its place and count either way.",
+          "by": "session:p30-views",
+          "evidence": ""
         }
       ],
       "points": 5,
