@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 10:07
+# Checkpoint — 2026-09-18 10:10
 
-Reason: manual · branch: v32-semver · HEAD: adbf804
+Reason: manual · branch: p30-pull-forward · HEAD: a780f68
 
-<!-- ledger-digest: 60155e9d6b69ce2212e9a5e68c25242d1bf2a9ea439366dd46ab643d123ca4e9 -->
+<!-- ledger-digest: 578ca1c533ca50f789bbbad20691d45e0ef15c39d252ffc689a1448533ed79e1 -->
 
 ## Proposal 19 · Warm-up
 
@@ -80,31 +80,6 @@ Reason: manual · branch: v32-semver · HEAD: adbf804
 
 **back burner**
 - L-07 80% · next L-07.B
-
-## Proposal 30 · Tracker shows how complete each item is, by lettered parts
-
-12 done / 0 in progress / 0 blocked / 1 not started
-
-### In progress
-
-- none
-
-### Blocked, and why
-
-- none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- P-13 · [ruflo · high · sonnet] · A button to pull a waiting item forward, instead of waiting for its date
-
-### Open work by group
-
-**finish now**
-- P-13 0%
 
 ## Proposal 32 · Semantic versions and a lock for the standard
 

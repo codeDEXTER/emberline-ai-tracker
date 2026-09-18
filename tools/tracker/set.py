@@ -26,12 +26,22 @@ Parts (proposal 30, P-01's shape, see tools/tracker/parts.py):
 
   tracker set LEDGER W-10.B --status done --event "..." [--field KEY=VALUE]
                              [--owner O] [--evidence TEXT] [--by NAME] [--at ISO]
+                             [--waiting-until D]
 
 An ITEM_ID with a `.LETTER` suffix targets that lettered part instead of the
 item: the same --status/--owner/--event/--evidence/--by/--at handling
 applies, but the log entry is appended to the *part's own* `log`, and
 `--field` may only touch a part's `owner`, `waiting_until`, `risk`,
 `risk_reason`, `title` or `share` (so `--field share=30` writes the int 30).
+
+`--waiting-until` edits an item's or an already-existing part's own
+`waiting_until` directly (proposal 30, P-13 -- previously the flag only took
+effect with `--add-part`, so editing an existing wait needed the clumsier
+`--field waiting_until=...`, which could set a date but not remove one).
+`--waiting-until YYYY-MM-DD` sets the date; `--waiting-until none` (or
+`--waiting-until now`) removes the `waiting_until` key entirely rather than
+setting it to anything -- the tracker page's "pull forward" affordance
+copies exactly this to clear a date-based wait.
 When that change leaves every part of the item done, `set` also closes the
 item: its `status` becomes "done" and an item-level log entry
 {event: "all parts done", status: "done"} is appended. Setting an item
@@ -85,9 +95,26 @@ FORBIDDEN_FIELDS = frozenset({"id", "log", "phase"})
 PART_FIELDS = frozenset({"owner", "waiting_until", "risk", "risk_reason", "title", "share"})
 PART_ID = re.compile(r"^(.+)\.([A-Z])$")
 
+# proposal 30, P-13: `--waiting-until` on an *existing* item or part previously
+# only ever set a date (and only from `--add-part` -- editing an already-set
+# part or item ignored the flag entirely, see below). The tracker page's
+# "pull forward" button needs a command that actually clears a wait, so
+# these two tokens mean "remove the date" instead of setting one.
+CLEAR_WAITING_TOKENS = frozenset({"none", "now"})
+
 
 def _now() -> str:
     return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+
+
+def _apply_waiting_until(container: dict, value: str) -> str:
+    """Set or clear `waiting_until` on an item or part dict, in place.
+    Returns the human-readable change for the command's own output."""
+    if value.strip().lower() in CLEAR_WAITING_TOKENS:
+        had = container.pop("waiting_until", None)
+        return "waiting_until cleared" if had is not None else "waiting_until already clear"
+    container["waiting_until"] = value
+    return f"waiting_until {value}"
 
 
 def _parse_field(raw: str) -> tuple[str, object, str] | None:
@@ -105,7 +132,8 @@ def _parse_field(raw: str) -> tuple[str, object, str] | None:
 
 def apply_change(data: dict, item_id: str, *, status: str | None = None, owner: str | None = None,
                   fields: list[tuple[str, object, str]] = (), event: str | None = None,
-                  evidence: str = "", by: str = "lead", at: str | None = None) -> list[str] | None:
+                  evidence: str = "", by: str = "lead", at: str | None = None,
+                  waiting_until: str | None = None) -> list[str] | None:
     """Apply one change to an already-loaded ledger `data` in place. Returns
     the human-readable parts on success, or None (nothing changed) when
     `item_id` is not in `data` -- the caller decides how to report that.
@@ -124,6 +152,8 @@ def apply_change(data: dict, item_id: str, *, status: str | None = None, owner: 
     if owner is not None:
         item["owner"] = owner
         parts.append(f"owner {owner}")
+    if waiting_until is not None:
+        parts.append(_apply_waiting_until(item, waiting_until))
     for key, value, shown in fields:
         item[key] = value
         parts.append(f"field {key}={shown}")
@@ -201,7 +231,7 @@ def set_parts(item: dict, spec_list: list) -> None:
 def apply_part_change(data: dict, parent_id: str, letter: str, *, status: str | None = None,
                        owner: str | None = None, fields: list[tuple[str, object, str]] = (),
                        event: str | None = None, evidence: str = "", by: str = "lead",
-                       at: str | None = None) -> list[str] | None:
+                       at: str | None = None, waiting_until: str | None = None) -> list[str] | None:
     """Apply one change to part `parent_id`.`letter`, in place. Returns the
     human-readable parts on success, or None when the item or the part is
     not found. Raises ValueError for a `--field` not allowed on a part.
@@ -222,6 +252,8 @@ def apply_part_change(data: dict, parent_id: str, letter: str, *, status: str | 
     if owner is not None:
         part["owner"] = owner
         changed.append(f"owner {owner}")
+    if waiting_until is not None:
+        changed.append(_apply_waiting_until(part, waiting_until))
     for key, value, shown in fields:
         if key not in PART_FIELDS:
             raise ValueError(f"--field may not set {key!r} on a part -- allowed: {', '.join(sorted(PART_FIELDS))}")
@@ -272,7 +304,7 @@ def main(argv) -> int:
     ap.add_argument("--at")
     ap.add_argument("--add-part", metavar="TITLE")
     ap.add_argument("--share", type=int)
-    ap.add_argument("--waiting-until")
+    ap.add_argument("--waiting-until", help="YYYY-MM-DD to set, or 'none'/'now' to clear (P-13)")
     ap.add_argument("--risk")
     ap.add_argument("--risk-reason")
     ap.add_argument("--parts", metavar="JSON")
@@ -319,8 +351,10 @@ def main(argv) -> int:
         if args.risk and not args.risk_reason:
             print(f"{say} --risk needs --risk-reason -- nothing written", file=sys.stderr)
             return 1
+        new_wait = None if (args.waiting_until and args.waiting_until.strip().lower() in CLEAR_WAITING_TOKENS) \
+            else args.waiting_until
         part_id = add_part(item, args.add_part, args.share, status=args.status, owner=args.owner,
-                            waiting_until=args.waiting_until, risk=args.risk, risk_reason=args.risk_reason)
+                            waiting_until=new_wait, risk=args.risk, risk_reason=args.risk_reason)
         data["updated"] = datetime.date.today().isoformat()
         result = [f"added {part_id}", f"share {args.share}"]
         if args.status:
@@ -349,7 +383,7 @@ def main(argv) -> int:
         try:
             result = apply_part_change(data, parent_id, letter, status=args.status, owner=args.owner,
                                         fields=fields, event=args.event, evidence=args.evidence,
-                                        by=args.by, at=args.at)
+                                        by=args.by, at=args.at, waiting_until=args.waiting_until)
         except ValueError as exc:
             print(f"{say} {exc} -- nothing written", file=sys.stderr)
             return 1
@@ -359,7 +393,8 @@ def main(argv) -> int:
         target_item = L.by_id(data).get(parent_id)
     else:
         result = apply_change(data, args.item_id, status=args.status, owner=args.owner, fields=fields,
-                               event=args.event, evidence=args.evidence, by=args.by, at=args.at)
+                               event=args.event, evidence=args.evidence, by=args.by, at=args.at,
+                               waiting_until=args.waiting_until)
         if result is None:
             print(f"{say} {args.item_id} is not an item in {args.ledger} -- nothing written", file=sys.stderr)
             return 1
