@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import re
 import subprocess
 import sys
 import tempfile
@@ -983,3 +984,35 @@ class MandatoryStandardChanges(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestVersionFlagIsAMachineContract(unittest.TestCase):
+    """`rulecheck --version` is parsed by `bin/land`, so its shape is a
+    contract, not a display choice.
+
+    V-01 made it print the pretty label. `bin/land` compares that output
+    against the project's stamp file, so it saw "0.9.0 (589-5f88754)"
+    against a stamp of "589-5f88754" and told every project it was not
+    aligned -- 21 tests on main, and every real `land` would have refused.
+    The semver belongs in the lines a person reads.
+    """
+
+    def run_rulecheck(self, *args):
+        return subprocess.run([sys.executable, str(ROOT / "bin" / "rulecheck"), *args],
+                              capture_output=True, text=True, cwd=str(ROOT))
+
+    def test_version_prints_the_bare_count_and_sha(self):
+        out = self.run_rulecheck("--version").stdout.strip()
+        self.assertRegex(out, r"^\d+-[0-9a-f]{7,}$",
+                         "--version must stay the bare <count>-<sha> bin/land compares")
+
+    def test_the_semver_is_available_but_only_when_asked_for(self):
+        out = self.run_rulecheck("--version", "--semver").stdout.strip()
+        self.assertRegex(out, r"^\d+\.\d+\.\d+ \(\d+-[0-9a-f]{7,}\)$")
+
+    def test_what_land_compares_matches_what_align_would_write(self):
+        """The two sides of land's own equality check, compared directly."""
+        version = self.run_rulecheck("--version").stdout.strip()
+        stamp_shape = re.compile(r"^\d+-[0-9a-f]{7,}$")
+        self.assertRegex(version, stamp_shape,
+                         "land reads the stamp file and this flag; both must be this shape")
