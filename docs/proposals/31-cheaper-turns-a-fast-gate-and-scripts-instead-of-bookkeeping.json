@@ -574,6 +574,12 @@
           "event": "corrected",
           "by": "session:common-rules lead",
           "evidence": "My premise was wrong. I wrote this finding claiming the daemon's cold start dominates, from a backfill where ten items recorded two in 500s. O-11's careful measurement at load 4-5 says a single call is ~3.3s (start) and ~2.5s (done), so four calls are 11.4s, not 250s each. The 500s backfill was machine contention -- three test suites were running -- not daemon churn. What O-11 actually buys, measured: batching two items 11.4s -> 8.6s (25%), and `from-ledger` 11.4s -> 3.3s (3.4x) because it skips the gate and the hooks. The ergonomic win stands -- one call instead of twenty for a backfill -- but the cold-start rationale in this finding's title does not."
+        },
+        {
+          "at": "2026-09-18T11:12:31+02:00",
+          "event": "corrected again -- the real cause is the gate",
+          "by": "session:common-rules lead",
+          "evidence": "Third reading, and this one has the mechanism. `ruflo-item done` runs the project's whole MERGE GATE before storing (bin/ruflo-item:421, 'running gate once for ...'), which for common-rules is now workflow-stamp --check, version-check --check and the full 1,966-test suite -- about 220s on a quiet machine. Ten items closed one at a time is ten full suites. That is what ate the 500 seconds, not the daemon's cold start (this finding's title) and not only machine contention (my first correction). It also explains O-11's modest 11.4s -> 8.6s for two items: the batch form runs the gate once instead of twice, and `from-ledger` skips it entirely because it records history rather than re-performing it, which is why that path is 3.3s. Found by testing the skills at the sponsor's request: the card's own check 9 failed, closing it ran a full suite, and the gate line named itself."
         }
       ]
     },
@@ -590,6 +596,25 @@
       "log": [
         {
           "at": "2026-09-18T10:11:37+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": "F-07",
+      "source": "review",
+      "file": "bin/derecord",
+      "severity": "high",
+      "state": "catalogued",
+      "line": 766,
+      "title": "A project's .claude/skills copies of warmup and reheat drift silently until someone runs derecord, and the client PREFERS those directory-scoped copies over the source -- common-rules itself served two-day-old instructions with neither the argument-hint nor the context pass-through",
+      "value": "high",
+      "points": 3,
+      "log": [
+        {
+          "at": "2026-09-18T11:13:35+02:00",
           "event": "catalogued",
           "by": "session:common-rules lead",
           "evidence": ""

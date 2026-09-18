@@ -1,12 +1,12 @@
-# Checkpoint — 2026-09-18 10:26
+# Checkpoint — 2026-09-18 11:15
 
-Reason: manual · branch: adoption-points-at-tag · HEAD: 9a3a298
+Reason: manual · branch: skills-resync · HEAD: 6ad31c9
 
-<!-- ledger-digest: 55603ffed0ca35b2d183baa5be8047963ec35ab372deeafa506b088c88dc73bf -->
+<!-- ledger-digest: 1d02e60b9390ee09583b97f43d796986f0da0d94b188be1a2e2a5f1f29debb19 -->
 
 ## Proposal 19 · Warm-up
 
-15 done / 1 in progress / 0 blocked / 0 not started
+17 done / 1 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -22,10 +22,12 @@ Reason: manual · branch: adoption-points-at-tag · HEAD: 9a3a298
 
 ### Next unblocked
 
-- none
+- Q-05 · [ruflo · medium · sonnet] · standard item 2 Migrated: page docs/proposals/tracker/index.html is stale
 
 ### Open work by group
 
+**finish now**
+- Q-05 0%
 **waiting**
 - W-10 20% · next W-10.A (waiting on PhotoVault Engine)
 
