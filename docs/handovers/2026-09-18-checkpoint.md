@@ -1,6 +1,6 @@
-# Checkpoint — 2026-09-18 14:40
+# Checkpoint — 2026-09-18 14:51
 
-Reason: manual · branch: p30-template-fixes · HEAD: 42c56da
+Reason: manual · branch: fix-land-sigpipe · HEAD: 0d25584
 
 <!-- ledger-digest: 807209ca59aeafdbc625201e7fde4add0be2619ad84021f364c76a73d0785d17 -->
 

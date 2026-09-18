@@ -620,6 +620,44 @@
           "evidence": ""
         }
       ]
+    },
+    {
+      "id": "F-08",
+      "source": "test",
+      "file": "tests/test_tracker_ledger.py",
+      "severity": "high",
+      "state": "catalogued",
+      "line": 408,
+      "title": "The suite reads two other projects' LIVE ledgers by absolute path (PhotoVault/app 70-r9, engine 71), so common-rules' main goes red whenever those sessions do work -- it did today, and nothing in this repo changed",
+      "value": "high",
+      "points": 3,
+      "log": [
+        {
+          "at": "2026-09-18T14:51:10+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead",
+          "evidence": ""
+        }
+      ]
+    },
+    {
+      "id": "F-09",
+      "source": "test",
+      "file": "bin/land",
+      "severity": "high",
+      "state": "catalogued",
+      "line": 327,
+      "title": "bin/land ran git log | head -12 under set -euo pipefail: when head closed the pipe early git took SIGPIPE and land ended silently mid-run, skipping the very guard that stops a surprise merge. A race, so it failed only under load",
+      "value": "high",
+      "points": 2,
+      "log": [
+        {
+          "at": "2026-09-18T14:51:10+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead",
+          "evidence": ""
+        }
+      ]
     }
   ]
 }
