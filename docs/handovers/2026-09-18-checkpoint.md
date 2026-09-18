@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 08:40
+# Checkpoint — 2026-09-18 08:43
 
-Reason: manual · branch: o12-workflow-stamp · HEAD: 21956bc
+Reason: manual · branch: o12-workflow-stamp · HEAD: 2542e9c
 
-<!-- ledger-digest: ece006c5655cd38f46c20d8b23515298cb4cd8e2f73ebeadd9bc266504f8be69 -->
+<!-- ledger-digest: cf42d71051ddcae4ea8a5fde1773b2184b8aef0015c9d332921dc7e928c603f5 -->
 
 ## Proposal 19 · Warm-up
 
@@ -81,6 +81,31 @@ Reason: manual · branch: o12-workflow-stamp · HEAD: 21956bc
 **waiting**
 - L-02 60% · next L-02.B (waiting 2026-09-23)
 - L-07 80% · next L-07.B (waiting 2026-09-23)
+
+## Proposal 30 · Tracker shows how complete each item is, by lettered parts
+
+10 done / 0 in progress / 0 blocked / 1 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- P-11 · [ruflo · high · sonnet] · One filter bar at the top, governing every view
+
+### Open work by group
+
+**finish now**
+- P-11 0%
 
 ## Proposal 31 · Cheaper turns: a fast gate and scripts instead of bookkeeping
 
