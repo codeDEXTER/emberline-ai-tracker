@@ -7,7 +7,7 @@
   "safety_rules": "HANDOFF.md#Prohibitions",
   "gates": {
     "quick": "python3 -m unittest discover -s tests -q -p 'test_tracker*.py'",
-    "merge": "bin/workflow-stamp --check && bin/quiet --label merge-gate --jobs auto -- python3 -m unittest discover -s tests -q"
+    "merge": "bin/workflow-stamp --check && bin/version-check --check && bin/quiet --label merge-gate --jobs auto -- python3 -m unittest discover -s tests -q"
   },
   "value_defaults": {
     "tracker": "high",
