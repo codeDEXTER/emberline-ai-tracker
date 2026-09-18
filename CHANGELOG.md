@@ -1,3 +1,52 @@
+## 2026-09-18 · VERSION: a semver beside the stamp, and a changelog that keeps it honest (proposal 32, V-01/V-02)
+
+The sponsor: "Can you version the common rule and release a baseline when the
+pending tasks are done. Use semantic version version and change Lock to
+maintain it going ahead."
+
+`VERSION` at the repo root now holds a semver, starting at `0.9.0` --
+deliberately not `1.0.0`, which proposal 32's V-04 cuts separately, on a
+green main, once nothing is pending. The `<commit-count>-<sha>` stamp
+`rulecheck` has always computed is kept exactly as it was: two releases can
+share a semver while the repo has moved on, and the count-sha is still what
+settles which is newer. `rulecheck` now reports both together wherever it
+names the current version at all -- `--version`, aligned, behind, no stamp --
+as `0.9.0 (187-5a62e87)`.
+
+The bump is never typed by hand or guessed from prose -- it is read out of
+the CHANGELOG. `bin/version-check` (`tools/version_check.py` holds the
+logic, the same split `bin/workflow-stamp` and `tools/workflow_stamp.py`
+use) finds the commit that last set `VERSION` to its current value --
+VERSION's own git history is the release marker, not a tag or a heading,
+because VERSION already changes exactly when a release happens, so there is
+nothing separate to forget to update. It then reads what the CHANGELOG
+added since: any entry carrying `**Standard change (mandatory):**` (the
+existing marker, proposal 21 S-09) forces at least a MINOR bump; an entry
+that also carries a new `**Breaking change (major):**` line forces MAJOR --
+declared, never inferred, because a wrong guess there would silently tell
+every adopting project a breaking change is safe to ignore; everything else
+that shipped is PATCH. `--check` exits non-zero when `VERSION` disagrees
+(too small a bump, or none at all) and writes nothing either way. It is
+wired into `.common-rules.json`'s `gates.merge`, beside
+`bin/workflow-stamp --check`, mirrored byte-identically in
+`.github/workflows/ci.yml`.
+
+The bump rule itself is written into `CLAUDE-workflow.md`'s existing
+version-stamp section ("A project that has aligned before must stay aligned
+to keep landing"), not a new top-level one.
+
+**Not a Standard change.** Nothing here asks an adopting project to do
+anything it did not have to before: `.common-rules-version`, the stamp a
+project writes and `bin/land` compares, is untouched -- it still holds only
+the count-sha, exactly as before. `bin/version-check` and its gate are
+common-rules' own `.common-rules.json` and `ci.yml`, not a project's. The
+only visible change to a project is that `rulecheck`'s human-readable text
+now shows a semver alongside the count-sha it already showed.
+
+`VERSION`, `bin/rulecheck` (`current_semver()`, `version_label()`),
+`bin/version-check`, `tools/version_check.py`, `tests/test_version.py` (23
+cases), `CLAUDE-workflow.md`, `.common-rules.json`, `.github/workflows/ci.yml`.
+
 ## 2026-09-18 · what the sponsor types after /warmup or /reheat is context
 
 **Standard change (mandatory):** both skills now say that anything typed
