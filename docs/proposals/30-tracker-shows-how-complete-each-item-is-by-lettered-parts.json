@@ -525,6 +525,26 @@
       "log": [],
       "points": 3,
       "value": "high"
+    },
+    {
+      "id": "P-15",
+      "phase": "P",
+      "cx": "C3",
+      "title": "Findings have nowhere to be seen: 21 recorded, 0 on the page",
+      "what": "The sponsor: \"how are these findings and tasks like P14 catalogued in the tracker. i cannot see them\". Items are catalogued and visible -- P-14 renders under P30's dropdown. Findings are not: 21 across the ledgers and not one of their ids appears on the rendered page. board.py mentions findings only inside the file-overlap cluster block, which shows what is 'not taken' rather than what was found. So the record exists and the page does not show it, which is the same as not having it for anyone who reads the page rather than the JSON. Give findings a home in the views that exist -- they carry a severity, a file, a value and a state, so they belong in the tree under the proposal that raised them and as cards in Kanban, filterable like anything else.",
+      "files": [],
+      "tests": [],
+      "done": "Every finding is reachable from the page by its id, under the proposal that raised it; severity and state are visible; the filter bar reaches them; a project with findings and one with none both render correctly.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 5,
+      "value": "high"
     }
   ],
   "asks": [
