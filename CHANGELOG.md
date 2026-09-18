@@ -1,3 +1,11 @@
+## 1.1.1 · Claude/Codex workflow parity · 2026-09-18
+
+Updated the cookbook with one host-neutral workflow for Claude Code and Codex,
+including the shared warmup/reheat, routing, implementation, review/testing,
+merge and tracker-recording contract. Clarified that review/test log evidence
+does not change a task's tracker state unless the item is explicitly moved to
+`in review` or `in testing`.
+
 ## 1.1.0 · Cross-Agent Project Operating Standard · 2026-09-18
 
 The shared tracker now uses one nested-task denominator across its header,

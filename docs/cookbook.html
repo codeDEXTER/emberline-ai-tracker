@@ -140,6 +140,7 @@
     <a href="#whoruns">Script instead?</a>
     <div class="grp">Flow</div>
     <a href="#lifecycle">Lifecycle</a>
+    <a href="#agents">Claude + Codex</a>
     <a href="#compare">Warmup / reheat</a>
     <div class="grp">Rules</div>
     <a href="#prohibitions">Prohibitions</a>
@@ -276,6 +277,21 @@ flowchart TD
     L --> M["bin/handover --check before turn ends"]
       </pre>
       <p class="dim">Read order, every warmup and reheat: <code>HANDOFF.md</code> (folds in <code>docs/OPERATING-RULES.md</code>, proposal 23 M-11) → the card itself, never the raw ledger JSON → latest checkpoint → <code>CLAUDE-workflow.md</code>.</p>
+    </section>
+
+    <section id="agents">
+      <h2 class="h"><span class="n">01b</span> One workflow, Claude and Codex</h2>
+      <p class="dim">Claude Code and Codex are two entry points into the same project workflow. The rules, ledger, hooks, tracker, review gates and evidence format are shared; only the session command surface differs. A consumer may add a native UI or connector, but it must not invent a second lifecycle or a second meaning for a status.</p>
+      <div class="tw"><table>
+        <tr><th>Workflow step</th><th>Claude Code</th><th>Codex</th><th>Shared contract</th></tr>
+        <tr><td class="k">Start / resume</td><td><code>/warmup</code> or <code>/reheat</code></td><td>Warmup/reheat skill or the equivalent session prompt</td><td>Read the same handoff, card, checkpoint and workflow rules.</td></tr>
+        <tr><td class="k">Plan and route</td><td>Lead session reads the card and dispatches agents</td><td>Lead task reads the card and dispatches parallel tasks</td><td><code>tracker route</code> is deterministic; tier, risk, value and scope remain explicit.</td></tr>
+        <tr><td class="k">Implement</td><td>Agent worktree / session</td><td>Codex task or delegated worktree</td><td>One item, one isolated worktree, red → green tests, no writes into another project.</td></tr>
+        <tr><td class="k">Review and test</td><td>Reviewer session and gate</td><td>Parallel review task and gate</td><td>Record evidence, then set the ledger state to <code>in review</code> or <code>in testing</code>; logs alone do not update the tracker state.</td></tr>
+        <tr><td class="k">Land and record</td><td>Merge gate and tracker command</td><td>Merge gate and tracker command</td><td><code>tracker set</code>, Ruflo records, hooks and generated tracker remain the source of truth.</td></tr>
+        <tr><td class="k">Resume later</td><td><code>/reheat</code></td><td>Reheat skill or equivalent delta prompt</td><td>Read the saved delta and continue from the same ledger/status/evidence model.</td></tr>
+      </table></div>
+      <div class="rule" style="margin-top:12px"><b>Important tracking distinction.</b> A review or test can be performed and mentioned in an event log while the item still says <code>in progress</code>. That is evidence of activity, not a state transition. When the work actually enters review or testing, update the item or part explicitly with <code>tracker set LEDGER ITEM_ID --status "in review"</code> or <code>--status "in testing"</code>; the generated tracker and history graph will then count it.</div>
     </section>
 
     <section id="compare">
