@@ -488,13 +488,21 @@
       "tests": [],
       "done": "Every waiting part offers a way to pull it forward that works from the published page; whatever it does is honest about it -- no button that looks like it ran something when it only copied a command; the mechanism is written down for the next session.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "high",
       "model": "sonnet",
       "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-18T10:07:18+02:00",
+          "event": "pull-forward affordance on every waiting part; tracker set --waiting-until now clears an existing wait",
+          "by": "session:p30-pull-forward",
+          "evidence": "733ed06ab817d0b88e538125ec1c1609274e7169",
+          "status": "done"
+        }
+      ],
       "points": 3,
       "value": "high"
     }
