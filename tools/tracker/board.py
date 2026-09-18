@@ -532,21 +532,30 @@ def progress_block(project) -> str:
         return ""
     if not rows:
         return ""
+    # Sponsor correction, 2026-09-18: at `width:100%;height:auto` the chart's
+    # rendered height was set only by how wide the page happened to be --
+    # "the container is stretching them" -- not by anything about the data.
+    # A shorter viewBox height (unchanged width, unchanged font sizes: every
+    # label is a fixed px value in `history._line_chart`, so this does not
+    # shrink them) plus `.charts`'s own max-width keep each chart to roughly
+    # 180px of real height regardless of how wide the page's own column is.
     return (f'<section class="progress" id="progress"><h3>Progress over time</h3>'
-            f'<div class="charts">{HIST.svg(rows)}</div></section>')
+            f'<div class="charts">{HIST.svg(rows, height=150)}</div></section>')
 
 
-def completion_top(entries, project=None) -> str:
-    """The top of the page (proposal 30, P-09): the four tiles and the
-    Progress block (P-08) only. The sponsor's own proposal tree (P-08's
-    drill-down, promoted by P-09) follows immediately after this, with the
-    old finish-now/back-burner/waiting grouping folded below that -- the
-    first thing he sees is his proposals, not items sorted by urgency."""
+def completion_tiles_block(entries) -> str:
+    """The top of the page (proposal 30, P-09): the four tiles only. The
+    sponsor's own proposal tree (P-08's drill-down, promoted by P-09)
+    follows immediately after this -- "at the top, there should be like
+    proposal nineteen" -- with the Progress charts (P-08) and the old
+    finish-now/back-burner/waiting grouping both pushed below the tree, so
+    nothing stands between him and his proposals (sponsor correction,
+    2026-09-18: the charts used to sit here and pushed the tree below the
+    fold)."""
     if not entries:
         return ""
     return ('<section class="completion" id="completion"><h2>Completion</h2>'
-            f'<div class="tiles">{completion_tiles(entries)}</div>'
-            f'{progress_block(project)}</section>')
+            f'<div class="tiles">{completion_tiles(entries)}</div></section>')
 
 
 def completion_groups_section(entries) -> str:
@@ -699,10 +708,22 @@ def kanban_section(entries) -> str:
     for status in L.STATUSES:
         rows = by_status.get(status) or []
         cards = "".join(kanban_card(item, number) for item, number in rows)
+        if status == "done" and rows:
+            # Sponsor correction, 2026-09-18: a "done" column of 112 cards is
+            # unusable and only grows. The page's own show-finished toggle
+            # already exists for exactly this -- reuse it, rather than a
+            # second on/off switch: the cards start hidden behind a "show
+            # them" affordance, and the column keeps its place and its real
+            # count either way, the same reason an empty column still shows.
+            body = (f'<div class="kcards" data-kanban-done hidden>{cards}</div>'
+                    f'<button type="button" class="kdone-show" data-kanban-affordance>'
+                    f'{len(rows)} done — show them</button>')
+        else:
+            body = f'<div class="kcards">{cards}</div>'
         cols.append(f'<section class="kcol {slug(status)}" data-column="{e(status)}">'
                     f'<h3><span class="dot {slug(status)}"></span>{LABEL.get(status, status)} '
                     f'<span class="n">{len(rows)}</span></h3>'
-                    f'<div class="kcards">{cards}</div></section>')
+                    f'{body}</section>')
     return (f'<section class="kanban" id="kanban"><h2>Kanban</h2>'
             f'<div class="kanban-scroll"><div class="kboard">{"".join(cols)}</div></div></section>')
 
@@ -762,8 +783,9 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
     group_opts = '<option value="">Any group</option>' + "".join(
         f'<option value="{e(g)}">{e(GROUP_LABEL[g])}</option>' for g in ("finish now", "back burner", "waiting", "done"))
 
-    completion_top_block = completion_top(entries, project)
+    tiles_block = completion_tiles_block(entries)
     features = features_section(ledgers)
+    progress = progress_block(project)
     completion_groups_block = completion_groups_section(entries)
     kanban = kanban_section(entries)
 
@@ -823,8 +845,8 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         f'data-blocked="{totals["blocked"]}" data-not-started="{totals["not started"]}" '
         f'data-in-review="{totals["in review"]}" data-in-testing="{totals["in testing"]}">'
         f'<p class="line">{e(status_line)}</p>{mini_bar(totals)}</section></header>'
-        f'{completion_top_block}'
-        f'<div id="view-tree">{features}{completion_groups_block}</div>'
+        f'{tiles_block}'
+        f'<div id="view-tree">{features}{progress}{completion_groups_block}</div>'
         f'<div id="view-kanban">{kanban}</div>'
         f'<nav class="proposals" aria-label="Proposals">{blocks}</nav>'
         '<h2 id="details">Details</h2>'
@@ -1051,7 +1073,7 @@ max-height:2.6em;white-space:normal;overflow-wrap:anywhere}
 /* -- proposal 30, P-08: progress charts and the feature drill-down -- */
 .progress{margin-top:16px}
 .progress h3{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}
-.charts{display:flex;flex-direction:column;gap:16px}
+.charts{display:flex;flex-direction:column;gap:16px;max-width:760px}
 .charts svg{display:block;width:100%;height:auto;color:var(--dim)}
 .features{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
 .features h2{margin:0 0 6px}
@@ -1109,6 +1131,8 @@ display:flex;flex-direction:column;gap:5px}
 .kbar{width:100%;height:5px;display:inline-flex;border-radius:2px;overflow:hidden}
 .kparts{margin-top:2px}
 .kparts summary{font-size:11.5px}
+.kdone-show{width:100%;text-align:left;padding:8px 10px;border:1px dashed var(--rule);border-radius:6px;
+background:var(--surface);color:var(--accent);font:500 12.5px var(--sans);cursor:pointer}
 @media (prefers-reduced-motion:no-preference){.card,.proposal,.chip{transition:border-color .12s,background-color .12s}}
 """
 
@@ -1164,6 +1188,14 @@ SCRIPT = r"""
     $$(".proposal").forEach(function(b){
       b.setAttribute("aria-pressed", b.dataset.proposal === state.proposal ? "true" : "false");
     });
+    // The same show-finished toggle also governs the Kanban done column
+    // (sponsor correction, 2026-09-18): a "112 done -- show them" affordance
+    // stands in for the cards until it's checked, and back again once it
+    // isn't -- the column itself and its count never move either way.
+    var kdone = $("[data-kanban-done]");
+    if (kdone) { kdone.hidden = !state.showFinished; }
+    var kshow = $("[data-kanban-affordance]");
+    if (kshow) { kshow.hidden = state.showFinished; }
     $$("[data-ask],[data-request]").forEach(function(el){
       var d = el.dataset;
       el.hidden = (!!state.proposal && d.proposal !== state.proposal) || (!!state.owner && d.owner !== state.owner)
@@ -1208,6 +1240,10 @@ SCRIPT = r"""
   $("#group").addEventListener("change", function(ev){ state.group = ev.target.value; apply(); });
   var showFinished = $("#show-finished");
   if (showFinished) showFinished.addEventListener("change", function(ev){ state.showFinished = ev.target.checked; apply(); });
+  $$("[data-kanban-affordance]").forEach(function(b){ b.addEventListener("click", function(){
+    state.showFinished = true;
+    if (showFinished) showFinished.checked = true;
+    apply(); }); });
   $("#q").addEventListener("input", function(ev){ state.q = ev.target.value.trim().toLowerCase(); apply(); });
   $$("[data-view]").forEach(function(b){ b.addEventListener("click", function(){
     state.view = b.dataset.view;

@@ -139,6 +139,38 @@ class ProgressChartsCase(unittest.TestCase):
         groups_at = text.index('<section class="cgroup"')
         self.assertTrue(tiles_at < progress_at < groups_at)
 
+    def test_proposal_tree_sits_between_tiles_and_the_progress_charts(self):
+        # Sponsor correction, 2026-09-18: "at the top, there should be like
+        # proposal nineteen" -- the charts used to sit between the tiles and
+        # the tree, pushing the tree below the fold. Tiles, then the tree,
+        # then the charts, then the folded group lists.
+        repo = Repo(self.root / "proj")
+        repo.commit_ledger("30-x.json", ledger(30, [item("A-01", status="done")]), datetime.date.today())
+        led = ledger(30, [item("A-01", status="done")])
+        path = repo.root / "docs" / "proposals" / "30-x.json"
+        text = board.render([(path, led)], "demo", None, repo.root)
+        tiles_at = text.index('<div class="tiles">')
+        features_at = text.index('<section class="features"')
+        progress_at = text.index('<section class="progress"')
+        groups_at = text.index('<details class="cgroups" id="cgroups">')
+        self.assertTrue(tiles_at < features_at < progress_at < groups_at)
+
+    def test_chart_height_is_capped_regardless_of_page_width(self):
+        # Sponsor correction, 2026-09-18: "the container is stretching them"
+        # -- a shorter viewBox height, plus a max-width on the charts'
+        # column, keep each chart to roughly 180px of real height without
+        # touching any axis label's font-size (all fixed px values in
+        # tools/tracker/history.py, untouched here).
+        repo = Repo(self.root / "proj")
+        repo.commit_ledger("30-x.json", ledger(30, [item("A-01", status="done")]), datetime.date.today())
+        led = ledger(30, [item("A-01", status="done")])
+        path = repo.root / "docs" / "proposals" / "30-x.json"
+        text = board.render([(path, led)], "demo", None, repo.root)
+        self.assertIn('viewBox="0 0 640 150"', text)
+        self.assertIn('max-width:760px', text)
+        self.assertIn('font-size="12"', text)  # the title -- unchanged
+        self.assertIn('font-size="10"', text)  # axis ticks -- unchanged
+
 
 class FeaturesDrilldownCase(unittest.TestCase):
     def setUp(self):
@@ -290,6 +322,37 @@ class KanbanCase(unittest.TestCase):
 
     def test_kanban_omitted_when_there_are_no_entries(self):
         self.assertEqual(board.kanban_section([]), "")
+
+    def test_done_column_is_collapsed_behind_an_affordance_by_default(self):
+        # Sponsor correction, 2026-09-18: a 112-card done column is
+        # unusable. The show-finished toggle (already on the page) governs
+        # it: collapsed by default behind "N done -- show them", the column
+        # itself and its real count staying put either way.
+        text = self.render([
+            item("D-01", status="done", title="first done"),
+            item("D-02", status="done", title="second done"),
+            item("D-03", status="in progress", title="still going"),
+        ])
+        kanban = text.split('<section class="kanban"', 1)[1]
+        self.assertIn('<div class="kcards" data-kanban-done hidden>', kanban)
+        self.assertIn('<button type="button" class="kdone-show" data-kanban-affordance>'
+                      '2 done — show them</button>', kanban)
+        # the column header count is the real, unhidden count -- 2, not 0
+        done_col = kanban.split('data-column="done"', 1)[1].split('data-column=', 1)[0]
+        self.assertIn('<span class="n">2</span>', done_col)
+        # the cards are still in the markup (readable with JS off), just
+        # server-rendered hidden by default
+        self.assertIn('data-id="D-01"', kanban)
+        self.assertIn('data-id="D-02"', kanban)
+
+    def test_a_column_with_no_done_items_has_no_affordance(self):
+        text = self.render([item("A-01", status="in progress")])
+        body = text.split("<script>", 1)[0]
+        kanban = body.split('<section class="kanban"', 1)[1]
+        self.assertNotIn('data-kanban-affordance', kanban)
+        self.assertNotIn('data-kanban-done', kanban)
+        done_col = kanban.split('data-column="done"', 1)[1].split('data-column=', 1)[0]
+        self.assertIn('<span class="n">0</span>', done_col)
 
     def test_both_views_are_rendered_server_side(self):
         # No page reload, no server round trip: the tree and the kanban board
