@@ -28,6 +28,16 @@ with in `.common-rules-version` at its root, committed like any other record.
 A stamp whose sha is the current HEAD's -- the short sha, the full sha or any
 prefix between, in either case -- is aligned.
 
+A `VERSION` file at the repo root (proposal 32, V-01) holds a semver reported
+BESIDE the count-sha, never instead of it: two releases can carry the same
+semver while the repo has moved, and the count-sha is what settles which is
+newer. `version_label()` reports "<semver> (<count>-<sha>)" everywhere a
+human reads the current version, and falls back to the bare count-sha when
+VERSION is missing (a checkout that predates V-01) or unreadable. The
+`.common-rules-version` stamp a project writes still holds only the
+count-sha -- what a project is aligned to is still settled by that, not by
+the semver, which is display only until proposal 32's V-03 (the lock).
+
 Not every folder under apps/ adopts these rules. `idea-lab` deliberately does
 not — it is v2, governing what happens *before* anything is agreed, and its own
 rules say "no gates, no worktrees, no issues here". This tool used to treat any
@@ -131,6 +141,28 @@ def _read(cwd, *args):
 def current_version(cwd=RULES):
     count, sha = git("rev-list", "--count", "HEAD", cwd=cwd), git("rev-parse", "--short", "HEAD", cwd=cwd)
     return f"{count}-{sha}" if count and sha else None
+
+
+def current_semver(cwd=RULES):
+    """The semver in VERSION at HEAD of the rules checkout `cwd`, or None when
+    it cannot be read (no VERSION file, or the checkout is not a git repo).
+    Read from HEAD via git show rather than the working tree, so a dirty or
+    mid-edit checkout never reports a semver it has not actually committed --
+    the same reasoning current_version() applies to the commit count."""
+    out = _read(cwd, "show", "--no-textconv", "HEAD:VERSION")
+    return out.strip() if out else None
+
+
+def version_label(cur, cwd=RULES):
+    """`cur` (a `<count>-<sha>` from current_version()) for display, with the
+    semver in front when VERSION can be read: "0.9.0 (187-5a62e87)". Falls
+    back to the bare count-sha when VERSION is missing or unreadable, which
+    is how a checkout with no VERSION file at all (V-01 has not landed yet
+    there) keeps working rather than showing "None (187-5a62e87)"."""
+    if cur is None:
+        return cur
+    sem = current_semver(cwd)
+    return f"{sem} ({cur})" if sem else cur
 
 
 # Bidi controls and invisible characters; see shown().
@@ -530,22 +562,22 @@ def report_mandatory(proj, quiet):
         if not quiet:
             if proj == RULES:
                 print(f"common-rules is the rules themselves — nothing to align against. "
-                      f"Current version: {p.current}.")
+                      f"Current version: {version_label(p.current)}.")
             else:
                 print(f"{name} does not adopt the shared rules — nothing to check.")
         return 2
     if p.state == "aligned":
         if not quiet:
-            print(f"{name} is aligned with common-rules {p.current} -- no mandatory Standard change pending.")
+            print(f"{name} is aligned with common-rules {version_label(p.current)} -- no mandatory Standard change pending.")
         return 0
     if p.state == "ahead":
         if not quiet:
-            print(f"{name} is on common-rules {shown(p.stamp)}; current is {p.current}: "
+            print(f"{name} is on common-rules {shown(p.stamp)}; current is {version_label(p.current)}: "
                   f"ahead of this rules checkout -- update common-rules.")
         return 0
     n = len(p.entries)
     if p.state == "unresolvable":
-        print(f"{name}: {unresolvable_line(p.stamp)} (current: {p.current}).")
+        print(f"{name}: {unresolvable_line(p.stamp)} (current: {version_label(p.current)}).")
         if not n:
             print("The rules CHANGELOG carries no mandatory Standard change -- re-read the rules, "
                   "then `rulecheck --align`.")
@@ -555,18 +587,18 @@ def report_mandatory(proj, quiet):
     elif not n:
         if not quiet:
             if p.state == "no stamp":
-                print(f"{name} has never recorded a rules version (current: {p.current}); the rules "
+                print(f"{name} has never recorded a rules version (current: {version_label(p.current)}); the rules "
                       f"CHANGELOG carries no mandatory Standard change.")
             else:
-                print(f"{name} is on common-rules {shown(p.stamp)}; current is {p.current}: no mandatory "
+                print(f"{name} is on common-rules {shown(p.stamp)}; current is {version_label(p.current)}: no mandatory "
                       f"Standard change since the stamp -- what changed is information. Read it "
                       f"(`rulecheck`), then `rulecheck --align`.")
         return 0
     elif p.state == "no stamp":
-        print(f"{name} has never recorded a rules version (current: {p.current}). The rules CHANGELOG "
+        print(f"{name} has never recorded a rules version (current: {version_label(p.current)}). The rules CHANGELOG "
               f"carries {n} mandatory Standard change(s) -- implement each first, then `rulecheck --align`:")
     else:
-        print(f"{name} is on common-rules {shown(p.stamp)}; current is {p.current}. {n} mandatory "
+        print(f"{name} is on common-rules {shown(p.stamp)}; current is {version_label(p.current)}. {n} mandatory "
               f"Standard change(s) since the stamp -- implement each first, then `rulecheck --align`:")
     for e in p.entries:
         print(f"  {shown(e.heading)}")
@@ -598,7 +630,7 @@ def main():
               file=sys.stderr)
         return 2
     if a.version:
-        print(cur)
+        print(version_label(cur))
         return 0
 
     proj = Path(a.project).resolve() if a.project else find_project(os.getcwd())
@@ -617,7 +649,7 @@ def main():
             # stop: a vacuous run inside common-rules itself, treated as a pass.
             if not a.quiet:
                 print("common-rules is the rules themselves — nothing to align "
-                      f"against. Current version: {cur}.")
+                      f"against. Current version: {version_label(cur)}.")
             return 2
         if a.align:
             # Refusing is the point. The stamp is a claim that a session read
@@ -663,14 +695,14 @@ def main():
         stamp.write_text(cur + "\n")
         if pending.entries and a.implemented:
             titles = "; ".join(shown(e.heading) for e in pending.entries)
-            print(f"aligned {proj.name} with common-rules {cur} -- aligned past {len(pending.entries)} "
+            print(f"aligned {proj.name} with common-rules {version_label(cur)} -- aligned past {len(pending.entries)} "
                   f"mandatory change(s), declared implemented: {titles}")
         else:
-            print(f"aligned {proj.name} with common-rules {cur}")
+            print(f"aligned {proj.name} with common-rules {version_label(cur)}")
         return 0
 
     if not stamp.exists():
-        print(f"{proj.name} has NEVER recorded a rules version (current: {cur}).")
+        print(f"{proj.name} has NEVER recorded a rules version (current: {version_label(cur)}).")
         print(f"Read {RULES}/CLAUDE-workflow.md, then `rulecheck --align`.")
         return 1
 
@@ -678,10 +710,10 @@ def main():
     sha = stamp_sha(was)
     if was == cur or stamp_is_current(sha):
         if not a.quiet:
-            print(f"{proj.name} is aligned with common-rules {cur}.")
+            print(f"{proj.name} is aligned with common-rules {version_label(cur)}.")
         return 0
 
-    print(f"{proj.name} is on common-rules {shown(was)}; current is {cur}.")
+    print(f"{proj.name} is on common-rules {shown(was)}; current is {version_label(cur)}.")
     full = resolve_commit(sha)
     if full is None:
         # Not "could not check" (2): that let a project whose stamp names no

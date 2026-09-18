@@ -123,6 +123,34 @@ claim, so a project that never aligned is never blocked here. Fix it with
 does **not** commit it — commit it yourself), or, if the branch genuinely must
 land first, `LAND_ALLOW_STALE_RULES=1`, recorded in the PR either way.
 
+**The stamp is a `<commit-count>-<sha>`; `VERSION` is a semver beside it, not
+instead of it** (proposal 32, V-01). The count-sha still settles which of two
+versions is newer — two releases can share a semver while the repo has moved
+on, and a sha alone says nothing about whether catching up is safe. `VERSION`
+at the repo root is what says that. `rulecheck` reports both together
+wherever it reports the version at all (`--version`, aligned, behind, no
+stamp): `0.9.0 (187-5a62e87)`.
+
+The bump is decided by the CHANGELOG entry that lands with it (proposal 32,
+V-02), never guessed from prose:
+
+- **MAJOR** — a change that breaks a project already following the rules: a
+  tool removed or renamed, a declaration whose absence now fails a gate, a
+  rule reversed. Declared explicitly in the entry (see `bin/version-check
+  --help` for the marker) — never inferred, because a wrong guess here
+  silently tells every adopting project a breaking change is safe to ignore.
+- **MINOR** — any entry carrying `**Standard change (mandatory):**`. A
+  project must now do something it did not have to before, but nothing it
+  already does breaks.
+- **PATCH** — everything else: a new tool nobody is required to use, a fix,
+  wording.
+
+`bin/version-check` reads the CHANGELOG entries since the last release and
+prints the bump they require next to what `VERSION` says; `--check` exits
+non-zero on disagreement and writes nothing. It runs in the merge gate
+beside `bin/workflow-stamp --check`, so a `VERSION` that has drifted from
+what the changelog actually shipped fails before the branch lands, not after.
+
 Nothing sits unmerged more than about two hours of working time. Long-lived
 branches are the whole cause of the collision class: on 2026-08-05 two branches
 independently created the same new file and independently rewrote the same
