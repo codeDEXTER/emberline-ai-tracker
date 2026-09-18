@@ -422,6 +422,10 @@ def _line_chart(width: int, height: int, series_list, dates: list[str], title: s
             f'fill="var(--tracker-chart-axis, currentColor)" fill-opacity="0.75">'
             f'{_esc(_short_date(dates[idx]))}</text>')
 
+    end_labels = []  # (label, lx, ly, color, text) -- placed after every
+                      # polyline is drawn, then nudged apart so two series
+                      # ending close together (P-14) don't print on top of
+                      # each other.
     legend_x = left
     for label, values, color in series_list:
         points = _polyline(values, x, y)
@@ -433,9 +437,7 @@ def _line_chart(width: int, height: int, series_list, dates: list[str], title: s
             last_v = values[-1]
             lx, ly = x(len(values) - 1), y(last_v)
             parts_svg.append(f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="2.5" fill="{color}"/>')
-            parts_svg.append(
-                f'<text x="{lx + 5:.1f}" y="{ly + 3:.1f}" font-size="11" font-weight="600" '
-                f'fill="{color}" data-endlabel="{_esc(label)}">{_esc(fmt(last_v))}</text>')
+            end_labels.append([label, lx, ly, color, _esc(fmt(last_v))])
         parts_svg.append(
             f'<g transform="translate({legend_x},28)" data-legend="{_esc(label)}">'
             f'<rect x="0" y="-8" width="9" height="9" rx="2" fill="{color}"/>'
@@ -443,8 +445,45 @@ def _line_chart(width: int, height: int, series_list, dates: list[str], title: s
             f'fill="var(--tracker-chart-axis, currentColor)">{_esc(label)}</text></g>')
         legend_x += 20 + 6 * len(label)
 
+    for label, lx, ly, color, text in _spread_end_labels(end_labels, top, top + plot_h):
+        parts_svg.append(
+            f'<text x="{lx + 5:.1f}" y="{ly + 3:.1f}" font-size="11" font-weight="600" '
+            f'fill="{color}" data-endlabel="{_esc(label)}">{text}</text>')
+
     parts_svg.append("</svg>")
     return "\n".join(parts_svg)
+
+
+def _spread_end_labels(end_labels, y_min, y_max, min_gap=14.0):
+    """Nudge each end-of-line label's y away from its neighbours' when two
+    series finish within `min_gap` px of each other (P-14: the engine's 73
+    and 69 collided and became unreadable). Placement only -- every label
+    stays beside its own point (x never moves) and inside [y_min, y_max];
+    none is dropped.
+
+    Sorted by y, each label is pushed down at least `min_gap` past the one
+    above it; if that runs the last label past `y_max`, the whole sorted
+    stack is shifted up just enough to fit back inside the plot area.
+    """
+    if len(end_labels) < 2:
+        return end_labels
+    ordered = sorted(end_labels, key=lambda e: e[2])
+    prev_y = None
+    for entry in ordered:
+        y_val = entry[2]
+        if prev_y is not None and y_val - prev_y < min_gap:
+            y_val = prev_y + min_gap
+        entry[2] = y_val
+        prev_y = y_val
+    overflow = ordered[-1][2] - y_max
+    if overflow > 0:
+        for entry in ordered:
+            entry[2] -= overflow
+    underflow = y_min - ordered[0][2]
+    if underflow > 0:
+        for entry in ordered:
+            entry[2] += underflow
+    return ordered
 
 
 def svg(series_rows: list[dict], width: int = 640, height: int = 210) -> str:
