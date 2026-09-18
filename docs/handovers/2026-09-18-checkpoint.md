@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 11:17
+# Checkpoint — 2026-09-18 11:34
 
-Reason: manual · branch: p33-review · HEAD: 6d5214a
+Reason: manual · branch: p33-accept · HEAD: 77476b0
 
-<!-- ledger-digest: 3e2608ec61f016455602b47ed804648bb38eb1880765e2892674bfa318fe3dd0 -->
+<!-- ledger-digest: 2a1665d8a4ef22324de3b2962c608a850ac2c21c978bf71925bc1c4d81d75f24 -->
 
 ## Proposal 19 · Warm-up
 
@@ -122,7 +122,7 @@ Reason: manual · branch: p33-review · HEAD: 6d5214a
 
 ### Open asks
 
-- A-01 · "Can you do a thorough review and identify why we are missing these items? Can we optimize all these rules so when I warm up or reheat a project, they follow it to the point and not miss anything? Do we need to deprecate any of the old mechanisms and make it as concise and precise as possible?"
+- none
 
 ### Next unblocked
 
