@@ -389,13 +389,21 @@
       "tests": [],
       "done": "Several ids recorded in one invocation with one daemon start and one stop, measured against the same ids one at a time; the daemon is still stopped in a finally on every exit path, including a crash; tested on a fixture.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "high",
       "model": "sonnet",
       "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-18T08:46:06+02:00",
+          "event": "start/done accept repeatable --item ID:TEXT to batch several ids in one invocation (one binary resolution, one daemon start/stop); new from-ledger LEDGER [--since DATE] backfills item:<ID>:start/done from a ledger's done items without re-running the gate. Measured on a scratch repo, real binary: baseline 4 single calls for 2 items = 11.4s; batched start+done for the same 2 ids = 8.6s; from-ledger for 2 items = 3.3s. Gate: tests/test_ruflo_item.py + test_ruflo + test_conformance, 163 tests, OK.",
+          "by": "session:o11-ruflo-batch",
+          "evidence": "d2a584c64f9695923e769dffde0911ba7b21b892",
+          "status": "done"
+        }
+      ],
       "points": 3,
       "value": "high"
     },

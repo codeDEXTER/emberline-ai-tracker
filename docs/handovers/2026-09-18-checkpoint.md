@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 08:43
+# Checkpoint — 2026-09-18 08:46
 
-Reason: manual · branch: o12-workflow-stamp · HEAD: 2542e9c
+Reason: manual · branch: o11-ruflo-batch · HEAD: d2a584c
 
-<!-- ledger-digest: cf42d71051ddcae4ea8a5fde1773b2184b8aef0015c9d332921dc7e928c603f5 -->
+<!-- ledger-digest: 661e4ffebeee7a69738d8fd57a53e3822058001341f33ce7de74683912824d21 -->
 
 ## Proposal 19 · Warm-up
 
@@ -82,31 +82,6 @@ Reason: manual · branch: o12-workflow-stamp · HEAD: 2542e9c
 - L-02 60% · next L-02.B (waiting 2026-09-23)
 - L-07 80% · next L-07.B (waiting 2026-09-23)
 
-## Proposal 30 · Tracker shows how complete each item is, by lettered parts
-
-10 done / 0 in progress / 0 blocked / 1 not started
-
-### In progress
-
-- none
-
-### Blocked, and why
-
-- none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- P-11 · [ruflo · high · sonnet] · One filter bar at the top, governing every view
-
-### Open work by group
-
-**finish now**
-- P-11 0%
-
 ## Proposal 31 · Cheaper turns: a fast gate and scripts instead of bookkeeping
 
 11 done / 0 in progress / 0 blocked / 1 not started
@@ -125,12 +100,12 @@ Reason: manual · branch: o12-workflow-stamp · HEAD: 2542e9c
 
 ### Next unblocked
 
-- O-11 · [ruflo · high · sonnet] · ruflo-item records several items in one invocation
+- O-12 · [ruflo · medium · sonnet] · workflow.html's stamp is generated, not hand-typed
 
 ### Open work by group
 
 **finish now**
-- O-11 0%
+- O-12 0%
 
 ## Exact next action
 
