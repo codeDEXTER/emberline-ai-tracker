@@ -1,3 +1,44 @@
+## 2026-09-18 · workflow.html's stamp is generated, not hand-typed (O-12)
+
+`docs/README.md`'s rule is that any PR changing the shared rules updates
+`docs/workflow.html` and its version stamp in the same PR. Three merges on
+17 Sep did none of it, main went red on `tests/test_workflow_stamp.py`, and
+the stamp got hand-typed twice in one evening because every rules merge
+bumps the number it must match again.
+
+`bin/workflow-stamp` writes the stamp from git and regenerates
+`docs/workflow.png`, folding the headless-Chrome recipe (the load-bearing
+`--headless=old`, then the trailing-blank crop) into the script so nobody
+types it by hand. `--check` reports drift without writing anything.
+`tools/workflow_stamp.py` now holds `rules_version()` and friends, imported
+by both the tool and `tests/test_workflow_stamp.py`, so the two can never
+independently drift on what the required stamp is. The tool does not write
+the prose describing a rules change — that still needs a human sentence on
+the page; this only removes the bookkeeping around it.
+
+**Wiring, and what was rejected.** `derecord`'s pre-commit hook regenerates
+a project's tracker pages whenever a ledger is staged — the same shape
+looked natural here, but it is the wrong scope for this: that hook fires on
+every commit that touches a ledger, which is most commits, while
+`rules_version()`'s whole point (see its docstring) is that a commit which
+does *not* touch `CLAUDE-workflow.md` must be a no-op for the required
+stamp. Hooking png regeneration to ledger commits would burn a 5MB
+rewrite — and a `--headless=old` Chrome launch — on commits that never
+touched the rules at all. Instead: `bin/workflow-stamp --check` is now the
+first thing `.common-rules.json`'s `gates.merge` runs (and the identical
+`ci.yml` step, kept byte-equal by `tests/test_ci_matches_land.py`), so a
+stale stamp fails fast, before the full suite, rather than sixty-some
+tests deep into `test_workflow_stamp.py`'s own assertion.
+
+Not a Standard change: nothing here changes what any other project must do
+differently — `docs/workflow.html` is common-rules' own page, and the gate
+addition is to common-rules' own `.common-rules.json`.
+
+`bin/workflow-stamp`, `tools/workflow_stamp.py`,
+`tests/test_workflow_stamp.py` (12 new cases, real Chrome never run —
+`FAKE_CHROME_MODE` stands in for the capture step), `.common-rules.json`,
+`.github/workflows/ci.yml`, `docs/README.md`.
+
 ## 2026-09-18 · two decisions the lead was asked to make itself (31/A-02)
 
 The sponsor: "make the decisions yourself for the pending items and complete
