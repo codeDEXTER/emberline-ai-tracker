@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 09:42
+# Checkpoint — 2026-09-18 09:44
 
-Reason: manual · branch: l02-l07-measured · HEAD: 9263c5d
+Reason: manual · branch: p32-versioning · HEAD: 7afc99f
 
-<!-- ledger-digest: a74fca6f10df353f33ed8d60febb3517029c4c43574142f208a748ca3ccae5b1 -->
+<!-- ledger-digest: 2335ce0f049fc822c44b6d829e2b32bd3d2fced8a4cab5753d9b60d2d1fd88a8 -->
 
 ## Proposal 19 · Warm-up
 
@@ -105,6 +105,34 @@ Reason: manual · branch: l02-l07-measured · HEAD: 9263c5d
 
 **finish now**
 - P-13 0%
+
+## Proposal 32 · Semantic versions and a lock for the standard
+
+0 done / 0 in progress / 0 blocked / 4 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- A-01 · "Can you version the common rule and release a baseline when the pending tasks are done. Use semantic version version and change Lock to maintain it going ahead"
+
+### Next unblocked
+
+- V-01 · [ruflo · high · sonnet] · A semantic version for the standard, beside the stamp it replaces
+
+### Open work by group
+
+**finish now**
+- V-01 0%
+- V-02 0%
+- V-03 0%
+- V-04 0%
 
 ## Exact next action
 

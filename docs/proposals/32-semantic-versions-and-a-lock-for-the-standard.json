@@ -1,0 +1,140 @@
+{
+  "proposal": 32,
+  "title": "Semantic versions and a lock for the standard",
+  "status": "proposed",
+  "updated": "2026-09-18",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "sonnet",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "opus",
+      "effort": "low or medium",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "V",
+      "name": "Versioning the standard"
+    }
+  ],
+  "items": [
+    {
+      "id": "V-01",
+      "phase": "V",
+      "cx": "C3",
+      "title": "A semantic version for the standard, beside the stamp it replaces",
+      "what": "Today a project records `<commit-count>-<short-sha>` (e.g. 187-5a62e87) in .common-rules-version. It orders correctly and says nothing about what changed or whether catching up is safe. Add a VERSION file holding a semver, and define the bump rule: a mandatory Standard change is a MINOR bump, a change that breaks a project already following the rules is MAJOR, anything else -- a tool, a fix, wording -- is PATCH. Keep the commit-count stamp alongside it, because it is what orders two versions unambiguously.",
+      "files": [],
+      "tests": [],
+      "done": "VERSION holds a semver; the bump rule is written in CLAUDE-workflow.md; rulecheck reports both the semver and the count; a project's stamp records both.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 5,
+      "value": "high"
+    },
+    {
+      "id": "V-02",
+      "phase": "V",
+      "cx": "C2",
+      "title": "The changelog is the source of the bump, and a test says so",
+      "what": "The sponsor asked for the changelog to maintain the version going ahead. Derive the required bump from the CHANGELOG entries since the last release: any entry carrying `**Standard change (mandatory):**` forces at least a minor. A test fails when VERSION and the entries since the last release disagree, so the version cannot drift from what the changelog says happened.",
+      "files": [],
+      "tests": [],
+      "done": "A tool prints the bump the changelog requires and what VERSION says; the test fails on disagreement; both run in the merge gate beside bin/workflow-stamp --check.",
+      "depends": [
+        "V-01"
+      ],
+      "status": "not started",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 3,
+      "value": "high"
+    },
+    {
+      "id": "V-03",
+      "phase": "V",
+      "cx": "C3",
+      "title": "A lock a project can trust: what it is aligned to, and what is pending",
+      "what": "The sponsor asked for a lock. A project's .common-rules-version becomes a small lock file: the semver and count it is aligned to, the date, and the ids of the mandatory entries it has implemented. rulecheck then answers a sharper question than 'behind' -- which entries are pending, by id, and whether any of them is a MAJOR the project cannot adopt without work. Backwards compatible: a bare `<count>-<sha>` string keeps working and is read as a lock with no recorded entries.",
+      "files": [],
+      "tests": [],
+      "done": "A lock records the semver, the count and the implemented entry ids; an old plain stamp still validates; rulecheck names pending entries by id; tested on a fixture project with each shape.",
+      "depends": [
+        "V-01"
+      ],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 5,
+      "value": "high"
+    },
+    {
+      "id": "V-04",
+      "phase": "V",
+      "cx": "C4",
+      "title": "Release 1.0.0 once nothing is pending",
+      "what": "The sponsor: \"release a baseline when the pending tasks are done\". Cut 1.0.0 when every item in proposals 19-31 is done or on the back burner with its reason, the card reads ready, all twelve conformance checks hold, and the full suite is green on main. Tag it, write what a project adopting 1.0.0 gets, and say plainly what is NOT in it.",
+      "files": [],
+      "tests": [],
+      "done": "A git tag v1.0.0 on a green main; a release note naming what a project gets and what is deliberately excluded; the adoption handover updated to point at the tag rather than a moving main.",
+      "depends": [
+        "V-01",
+        "V-02",
+        "V-03"
+      ],
+      "status": "not started",
+      "tier": "lead",
+      "model": "opus",
+      "tag": "[ruflo \u00b7 lead \u00b7 opus]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 3,
+      "value": "high"
+    }
+  ],
+  "asks": [
+    {
+      "id": "A-01",
+      "at": "2026-09-18T09:43:43+02:00",
+      "kind": "decision",
+      "quote": "Can you version the common rule and release a baseline when the pending tasks are done. Use semantic version version and change Lock to maintain it going ahead",
+      "became": null,
+      "state": "open"
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {}
+}
