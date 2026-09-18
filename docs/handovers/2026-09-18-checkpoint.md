@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 01:50
+# Checkpoint — 2026-09-18 07:27
 
-Reason: manual · branch: finding-ruflo-cost · HEAD: 04bbd21
+Reason: manual · branch: p30-items-9-10 · HEAD: 2c88c51
 
-<!-- ledger-digest: 6971f533d99179aae59df1b7ca38550510a7796b1388da446eb6bb64d3aecbf4 -->
+<!-- ledger-digest: 6e9acea588447eb94ef72cff3322787e27d12e176432bf4b9f52b560c7b52fcf -->
 
 ## Proposal 19 · Warm-up
 
@@ -84,7 +84,7 @@ Reason: manual · branch: finding-ruflo-cost · HEAD: 04bbd21
 
 ## Proposal 30 · Tracker shows how complete each item is, by lettered parts
 
-6 done / 0 in progress / 0 blocked / 2 not started
+8 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
@@ -100,14 +100,14 @@ Reason: manual · branch: finding-ruflo-cost · HEAD: 04bbd21
 
 ### Next unblocked
 
-- P-04 · [ruflo · medium · sonnet] · Warm-up card and checkpoint count parts
-- P-08 · [ruflo · high · sonnet] · Charts and feature drill-down on the page
+- P-09 · [ruflo · high · sonnet] · The proposal tree is the top view: proposal, then items, then parts
+- P-10 · [ruflo · high · sonnet] · A second button switches the tracker to Kanban
 
 ### Open work by group
 
 **finish now**
-- P-04 0%
-- P-08 0% · next P-08.A
+- P-09 0%
+- P-10 0%
 
 ## Proposal 31 · Cheaper turns: a fast gate and scripts instead of bookkeeping
 

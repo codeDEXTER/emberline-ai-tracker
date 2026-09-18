@@ -2,7 +2,7 @@
   "proposal": 30,
   "title": "Tracker shows how complete each item is, by lettered parts",
   "status": "proposed",
-  "updated": "2026-09-17",
+  "updated": "2026-09-18",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -56,7 +56,7 @@
       "owner": "lead",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -88,7 +88,7 @@
       "owner": "lead",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -121,7 +121,7 @@
       "owner": "lead",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -151,13 +151,21 @@
       "depends": [
         "P-01"
       ],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
-      "log": []
+      "log": [
+        {
+          "at": "2026-09-18T07:26:43+02:00",
+          "event": "Warm-up card and checkpoint show completion % and next part; merged in #234. Recorded late: the branch landed but the row was never moved.",
+          "by": "session:common-rules lead",
+          "evidence": "",
+          "status": "done"
+        }
+      ]
     },
     {
       "id": "P-05",
@@ -182,7 +190,7 @@
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -220,7 +228,7 @@
       "owner": "lead",
       "tier": "low",
       "model": "haiku",
-      "tag": "[ruflo · low · haiku]",
+      "tag": "[ruflo \u00b7 low \u00b7 haiku]",
       "issue": null,
       "log": [
         {
@@ -268,7 +276,7 @@
       ],
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]"
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]"
     },
     {
       "id": "P-08",
@@ -287,7 +295,7 @@
         "P-03",
         "P-07"
       ],
-      "status": "not started",
+      "status": "done",
       "owner": "lead",
       "log": [
         {
@@ -295,25 +303,90 @@
           "event": "added by the lead while building proposal 30",
           "by": "lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-18T07:26:43+02:00",
+          "event": "all parts done",
+          "by": "session:common-rules lead",
+          "evidence": "",
+          "status": "done"
         }
       ],
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "parts": [
         {
           "id": "P-08.A",
           "title": "Progress charts over time on the board",
           "share": 50,
-          "status": "in progress"
+          "status": "done",
+          "log": [
+            {
+              "at": "2026-09-18T07:26:43+02:00",
+              "event": "Progress charts on the board, merged in #242.",
+              "by": "session:common-rules lead",
+              "evidence": "",
+              "status": "done"
+            }
+          ]
         },
         {
           "id": "P-08.B",
           "title": "Feature drill-down: proposal to item to part to sub-part",
           "share": 50,
-          "status": "in progress"
+          "status": "done",
+          "log": [
+            {
+              "at": "2026-09-18T07:26:43+02:00",
+              "event": "Feature drill-down: proposal to item to part to sub-part, merged in #242.",
+              "by": "session:common-rules lead",
+              "evidence": "",
+              "status": "done"
+            }
+          ]
         }
       ]
+    },
+    {
+      "id": "P-09",
+      "phase": "P",
+      "cx": "C3",
+      "title": "The proposal tree is the top view: proposal, then items, then parts",
+      "what": "The sponsor: \"at the top, there should be like proposal nineteen. And when I expand it, then there should be P1, P2, P3. And then when I expand P1, then there should be P1, A, B, C, D.\" and \"I want to track the proposals, you know, the proposals is six out of six done. But the subtasks are more. So I want the proposals to have drop down.\" The drill-down exists but sits under the group lists, so the first thing he sees is items grouped by finish now / back burner / waiting rather than his proposals. Put the proposal tree directly under the tiles and charts, and fold the group lists below it.",
+      "files": [],
+      "tests": [],
+      "done": "The page opens on proposal rows, each showing N of N items done and a percentage; one click expands to items, another to parts, another to sub-parts; the group lists are still reachable, folded, below.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 3,
+      "value": "high"
+    },
+    {
+      "id": "P-10",
+      "phase": "P",
+      "cx": "C3",
+      "title": "A second button switches the tracker to Kanban",
+      "what": "The sponsor: \"and I and then there could be a sec second button which can switch to the Kanban style.\" A view switch beside the existing filters: the proposal tree, or a Kanban board of columns by status with one card per item.",
+      "files": [],
+      "tests": [],
+      "done": "Two buttons switch the view with no page reload and no server round trip; the Kanban columns are the ledger's own statuses; each card names its item, its proposal and its completion; the choice survives a reload for that viewer; both views work in light and dark mode and at phone width.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 5,
+      "value": "high"
     }
   ],
   "asks": [
@@ -325,7 +398,7 @@
       "quote": "i dont understand this overview in the tracker",
       "state": "became-item",
       "became": "P-03",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl, 2026-09-17"
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl, 2026-09-17"
     },
     {
       "id": "A-02",
@@ -335,7 +408,7 @@
       "quote": "So my understanding is uh, these are the elements which are getting completed. Based on the priority, and if anything is above 80%, a task which may be a subtask that is still pending to be completed, that ends up in that list. So, this needs to be refactored and revisualized properly so I can understand it a bit better. So, my basic requirement is every task gets to 100%. But if there are some tasks, for example, not able to get 100% in some part of the work is left, then that work is evaluated as a sub-item. For example, L-02.A, BC, then the percentage is calculated, okay, what would be what percentage of feature they would be completing? Based on that, if the overall feature is 80% completed, and the sub uh, remaining elements only complete maybe 2, 3, or the last remaining 10, 20%, then they can be added as a back burner. Backlog, which can be handled later. Or uh, you know that should be visualized here. And what would be the risk and all, you know, based on the that it's calculating how to do it. And also the percentage does not give me a right figure because 17%, I don't have the formula in my mind.",
       "state": "became-item",
       "became": "P-01",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl, 2026-09-17"
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl, 2026-09-17"
     },
     {
       "id": "A-03",
@@ -345,7 +418,7 @@
       "quote": "This visualized widget is good and this is how it should be represented in the tracker. Uh, to get an estimate of the degree of completion. Please uh, make a proposal on how the tracker would look like so it's not completely overpopulated. And then it should also be possible to filter things out and get into the details.",
       "state": "became-item",
       "became": "P-03",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl, 2026-09-17"
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl, 2026-09-17"
     },
     {
       "id": "A-04",
@@ -355,7 +428,7 @@
       "quote": "Also, I like the naming convention with ABC. That should be standardized as the standard approach. And each ticket should be tracked in the tracker or sub-ticket.",
       "state": "became-item",
       "became": "P-06",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl, 2026-09-17"
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl, 2026-09-17"
     },
     {
       "id": "A-05",
@@ -366,7 +439,7 @@
       "became": null,
       "state": "answered",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl",
       "note": "accepts D1-D5 as recommended"
     },
     {
@@ -378,7 +451,7 @@
       "became": "P-03",
       "state": "became-item",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl"
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl"
     },
     {
       "id": "A-07",
@@ -389,7 +462,7 @@
       "became": null,
       "state": "answered",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl",
       "note": "P-01 built by the lead; P-02..P-06 dispatched in parallel on top of it"
     }
   ],
