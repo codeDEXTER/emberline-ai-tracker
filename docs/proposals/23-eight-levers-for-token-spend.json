@@ -687,6 +687,12 @@
           "event": "split into lettered parts (proposal 30, P-05)",
           "by": "lead",
           "evidence": "docs/research/p30-migrate-parts.py"
+        },
+        {
+          "at": "2026-09-18T09:50:24+02:00",
+          "event": "back burner, by the sponsor's decision",
+          "by": "session:common-rules lead",
+          "evidence": "Sponsor, 18 Sep 2026: \"L7 will remain on back burner\". A is done and the rule is in the briefs; B failed its measurement at 9.54 per 100 tool calls against 6.40 and is not re-measured on a timer. The item stays at 80% and 1.0.0 ships without it."
         }
       ],
       "points": 2,
