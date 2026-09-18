@@ -477,7 +477,7 @@ def completion_tiles(entries) -> str:
     for _, item, _, _ in entries:
         counts[PARTS.group(item)] += 1
     tiles = [
-        ("done", f'{counts["done"]} of {total}', "features finished"),
+        ("done", f'{counts["done"]} of {total}', "items done"),
         ("finish", str(counts["finish now"]), "finish now"),
         ("back", str(counts["back burner"]), "back burner"),
         ("wait", str(counts["waiting"]), "waiting"),
@@ -656,7 +656,7 @@ def features_section(ledgers: list[tuple[Path, dict]]) -> str:
     if not ledgers:
         return ""
     rows = "".join(proposal_feature_row(data.get("proposal"), data, L.counts(data)) for _, data in ledgers)
-    return ('<section class="features" id="features"><h2>Features</h2>'
+    return ('<section class="features" id="features"><h2>Proposals</h2>'
             '<p class="fnote dim">Completion % is the average of each item’s completion, '
             'weighted equally per item.</p>'
             f'<div class="frows">{rows}</div></section>')
@@ -1163,11 +1163,18 @@ SCRIPT = r"""
   }
   function apply(){
     var shown = 0, total = 0, byStatus = {};
-    var counted = state.view === "list" ? "TR" : "ARTICLE";
+    // Count only the Details section's own board cards / list rows (class
+    // "card" / "row") -- never the Kanban board's cards (class "kcard").
+    // Both carry [data-item] and a card is an <article> same as a kcard, so
+    // a bare tagName check double-counts a kcard into "#shown" and every
+    // status chip whenever the Kanban view exists in the page, whether or
+    // not it is the one currently shown (sponsor correction, 2026-09-18:
+    // these are the numbers he reads to trust the page).
+    var counted = state.view === "list" ? "row" : "card";
     items.forEach(function(el){
       var ok = match(el, false, false);
       el.hidden = !ok;
-      if (el.tagName === counted) {
+      if (el.classList.contains(counted)) {
         total++;
         if (ok) shown++;
         // The chip count is the true count of each status among the other

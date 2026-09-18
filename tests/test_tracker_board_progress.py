@@ -183,6 +183,15 @@ class FeaturesDrilldownCase(unittest.TestCase):
         path = write(self.root, number, led)
         return board.render([(path, led)], "demo", None, self.root)
 
+    def test_the_block_heading_says_proposals_not_features(self):
+        # Sponsor correction, 2026-09-18: "feature" named two different
+        # things on the page (the tile's item count, and this block's
+        # proposal rows). The class/id stay "features" (CSS, tests elsewhere
+        # pin it) but the visible heading uses the ledger's own word.
+        text = self.render([item("A-01")])
+        self.assertIn('<section class="features" id="features"><h2>Proposals</h2>', text)
+        self.assertNotIn('<h2>Features</h2>', text)
+
     def test_one_row_per_proposal_with_number_title_and_completion(self):
         text = self.render([item("A-01", status="done"), item("A-02", status="not started")], title="Widgets")
         self.assertIn('<section class="features" id="features">', text)
@@ -363,6 +372,22 @@ class KanbanCase(unittest.TestCase):
         self.assertIn('<div id="view-kanban">', text)
         self.assertNotIn('id="view-tree" hidden', text)
         self.assertNotIn('id="view-kanban" hidden', text)
+
+    def test_kanban_cards_are_never_counted_alongside_the_details_board(self):
+        # Sponsor correction, 2026-09-18: a kanban card is an <article
+        # data-item>, same as the Details section's own board card, so a
+        # bare tagName check in the page's script summed both -- "the
+        # numbers on that bar are exactly what the sponsor reads to trust
+        # the page". A kanban card's class is "kcard", never "card", and
+        # the script's own counting line checks class membership, not tag.
+        text = self.render([item("A-01", status="in progress")])
+        body = text.split("<script>", 1)[0]
+        script = text.split("<script>", 1)[1]
+        self.assertIn('class="kcard"', body)
+        self.assertNotIn('class="kcard card"', body)
+        self.assertNotIn('class="card kcard"', body)
+        self.assertIn('el.classList.contains(counted)', script)
+        self.assertNotIn('el.tagName === counted', script)
 
 
 if __name__ == "__main__":

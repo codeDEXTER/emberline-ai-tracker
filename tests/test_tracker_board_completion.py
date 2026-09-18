@@ -62,7 +62,15 @@ class CompletionOverviewCase(unittest.TestCase):
     def test_a_done_item_is_hidden_by_default_and_counted_in_the_tile(self):
         text = self.render([item("D-01", status="done")])
         self.assertRegex(text, r'data-id="D-01"[^>]*data-group="done"[^>]*\bhidden\b')
-        self.assertIn("1 of 1", text)  # "N of M features finished"
+        self.assertIn("1 of 1", text)  # "N of M items done"
+
+    def test_the_done_tile_says_items_done_not_features_finished(self):
+        # Sponsor correction, 2026-09-18: the tile used to read "N of M
+        # features finished" while M counts items, not proposals -- one
+        # word for two different things on the same screen.
+        text = self.render([item("D-01", status="done")])
+        self.assertIn('<span class="l">items done</span>', text)
+        self.assertNotIn("features finished", text)
 
     def test_waiting_by_date_and_by_other_project_owner(self):
         text = self.render([
