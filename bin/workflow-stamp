@@ -1,0 +1,248 @@
+#!/usr/bin/env python3
+"""workflow-stamp -- stamp docs/workflow.html from git and regenerate its
+png, so nobody hand-types the version number again (proposal 31, O-12).
+
+Why: docs/README.md's rule is that any PR changing the shared rules updates
+docs/workflow.html and its version stamp in the same PR. Three merges on
+17 Sep did none of it, main went red on tests/test_workflow_stamp.py, and
+the lead then hand-typed the stamp twice in one evening because every rules
+merge bumps the number it must match. Regenerating the png was a four-step
+recipe with a load-bearing --headless=old flag and a hand-written crop
+script -- a script's job, not a habit.
+
+  workflow-stamp             write the stamp, regenerate the png, report both
+  workflow-stamp --check     report only; exit non-zero if either is stale;
+                              writes nothing
+  workflow-stamp --no-png    write the stamp only, skip the png (mostly for
+                              testing -- a real run always wants both)
+
+The version written is exactly what tests/test_workflow_stamp.py's
+rules_version() computes -- both live in tools/workflow_stamp.py, so this
+tool and that test can never disagree about what the stamp should say. See
+that function's docstring for why it is deliberately not
+`git rev-list --count HEAD`.
+
+What this does NOT do: write the sentence describing what changed. A rules
+change still needs a human to say, in prose, what the new rule is -- no
+script can write that paragraph. This tool removes the bookkeeping around
+it (the number, the picture), not the writing.
+
+Png capture: headless Chrome with --headless=old (plain --headless silently
+ignores --screenshot and hangs forever -- see docs/README.md), then a crop
+of the trailing blank the way docs/README.md's recipe does it. Refuses
+loudly -- writes no png -- when Chrome cannot be found, the capture command
+fails, or the capture comes back missing or blank. A broken png committed
+by mistake is worse than a build that stopped and said why.
+
+Exit codes: 0 current/written; 1 stale (--check) or a capture/refusal
+failure; 2 bad usage.
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from tools.workflow_stamp import (  # noqa: E402
+    PAGE, PNG, ROOT, head_version, png_is_stale, rules_date, rules_version,
+    stamped_version, write_stamp,
+)
+
+CHROME_CANDIDATES = (
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "google-chrome",
+    "chromium",
+)
+WINDOW_SIZE = "1180,20000"
+SCALE = "2"
+CAPTURE_TIMEOUT = 120.0
+# The window is 20,000px tall at 2x scale, so the raw capture is 40,000px --
+# sample every 7th pixel when scanning for the trailing blank, or the scan
+# takes longer than the render (docs/README.md's own note).
+SAMPLE_STRIDE = 7
+# The crop keeps this many pixels of margin below the last non-blank row --
+# matches docs/README.md's recipe. A cropped image at or below this height
+# means nothing was found above the background at all: a blank capture.
+CROP_MARGIN = 60
+
+
+def find_chrome() -> str | None:
+    """WORKFLOW_STAMP_CHROME, if set, is authoritative -- an explicit
+    override that does not resolve to anything is "no chrome", not a
+    reason to fall back to the usual candidates. This is also what lets
+    the tests below force the "no chrome found" path deterministically,
+    regardless of what is actually installed on the machine running them."""
+    from shutil import which
+    override = os.environ.get("WORKFLOW_STAMP_CHROME")
+    if override is not None:
+        if "/" in override:
+            return override if Path(override).exists() else None
+        return which(override)
+    for candidate in CHROME_CANDIDATES:
+        if "/" in candidate:
+            if Path(candidate).exists():
+                return candidate
+            continue
+        found = which(candidate)
+        if found:
+            return found
+    return None
+
+
+def capture_raw(chrome: str, url: str, raw_path: Path) -> None:
+    """Run headless Chrome against `url`, writing `raw_path`. Raises
+    RuntimeError with a clear reason on anything short of a normal exit and
+    a file actually appearing -- this is the one step a test fakes out by
+    pointing WORKFLOW_STAMP_CHROME at a stand-in binary, never by mocking
+    this function itself."""
+    cmd = [
+        chrome, "--headless=old",
+        f"--screenshot={raw_path}",
+        f"--window-size={WINDOW_SIZE}",
+        f"--force-device-scale-factor={SCALE}",
+        "--hide-scrollbars", "--no-sandbox", "--disable-gpu", url,
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              timeout=CAPTURE_TIMEOUT)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"chrome did not exit within {CAPTURE_TIMEOUT:g}s -- if this is "
+            f"plain --headless rather than --headless=old, that is exactly "
+            f"the hang docs/README.md warns about: it ignores --screenshot "
+            f"and never returns") from exc
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"chrome exited {proc.returncode}: {proc.stderr.strip() or proc.stdout.strip()}")
+    if not raw_path.exists() or raw_path.stat().st_size == 0:
+        raise RuntimeError(f"chrome exited 0 but wrote no (or an empty) {raw_path}")
+
+
+def crop(raw_path: Path, out_path: Path) -> tuple[int, int]:
+    """Crop the trailing blank off `raw_path` and write `out_path`. Refuses
+    (RuntimeError, out_path left untouched) when the whole capture is
+    background -- a blank page -- rather than writing a blank png."""
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = None  # 40,000px trips the decompression-bomb guard
+    im = Image.open(raw_path).convert("RGB")
+    px, (w, h) = im.load(), im.size
+    if w == 0 or h == 0:
+        raise RuntimeError(f"{raw_path} is a zero-size image")
+    bg, last = px[5, 5], h - 1
+    while last > 0 and all(px[x, last] == bg for x in range(0, w, SAMPLE_STRIDE)):
+        last -= 1
+    cropped_h = min(h, last + CROP_MARGIN)
+    if last <= 0 or cropped_h <= CROP_MARGIN:
+        raise RuntimeError(
+            f"{raw_path} looks blank -- no content found above the "
+            f"background color before row {CROP_MARGIN}; refusing to write "
+            f"{out_path}")
+    im.crop((0, 0, w, cropped_h)).save(out_path)
+    return w, cropped_h
+
+
+def regenerate_png() -> tuple[int, int]:
+    chrome = find_chrome()
+    if not chrome:
+        raise RuntimeError(
+            "no Chrome found (checked $WORKFLOW_STAMP_CHROME, the usual "
+            "macOS app path, google-chrome, chromium) -- install one or set "
+            "WORKFLOW_STAMP_CHROME, then run this again; nothing written")
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="workflow-stamp-") as tmp:
+        raw_path = Path(tmp) / "raw.png"
+        url = f"file://{PAGE}"
+        capture_raw(chrome, url, raw_path)
+        return crop(raw_path, PNG)
+
+
+def report_check() -> int:
+    ok = True
+    try:
+        stamped, required = stamped_version(), rules_version()
+    except ValueError as exc:
+        print(f"workflow-stamp: {exc}", file=sys.stderr)
+        return 1
+    # The two tests this mirrors allow a range, not one number: the stamp
+    # must not be BEHIND the rules (test_page_is_not_older_than_the_rules)
+    # and must not be more than one AHEAD of HEAD
+    # (test_stamp_is_not_from_the_future -- one ahead is legitimate, since a
+    # stamp is written for the commit it lands as, which does not exist yet
+    # when it is typed). Demanding exact equality here would block a merge
+    # the suite itself accepts, so this check permits exactly what they do.
+    if stamped < required:
+        print(f"workflow-stamp: stamp is stale -- page says {stamped}, "
+              f"rules are at {required}")
+        ok = False
+    elif stamped > head_version() + 1:
+        print(f"workflow-stamp: stamp says {stamped}, more than one ahead of "
+              f"HEAD ({head_version()}) -- a typo or a guess, not a stamp")
+        ok = False
+    elif stamped == required:
+        print(f"workflow-stamp: stamp is current at {stamped}")
+    else:
+        print(f"workflow-stamp: stamp is current at {stamped} "
+              f"(one ahead of the rules at {required}, written for the commit "
+              f"it lands as)")
+    if not PNG.exists():
+        print("workflow-stamp: docs/workflow.png is missing")
+        ok = False
+    elif png_is_stale():
+        print("workflow-stamp: docs/workflow.png is stale -- "
+              "committed before the last change to workflow.html")
+        ok = False
+    else:
+        print("workflow-stamp: docs/workflow.png is current")
+    return 0 if ok else 1
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="workflow-stamp")
+    parser.add_argument("--check", action="store_true",
+                        help="report only; write nothing; exit non-zero if stale")
+    parser.add_argument("--no-png", action="store_true",
+                        help="write the stamp only, skip regenerating the png")
+    args = parser.parse_args(argv)
+
+    if not PAGE.exists():
+        print(f"workflow-stamp: {PAGE} does not exist", file=sys.stderr)
+        return 2
+
+    if args.check:
+        return report_check()
+
+    try:
+        old_stamp = stamped_version()
+    except ValueError:
+        old_stamp = None
+    new_stamp = rules_version()
+    head = head_version()
+    if new_stamp > head + 1:
+        print(f"workflow-stamp: refusing -- computed rules version "
+              f"{new_stamp} is ahead of HEAD ({head}); something is wrong "
+              f"with this checkout (shallow clone?), not with the stamp",
+              file=sys.stderr)
+        return 1
+
+    write_stamp(new_stamp, rules_date())
+    print(f"workflow-stamp: stamp {old_stamp if old_stamp is not None else '(none)'} -> {new_stamp}")
+
+    if args.no_png:
+        return 0
+
+    try:
+        width, height = regenerate_png()
+    except RuntimeError as exc:
+        print(f"workflow-stamp: png not regenerated -- {exc}", file=sys.stderr)
+        return 1
+    size = PNG.stat().st_size
+    print(f"workflow-stamp: {PNG.relative_to(ROOT)} regenerated: "
+          f"{width}x{height}px, {size:,} bytes")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

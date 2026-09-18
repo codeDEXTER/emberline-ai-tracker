@@ -23,40 +23,36 @@ rules file, a commit that only touches this page leaves the target still.
 
 `tests/test_workflow_stamp.py` enforces it, because this rule was maintained by
 memory until 2026-08-07 and the page had drifted to **version 62 while the rules
-were at 102**.
+were at 102**, and again on 17 Sep 2026, when three merges in one evening left
+it hand-stamped twice.
 
-Regenerate the PNG after any edit:
+**Run `bin/workflow-stamp` after any edit to the rules.** It writes the stamp
+from git (the same `rules_version()` `tests/test_workflow_stamp.py` checks
+against — see that function's docstring for why it counts commits touching
+`CLAUDE-workflow.md` rather than `HEAD`) and regenerates `docs/workflow.png`
+with the headless-Chrome recipe below, baked into the script so nobody types
+it by hand again. It fails loudly — writing nothing — when Chrome can't be
+found or the capture comes back blank, rather than committing a broken png.
+`bin/workflow-stamp --check` reports whether the stamp and the png are
+current without writing anything; that's what `gates.merge` runs before the
+test suite (`.common-rules.json`), so a stale stamp fails fast rather than
+sixty seconds into the full suite.
 
-```
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=old \
-  --screenshot=/tmp/wf.png --window-size=1180,20000 --force-device-scale-factor=2 \
-  --hide-scrollbars --no-sandbox --disable-gpu "file://$PWD/docs/workflow.html"
-```
-
-**`--headless=old` is load-bearing.** Plain `--headless` now resolves to Chrome's
-new headless mode, which ignores `--screenshot` and never exits — it hangs
-until killed, writing no file and printing no error. Found 2026-08-07, after ten
-minutes of waiting on a command that looked like it was working.
-
-Then crop the trailing blank — the window is 20,000px at 2× scale, so the raw
-capture is 40,000px tall and mostly empty:
-
-```
-python3 - <<'EOF'
-from PIL import Image
-Image.MAX_IMAGE_PIXELS = None            # 40,000px trips the decompression-bomb guard
-im = Image.open("/tmp/wf.png").convert("RGB")
-px, (w, h) = im.load(), im.size
-bg, last = px[5, 5], h - 1
-while last > 0 and all(px[x, last] == bg for x in range(0, w, 7)):
-    last -= 1
-im.crop((0, 0, w, min(h, last + 60))).save("docs/workflow.png")
-EOF
-```
-
-Sample every 7th pixel rather than every one, or the scan takes longer than the
-render. Check the result opens and is not blank before committing it: a stale or
-empty diagram is worse than none, because it gets shared without a second look.
+`bin/workflow-stamp` does **not** write the sentence describing what
+changed — a rules change still needs a human paragraph on this page, same as
+always. It only removes the bookkeeping around it: the number, and the
+picture. What it automates, for the record: headless Chrome with
+`--headless=old` (plain `--headless` now resolves to Chrome's new headless
+mode, which ignores `--screenshot` and never exits — it hangs until killed,
+writing no file and printing no error; found 2026-08-07 after ten minutes of
+waiting on a command that looked like it was working), then a crop of the
+trailing blank — the window is 20,000px at 2× scale, so the raw capture is
+40,000px tall and mostly empty, and the crop samples every 7th pixel rather
+than every one, or the scan takes longer than the render. Still worth doing
+by hand once: open the regenerated png and look at it before committing — a
+stale or empty diagram is worse than none, because it gets shared without a
+second look, and no script can tell "blank" from "correct but boring" for
+certain.
 
 ## `proposals/` — decisions about the shared rules themselves
 
