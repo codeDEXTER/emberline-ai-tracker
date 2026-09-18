@@ -84,6 +84,46 @@ time -- that path costs time, not correctness.
 
 `bin/ruflo-item`, `tools/tracker/ledger.py` (`closed_date()`, shared with
 `bin/conformance`), `tests/test_ruflo_item.py`.
+## 2026-09-18 · one filter bar at the top, governing every view (P-11)
+
+The sponsor: "right now there are filters board list and there should be
+another filter and then basically I should be able to filter all types of
+views the drop down the board and other things so I have a common set of
+filters there on top so it's possible for me to just in the drop down list
+as well uh, filter the pending items". The bar used to sit under the Details
+heading and govern only the board and list; P-10's Tree/Kanban switch had
+been added into that same bar, so the switch for the page's top views was
+buried mid-page.
+
+The bar now sits directly under the header totals, above the tiles, and is
+sticky. Its view switch is one group of four -- Tree, Kanban, Board, List,
+Tree the default -- and every filter (status, owner, tier, group, search)
+applies identically to whichever is showing. The part most likely to have
+been done shallowly: the bar now reaches inside the Proposals tree's own
+dropdowns. A non-matching item or part is hidden; a proposal left with no
+matching items is hidden entirely; a surviving proposal shows how many
+matched ("3 of 16 items") beside its real done-count, which a filter never
+changes. A matching proposal, and a matching item down to its parts,
+auto-expands under an active filter -- he is filtering in order to see the
+matches -- and only Clear ever collapses it back, never the filtering itself
+mid-session.
+
+A first-class Pending control -- not a status chip -- shows only work that
+is not done, at every level. Rather than a second switch that could disagree
+with the existing "Show finished" toggle, Pending reuses its "hide
+group=done" rule and forces it off (and disables it) while Pending is on;
+the page states this rule in one sentence next to the two controls. Chip and
+"N shown" counts key off one CSS class per view (item-row / kcard / card /
+row), so switching views can never double- or under-count the same
+underlying items. View, every filter, the search text and Pending persist
+per viewer in `localStorage`, every read and write wrapped in `try/catch`;
+the page still renders correctly, unfiltered on Tree, when storage throws or
+is empty.
+
+`tools/tracker/board.py`, its CSS and inline script, and
+`tests/test_tracker_board_filters.py` (new) plus extensions to
+`tests/test_tracker_board_progress.py`. Not a Standard change -- this is the
+tracker's own page, not a rule every project must adopt.
 
 ## 2026-09-18 · two decisions the lead was asked to make itself (31/A-02)
 
