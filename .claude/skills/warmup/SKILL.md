@@ -1,6 +1,7 @@
 ---
 name: warmup
 description: Warm up a FRESH session on the project's standard (common-rules proposal 19, and proposal 28's R-01/R-02). Reads HANDOFF.md, the operating rules, the ledger and the last checkpoint in a fixed order, checks the tools and the standard, queues what is pending, and prints the warm card before any work. Use at the start of a session. A session already running uses /reheat instead ("warm up", "what changed", "refresh the rules").
+argument-hint: "one line of context for this session"
 ---
 
 # /warmup: a fresh lead
@@ -30,14 +31,22 @@ cannot tell whether it already warmed up.
 - **`--state .claude/warmup/last.json`** saves this run's state, so `/reheat`
   has a baseline to compare against later in the session. `.claude/warmup/`
   is scratch state — never commit it.
-- Picking up a conversation with real context (a handoff from another
-  session, something the sponsor said before this skill ran): add
-  `--context "<one line>"` — it is printed on the card and carried into the
+- **Anything the sponsor typed after `/warmup` is context — pass it
+  through.** `/warmup we are picking up the engine work` means
+  `--context "we are picking up the engine work"`, in the same run, not a
+  separate call and not dropped. This is the only place his words enter the
+  card, so losing them is losing the one thing he asked the command to
+  carry. Quote him as he typed it; do not summarise or tidy it.
+- Picking up context he did not type on the command line (a handoff from
+  another session, something said earlier in the conversation): same flag,
+  `--context "<one line>"`. It is printed on the card and carried into the
   saved state.
 
 The card now always includes `standard: N of 12 hold` and, under it, every
 item that does not hold — the same twelve `bin/conformance` checks, run in
-process. What `--queue` wrote is listed at the end, under `queue:`.
+process. A split item's line shows its completion %, next open part, and a
+group count line (finish now / back burner / waiting). What `--queue` wrote
+is listed at the end, under `queue:`.
 
 ## 2. Read, in the order the card names
 

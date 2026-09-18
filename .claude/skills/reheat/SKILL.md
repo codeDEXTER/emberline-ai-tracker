@@ -1,6 +1,7 @@
 ---
 name: reheat
 description: Reheat a RUNNING session on the project's standard (common-rules proposal 28, R-01/R-02). Prints only what moved since the last /warmup or /reheat, plus the standard's own status every time, and queues what is pending. Use mid-session, after a compaction, or on resume ("what changed", "reheat", "catch me up").
+argument-hint: "one line of context, or what he just asked for"
 ---
 
 # /reheat: a running lead
@@ -29,16 +30,23 @@ not a delta against nothing.
   non-holding standard item and every pending mandatory Standard change
   becomes a ledger item, owner `lead`, status `not started`, first in the
   queue. Safe to include every time.
-- Picking up new context this turn (something the sponsor just said, a
-  request answered by another session): add `--context "<one line>"`.
+- **Anything the sponsor typed after `/reheat` is context — pass it
+  through**, in the same run: `/reheat the sponsor wants the gate wired`
+  means `--context "the sponsor wants the gate wired"`. Quote him as he
+  typed it. Dropping it loses the only words of his the card carries.
+- Picking up new context he did not type on the command line (something he
+  said earlier this turn, a request answered by another session): same
+  flag, `--context "<one line>"`.
 - `--state` is written again after every run, so the next `/reheat` compares
   against this one.
 
 ## 2. Read only what moved
 
-The output is a delta: new or changed ledger items, asks, requests, a page
-that changed since it was last published, a checkpoint that moved — then
-`standard: N of 12 hold` and every item that does not hold, shown every time
+The output is a delta: new or changed ledger items (a split item's
+completion %, next open part, and group count line among them), asks,
+requests, a page that changed since it was last published, a checkpoint
+that moved — then `standard: N of 12 hold` and every item that does not
+hold, shown every time
 (never only when it changed, since a running lead needs the current answer,
 not just the news). `queue:` lists what `--queue` wrote, or says there was
 nothing new.

@@ -2,7 +2,7 @@
   "proposal": 19,
   "title": "Warm-up",
   "status": "accepted",
-  "updated": "2026-09-17",
+  "updated": "2026-09-18",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -44,6 +44,80 @@
     }
   ],
   "items": [
+    {
+      "id": "Q-05",
+      "phase": "Q",
+      "cx": "C2",
+      "title": "standard item 2 Migrated: page docs/proposals/tracker/index.html is stale",
+      "status": "not started",
+      "owner": "lead",
+      "queue_source": "conformance:2",
+      "log": [
+        {
+          "at": "2026-09-18T11:12:46+02:00",
+          "event": "queued by warmup --queue",
+          "by": "warmup",
+          "evidence": ""
+        }
+      ],
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]"
+    },
+    {
+      "id": "Q-04",
+      "phase": "Q",
+      "cx": "C2",
+      "title": "standard item 12 Card: warmup --check: 1 problem(s), first: checkpoint is stale -- run: tracker checkpoint --project /Users/the-sponsor/apps/common-rules",
+      "status": "done",
+      "owner": "lead",
+      "queue_source": "conformance:12",
+      "log": [
+        {
+          "at": "2026-09-18T11:08:02+02:00",
+          "event": "queued by warmup --queue",
+          "by": "warmup",
+          "evidence": ""
+        },
+        {
+          "at": "2026-09-18T11:13:35+02:00",
+          "event": "Checkpoint refreshed; check 12 holds.",
+          "by": "session:common-rules lead",
+          "evidence": "",
+          "status": "done"
+        }
+      ],
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]"
+    },
+    {
+      "id": "Q-03",
+      "phase": "Q",
+      "cx": "C2",
+      "title": "standard item 9 Ruflo around items: V-04 closed on or after 2026-09-17 without both item:<ID>:start and item:<ID>:done in Ruflo memory (namespace patterns) -- 92 item(s) closed before 2026-09-17 not checked, of which 14 have records",
+      "status": "done",
+      "owner": "lead",
+      "queue_source": "conformance:9",
+      "log": [
+        {
+          "at": "2026-09-18T11:08:00+02:00",
+          "event": "queued by warmup --queue",
+          "by": "warmup",
+          "evidence": ""
+        },
+        {
+          "at": "2026-09-18T11:13:35+02:00",
+          "event": "V-04's Ruflo records written via ruflo-item from-ledger; check 9 holds.",
+          "by": "session:common-rules lead",
+          "evidence": "",
+          "status": "done"
+        }
+      ],
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo · medium · sonnet]"
+    },
     {
       "id": "Q-02",
       "phase": "Q",
