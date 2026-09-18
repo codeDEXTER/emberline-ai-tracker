@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 11:34
+# Checkpoint — 2026-09-18 14:09
 
-Reason: manual · branch: p33-accept · HEAD: 77476b0
+Reason: manual · branch: p30-item-14 · HEAD: 7d74a54
 
-<!-- ledger-digest: 2a1665d8a4ef22324de3b2962c608a850ac2c21c978bf71925bc1c4d81d75f24 -->
+<!-- ledger-digest: 55cad9f4a251cd8e9df2ededd2b89a573e1e7604f4ae159324c10b28302046ba -->
 
 ## Proposal 19 · Warm-up
 
@@ -82,6 +82,31 @@ Reason: manual · branch: p33-accept · HEAD: 77476b0
 
 **back burner**
 - L-07 80% · next L-07.B
+
+## Proposal 30 · Tracker shows how complete each item is, by lettered parts
+
+13 done / 0 in progress / 0 blocked / 1 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- none
+
+### Next unblocked
+
+- P-14 · [ruflo · medium · sonnet] · The board template's visual defects, seen on a project that is not common-rules
+
+### Open work by group
+
+**finish now**
+- P-14 0%
 
 ## Proposal 32 · Semantic versions and a lock for the standard
 
