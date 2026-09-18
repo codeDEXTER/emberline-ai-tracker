@@ -1,16 +1,16 @@
-# Checkpoint — 2026-09-18 14:51
+# Checkpoint — 2026-09-18 15:09
 
-Reason: manual · branch: fix-land-sigpipe · HEAD: 0d25584
+Reason: manual · branch: w10-measured · HEAD: df207c0
 
-<!-- ledger-digest: 807209ca59aeafdbc625201e7fde4add0be2619ad84021f364c76a73d0785d17 -->
+<!-- ledger-digest: e2faa3c7523e99dedae39eac16a36ba5279a2d4d4a71d69bc825bc6e50bebc60 -->
 
 ## Proposal 19 · Warm-up
 
-17 done / 1 in progress / 0 blocked / 1 not started
+18 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
-- W-10 · [ruflo · low · haiku] · Pilot on the PhotoVault engine; measure the exit conditions · split into lettered parts (proposal 30, P-05)
+- none
 
 ### Blocked, and why
 
@@ -28,8 +28,6 @@ Reason: manual · branch: fix-land-sigpipe · HEAD: 0d25584
 
 **finish now**
 - Q-05 0%
-**waiting**
-- W-10 20% · next W-10.A (waiting on PhotoVault Engine)
 
 ## Proposal 21 · The standard is mandatory
 
@@ -168,4 +166,4 @@ Reason: manual · branch: fix-land-sigpipe · HEAD: 0d25584
 
 ## Exact next action
 
-W-10 · [ruflo · low · haiku] · Pilot on the PhotoVault engine; measure the exit conditions
+Q-05 · [ruflo · medium · sonnet] · standard item 2 Migrated: page docs/proposals/tracker/index.html is stale
