@@ -78,6 +78,12 @@ ANALYZE_FAILED = "3 issues found.\n"
 
 PYTEST_OK = "3 passed in 0.01s\n"
 PYTEST_FAILED = "2 failed, 1 passed in 0.02s\n"
+#: A green run whose summary spells its zeros out. The PhotoVault
+#: engine's parallel merge gate prints exactly this shape, per group.
+PYTEST_OK_EXPLICIT_ZEROS = (
+    "  group     serial: 426 passed, 0 failed, 0 errors, 0 skipped, 0 xfailed -- 510.1s -- ok\n"
+    "parallel merge gate: 5499 passed, 0 failed, 0 errors, 48 skipped, 17 xfailed\n"
+    "overall: PASS\n")
 
 
 class TestQuiet(unittest.TestCase):
@@ -149,6 +155,26 @@ class TestQuiet(unittest.TestCase):
 
     def test_pytest_fail(self):
         r, log = self.run_quiet([], PYTEST_FAILED, 1)
+        self.assertTrue(r.stdout.startswith("quiet: FAILED"), r.stdout)
+
+    def test_a_summary_that_spells_out_its_zeros_is_still_OK(self):
+        """`0 failed` is a zero, not a failure.
+
+        The verdict used to be `"failed" in summary`, a substring test, so a
+        runner that writes its zeros out -- as the PhotoVault engine's
+        parallel merge gate does, per group -- could never report OK however
+        green it was. That is the same mistake this file's own module
+        docstring warns about (`grep` exits 0 on a line containing
+        "FAILED"), made inside the checker itself. It cost that project its
+        conformance item 9: `ruflo-item done` keys off this verdict, so no
+        item could ever be recorded done."""
+        r, log = self.run_quiet([], PYTEST_OK_EXPLICIT_ZEROS, 0)
+        self.assertTrue(r.stdout.startswith("quiet: OK"), r.stdout)
+
+    def test_a_nonzero_count_among_zeros_still_fails(self):
+        """The other half: zeros do not make a real failure disappear."""
+        out = "  group balanced-2: 793 passed, 1 failed, 0 errors, 0 skipped\n"
+        r, log = self.run_quiet([], out, 1)
         self.assertTrue(r.stdout.startswith("quiet: FAILED"), r.stdout)
 
     # -- unknown tool fallback ----------------------------------------------
