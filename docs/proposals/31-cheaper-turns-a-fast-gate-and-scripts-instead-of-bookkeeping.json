@@ -408,6 +408,22 @@
       "quote": "Implement all the five recommendations with the recommended decisions.",
       "became": null,
       "state": "answered"
+    },
+    {
+      "id": "A-02",
+      "at": "2026-09-18T08:27:43+02:00",
+      "kind": "decision",
+      "quote": "make the decisions yourself for the pending items and complete the work.",
+      "became": null,
+      "state": "answered"
+    },
+    {
+      "id": "A-03",
+      "at": "2026-09-18T08:27:43+02:00",
+      "kind": "decision",
+      "quote": "I will run the pilots myself.",
+      "became": null,
+      "state": "answered"
     }
   ],
   "proposed_changes": [],
@@ -455,7 +471,7 @@
       "source": "review",
       "file": "CLAUDE.md",
       "severity": "low",
-      "state": "catalogued",
+      "state": "decided",
       "line": 18,
       "title": "CLAUDE.md still says edits here are reserved for the user and nothing may be merged on a session's own initiative; the 14 Sep standing ruling says merge it yourself once the gate is green and review passed. CLAUDE.md is the sponsor's file, so this is for him to reconcile, not me",
       "value": "medium",
@@ -466,6 +482,12 @@
           "event": "catalogued",
           "by": "session:common-rules lead",
           "evidence": ""
+        },
+        {
+          "at": "2026-09-18T08:27:43+02:00",
+          "event": "decided",
+          "by": "session:common-rules lead",
+          "evidence": "No contradiction after all: CLAUDE.md line 18 governs INITIATIVE -- a session never starts a rules change of its own accord -- while the 14 Sep ruling governs MECHANICS: a change the sponsor directed, once its gate is green and review has passed, is merged by the lead rather than handed back as a gh command. bin/land keeps refusing to auto-land inside common-rules, for the reason written beside that guard: landing automatically would let the AI change the rules it operates under without anyone saying yes. A PR, reviewed, merged by the lead, is not that. No file changed; CLAUDE.md line 18 stands as written."
         }
       ]
     },
