@@ -130,7 +130,7 @@
         "V-02",
         "V-03"
       ],
-      "status": "not started",
+      "status": "done",
       "tier": "lead",
       "model": "opus",
       "tag": "[ruflo · lead · opus]",
@@ -142,6 +142,13 @@
           "event": "scope decided",
           "by": "session:common-rules lead",
           "evidence": "The sponsor ruled L-07 stays on the back burner, so 1.0.0 does not wait for it. Scope: 1.0.0 covers the standard itself. W-10, S-07 and S-08 are adoption items owned by other projects' sessions and cannot block a release of the rulebook -- they are waiting, not unfinished. The real blockers are V-01 to V-03 and proposal 30's P-13."
+        },
+        {
+          "at": "2026-09-18T10:26:17+02:00",
+          "event": "v1.0.0 tagged on 9a3a298: 1,966 tests in 219.6s, twelve of twelve conformance checks, card ready, 122 of 128 items. docs/RELEASE-1.0.0.md states what is in it and what is knowingly left out.",
+          "by": "session:common-rules lead",
+          "evidence": "",
+          "status": "done"
         }
       ],
       "points": 3,

@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 10:11
+# Checkpoint — 2026-09-18 10:26
 
-Reason: manual · branch: finding-brief-stage · HEAD: ae8d337
+Reason: manual · branch: adoption-points-at-tag · HEAD: 9a3a298
 
-<!-- ledger-digest: 578ca1c533ca50f789bbbad20691d45e0ef15c39d252ffc689a1448533ed79e1 -->
+<!-- ledger-digest: 55603ffed0ca35b2d183baa5be8047963ec35ab372deeafa506b088c88dc73bf -->
 
 ## Proposal 19 · Warm-up
 
@@ -83,7 +83,7 @@ Reason: manual · branch: finding-brief-stage · HEAD: ae8d337
 
 ## Proposal 32 · Semantic versions and a lock for the standard
 
-2 done / 0 in progress / 0 blocked / 2 not started
+3 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -105,7 +105,6 @@ Reason: manual · branch: finding-brief-stage · HEAD: ae8d337
 
 **finish now**
 - V-03 0%
-- V-04 0%
 
 ## Exact next action
 
