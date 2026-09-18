@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 11:15
+# Checkpoint — 2026-09-18 11:17
 
-Reason: manual · branch: skills-resync · HEAD: 6ad31c9
+Reason: manual · branch: p33-review · HEAD: 6d5214a
 
-<!-- ledger-digest: 1d02e60b9390ee09583b97f43d796986f0da0d94b188be1a2e2a5f1f29debb19 -->
+<!-- ledger-digest: 3e2608ec61f016455602b47ed804648bb38eb1880765e2892674bfa318fe3dd0 -->
 
 ## Proposal 19 · Warm-up
 
@@ -107,6 +107,39 @@ Reason: manual · branch: skills-resync · HEAD: 6ad31c9
 
 **finish now**
 - V-03 0%
+
+## Proposal 33 · Why the standard gets missed, and what to cut
+
+0 done / 0 in progress / 0 blocked / 5 not started
+
+### In progress
+
+- none
+
+### Blocked, and why
+
+- none
+
+### Open asks
+
+- A-01 · "Can you do a thorough review and identify why we are missing these items? Can we optimize all these rules so when I warm up or reheat a project, they follow it to the point and not miss anything? Do we need to deprecate any of the old mechanisms and make it as concise and precise as possible?"
+
+### Next unblocked
+
+- R-01 · [ruflo · high · sonnet] · Closing an item refuses without the evidence its own done line demands
+- R-02 · [ruflo · high · sonnet] · The builder's own gate runs the checks the merge gate runs
+- R-03 · [ruflo · medium · sonnet] · Conformance catches a project's stale skill copies
+- R-04 · [ruflo · lead · opus] · An inventory of every rule in the must-read: enforced, moved, or cut
+- R-05 · [ruflo · high · sonnet] · Deprecate and delete what has been replaced
+
+### Open work by group
+
+**finish now**
+- R-01 0%
+- R-02 0%
+- R-03 0%
+- R-04 0%
+- R-05 0%
 
 ## Exact next action
 
