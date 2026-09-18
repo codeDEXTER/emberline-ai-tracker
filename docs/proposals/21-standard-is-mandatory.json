@@ -2,7 +2,7 @@
   "proposal": 21,
   "title": "The standard is mandatory",
   "status": "accepted",
-  "updated": "2026-09-16",
+  "updated": "2026-09-18",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -929,6 +929,24 @@
           "event": "decided",
           "by": "lead",
           "evidence": "fixed 2026-09-16 (PR #202): rulecheck --align refuses and lists pending mandatory entries; --align --implemented declares them and aligns, and also repairs an unresolvable stamp. CHANGELOG entry carries a Standard change (mandatory) line; common-rules conformance still 12 of 12"
+        }
+      ]
+    },
+    {
+      "id": "F-02",
+      "source": "review",
+      "file": "docs/handovers/2026-09-18-adoption.md",
+      "severity": "high",
+      "state": "catalogued",
+      "title": "The standard outran its adopters: common-rules holds 12 of 12 with a 201s gate, while not one of eight project repos has a ready card -- every red card is pending mandatory Standard changes, 16 for PhotoVault app and engine, 21 for mac-explorer and photo-vault, and four more were added on 17-18 Sep",
+      "value": "high",
+      "points": 5,
+      "log": [
+        {
+          "at": "2026-09-18T09:14:10+02:00",
+          "event": "catalogued",
+          "by": "session:common-rules lead",
+          "evidence": ""
         }
       ]
     }

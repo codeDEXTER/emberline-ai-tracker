@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 09:00
+# Checkpoint — 2026-09-18 09:14
 
-Reason: manual · branch: p30-filters · HEAD: 2dadf08
+Reason: manual · branch: adoption-handover · HEAD: db4b7ea
 
-<!-- ledger-digest: 1bd1679a55198ede57182e678401a9bb9264273fd0280a8b27c37b8b74f95d07 -->
+<!-- ledger-digest: cca6bef1c06a7bcaccbb9890f8dc26740d52d61951729d58360ba5b3840761be -->
 
 ## Proposal 19 · Warm-up
 
