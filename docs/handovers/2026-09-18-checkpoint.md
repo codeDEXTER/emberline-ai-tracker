@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 14:37
+# Checkpoint — 2026-09-18 14:40
 
-Reason: manual · branch: sidecar-v32-and-findings · HEAD: e6a3e6e
+Reason: manual · branch: p30-template-fixes · HEAD: 42c56da
 
-<!-- ledger-digest: 05272da9bd8daff9eca2d43b8351d1447695332c7c261911dc950fb1c059d221 -->
+<!-- ledger-digest: 807209ca59aeafdbc625201e7fde4add0be2619ad84021f364c76a73d0785d17 -->
 
 ## Proposal 19 · Warm-up
 
@@ -85,7 +85,7 @@ Reason: manual · branch: sidecar-v32-and-findings · HEAD: e6a3e6e
 
 ## Proposal 30 · Tracker shows how complete each item is, by lettered parts
 
-13 done / 0 in progress / 0 blocked / 2 not started
+14 done / 0 in progress / 0 blocked / 1 not started
 
 ### In progress
 
@@ -101,13 +101,11 @@ Reason: manual · branch: sidecar-v32-and-findings · HEAD: e6a3e6e
 
 ### Next unblocked
 
-- P-14 · [ruflo · medium · sonnet] · The board template's visual defects, seen on a project that is not common-rules
 - P-15 · [ruflo · high · sonnet] · Findings have nowhere to be seen: 21 recorded, 0 on the page
 
 ### Open work by group
 
 **finish now**
-- P-14 0%
 - P-15 0%
 
 ## Proposal 32 · Semantic versions and a lock for the standard

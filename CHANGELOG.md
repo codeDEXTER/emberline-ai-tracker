@@ -1,3 +1,44 @@
+## 2026-09-18 · the board template's dropdown/heading defects, seen on a project with one proposal (P-14)
+
+The sponsor: "also the dropdowns created by app and engine are not visually
+correct. is it the problem of the template" -- yes: `tools/tracker/board.py`
+and `tools/tracker/history.py` are shared by every project, so a defect in
+either lands on every project's page. common-rules' own page, with thirteen
+proposals, hides these; PhotoVault/engine's, with one, showed all five
+starkly. Fixed on the engine's page (rendered read-only to a scratch
+directory, never written back into that project) and re-checked on
+common-rules' own, at 1400px and 430px, light and dark:
+
+1. The clusters heading's count ran into the word ("TOUCHED0"): the shared
+   `margin-left:6px` rule named `.chip .n`, `.col h2 .n` and
+   `.attention h2 .n` but not `.clusters h2 .n`. Checked every other `<h2>`
+   carrying a count on the page (every status column, "Waiting for an
+   answer", and the clusters heading itself) -- those three were already
+   all the rule needed to cover, now it does.
+2. Two chart lines ending close together (the engine's `total`=72 and
+   `done`=69) printed their end-of-line value labels on top of each other.
+   `history._line_chart` now computes every series' end-label position,
+   then a new `_spread_end_labels` nudges any that would collide at least
+   14px apart (never off either end of the plot), keeping each beside its
+   own line -- a placement fix, no label dropped.
+3. `.charts{max-width:760px}` left roughly half of a 1400px page blank.
+   Replaced with `max-width:min(100%,1040px)` -- a real upper bound, still
+   using most of the page's own width.
+4. The folded "By urgency" summary (`.cgroups`) floated as bare text
+   between cards -- the shared card-surface rule named `.clusters` and
+   `.lanes` but not `.cgroups`. Now all three share it.
+5. The proposal filter nav below the charts is a genuine feature with more
+   than one proposal (it narrows the Board/Kanban/List views, something
+   the Proposals tree above cannot do), but with exactly one it had nothing
+   to filter among and only repeated the tree's own completion line for
+   that lone proposal. It is now omitted when there is only one, kept
+   otherwise -- checked common-rules' own 15-proposal page still shows it.
+
+Extended `tests/test_tracker_board_clusters.py`, `tests/test_tracker_board_completion.py`,
+`tests/test_tracker_board_progress.py` (the old `760px` pin replaced) and
+`tests/test_tracker_history.py` (new `_spread_end_labels` and end-label
+collision coverage).
+
 ## 2026-09-18 · 1.0.0 — the first baseline of the standard
 
 `VERSION` moves 0.9.0 -> 1.0.0 and the commit is tagged `v1.0.0`. A project

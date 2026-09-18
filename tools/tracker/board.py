@@ -858,6 +858,11 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
     if extra_line:
         status_line += " / " + " / ".join(extra_line)
 
+    # P-14: this nav is a filter control -- clicking a proposal narrows the
+    # Board/Kanban/List views to it, something the Proposals tree above does
+    # not do. With one proposal there is nothing to filter among, so it adds
+    # no function and only repeats the tree's own completion line; omitted
+    # in that case rather than kept as a bare duplicate.
     blocks = "".join(
         f'<button class="proposal" type="button" data-proposal="{e(n)}" aria-pressed="false">'
         f'<span class="pn">{e(n)}</span>'
@@ -865,7 +870,7 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         f'<span class="ps">{b(d.get("status"))} · {c["done"]}/{sum(c.values())} done'
         f'{" · " + str(c["blocked"]) + " blocked" if c["blocked"] else ""}</span>'
         f'{mini_bar(c)}</button>'
-        for n, d, c in proposals)
+        for n, d, c in proposals) if len(proposals) > 1 else ""
 
     chips = "".join(
         f'<button class="chip" data-filter="status" data-value="{e(s)}" aria-pressed="false" type="button">'
@@ -961,8 +966,8 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         f'{tiles_block}'
         f'<div id="view-tree">{features}{progress}{completion_groups_block}</div>'
         f'<div id="view-kanban" hidden>{kanban}</div>'
-        f'<nav class="proposals" aria-label="Proposals">{blocks}</nav>'
-        '<h2 id="details">Details</h2>'
+        + (f'<nav class="proposals" aria-label="Proposals">{blocks}</nav>' if blocks else "")
+        + '<h2 id="details">Details</h2>'
         f'{attention}'
         f'{clusters}'
         f'{lanes}'
@@ -1029,7 +1034,7 @@ border-radius:5px;background:var(--raise)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{display:inline-flex;align-items:center;padding:5px 10px;border:1px solid var(--rule);border-radius:5px;
 background:var(--raise);cursor:pointer;font-size:13.5px}
-.chip .n,.col h2 .n,.attention h2 .n{font:500 12px var(--mono);color:var(--dim);margin-left:6px;font-variant-numeric:tabular-nums}
+.chip .n,.col h2 .n,.attention h2 .n,.clusters h2 .n{font:500 12px var(--mono);color:var(--dim);margin-left:6px;font-variant-numeric:tabular-nums}
 .chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
 .sel{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
 .sel select{text-transform:none;letter-spacing:0;font-size:13.5px;color:var(--ink);padding:5px 8px;
@@ -1041,7 +1046,7 @@ border:1px solid var(--rule);border-radius:5px;background:var(--raise)}
 .clear{border:0;background:none;color:var(--accent);cursor:pointer;font-size:13.5px;padding:5px 4px}
 .shown{margin:0 0 0 auto;font:12px var(--mono);color:var(--dim);font-variant-numeric:tabular-nums}
 .attention{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
-.clusters,.lanes{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
+.clusters,.lanes,.cgroups{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
 .cluster-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:10px}
 .cluster{background:var(--raise);border:1px solid var(--rule);border-radius:6px;padding:10px 12px}
 .cluster h3{font:600 13.5px var(--sans);margin:0}
@@ -1186,7 +1191,7 @@ padding:3px 9px;font:500 11.5px var(--sans);cursor:pointer}
 /* -- proposal 30, P-08: progress charts and the feature drill-down -- */
 .progress{margin-top:16px}
 .progress h3{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:0 0 8px}
-.charts{display:flex;flex-direction:column;gap:16px;max-width:760px}
+.charts{display:flex;flex-direction:column;gap:16px;max-width:min(100%,1040px)}
 .charts svg{display:block;width:100%;height:auto;color:var(--dim)}
 .features{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:14px 16px}
 .features h2{margin:0 0 6px}

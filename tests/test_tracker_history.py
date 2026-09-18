@@ -18,6 +18,7 @@ from __future__ import annotations
 import datetime
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -335,6 +336,114 @@ class TestHistorySvgContent(unittest.TestCase):
         non_xmlns_urls = [line for line in self.out.splitlines()
                           if ("http://" in line or "https://" in line) and "xmlns=" not in line]
         self.assertEqual(non_xmlns_urls, [])
+
+
+def _end_label_positions(out: str) -> dict:
+    """{series label: y} for every `data-endlabel` <text> in one chart's
+    markup, parsed straight from the attributes -- no regex on the visible
+    number, since P-08's own tests already pin that separately."""
+    positions = {}
+    for m in re.finditer(r'<text x="[\d.]+" y="([\d.]+)"[^>]*data-endlabel="([^"]+)">', out):
+        y, label = m.groups()
+        positions[label] = float(y)
+    return positions
+
+
+class TestEndOfLineLabelsDoNotCollide(unittest.TestCase):
+    """P-14: on PhotoVault/engine's own page the `total` and `done` lines
+    ended at 72 and 69 -- close enough, out of a 0-72 range, that their
+    end-of-line value labels printed on top of each other and both became
+    unreadable. The fix is placement (nudge apart, keep each beside its own
+    line), never dropping a label -- pinned here on the labels' own computed
+    y positions, not on rendered pixels."""
+
+    def test_close_final_values_are_pushed_apart(self):
+        dates = ["2026-09-01", "2026-09-02", "2026-09-03"]
+        series_list = [
+            ("total", [0.0, 50.0, 72.0], "blue"),
+            ("done", [0.0, 40.0, 69.0], "green"),
+        ]
+        out = history._line_chart(640, 210, series_list, dates, "Tickets", history._fmt_count)
+        positions = _end_label_positions(out)
+        self.assertEqual(set(positions), {"total", "done"})
+        self.assertGreaterEqual(abs(positions["total"] - positions["done"]), 14.0)
+
+    def test_neither_label_is_dropped_and_each_keeps_its_own_value(self):
+        dates = ["2026-09-01", "2026-09-02", "2026-09-03"]
+        series_list = [
+            ("total", [0.0, 50.0, 72.0], "blue"),
+            ("done", [0.0, 40.0, 69.0], "green"),
+        ]
+        out = history._line_chart(640, 210, series_list, dates, "Tickets", history._fmt_count)
+        self.assertIn('data-endlabel="total">72<', out)
+        self.assertIn('data-endlabel="done">69<', out)
+
+    def test_far_apart_final_values_are_left_where_they_land(self):
+        dates = ["2026-09-01", "2026-09-02", "2026-09-03"]
+        series_list = [
+            ("total", [0.0, 50.0, 100.0], "blue"),
+            ("done", [0.0, 5.0, 5.0], "green"),
+        ]
+        out = history._line_chart(640, 210, series_list, dates, "Tickets", history._fmt_count)
+        positions = _end_label_positions(out)
+        # top=40, plot_h=150, range 0-100 -- "total" ends at the very top of
+        # the plot (point y=40) and "done" close to the bottom (point
+        # y=182.5), each label offset +3 below its own point: nothing to
+        # spread apart, so each sits exactly beside its own line.
+        self.assertAlmostEqual(positions["total"], 43.0, places=1)
+        self.assertAlmostEqual(positions["done"], 185.5, places=1)
+
+    def test_three_series_ending_close_together_are_all_spread_out(self):
+        dates = ["2026-09-01", "2026-09-02"]
+        series_list = [
+            ("a", [0.0, 50.0], "red"),
+            ("b", [0.0, 51.0], "green"),
+            ("c", [0.0, 52.0], "blue"),
+        ]
+        out = history._line_chart(640, 210, series_list, dates, "X", history._fmt_count)
+        positions = _end_label_positions(out)
+        self.assertEqual(set(positions), {"a", "b", "c"})
+        ys = sorted(positions.values())
+        self.assertGreaterEqual(ys[1] - ys[0], 14.0)
+        self.assertGreaterEqual(ys[2] - ys[1], 14.0)
+        # still inside the plot area (top=40, bottom edge = 40+150=190),
+        # each label's own +3 y-offset from its point included
+        for y in ys:
+            self.assertGreaterEqual(y, 40.0)
+            self.assertLessEqual(y, 193.0)
+
+
+class TestSpreadEndLabelsHelper(unittest.TestCase):
+    """Unit-level coverage of `_spread_end_labels` itself, isolated from
+    SVG rendering -- the placement rule P-14 actually asked for."""
+
+    def test_a_single_label_is_returned_unchanged(self):
+        labels = [["a", 500.0, 50.0, "red", "5"]]
+        self.assertEqual(history._spread_end_labels(labels, 0.0, 100.0), labels)
+
+    def test_labels_already_far_apart_are_untouched(self):
+        labels = [["a", 500.0, 20.0, "red", "1"], ["b", 500.0, 90.0, "blue", "2"]]
+        out = history._spread_end_labels([list(e) for e in labels], 0.0, 100.0)
+        self.assertEqual(sorted(e[2] for e in out), [20.0, 90.0])
+
+    def test_colliding_labels_end_at_least_min_gap_apart(self):
+        labels = [["a", 500.0, 50.0, "red", "1"], ["b", 500.0, 52.0, "blue", "2"]]
+        out = history._spread_end_labels([list(e) for e in labels], 0.0, 100.0, min_gap=14.0)
+        ys = sorted(e[2] for e in out)
+        self.assertGreaterEqual(ys[1] - ys[0], 14.0)
+
+    def test_pushed_stack_stays_inside_the_plot_bounds(self):
+        labels = [["a", 1.0, 92.0, "x", "1"], ["b", 1.0, 94.0, "y", "2"], ["c", 1.0, 96.0, "z", "3"]]
+        out = history._spread_end_labels([list(e) for e in labels], 0.0, 100.0, min_gap=14.0)
+        for e in out:
+            self.assertGreaterEqual(e[2], 0.0)
+            self.assertLessEqual(e[2], 100.0)
+
+    def test_x_is_never_touched_only_y(self):
+        labels = [["a", 12.0, 50.0, "x", "1"], ["b", 34.0, 51.0, "y", "2"]]
+        out = history._spread_end_labels([list(e) for e in labels], 0.0, 100.0)
+        xs = {e[0]: e[1] for e in out}
+        self.assertEqual(xs, {"a": 12.0, "b": 34.0})
 
 
 if __name__ == "__main__":
