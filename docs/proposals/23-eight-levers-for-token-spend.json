@@ -2,7 +2,7 @@
   "proposal": 23,
   "title": "Eight levers for token spend",
   "status": "accepted",
-  "updated": "2026-09-17",
+  "updated": "2026-09-18",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -72,7 +72,7 @@
       "owner": "lead",
       "tier": "lead",
       "model": "opus",
-      "tag": "[ruflo · lead · opus]",
+      "tag": "[ruflo \u00b7 lead \u00b7 opus]",
       "issue": null,
       "log": [
         {
@@ -97,7 +97,7 @@
           "at": "2026-09-15T09:08:07+02:00",
           "event": "done",
           "by": "lead",
-          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK \u00b7 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         },
         {
           "at": "2026-09-16T07:47:00+02:00",
@@ -164,11 +164,11 @@
       "depends": [
         "X-01"
       ],
-      "status": "in testing",
+      "status": "done",
       "owner": "lead",
       "tier": "lead",
       "model": "opus",
-      "tag": "[ruflo · lead · opus]",
+      "tag": "[ruflo \u00b7 lead \u00b7 opus]",
       "issue": null,
       "log": [
         {
@@ -193,7 +193,7 @@
           "at": "2026-09-15T09:08:07+02:00",
           "event": "done",
           "by": "lead",
-          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK \u00b7 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         },
         {
           "at": "2026-09-16T07:47:00+02:00",
@@ -224,6 +224,13 @@
           "event": "split into lettered parts (proposal 30, P-05)",
           "by": "lead",
           "evidence": "docs/research/p30-migrate-parts.py"
+        },
+        {
+          "at": "2026-09-18T09:41:36+02:00",
+          "event": "all parts done",
+          "by": "session:common-rules lead",
+          "evidence": "",
+          "status": "done"
         }
       ],
       "points": 2,
@@ -239,15 +246,33 @@
           "id": "L-02.B",
           "title": "review/fix agents under 10% of subagent spend",
           "share": 30,
-          "status": "in testing",
-          "waiting_until": "2026-09-23"
+          "status": "done",
+          "waiting_until": "2026-09-23",
+          "log": [
+            {
+              "at": "2026-09-18T09:41:36+02:00",
+              "event": "Re-measured 2026-09-18 rather than waiting for the 23rd: review/fix agents are 2.6% of subagent tokens (5 of 43 transcripts), against the 10% exit condition and 19.2% at the 16 Sep interim. Passes.",
+              "by": "session:common-rules lead",
+              "evidence": "",
+              "status": "done"
+            }
+          ]
         },
         {
           "id": "L-02.C",
           "title": "no rise in defects after merge",
           "share": 10,
-          "status": "in testing",
-          "waiting_until": "2026-09-23"
+          "status": "done",
+          "waiting_until": "2026-09-23",
+          "log": [
+            {
+              "at": "2026-09-18T09:41:36+02:00",
+              "event": "No rise in defects after merge: the two red mains on 17 Sep were a stale test expectation and an unstamped workflow page, both caught by the full run on main and neither traceable to a skipped review. Reviews did run on every risky branch this session -- I sent four branches back (O-08's exit-code gate, O-09's exception handling, P-08's charts, P-11's counts), each found by review, not by a gate.",
+              "by": "session:common-rules lead",
+              "evidence": "",
+              "status": "done"
+            }
+          ]
         }
       ]
     },
@@ -269,7 +294,7 @@
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -294,7 +319,7 @@
           "at": "2026-09-15T09:08:07+02:00",
           "event": "done",
           "by": "lead",
-          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK \u00b7 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         }
       ],
       "points": 3,
@@ -321,7 +346,7 @@
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -346,7 +371,7 @@
           "at": "2026-09-15T09:08:07+02:00",
           "event": "done",
           "by": "lead",
-          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK \u00b7 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         }
       ],
       "points": 5,
@@ -374,7 +399,7 @@
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -399,7 +424,7 @@
           "at": "2026-09-15T09:08:07+02:00",
           "event": "done",
           "by": "lead",
-          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK \u00b7 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         }
       ],
       "points": 2,
@@ -425,7 +450,7 @@
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -450,7 +475,7 @@
           "at": "2026-09-15T09:08:07+02:00",
           "event": "done",
           "by": "lead",
-          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK \u00b7 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         },
         {
           "at": "2026-09-16T09:30:45+02:00",
@@ -488,7 +513,7 @@
       "owner": "lead",
       "tier": "lead",
       "model": "opus",
-      "tag": "[ruflo · lead · opus]",
+      "tag": "[ruflo \u00b7 lead \u00b7 opus]",
       "issue": null,
       "log": [
         {
@@ -529,14 +554,14 @@
       "owner": "lead",
       "tier": "lead",
       "model": "opus",
-      "tag": "[ruflo · lead · opus]",
+      "tag": "[ruflo \u00b7 lead \u00b7 opus]",
       "issue": null,
       "log": [
         {
           "at": "2026-09-15T00:30:00+02:00",
           "event": "done",
           "by": "lead",
-          "evidence": "Covered by proposal 25 D6 (catalogue clustered by files touched) → Z-06."
+          "evidence": "Covered by proposal 25 D6 (catalogue clustered by files touched) \u2192 Z-06."
         },
         {
           "at": "2026-09-16T07:47:00+02:00",
@@ -562,7 +587,7 @@
       "owner": "lead",
       "tier": "lead",
       "model": "opus",
-      "tag": "[ruflo · lead · opus]",
+      "tag": "[ruflo \u00b7 lead \u00b7 opus]",
       "issue": null,
       "log": [
         {
@@ -596,11 +621,11 @@
       ],
       "done": "Brief template MUST lines added with a Standard change line; a rerun of the mining script shows each cluster down by half.",
       "depends": [],
-      "status": "in testing",
+      "status": "in progress",
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -625,7 +650,7 @@
           "at": "2026-09-15T09:08:07+02:00",
           "event": "done",
           "by": "lead",
-          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK · 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
+          "evidence": "Merged to main in PR 173 as f13cec9 (from gh). Full suite via bin/quiet: quiet: OK \u00b7 1116 tests. CI: only the pre-existing Linux failure test_a_long_branch_says_how_many_it_did_not_print, same as main. Review: fix-first, both findings fixed (workflow.png 456ca13; statuses here)."
         },
         {
           "at": "2026-09-16T09:30:45+02:00",
@@ -677,8 +702,15 @@
           "id": "L-07.B",
           "title": "mining rerun shows each cluster halved",
           "share": 20,
-          "status": "in testing",
-          "waiting_until": "2026-09-23"
+          "status": "in progress",
+          "log": [
+            {
+              "at": "2026-09-18T09:41:50+02:00",
+              "event": "Re-measured 2026-09-18 instead of waiting for the 23rd. FAILS, and has regressed: cat/sed -n reads are 9.54 per 100 tool calls against the 12.80 baseline and the 6.40 needed to call it halved -- the 16 Sep interim read 7.74, so it went backwards. flutter test: 2.406 -> 0.022, but the sample is one raw call, so NOT MEASURABLE rather than a pass. handoff appends are 2 raw calls before and 1 after: too thin to mean anything either way. I am part of this number: I ran sed -n and cat dozens of times today reading files I could have opened with the Read tool.",
+              "by": "session:common-rules lead",
+              "evidence": ""
+            }
+          ]
         }
       ]
     },
@@ -695,7 +727,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -722,7 +754,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -749,7 +781,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -806,7 +838,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -833,7 +865,7 @@
       "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -851,17 +883,17 @@
       "id": "M-06",
       "phase": "M",
       "cx": "C1",
-      "title": "Say where lead-prompt §4 stands on hand-editing ledgers",
-      "what": "templates/lead-prompt.md §4 tells the lead to update item status and commit the ledger, naming no tool -- it neither forbids nor requires tracker set/ask, unlike templates/brief.md's builder rule. Add one line: the lead uses tracker set/tracker ask too, never hand-edits the JSON.",
+      "title": "Say where lead-prompt \u00a74 stands on hand-editing ledgers",
+      "what": "templates/lead-prompt.md \u00a74 tells the lead to update item status and commit the ledger, naming no tool -- it neither forbids nor requires tracker set/ask, unlike templates/brief.md's builder rule. Add one line: the lead uses tracker set/tracker ask too, never hand-edits the JSON.",
       "files": [],
       "tests": [],
-      "done": "lead-prompt.md §4 states the rule; templates test pins the line; no behaviour change to what already works, wording only.",
+      "done": "lead-prompt.md \u00a74 states the rule; templates test pins the line; no behaviour change to what already works, wording only.",
       "depends": [],
       "status": "done",
       "owner": "lead",
       "tier": "low",
       "model": "haiku",
-      "tag": "[ruflo · low · haiku]",
+      "tag": "[ruflo \u00b7 low \u00b7 haiku]",
       "issue": null,
       "log": [
         {
@@ -888,7 +920,7 @@
       "owner": "lead",
       "tier": "low",
       "model": "haiku",
-      "tag": "[ruflo · low · haiku]",
+      "tag": "[ruflo \u00b7 low \u00b7 haiku]",
       "issue": null,
       "log": [
         {
@@ -906,16 +938,16 @@
       "phase": "M",
       "cx": "C2",
       "title": "Six-category review list in CLAUDE-workflow.md gets replaced, not duplicated, when P26 routing lands",
-      "what": "When proposal 26's Z-02/Z-04 risk routing (value/points/risk/cluster) is wired into the prose rules (not yet done -- Z-02/Z-04 are code only so far, proposal 25), the six-category review list in CLAUDE-workflow.md and lead-prompt §3 is replaced by a pointer to tracker route, not left standing beside it. Do not start before proposal 25's Z-02 and proposal 26's C-02 are adopted, i.e. built and merged, not only recorded.",
+      "what": "When proposal 26's Z-02/Z-04 risk routing (value/points/risk/cluster) is wired into the prose rules (not yet done -- Z-02/Z-04 are code only so far, proposal 25), the six-category review list in CLAUDE-workflow.md and lead-prompt \u00a73 is replaced by a pointer to tracker route, not left standing beside it. Do not start before proposal 25's Z-02 and proposal 26's C-02 are adopted, i.e. built and merged, not only recorded.",
       "files": [],
       "tests": [],
-      "done": "CLAUDE-workflow.md and lead-prompt §3 name tracker route as the one place review routing is decided; the six-category list is gone, not duplicated.",
+      "done": "CLAUDE-workflow.md and lead-prompt \u00a73 name tracker route as the one place review routing is decided; the six-category list is gone, not duplicated.",
       "depends": [],
       "status": "done",
       "owner": "session:bundle-k",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -926,7 +958,7 @@
         },
         {
           "at": "2026-09-15T20:43:00+02:00",
-          "event": "done: CLAUDE-workflow.md and templates/lead-prompt.md §3 now name tracker route as the one place review routing is decided; the six-category list is gone, replaced not duplicated. Updated tests/test_levers_in_templates.py's L-02 check and added tests/test_review_routing_pointer.py. Full suite: quiet: OK · 1457 tests · 917.0s.",
+          "event": "done: CLAUDE-workflow.md and templates/lead-prompt.md \u00a73 now name tracker route as the one place review routing is decided; the six-category list is gone, replaced not duplicated. Updated tests/test_levers_in_templates.py's L-02 check and added tests/test_review_routing_pointer.py. Full suite: quiet: OK \u00b7 1457 tests \u00b7 917.0s.",
           "by": "session:bundle-k",
           "evidence": "commit 09a6cbc on branch bundle-k-m08-c03-r04"
         }
@@ -948,7 +980,7 @@
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -975,7 +1007,7 @@
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -1005,7 +1037,7 @@
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -1025,7 +1057,7 @@
       "kind": "decision",
       "at": "2026-09-14T23:53:32+02:00",
       "by": "sponsor",
-      "quote": "L1: picked \"A · Fresh lead per milestone or day\". Note: \"how we will ensure nothing important is missed. make a separate proposal. also the work needs to continue autonomsly.\"",
+      "quote": "L1: picked \"A \u00b7 Fresh lead per milestone or day\". Note: \"how we will ensure nothing important is missed. make a separate proposal. also the work needs to continue autonomsly.\"",
       "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
       "state": "became-item",
       "became": "L-01"
@@ -1035,7 +1067,7 @@
       "kind": "decision",
       "at": "2026-09-14T23:52:57+02:00",
       "by": "sponsor",
-      "quote": "L2: picked \"A · Review only risky work\". Note: \"but the issues need to be catalauges and clustered together for later\"",
+      "quote": "L2: picked \"A \u00b7 Review only risky work\". Note: \"but the issues need to be catalauges and clustered together for later\"",
       "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
       "state": "became-item",
       "became": "L-02"
@@ -1045,7 +1077,7 @@
       "kind": "decision",
       "at": "2026-09-14T23:53:47+02:00",
       "by": "sponsor",
-      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L3: picked \"A · Log to file, read the summary line\".",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L3: picked \"A \u00b7 Log to file, read the summary line\".",
       "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
       "state": "became-item",
       "became": "L-03",
@@ -1056,7 +1088,7 @@
       "kind": "decision",
       "at": "2026-09-14T23:54:54+02:00",
       "by": "sponsor",
-      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L4: picked \"A · One-line tracker commands\".",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L4: picked \"A \u00b7 One-line tracker commands\".",
       "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
       "state": "became-item",
       "became": "L-04",
@@ -1067,7 +1099,7 @@
       "kind": "decision",
       "at": "2026-09-14T23:56:38+02:00",
       "by": "sponsor",
-      "quote": "L5: picked \"A · Bundle by surface\". Note: \"issues need to be catalauges and clustered together for later\"",
+      "quote": "L5: picked \"A \u00b7 Bundle by surface\". Note: \"issues need to be catalauges and clustered together for later\"",
       "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
       "state": "became-item",
       "became": "L-05"
@@ -1077,7 +1109,7 @@
       "kind": "decision",
       "at": "2026-09-14T23:56:14+02:00",
       "by": "sponsor",
-      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L6: picked \"B · Haiku scout writes the pack\".",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L6: picked \"B \u00b7 Haiku scout writes the pack\".",
       "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
       "state": "became-item",
       "became": "L-06",
@@ -1088,7 +1120,7 @@
       "kind": "decision",
       "at": "2026-09-14T23:58:03+02:00",
       "by": "sponsor",
-      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L7: picked \"K · Keep as is (the lead reads receipt images itself)\".",
+      "quote": "Asked: \"Pick one option for this decision on the decision page\" Answered: L7: picked \"K \u00b7 Keep as is (the lead reads receipt images itself)\".",
       "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
       "state": "answered",
       "note": "The sponsor tapped an option and wrote no note; the quote records the question and the stored answer, as ledger 21 A-07 does."
@@ -1098,7 +1130,7 @@
       "kind": "decision",
       "at": "2026-09-15T00:00:19+02:00",
       "by": "sponsor",
-      "quote": "L8: picked \"K · Keep as is (models unchanged)\". Note: \"this needs to be rethaught. its not only the complexity of the task, but the importance and value of the feature. each feature or task should have a userstory point to understand complexitxy and effort. research how this could be implemented\"",
+      "quote": "L8: picked \"K \u00b7 Keep as is (models unchanged)\". Note: \"this needs to be rethaught. its not only the complexity of the task, but the importance and value of the feature. each feature or task should have a userstory point to understand complexitxy and effort. research how this could be implemented\"",
       "source": "Eight Levers page https://claude.ai/artifact/CpmkoNNn3pZPe2vtoBdHip, database collection picks",
       "state": "became-item",
       "became": "X-01"
@@ -1131,7 +1163,7 @@
       "at": "2026-09-15T00:08:20+02:00",
       "by": "sponsor",
       "quote": "Also, can you do an independent research on this analysis to analysis? If there are some repeating task can be create some python scripts, one time to automate them?",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl, queued message at 2026-09-14T22:08:20.717Z",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl, queued message at 2026-09-14T22:08:20.717Z",
       "note": "Mining results fed L-03, L-04 and new L-07. The re-check confirmed claims 1, 2 and proposal 79's double count (4,818 streamed records for 1,322 messages); claims 3 and 4 depend on the classifier and grouping used."
     },
     {
@@ -1141,7 +1173,7 @@
       "at": "2026-09-15T00:06:07+02:00",
       "by": "sponsor",
       "quote": "Make the artefacts, so I can use them on mobile",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl, queued message at 2026-09-14T22:06:07.791Z",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl, queued message at 2026-09-14T22:06:07.791Z",
       "note": "Answered with the Autonomy & Sizing Decisions page https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow and published proposal pages."
     },
     {
@@ -1151,7 +1183,7 @@
       "at": "2026-09-15T00:13:25+02:00",
       "by": "sponsor",
       "quote": "Documented open decisions",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl, queued message at 2026-09-14T22:13:25.273Z",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl, queued message at 2026-09-14T22:13:25.273Z",
       "note": "He had answered all ten questions on the Autonomy & Sizing Decisions page; recorded in proposals 24 and 25."
     },
     {
@@ -1254,7 +1286,7 @@
       "became": null,
       "state": "answered",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl",
       "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); measured the seven in-testing items (PR #197)"
     },
     {
@@ -1266,7 +1298,7 @@
       "became": null,
       "state": "answered",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl",
       "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); M-03 closed on measurement, L-07 decision (PR #199)"
     },
     {
@@ -1278,7 +1310,7 @@
       "became": null,
       "state": "answered",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl",
       "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); L-06 experiment, 21/F-01 and 26/F-01 fixed (#200-#203)"
     },
     {
@@ -1290,7 +1322,7 @@
       "became": null,
       "state": "answered",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl",
       "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); bin/worktree-sweep + rule (#212, #213), 55 worktrees down to main; interim readings and scheduled finals (#214)"
     },
     {
@@ -1302,7 +1334,7 @@
       "became": null,
       "state": "answered",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl",
       "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); implementing 25% of list-price dollars, lead orchestration 72%"
     },
     {
@@ -1314,7 +1346,7 @@
       "became": null,
       "state": "answered",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl",
       "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); ruflo-item cannot find the npx-cached CLI, namespace only by env var, conformance item 9 a proxy"
     },
     {
@@ -1326,8 +1358,8 @@
       "became": null,
       "state": "answered",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl",
-      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); in flight: RF-01 · RF-01 merged (PR #219): ruflo-item finds the npx-cached CLI, namespace declared in .common-rules.json (patterns), conformance item 9 checks item start/done records; verified recall from a worktree with no env vars",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl",
+      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap); in flight: RF-01 \u00b7 RF-01 merged (PR #219): ruflo-item finds the npx-cached CLI, namespace declared in .common-rules.json (patterns), conformance item 9 checks item start/done records; verified recall from a worktree with no env vars",
       "answered_at": "2026-09-17T11:04:50+02:00",
       "answered_by": "lead"
     },
@@ -1340,8 +1372,8 @@
       "became": null,
       "state": "answered",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl",
-      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap) · backfilled 13 ask rows (#218); tracker ask --close added (#220); nothing else actionable: W-10/L-07/L-02 finals scheduled 21 and 23 Sep, S-07/S-08 belong to PhotoVault's sessions, L-01/H-02 pass only through fresh leads",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl",
+      "note": "backfilled 2026-09-17 by the lead: not recorded in the turn it was sent (W-10 interim reading found the gap) \u00b7 backfilled 13 ask rows (#218); tracker ask --close added (#220); nothing else actionable: W-10/L-07/L-02 finals scheduled 21 and 23 Sep, S-07/S-08 belong to PhotoVault's sessions, L-01/H-02 pass only through fresh leads",
       "answered_at": "2026-09-17T11:04:50+02:00",
       "answered_by": "lead"
     }

@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 09:34
+# Checkpoint — 2026-09-18 09:42
 
-Reason: manual · branch: fix-progress-bars · HEAD: 6df17fc
+Reason: manual · branch: l02-l07-measured · HEAD: 9263c5d
 
-<!-- ledger-digest: 58210d1a015bdf85b8e5b6fe271fbc34c959214811ca142a7de27b65c05c6eb5 -->
+<!-- ledger-digest: a74fca6f10df353f33ed8d60febb3517029c4c43574142f208a748ca3ccae5b1 -->
 
 ## Proposal 19 · Warm-up
 
@@ -58,11 +58,11 @@ Reason: manual · branch: fix-progress-bars · HEAD: 6df17fc
 
 ## Proposal 23 · Eight levers for token spend
 
-19 done / 0 in progress / 0 blocked / 0 not started / 2 in testing
+20 done / 1 in progress / 0 blocked / 0 not started
 
 ### In progress
 
-- none
+- L-07 · [ruflo · medium · sonnet] · Use the existing tool, not an inline copy · split into lettered parts (proposal 30, P-05)
 
 ### Blocked, and why
 
@@ -78,9 +78,8 @@ Reason: manual · branch: fix-progress-bars · HEAD: 6df17fc
 
 ### Open work by group
 
-**waiting**
-- L-02 60% · next L-02.B (waiting 2026-09-23)
-- L-07 80% · next L-07.B (waiting 2026-09-23)
+**back burner**
+- L-07 80% · next L-07.B
 
 ## Proposal 30 · Tracker shows how complete each item is, by lettered parts
 
