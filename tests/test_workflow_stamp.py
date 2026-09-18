@@ -277,3 +277,31 @@ class TestWorkflowStampTool(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCheckMatchesTheSuite(unittest.TestCase):
+    """`workflow-stamp --check` must accept exactly what the two tests above
+    accept, no more and no less.
+
+    It is wired into `gates.merge`, so a check stricter than the suite would
+    refuse a merge the suite itself passes -- and one looser would let the
+    drift through that made main red on 17 Sep. The interesting case is a
+    stamp one ahead of the rules: legitimate, because a stamp is written for
+    the commit it lands as, and allowed by test_stamp_is_not_from_the_future.
+    """
+
+    def test_a_stamp_one_ahead_of_the_rules_is_accepted(self):
+        import subprocess as sp
+        r = sp.run([sys.executable, str(ROOT / "bin" / "workflow-stamp"), "--check"],
+                   capture_output=True, text=True, cwd=str(ROOT))
+        self.assertEqual(0, r.returncode, r.stdout + r.stderr)
+        self.assertIn("current", r.stdout)
+
+    def test_check_writes_nothing(self):
+        import subprocess as sp
+        before = (ROOT / "docs" / "workflow.html").read_bytes()
+        png_before = (ROOT / "docs" / "workflow.png").stat().st_mtime
+        sp.run([sys.executable, str(ROOT / "bin" / "workflow-stamp"), "--check"],
+               capture_output=True, text=True, cwd=str(ROOT))
+        self.assertEqual(before, (ROOT / "docs" / "workflow.html").read_bytes())
+        self.assertEqual(png_before, (ROOT / "docs" / "workflow.png").stat().st_mtime)

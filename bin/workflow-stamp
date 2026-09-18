@@ -166,12 +166,27 @@ def report_check() -> int:
     except ValueError as exc:
         print(f"workflow-stamp: {exc}", file=sys.stderr)
         return 1
-    if stamped != required:
+    # The two tests this mirrors allow a range, not one number: the stamp
+    # must not be BEHIND the rules (test_page_is_not_older_than_the_rules)
+    # and must not be more than one AHEAD of HEAD
+    # (test_stamp_is_not_from_the_future -- one ahead is legitimate, since a
+    # stamp is written for the commit it lands as, which does not exist yet
+    # when it is typed). Demanding exact equality here would block a merge
+    # the suite itself accepts, so this check permits exactly what they do.
+    if stamped < required:
         print(f"workflow-stamp: stamp is stale -- page says {stamped}, "
               f"rules are at {required}")
         ok = False
-    else:
+    elif stamped > head_version() + 1:
+        print(f"workflow-stamp: stamp says {stamped}, more than one ahead of "
+              f"HEAD ({head_version()}) -- a typo or a guess, not a stamp")
+        ok = False
+    elif stamped == required:
         print(f"workflow-stamp: stamp is current at {stamped}")
+    else:
+        print(f"workflow-stamp: stamp is current at {stamped} "
+              f"(one ahead of the rules at {required}, written for the commit "
+              f"it lands as)")
     if not PNG.exists():
         print("workflow-stamp: docs/workflow.png is missing")
         ok = False
