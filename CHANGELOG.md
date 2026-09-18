@@ -5949,3 +5949,15 @@ tracker was checked in the browser.
 This is not a Standard change: adopting projects do not gain a new required
 workflow step; the distinction prevents Claude Code and Codex from reading the
 same standard as two different rule sets.
+## 2026-09-18 · 1.0.3 — responsive expanded tracker rows
+
+Patch release for the shared tracker renderer.
+
+- Keep tracker item IDs on one line so short identifiers do not break into
+  vertical fragments.
+- Allow long titles and `next:` guidance to wrap within their row instead of
+  clipping at the right edge.
+- Use a responsive flex fallback below 900px so expanded trees remain legible
+  in narrow Claude Code and Codex browser panes.
+- Regenerated and visually verified the PhotoVault app tracker with P70
+  expanded.
