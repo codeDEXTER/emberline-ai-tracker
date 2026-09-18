@@ -1,8 +1,8 @@
 # Checkpoint — 2026-09-18 08:28
 
-Reason: manual · branch: p31-decisions · HEAD: 2f333cd
+Reason: manual · branch: p31-item-12 · HEAD: c822723
 
-<!-- ledger-digest: cb4f0b4b8cf9cb45b60ca1ae7addd71674a1421a5eae4a70a7cdfaf74eef0a18 -->
+<!-- ledger-digest: ec1c8ded95b043f20eded9c0b5706021fe79cc6315da181abfee5f1f38e7342a -->
 
 ## Proposal 19 · Warm-up
 
@@ -84,7 +84,7 @@ Reason: manual · branch: p31-decisions · HEAD: 2f333cd
 
 ## Proposal 31 · Cheaper turns: a fast gate and scripts instead of bookkeeping
 
-10 done / 0 in progress / 0 blocked / 1 not started
+10 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
@@ -101,11 +101,13 @@ Reason: manual · branch: p31-decisions · HEAD: 2f333cd
 ### Next unblocked
 
 - O-11 · [ruflo · high · sonnet] · ruflo-item records several items in one invocation
+- O-12 · [ruflo · medium · sonnet] · workflow.html's stamp is generated, not hand-typed
 
 ### Open work by group
 
 **finish now**
 - O-11 0%
+- O-12 0%
 
 ## Exact next action
 
