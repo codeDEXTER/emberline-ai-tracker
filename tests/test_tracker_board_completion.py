@@ -128,6 +128,60 @@ class CompletionOverviewCase(unittest.TestCase):
         ])
         self.assertIn(">23 Sep<", text)
 
+    # -- proposal 30, P-13: "pull forward" -----------------------------------
+
+    def test_a_waiting_part_renders_the_pull_forward_affordance(self):
+        text = self.render([
+            item("D-02", parts=[part("D-02.A", "a", 100, "not started", waiting_until="2026-09-23")]),
+        ])
+        self.assertIn('<div class="pull-forward"', text)
+        self.assertIn('Copy the command that pulls this forward', text)
+
+    def test_a_non_waiting_part_does_not_render_the_affordance(self):
+        text = self.render([
+            item("N-01", parts=[part("N-01.A", "a", 60, "done"),
+                                 part("N-01.B", "b", 40, "in progress")]),
+        ])
+        # The JS's own delegated-listener selectors always mention
+        # "data-pull-forward" (they must, to find any affordance the page
+        # does render elsewhere); what must not appear for a non-waiting
+        # part is the affordance markup itself.
+        self.assertNotIn('<div class="pull-forward"', text)
+        self.assertNotIn('Copy the command that pulls this forward', text)
+
+    def test_the_copied_command_names_the_ledger_item_and_part(self):
+        text = self.render([
+            item("D-02", parts=[part("D-02.A", "a", 100, "not started", waiting_until="2026-09-23")]),
+        ])
+        self.assertIn('data-cmd="bin/tracker set docs/proposals/30-*.json D-02.A --waiting-until none', text)
+
+    def test_the_copied_command_for_a_session_owned_wait_reclaims_the_owner(self):
+        text = self.render([
+            item("D-03", parts=[part("D-03.A", "a", 100, "not started", owner="session:PhotoVault Engine")]),
+        ])
+        self.assertIn('data-cmd="bin/tracker set docs/proposals/30-*.json D-03.A --owner lead', text)
+
+    def test_the_label_and_confirmation_never_claim_something_ran(self):
+        text = self.render([
+            item("D-02", parts=[part("D-02.A", "a", 100, "not started", waiting_until="2026-09-23")]),
+        ])
+        self.assertIn('Copy the command that pulls this forward', text)
+        self.assertNotIn('>Run now<', text)
+        self.assertIn('nothing has run yet', text)
+        self.assertIn('Paste this into a session for this project', text)
+
+    def test_the_waiting_reason_is_present_as_text_date(self):
+        text = self.render([
+            item("D-02", parts=[part("D-02.A", "a", 100, "not started", waiting_until="2026-09-23")]),
+        ])
+        self.assertIn('waiting until 2026-09-23', text)
+
+    def test_the_waiting_reason_is_present_as_text_session(self):
+        text = self.render([
+            item("D-03", parts=[part("D-03.A", "a", 100, "not started", owner="session:PhotoVault Engine")]),
+        ])
+        self.assertIn('waiting for session:PhotoVault Engine', text)
+
     def test_an_item_without_parts_renders_as_one_implicit_part(self):
         text = self.render([item("I-01", status="in progress", title="no parts yet")])
         self.assertIn('<span class="pid">I-01</span>', text)

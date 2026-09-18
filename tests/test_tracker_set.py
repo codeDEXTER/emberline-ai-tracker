@@ -280,6 +280,62 @@ class TestSetOnAPart(TrackerSetPartsCase):
         self.assertIn("completion 60%", r.stdout)
 
 
+class TestWaitingUntilOnAPart(TrackerSetPartsCase):
+    """Proposal 30, P-13: `--waiting-until` on an *existing* part -- editing
+    (not `--add-part`) previously ignored the flag entirely, so a lead had
+    to reach for `--field waiting_until=...`, which could set a date but
+    never remove one. The tracker page's "pull forward" button needs a
+    command that actually clears a wait, so `none`/`now` now do that."""
+
+    def test_waiting_until_sets_a_date_on_an_existing_part(self):
+        self.write(with_parts([part("A", 60), part("B", 40)]))
+        r = self.run_set("W-10.A", "--waiting-until", "2026-09-23")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertEqual("2026-09-23", self.item("W-10")["parts"][0]["waiting_until"])
+
+    def test_waiting_until_none_removes_the_date_rather_than_setting_one(self):
+        self.write(with_parts([part("A", 60, waiting_until="2026-09-23"), part("B", 40)]))
+        r = self.run_set("W-10.A", "--waiting-until", "none", "--event", "pulled forward")
+        self.assertEqual(0, r.returncode, r.stderr)
+        p = self.item("W-10")["parts"][0]
+        self.assertNotIn("waiting_until", p, "the key is removed, not set to null or empty")
+
+    def test_waiting_until_now_also_clears_it(self):
+        self.write(with_parts([part("A", 60, waiting_until="2026-09-23"), part("B", 40)]))
+        r = self.run_set("W-10.A", "--waiting-until", "now")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertNotIn("waiting_until", self.item("W-10")["parts"][0])
+
+    def test_clearing_an_already_clear_wait_still_succeeds(self):
+        self.write(with_parts([part("A", 60), part("B", 40)]))
+        r = self.run_set("W-10.A", "--waiting-until", "none")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertNotIn("waiting_until", self.item("W-10")["parts"][0])
+
+    def test_waiting_until_logs_the_change_when_given_an_event(self):
+        self.write(with_parts([part("A", 60, waiting_until="2026-09-23"), part("B", 40)]))
+        r = self.run_set("W-10.A", "--waiting-until", "none", "--event", "pulled forward from 2026-09-23",
+                          "--by", "sponsor")
+        self.assertEqual(0, r.returncode, r.stderr)
+        entry = self.item("W-10")["parts"][0]["log"][0]
+        self.assertEqual("pulled forward from 2026-09-23", entry["event"])
+        self.assertEqual("sponsor", entry["by"])
+
+
+class TestWaitingUntilOnAnItem(TrackerSetCase):
+    """Same clearing behaviour, but for a plain item (no `.LETTER` suffix) --
+    `apply_change` took the same fix as `apply_part_change` (proposal 30,
+    P-13)."""
+
+    def test_waiting_until_sets_and_clears_on_an_item(self):
+        r = self.run_set("W-01", "--waiting-until", "2026-09-23")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertEqual("2026-09-23", self.item("W-01")["waiting_until"])
+        r = self.run_set("W-01", "--waiting-until", "none")
+        self.assertEqual(0, r.returncode, r.stderr)
+        self.assertNotIn("waiting_until", self.item("W-01"))
+
+
 class TestLastPartClosesTheItem(TrackerSetPartsCase):
 
     def test_setting_the_last_open_part_done_closes_the_item(self):
