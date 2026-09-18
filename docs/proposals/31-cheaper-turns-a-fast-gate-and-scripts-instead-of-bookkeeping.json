@@ -398,6 +398,26 @@
       "log": [],
       "points": 3,
       "value": "high"
+    },
+    {
+      "id": "O-12",
+      "phase": "O",
+      "cx": "C2",
+      "title": "workflow.html's stamp is generated, not hand-typed",
+      "what": "docs/README.md's rule is that any PR changing the shared rules updates docs/workflow.html and its version stamp in the same PR. Three merges on 17 Sep did not, main went red on test_workflow_stamp, and the lead then hand-stamped the page twice in one evening because each rules merge bumps the number it must match. A script writes the stamp from git and regenerates the png, so the only hand-written part is the prose describing the new rule.",
+      "files": [],
+      "tests": [],
+      "done": "One command stamps the page from git and regenerates the png; test_workflow_stamp still guards both; the pre-commit hook or the documented recipe calls it, so the number is never typed by hand again.",
+      "depends": [],
+      "status": "not started",
+      "tier": "medium",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 3,
+      "value": "medium"
     }
   ],
   "asks": [
