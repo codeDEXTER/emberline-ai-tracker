@@ -30,9 +30,15 @@ cannot tell whether it already warmed up.
 - **`--state .claude/warmup/last.json`** saves this run's state, so `/reheat`
   has a baseline to compare against later in the session. `.claude/warmup/`
   is scratch state — never commit it.
-- Picking up a conversation with real context (a handoff from another
-  session, something the sponsor said before this skill ran): add
-  `--context "<one line>"` — it is printed on the card and carried into the
+- **Anything the sponsor typed after `/warmup` is context — pass it
+  through.** `/warmup we are picking up the engine work` means
+  `--context "we are picking up the engine work"`, in the same run, not a
+  separate call and not dropped. This is the only place his words enter the
+  card, so losing them is losing the one thing he asked the command to
+  carry. Quote him as he typed it; do not summarise or tidy it.
+- Picking up context he did not type on the command line (a handoff from
+  another session, something said earlier in the conversation): same flag,
+  `--context "<one line>"`. It is printed on the card and carried into the
   saved state.
 
 The card now always includes `standard: N of 12 hold` and, under it, every

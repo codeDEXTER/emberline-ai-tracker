@@ -1,3 +1,21 @@
+## 2026-09-18 · what the sponsor types after /warmup or /reheat is context
+
+**Standard change (mandatory):** both skills now say that anything typed
+after the command is passed through as `--context "<his words>"` in the same
+run, quoted as typed. A project whose sessions drop it loses the one thing
+that command carries of his.
+
+The sponsor: "when I try to create a new session uh, I am not able to add
+context after the warm up or reheat". `bin/warmup --context` has existed and
+worked all along -- the flag is implemented, documented in `--help`, printed
+on the card and saved into the state file. What neither skill said was what
+to do with words typed after the slash command, so a session read
+`/warmup we are picking up the engine work`, ran the bare command from the
+skill body, and dropped the sentence.
+
+Both skills keep the second case too -- context that was not typed on the
+command line, from a handoff or from earlier in the conversation.
+
 ## 2026-09-18 · workflow.html's stamp is generated, not hand-typed (O-12)
 
 `docs/README.md`'s rule is that any PR changing the shared rules updates
