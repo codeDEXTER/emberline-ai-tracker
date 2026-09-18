@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 15:09
+# Checkpoint — 2026-09-18 21:20
 
-Reason: manual · branch: w10-measured · HEAD: df207c0
+Reason: manual · branch: w10-measured · HEAD: 489224d
 
-<!-- ledger-digest: e2faa3c7523e99dedae39eac16a36ba5279a2d4d4a71d69bc825bc6e50bebc60 -->
+<!-- ledger-digest: 0ffa00c38d1801d38271d60cb13a79bae3c36c72afe00de961a17c05f1ca50a1 -->
 
 ## Proposal 19 · Warm-up
 
@@ -108,11 +108,11 @@ Reason: manual · branch: w10-measured · HEAD: df207c0
 
 ## Proposal 32 · Semantic versions and a lock for the standard
 
-3 done / 0 in progress / 0 blocked / 1 not started
+3 done / 1 in progress / 0 blocked / 0 not started
 
 ### In progress
 
-- none
+- V-03 · [ruflo · high · sonnet] · A lock a project can trust: what it is aligned to, and what is pending · Started the sponsor-requested release follow-up: add the Claude Code/Codex consumer distinction, update tracked work, and verify the published tracker.
 
 ### Blocked, and why
 
@@ -120,11 +120,11 @@ Reason: manual · branch: w10-measured · HEAD: df207c0
 
 ### Open asks
 
-- none
+- A-03 · "Make the common rules explicitly consumable by both Claude Code and Codex, update the tracker tasks, and ship a new semantic release after verifying the PhotoVault tracker template."
 
 ### Next unblocked
 
-- V-03 · [ruflo · high · sonnet] · A lock a project can trust: what it is aligned to, and what is pending
+- none
 
 ### Open work by group
 

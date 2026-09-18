@@ -5933,3 +5933,19 @@ is the thing to read first.
   across projects. `finance-tracker/CLAUDE.md` now points here and keeps
   only its own specifics (test/build commands, its repo name, its `.env`/
   `finance_data/` gotchas). No other project has adopted this file yet.
+## 2026-09-18 · 1.0.2 — state the Claude Code and Codex consumer boundary
+
+The sponsor asked for the shared rules to be usable by both Claude Code and
+Codex without two drifting interpretations. This patch release adds an
+explicit consumer-neutral statement to `README.md` and
+`CLAUDE-workflow.md`: the ledger, tracker, handoff, verification, and safety
+contract is shared, while commands and UI are allowed to differ by consumer.
+
+The PhotoVault tracker-template review remains a shared-template fix, not an
+application-specific workaround. The five visual defects recorded in P30/P-14
+are present as fixed in the current renderer and the regenerated Common Rules
+tracker was checked in the browser.
+
+This is not a Standard change: adopting projects do not gain a new required
+workflow step; the distinction prevents Claude Code and Codex from reading the
+same standard as two different rule sets.

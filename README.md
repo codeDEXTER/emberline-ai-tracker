@@ -16,6 +16,15 @@ control at all.
 and stays the thing to read first — `git log` records that a change
 happened, the changelog records what it was for.
 
+## Consumers
+
+This is one shared standard consumed by both Claude Code and Codex. The
+rules, ledgers, templates, hooks, and tracker are the common contract; a
+consumer-specific command, UI, or integration may provide the entry point,
+but it must not create a second interpretation of the workflow. When a rule
+names a session, agent, tool, or host, read it as the role or capability it
+provides, independent of whether Claude Code or Codex is running it.
+
 ## Files
 
 - **`agents/`** — the eight specialist agent definitions

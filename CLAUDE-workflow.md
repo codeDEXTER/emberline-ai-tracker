@@ -1,5 +1,12 @@
 # Shared workflow rules
 
+These rules are the shared contract for both Claude Code and Codex. The
+workflow is consumer-neutral: Claude Code and Codex may expose different
+commands or interfaces, but they follow the same ledger, tracker, handoff,
+verification, and safety rules. References to a session, agent, tool, or host
+name the capability or role involved, not a requirement to use one specific
+consumer.
+
 Common to every project under `/Users/the-sponsor/apps/`. A project adopts them by
 pointing here near the top of its own `CLAUDE.md` and layering its specifics
 (test command, build command, repo name) on top — never by copying this text in.

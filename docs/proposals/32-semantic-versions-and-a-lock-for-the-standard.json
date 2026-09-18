@@ -106,13 +106,21 @@
       "depends": [
         "V-01"
       ],
-      "status": "not started",
+      "status": "in progress",
       "tier": "high",
       "model": "sonnet",
       "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-18T21:30:00+02:00",
+          "event": "Started the sponsor-requested release follow-up: add the Claude Code/Codex consumer distinction, update tracked work, and verify the published tracker.",
+          "by": "session:common-rules-release",
+          "evidence": "",
+          "status": "in progress"
+        }
+      ],
       "points": 5,
       "value": "high"
     },
@@ -171,6 +179,18 @@
       "quote": "L7 will remain on back burner",
       "became": null,
       "state": "answered"
+    },
+    {
+      "id": "A-03",
+      "at": "2026-09-18T21:30:00+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "Make the common rules explicitly consumable by both Claude Code and Codex, update the tracker tasks, and ship a new semantic release after verifying the PhotoVault tracker template.",
+      "became": null,
+      "state": "open",
+      "owner": "lead",
+      "source": "Fix Common Rules trackers session",
+      "note": "Recorded as a tracked release/compatibility task; P30/P-14 remains the authoritative visual-fix record."
     }
   ],
   "proposed_changes": [],
