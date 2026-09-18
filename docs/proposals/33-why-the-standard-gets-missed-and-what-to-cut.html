@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>33 · proposed · Why the standard gets missed, and what to cut</title>
+<title>33 · accepted · Why the standard gets missed, and what to cut</title>
 <meta name="proposal-id" content="33">
-<meta name="proposal-status" content="proposed">
+<meta name="proposal-status" content="accepted">
+<meta name="proposal-decided" content="2026-09-18">
 <meta name="common-rules-template" content="proposal/21">
 <!--
   Written by common-rules bin/new-proposal from templates/proposal.html
@@ -56,8 +57,8 @@
 <body>
 <div class="wrap">
 
-<h1><span class="num">33</span> · <span class="status">proposed</span> · Why the standard gets missed, and what to cut</h1>
-<p class="sub">Proposal 33 · proposed 2026-09-18. Twenty-one findings in one session, a release that had to be cut twice because main went red, and a rule the briefs themselves broke ten times. This is the review of why, measured rather than argued, and the five things that would change it. The cutting decisions are the sponsor's.</p>
+<h1><span class="num">33</span> · <span class="status">accepted</span> · Why the standard gets missed, and what to cut</h1>
+<p class="sub">Proposal 33 · accepted 2026-09-18. Twenty-one findings in one session, a release that had to be cut twice because main went red, and a rule the briefs themselves broke ten times. This is the review of why, measured rather than argued, and the five things that would change it. The cutting decisions are the sponsor's.</p>
 
 <h2>The ask</h2>
 <blockquote>
@@ -101,9 +102,17 @@
   <li><b>D5.</b> What may be deleted outright: <span class="m">/standard</span> (its own description says it is a shortcut for <span class="m">/warmup</span> and will be removed), the folded Lanes block, and <span class="m">tracker set --add-part</span>'s incremental path that cannot work. Deprecations that never delete are how a standard grows past being read. → R-05</li>
 </ol>
 
-<h2>Decided</h2>
+<h2 id="decided">Decided</h2>
 <section class="slot">
-  <p>Not decided yet. D4 and D5 delete things a session currently reads, and that is the sponsor's call rather than the lead's. D1 to D3 add refusals and cost nothing but the work.</p>
+  <p><b>Accepted 18 Sep 2026</b>, in the sponsor's words: "Make the necessary decisions and implement proposal 33." Option B is taken. The five answers:</p>
+  <ol>
+    <li><b>D1 &mdash; yes, refuse, with a recorded escape.</b> A close is refused when the item's own done criterion demands a measurement and the closing event carries no number. Because a heuristic will sometimes be wrong, <span class="m">--no-measurement "&lt;reason&gt;"</span> overrides it &mdash; and the reason is written into the log, so an override is visible forever rather than silent. A refusal nobody can escape gets worked around; one that costs a sentence gets used honestly.</li>
+    <li><b>D2 &mdash; yes.</b> The cheap pre-checks move into <span class="m">gates.quick</span>, so drift fails on the author's machine. They cost under a second; there is no argument for saving that at the price of a red main.</li>
+    <li><b>D3 &mdash; yes.</b> Conformance compares a project's skill copies against the source. The card is where a session already looks.</li>
+    <li><b>D4 &mdash; yes, and the verdicts stay with the lead.</b> A builder produces the inventory mechanically: every rule, and whether any check enforces it. Deciding <em>enforced, moved, or cut</em> is judgment about what a session must be told, and it is not delegated. The mandatory read is reported in tokens before and after.</li>
+    <li><b>D5 &mdash; partly, and one deletion is refused.</b> The Lanes block goes; <span class="m">tracker set --add-part</span>'s incremental path is fixed rather than deleted (30/F-01). <b><span class="m">/standard</span> stays.</b> Its own description promises removal, but the sponsor's global CLAUDE.md says "When the sponsor types <span class="m">/standard</span>, that is his own mandatory ruling in this session" &mdash; deleting it would break a command he uses and contradict his own instructions. The self-deprecation note is what gets removed, not the skill. This reverses what this proposal recommended, on evidence found while implementing it.</li>
+  </ol>
+  <p>One boundary: rules that are genuinely judgment &mdash; when to escalate, what counts as risky &mdash; stay prose, deliberately and few. The inventory names them as such rather than pretending a check could hold them.</p>
 </section>
 
 <p class="src">Sources: the nine-of-sixteen count is finding 23/F-02 plus a scan of every <span class="m">done</span> field in <span class="m">docs/proposals/*.json</span> (126 criteria, 16 demanding a measurement). The 76 prose rules are headed bold lines in <span class="m">CLAUDE-workflow.md</span>; the 16,200-token read is that file plus HANDOFF.md, CLAUDE.md, docs/OPERATING-RULES.md and the warm-up skill, measured in characters over four. The 9.54 per 100 figure is <span class="m">docs/research/l07-m03-measure.py</span> run 18 Sep. The twenty-one findings are the <span class="m">findings</span> arrays of proposals 21 to 31. Not verified: whether the same ratios hold in any project outside this repo.</p>

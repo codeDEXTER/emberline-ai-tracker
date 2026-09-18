@@ -1,7 +1,7 @@
 {
   "proposal": 33,
   "title": "Why the standard gets missed, and what to cut",
-  "status": "proposed",
+  "status": "accepted",
   "updated": "2026-09-18",
   "tiers": {
     "C1": {
@@ -41,7 +41,7 @@
       "phase": "R",
       "cx": "C3",
       "title": "Closing an item refuses without the evidence its own done line demands",
-      "what": "The measured cause: 9 of the 16 items whose done criterion demands a measurement were closed without performing it (finding 23/F-02, and 23/F-07 and 28/F-01 are two more of the same shape). The build half was done every time; the verification half was skipped and the item closed anyway. Nothing refuses. Make tracker set --status done read the item's own done line: when it demands a measurement -- measured, before and after, per 100, wall clock, a percentage -- the closing event must carry a number, or the close is refused with the done line quoted back.",
+      "what": "The measured cause: 9 of the 16 items whose done criterion demands a measurement were closed without performing it (finding 23/F-02, and 23/F-07 and 28/F-01 are two more of the same shape). The build half was done every time; the verification half was skipped and the item closed anyway. Nothing refuses. Make tracker set --status done read the item's own done line: when it demands a measurement -- measured, before and after, per 100, wall clock, a percentage -- the closing event must carry a number, or the close is refused with the done line quoted back. DECIDED (D1): the refusal carries --no-measurement \"<reason>\", and the reason is written into the log so every override stays visible.",
       "files": [],
       "tests": [],
       "done": "An item whose done criterion demands a measurement cannot be closed with an event carrying no number; the refusal quotes the criterion; an item with no such criterion closes as it does today; tested against real closed items from the ledgers.",
@@ -121,7 +121,7 @@
       "phase": "R",
       "cx": "C3",
       "title": "Deprecate and delete what has been replaced",
-      "what": "/standard's own description says it is a shortcut for /warmup and will be removed next release -- it is still here. The Lanes block is kept folded on a page that now has four better views. tracker set --add-part cannot build parts up incrementally (30/F-01) and its only working path is the whole --parts JSON. Deprecations that never delete are how a standard gets long enough to stop being read.",
+      "what": "/standard's own description says it is a shortcut for /warmup and will be removed next release -- it is still here. The Lanes block is kept folded on a page that now has four better views. tracker set --add-part cannot build parts up incrementally (30/F-01) and its only working path is the whole --parts JSON. Deprecations that never delete are how a standard gets long enough to stop being read. DECIDED (D5): /standard is NOT deleted -- the sponsor's own global CLAUDE.md instructs sessions to follow it when he types it, so removing it would break a command he uses. Remove its self-deprecation note instead. The Lanes block goes; --add-part's incremental path is fixed, not deleted.",
       "files": [],
       "tests": [],
       "done": "Each deprecated mechanism is either deleted or carries a dated removal note naming its replacement; nothing points at a removed thing; the CHANGELOG entry says what went and what took its place.",
@@ -144,7 +144,15 @@
       "kind": "decision",
       "quote": "Can you do a thorough review and identify why we are missing these items? Can we optimize all these rules so when I warm up or reheat a project, they follow it to the point and not miss anything? Do we need to deprecate any of the old mechanisms and make it as concise and precise as possible?",
       "became": null,
-      "state": "open"
+      "state": "answered"
+    },
+    {
+      "id": "A-02",
+      "at": "2026-09-18T11:33:46+02:00",
+      "kind": "decision",
+      "quote": "Make the necessary decisions and implement proposal 33.",
+      "became": null,
+      "state": "answered"
     }
   ],
   "proposed_changes": [],
