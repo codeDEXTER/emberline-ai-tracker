@@ -147,7 +147,17 @@ def _detect(output: str):
         )
         if m and ("passed" in m.group(1) or "failed" in m.group(1) or "error" in m.group(1)):
             summary = m.group(1)
-            failed = "failed" in summary or "error" in summary
+            # Read the COUNTS, never the words. `"failed" in summary` was a
+            # substring test, so a runner that spells its zeros out -- "426
+            # passed, 0 failed, 0 errors", which the PhotoVault engine's
+            # parallel merge gate prints per group -- could never report OK
+            # however green it was. That is precisely the mistake this file's
+            # own docstring warns about (`grep ... && git commit` shipped a
+            # failing test because grep exits 0 on a line containing
+            # "FAILED"), committed inside the checker meant to prevent it.
+            # A zero is a zero.
+            counts = re.findall(r"(\d+)\s+(passed|failed|error|errors|skipped|warnings?)", summary)
+            failed = any(int(n) > 0 for n, word in counts if word.startswith(("failed", "error")))
             return summary, not failed
 
     # -- flutter test ---------------------------------------------------------
