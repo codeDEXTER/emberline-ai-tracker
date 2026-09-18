@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 07:27
+# Checkpoint — 2026-09-18 07:58
 
-Reason: manual · branch: p30-items-9-10 · HEAD: 2c88c51
+Reason: manual · branch: p30-views · HEAD: 4b2be9c
 
-<!-- ledger-digest: 6e9acea588447eb94ef72cff3322787e27d12e176432bf4b9f52b560c7b52fcf -->
+<!-- ledger-digest: f76f9504aed6d8a34ab720e13c5d8e1f4ef66332fe2f33ad62f60722212c7367 -->
 
 ## Proposal 19 · Warm-up
 
@@ -81,33 +81,6 @@ Reason: manual · branch: p30-items-9-10 · HEAD: 2c88c51
 **waiting**
 - L-02 60% · next L-02.B (waiting 2026-09-23)
 - L-07 80% · next L-07.B (waiting 2026-09-23)
-
-## Proposal 30 · Tracker shows how complete each item is, by lettered parts
-
-8 done / 0 in progress / 0 blocked / 2 not started
-
-### In progress
-
-- none
-
-### Blocked, and why
-
-- none
-
-### Open asks
-
-- none
-
-### Next unblocked
-
-- P-09 · [ruflo · high · sonnet] · The proposal tree is the top view: proposal, then items, then parts
-- P-10 · [ruflo · high · sonnet] · A second button switches the tracker to Kanban
-
-### Open work by group
-
-**finish now**
-- P-09 0%
-- P-10 0%
 
 ## Proposal 31 · Cheaper turns: a fast gate and scripts instead of bookkeeping
 
