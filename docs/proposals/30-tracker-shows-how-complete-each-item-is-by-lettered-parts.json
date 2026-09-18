@@ -56,7 +56,7 @@
       "owner": "lead",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -88,7 +88,7 @@
       "owner": "lead",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -121,7 +121,7 @@
       "owner": "lead",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -155,7 +155,7 @@
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -190,7 +190,7 @@
       "owner": "lead",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo · medium · sonnet]",
+      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
       "issue": null,
       "log": [
         {
@@ -228,7 +228,7 @@
       "owner": "lead",
       "tier": "low",
       "model": "haiku",
-      "tag": "[ruflo · low · haiku]",
+      "tag": "[ruflo \u00b7 low \u00b7 haiku]",
       "issue": null,
       "log": [
         {
@@ -276,7 +276,7 @@
       ],
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]"
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]"
     },
     {
       "id": "P-08",
@@ -314,7 +314,7 @@
       ],
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "parts": [
         {
           "id": "P-08.A",
@@ -361,7 +361,7 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -395,7 +395,7 @@
       "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo · high · sonnet]",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [
@@ -415,6 +415,26 @@
       ],
       "points": 5,
       "value": "high"
+    },
+    {
+      "id": "P-11",
+      "phase": "P",
+      "cx": "C3",
+      "title": "One filter bar at the top, governing every view",
+      "what": "The sponsor: \"right now there are filters board list and there should be another filter and then basically I should be able to filter all types of views the drop down the board and other things so I have a common set of filters there on top so it's possible for me to just in the drop down list as well uh, filter the pending items\". Today the bar sits under the Details heading and governs only the board and list; the Tree/Kanban switch was added into it, so the view switch is buried mid-page. Lift one bar to the top, have it drive the proposal tree, Kanban, board and list alike, and add a pending filter that reaches inside the dropdowns.",
+      "files": [],
+      "tests": [],
+      "done": "One bar above the views; every filter applies to all four views including inside an expanded proposal; a pending filter shows only work that is not done, at proposal, item and part level; choices survive a reload; counts stay honest under a filter.",
+      "depends": [],
+      "status": "not started",
+      "tier": "high",
+      "model": "sonnet",
+      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "owner": "lead",
+      "issue": null,
+      "log": [],
+      "points": 5,
+      "value": "high"
     }
   ],
   "asks": [
@@ -426,7 +446,7 @@
       "quote": "i dont understand this overview in the tracker",
       "state": "became-item",
       "became": "P-03",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl, 2026-09-17"
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl, 2026-09-17"
     },
     {
       "id": "A-02",
@@ -436,7 +456,7 @@
       "quote": "So my understanding is uh, these are the elements which are getting completed. Based on the priority, and if anything is above 80%, a task which may be a subtask that is still pending to be completed, that ends up in that list. So, this needs to be refactored and revisualized properly so I can understand it a bit better. So, my basic requirement is every task gets to 100%. But if there are some tasks, for example, not able to get 100% in some part of the work is left, then that work is evaluated as a sub-item. For example, L-02.A, BC, then the percentage is calculated, okay, what would be what percentage of feature they would be completing? Based on that, if the overall feature is 80% completed, and the sub uh, remaining elements only complete maybe 2, 3, or the last remaining 10, 20%, then they can be added as a back burner. Backlog, which can be handled later. Or uh, you know that should be visualized here. And what would be the risk and all, you know, based on the that it's calculating how to do it. And also the percentage does not give me a right figure because 17%, I don't have the formula in my mind.",
       "state": "became-item",
       "became": "P-01",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl, 2026-09-17"
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl, 2026-09-17"
     },
     {
       "id": "A-03",
@@ -446,7 +466,7 @@
       "quote": "This visualized widget is good and this is how it should be represented in the tracker. Uh, to get an estimate of the degree of completion. Please uh, make a proposal on how the tracker would look like so it's not completely overpopulated. And then it should also be possible to filter things out and get into the details.",
       "state": "became-item",
       "became": "P-03",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl, 2026-09-17"
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl, 2026-09-17"
     },
     {
       "id": "A-04",
@@ -456,7 +476,7 @@
       "quote": "Also, I like the naming convention with ABC. That should be standardized as the standard approach. And each ticket should be tracked in the tracker or sub-ticket.",
       "state": "became-item",
       "became": "P-06",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl, 2026-09-17"
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl, 2026-09-17"
     },
     {
       "id": "A-05",
@@ -467,7 +487,7 @@
       "became": null,
       "state": "answered",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl",
       "note": "accepts D1-D5 as recommended"
     },
     {
@@ -479,7 +499,7 @@
       "became": "P-03",
       "state": "became-item",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl"
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl"
     },
     {
       "id": "A-07",
@@ -490,7 +510,7 @@
       "became": null,
       "state": "answered",
       "owner": "lead",
-      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "source": "Common Rules rework session transcript 3cff917f\u2026jsonl",
       "note": "P-01 built by the lead; P-02..P-06 dispatched in parallel on top of it"
     }
   ],
