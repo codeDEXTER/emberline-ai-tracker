@@ -193,13 +193,41 @@ class CompletionOverviewCase(unittest.TestCase):
         # closed: no bare `open` attribute on the folded section
         self.assertNotRegex(text, r'<details class="lanes" id="lanes"[^>]*\bopen\b')
 
+    def test_by_urgency_and_lanes_get_the_same_card_surface_as_clusters(self):
+        # P-14: the folded "By urgency" (`.cgroups`) and "Advanced · Lanes"
+        # (`.lanes`) summaries floated as bare text between blocks -- the
+        # shared card-surface rule named `.clusters` and `.lanes` but never
+        # `.cgroups`, so only one of the two the sponsor pointed at was
+        # actually covered. Both must share the one rule now.
+        text = self.render([item("L-01", status="not started", value="high", points=5, impact=1, likelihood=1)])
+        self.assertIn(
+            '.clusters,.lanes,.cgroups{background:var(--surface);'
+            'border:1px solid var(--rule);border-radius:6px;padding:14px 16px}', text)
+
     def test_filters_markup_carries_group_proposal_owner_status_search(self):
-        text = self.render([item("X-01")])
+        # P-14: the proposal nav is a filter among proposals, so it only
+        # earns its place with more than one -- a second ledger here keeps
+        # this test about the filter bar's own markup, not that behavior
+        # (pinned on its own below).
+        led2 = ledger(31, [item("Y-01")])
+        path2 = write(self.root, 31, led2)
+        led1 = ledger(30, [item("X-01")])
+        path1 = write(self.root, 30, led1)
+        text = board.render([(path1, led1), (path2, led2)], "demo", None, self.root)
         self.assertIn('<select id="group">', text)
         self.assertIn('<nav class="proposals"', text)  # the proposal filter
         self.assertIn('<select id="owner">', text)
         self.assertIn('role="group" aria-label="Status"', text)
         self.assertIn('<input type="search" id="q"', text)
+
+    def test_proposal_filter_nav_omitted_with_only_one_proposal(self):
+        # P-14: on a one-proposal project (PhotoVault/engine's own page),
+        # this nav repeated the Proposals tree's completion line for the
+        # single proposal, with nothing to filter among -- omitted now
+        # rather than kept as a bare duplicate.
+        text = self.render([item("X-01")])
+        self.assertNotIn('<nav class="proposals"', text)
+        self.assertNotIn('class="proposal" type="button"', text)
 
     def test_show_finished_toggle_is_present_and_off(self):
         text = self.render([item("X-01", status="done")])

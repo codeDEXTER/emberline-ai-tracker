@@ -163,13 +163,19 @@ class ProgressChartsCase(unittest.TestCase):
         # column, keep each chart to roughly 180px of real height without
         # touching any axis label's font-size (all fixed px values in
         # tools/tracker/history.py, untouched here).
+        #
+        # P-14: a flat 760px left half of a 1400px page empty. The cap is
+        # now a sensible upper bound that still grows with the page
+        # ("min(100%,1040px)"), not a hard 760 -- still a cap, so the chart
+        # cannot stretch unboundedly tall either.
         repo = Repo(self.root / "proj")
         repo.commit_ledger("30-x.json", ledger(30, [item("A-01", status="done")]), datetime.date.today())
         led = ledger(30, [item("A-01", status="done")])
         path = repo.root / "docs" / "proposals" / "30-x.json"
         text = board.render([(path, led)], "demo", None, repo.root)
         self.assertIn('viewBox="0 0 640 150"', text)
-        self.assertIn('max-width:760px', text)
+        self.assertIn('max-width:min(100%,1040px)', text)
+        self.assertNotIn('max-width:760px', text)
         self.assertIn('font-size="12"', text)  # the title -- unchanged
         self.assertIn('font-size="10"', text)  # axis ticks -- unchanged
 
