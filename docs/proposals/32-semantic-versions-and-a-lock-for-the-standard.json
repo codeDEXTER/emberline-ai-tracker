@@ -46,13 +46,21 @@
       "tests": [],
       "done": "VERSION holds a semver; the bump rule is written in CLAUDE-workflow.md; rulecheck reports both the semver and the count; a project's stamp records both.",
       "depends": [],
-      "status": "not started",
+      "status": "done",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-18T10:07:29+02:00",
+          "event": "VERSION added at repo root (0.9.0); bump rule written into CLAUDE-workflow.md's version-stamp section; rulecheck reports semver alongside the count-sha stamp",
+          "by": "session:v32-semver builder",
+          "evidence": "adbf804",
+          "status": "done"
+        }
+      ],
       "points": 5,
       "value": "high"
     },
@@ -68,13 +76,21 @@
       "depends": [
         "V-01"
       ],
-      "status": "not started",
+      "status": "done",
       "tier": "medium",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 medium \u00b7 sonnet]",
+      "tag": "[ruflo · medium · sonnet]",
       "owner": "lead",
       "issue": null,
-      "log": [],
+      "log": [
+        {
+          "at": "2026-09-18T10:07:34+02:00",
+          "event": "bin/version-check + tools/version_check.py derive the required bump from CHANGELOG entries since the commit that last set VERSION; --check wired into gates.merge and ci.yml; tests/test_version.py covers the bump rule, --check exit codes, and the missing-marker refusal",
+          "by": "session:v32-semver builder",
+          "evidence": "adbf804",
+          "status": "done"
+        }
+      ],
       "points": 3,
       "value": "high"
     },
@@ -93,7 +109,7 @@
       "status": "not started",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [],
@@ -117,7 +133,7 @@
       "status": "not started",
       "tier": "lead",
       "model": "opus",
-      "tag": "[ruflo \u00b7 lead \u00b7 opus]",
+      "tag": "[ruflo · lead · opus]",
       "owner": "lead",
       "issue": null,
       "log": [

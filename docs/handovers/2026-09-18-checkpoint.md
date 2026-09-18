@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 09:50
+# Checkpoint — 2026-09-18 10:07
 
-Reason: manual · branch: p32-baseline-decided · HEAD: cb77a6c
+Reason: manual · branch: v32-semver · HEAD: adbf804
 
-<!-- ledger-digest: ba5b762545e1f725b7944f88ab95fcd081e80cd2bf4a568e87e07759418c3ce0 -->
+<!-- ledger-digest: 60155e9d6b69ce2212e9a5e68c25242d1bf2a9ea439366dd46ab643d123ca4e9 -->
 
 ## Proposal 19 · Warm-up
 
@@ -108,7 +108,7 @@ Reason: manual · branch: p32-baseline-decided · HEAD: cb77a6c
 
 ## Proposal 32 · Semantic versions and a lock for the standard
 
-0 done / 0 in progress / 0 blocked / 4 not started
+2 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
@@ -124,13 +124,11 @@ Reason: manual · branch: p32-baseline-decided · HEAD: cb77a6c
 
 ### Next unblocked
 
-- V-01 · [ruflo · high · sonnet] · A semantic version for the standard, beside the stamp it replaces
+- V-03 · [ruflo · high · sonnet] · A lock a project can trust: what it is aligned to, and what is pending
 
 ### Open work by group
 
 **finish now**
-- V-01 0%
-- V-02 0%
 - V-03 0%
 - V-04 0%
 
