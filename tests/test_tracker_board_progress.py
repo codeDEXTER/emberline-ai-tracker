@@ -130,7 +130,7 @@ class ProgressChartsCase(unittest.TestCase):
         text = board.render([(path, led)], "demo", None, None)
         self.assertNotIn('id="progress"', text)
 
-    def test_progress_sits_between_tiles_and_groups(self):
+    def test_priority_groups_sit_before_progress_history(self):
         repo = Repo(self.root / "proj")
         repo.commit_ledger("30-x.json", ledger(30, [item("A-01", status="done")]), datetime.date.today())
         led = ledger(30, [item("A-01", status="done")])
@@ -139,13 +139,13 @@ class ProgressChartsCase(unittest.TestCase):
         tiles_at = text.index('<div class="tiles">')
         progress_at = text.index('<section class="progress"')
         groups_at = text.index('<section class="cgroup"')
-        self.assertTrue(tiles_at < progress_at < groups_at)
+        self.assertTrue(tiles_at < groups_at < progress_at)
 
     def test_proposal_tree_sits_between_tiles_and_the_progress_charts(self):
         # Sponsor correction, 2026-09-18: "at the top, there should be like
         # proposal nineteen" -- the charts used to sit between the tiles and
         # the tree, pushing the tree below the fold. Tiles, then the tree,
-        # then the charts, then the folded group lists.
+        # then the actionable priority queue, then historical charts.
         repo = Repo(self.root / "proj")
         repo.commit_ledger("30-x.json", ledger(30, [item("A-01", status="done")]), datetime.date.today())
         led = ledger(30, [item("A-01", status="done")])
@@ -155,7 +155,7 @@ class ProgressChartsCase(unittest.TestCase):
         features_at = text.index('<section class="features"')
         progress_at = text.index('<section class="progress"')
         groups_at = text.index('<details class="cgroups" id="cgroups">')
-        self.assertTrue(tiles_at < features_at < progress_at < groups_at)
+        self.assertTrue(tiles_at < features_at < groups_at < progress_at)
 
     def test_chart_height_is_capped_regardless_of_page_width(self):
         # Sponsor correction, 2026-09-18: "the container is stretching them"

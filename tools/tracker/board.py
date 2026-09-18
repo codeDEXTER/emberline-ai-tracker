@@ -635,8 +635,9 @@ def completion_groups_section(entries) -> str:
     "Advanced" block (`lanes_section`), not a new one invented for this."""
     if not entries:
         return ""
-    return (f'<details class="cgroups" id="cgroups"><summary>By urgency '
+    return (f'<details class="cgroups" id="cgroups"><summary>Priority queue '
             f'<span class="n">{len(entries)}</span></summary>'
+            '<p class="fnote dim">Tasks grouped by next action: finish now, back burner, waiting, or done.</p>'
             f'{completion_groups(entries)}{completion_legend()}</details>')
 
 
@@ -963,15 +964,15 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         '<p class="pending-rule dim">Pending hides everything already done, at every level, and forces '
         '"Show finished" off while it is on -- turn Pending off to let "Show finished" decide done work again.</p>'
         '</div>'
-        f'{tiles_block}'
-        f'<div id="view-tree">{features}{progress}{completion_groups_block}</div>'
-        f'<div id="view-kanban" hidden>{kanban}</div>'
-        + (f'<nav class="proposals" aria-label="Proposals">{blocks}</nav>' if blocks else "")
+        + (f'<nav class="proposals" aria-label="Proposal scope">{blocks}</nav>' if blocks else "")
+        + f'{tiles_block}'
+        + f'<div id="view-tree">{features}{completion_groups_block}{progress}</div>'
+        + f'<div id="view-kanban" hidden>{kanban}</div>'
         + '<h2 id="details">Details</h2>'
-        f'{attention}'
-        f'{clusters}'
-        f'{lanes}'
-        f'<div class="board" id="board" hidden>{"".join(columns)}</div>'
+        + f'{attention}'
+        + f'{clusters}'
+        + f'{lanes}'
+        + f'<div class="board" id="board" hidden>{"".join(columns)}</div>'
         '<div class="list" id="list" hidden><div class="scroll"><table><thead><tr>'
         '<th>ID</th><th>Proposal</th><th>Item</th><th>Status</th><th>Owner</th><th>Tag</th><th>Issue</th><th>Last</th>'
         f'</tr></thead><tbody>{list_rows}</tbody></table></div></div>'

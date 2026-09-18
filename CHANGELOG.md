@@ -5961,3 +5961,12 @@ Patch release for the shared tracker renderer.
   in narrow Claude Code and Codex browser panes.
 - Regenerated and visually verified the PhotoVault app tracker with P70
   expanded.
+## 2026-09-18 · 1.0.4 — tracker reading order and priority clarity
+
+Patch release for the shared tracker information hierarchy.
+
+- Move proposal scope controls next to the filter bar instead of leaving them
+  after the history charts as a detached duplicate.
+- Put the actionable priority queue immediately after the proposal tree and
+  before historical progress charts.
+- Rename “By urgency” to “Priority queue” and explain its grouping rule.
