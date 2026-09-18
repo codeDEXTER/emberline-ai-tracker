@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 08:46
+# Checkpoint — 2026-09-18 08:47
 
-Reason: manual · branch: o11-ruflo-batch · HEAD: d2a584c
+Reason: manual · branch: o11-ruflo-batch · HEAD: c39ccca
 
-<!-- ledger-digest: 661e4ffebeee7a69738d8fd57a53e3822058001341f33ce7de74683912824d21 -->
+<!-- ledger-digest: 71d79a3fbe393e97ed65587ba33f6da9f307929e82e692854ecb1c565571f0f6 -->
 
 ## Proposal 19 · Warm-up
 
