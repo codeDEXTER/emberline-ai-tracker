@@ -1,3 +1,22 @@
+## 2026-09-18 · 1.0.0 — the first baseline of the standard
+
+`VERSION` moves 0.9.0 -> 1.0.0 and the commit is tagged `v1.0.0`. A project
+adopting the standard now has a fixed target instead of a moving `main`,
+which is the whole point: finding 21/F-02 recorded that the standard had
+outrun every project following it, with 16 to 21 mandatory changes queued
+per repo and not one ready card.
+
+Cut on a green main: 1,966 tests in 219.6s through the parallel gate, all
+twelve conformance checks holding, the card reading ready, 122 of 128 ledger
+items done.
+
+`docs/RELEASE-1.0.0.md` says what a project gets and, as plainly, what is
+not in it: L-07 at 80% on the back burner with its failing measurement
+quoted (the sponsor ruled "L7 will remain on back burner"), adoption
+excluded because this repo is prohibited from writing into another project,
+and V-03's lock deferred to 1.1.0 -- `.common-rules-version` still holds the
+bare `<count>-<sha>`.
+
 ## 2026-09-18 · VERSION: a semver beside the stamp, and a changelog that keeps it honest (proposal 32, V-01/V-02)
 
 The sponsor: "Can you version the common rule and release a baseline when the
