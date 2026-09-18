@@ -139,6 +139,38 @@ class ProgressChartsCase(unittest.TestCase):
         groups_at = text.index('<section class="cgroup"')
         self.assertTrue(tiles_at < progress_at < groups_at)
 
+    def test_proposal_tree_sits_between_tiles_and_the_progress_charts(self):
+        # Sponsor correction, 2026-09-18: "at the top, there should be like
+        # proposal nineteen" -- the charts used to sit between the tiles and
+        # the tree, pushing the tree below the fold. Tiles, then the tree,
+        # then the charts, then the folded group lists.
+        repo = Repo(self.root / "proj")
+        repo.commit_ledger("30-x.json", ledger(30, [item("A-01", status="done")]), datetime.date.today())
+        led = ledger(30, [item("A-01", status="done")])
+        path = repo.root / "docs" / "proposals" / "30-x.json"
+        text = board.render([(path, led)], "demo", None, repo.root)
+        tiles_at = text.index('<div class="tiles">')
+        features_at = text.index('<section class="features"')
+        progress_at = text.index('<section class="progress"')
+        groups_at = text.index('<details class="cgroups" id="cgroups">')
+        self.assertTrue(tiles_at < features_at < progress_at < groups_at)
+
+    def test_chart_height_is_capped_regardless_of_page_width(self):
+        # Sponsor correction, 2026-09-18: "the container is stretching them"
+        # -- a shorter viewBox height, plus a max-width on the charts'
+        # column, keep each chart to roughly 180px of real height without
+        # touching any axis label's font-size (all fixed px values in
+        # tools/tracker/history.py, untouched here).
+        repo = Repo(self.root / "proj")
+        repo.commit_ledger("30-x.json", ledger(30, [item("A-01", status="done")]), datetime.date.today())
+        led = ledger(30, [item("A-01", status="done")])
+        path = repo.root / "docs" / "proposals" / "30-x.json"
+        text = board.render([(path, led)], "demo", None, repo.root)
+        self.assertIn('viewBox="0 0 640 150"', text)
+        self.assertIn('max-width:760px', text)
+        self.assertIn('font-size="12"', text)  # the title -- unchanged
+        self.assertIn('font-size="10"', text)  # axis ticks -- unchanged
+
 
 class FeaturesDrilldownCase(unittest.TestCase):
     def setUp(self):
@@ -151,12 +183,21 @@ class FeaturesDrilldownCase(unittest.TestCase):
         path = write(self.root, number, led)
         return board.render([(path, led)], "demo", None, self.root)
 
+    def test_the_block_heading_says_proposals_not_features(self):
+        # Sponsor correction, 2026-09-18: "feature" named two different
+        # things on the page (the tile's item count, and this block's
+        # proposal rows). The class/id stay "features" (CSS, tests elsewhere
+        # pin it) but the visible heading uses the ledger's own word.
+        text = self.render([item("A-01")])
+        self.assertIn('<section class="features" id="features"><h2>Proposals</h2>', text)
+        self.assertNotIn('<h2>Features</h2>', text)
+
     def test_one_row_per_proposal_with_number_title_and_completion(self):
         text = self.render([item("A-01", status="done"), item("A-02", status="not started")], title="Widgets")
         self.assertIn('<section class="features" id="features">', text)
         self.assertIn('<details class="feature-row" data-proposal="30">', text)
         self.assertIn('<span class="fpn">P30</span>', text)
-        self.assertIn('<span class="fptitle">Widgets</span>', text)
+        self.assertIn('<span class="fptitle" title="Widgets">Widgets</span>', text)
         # A-01 is 100% (done, no parts), A-02 is 0% -- average 50%.
         self.assertIn('<span class="fppct">50%</span>', text)
         self.assertIn('<span class="fpcount">1/2 items done</span>', text)
@@ -231,6 +272,122 @@ class FeaturesDrilldownCase(unittest.TestCase):
 
     def test_omitted_when_there_are_no_ledgers(self):
         self.assertEqual(board.features_section([]), "")
+
+    def test_a_long_title_carries_a_title_attribute_and_is_not_truncated_in_python(self):
+        # proposal 30, P-09: a title long enough to break the row's layout is
+        # clamped in CSS, never cut down in Python -- the full text is still
+        # in the markup, both as the row's own text and in a `title` attr.
+        long_title = "x" * 400
+        text = self.render([item("Q-02", status="done", title=long_title)])
+        self.assertIn(f'title="{long_title}"', text)
+        self.assertIn(f'>{long_title}<', text)
+
+
+class KanbanCase(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+
+    def render(self, items, number=30, title="a proposal"):
+        led = ledger(number, items, title=title)
+        path = write(self.root, number, led)
+        return board.render([(path, led)], "demo", None, self.root)
+
+    def test_tree_and_kanban_buttons_exist_and_tree_is_the_default(self):
+        text = self.render([item("A-01")])
+        self.assertIn('<button type="button" data-topview="tree" aria-pressed="true">Tree</button>', text)
+        self.assertIn('<button type="button" data-topview="kanban" aria-pressed="false">Kanban</button>', text)
+
+    def test_one_column_per_ledger_status_including_empty_ones(self):
+        from tools.tracker import ledger as L
+        text = self.render([item("A-01", status="not started")])
+        kanban = text.split('<section class="kanban"', 1)[1]
+        for status in L.STATUSES:
+            self.assertIn(f'data-column="{status}"', kanban)
+        # columns are in the ledger's own order, not the board's attention order
+        positions = [kanban.index(f'data-column="{s}"') for s in L.STATUSES]
+        self.assertEqual(positions, sorted(positions))
+        # an empty status still shows a column with a 0 count
+        blocked_col = kanban.split('data-column="blocked"', 1)[1].split('data-column=', 1)[0]
+        self.assertIn('<span class="n">0</span>', blocked_col)
+
+    def test_card_names_item_proposal_and_completion(self):
+        text = self.render([item("K-01", status="in progress", title="Kanban card title")], number=42)
+        self.assertIn('<article class="kcard" data-item data-id="K-01" data-proposal="42"', text)
+        self.assertIn('<span class="kid">K-01</span>', text)
+        self.assertIn('<span class="pnum">P42</span>', text)
+        self.assertIn('title="Kanban card title">Kanban card title</h3>', text)
+        self.assertIn('0% <span class="fbar kbar">', text)
+
+    def test_a_card_with_parts_shows_the_count_and_expands_to_list_them(self):
+        text = self.render([
+            item("K-02", parts=[part("K-02.A", "first", 60, "done"), part("K-02.B", "second", 40, "in progress")]),
+        ])
+        kanban = text.split('<section class="kanban"', 1)[1]
+        self.assertIn('<summary>1 of 2 parts done</summary>', kanban)
+        self.assertIn('<span class="pid">K-02.A</span>', kanban)
+        self.assertIn('<span class="pid">K-02.B</span>', kanban)
+
+    def test_kanban_omitted_when_there_are_no_entries(self):
+        self.assertEqual(board.kanban_section([]), "")
+
+    def test_done_column_is_collapsed_behind_an_affordance_by_default(self):
+        # Sponsor correction, 2026-09-18: a 112-card done column is
+        # unusable. The show-finished toggle (already on the page) governs
+        # it: collapsed by default behind "N done -- show them", the column
+        # itself and its real count staying put either way.
+        text = self.render([
+            item("D-01", status="done", title="first done"),
+            item("D-02", status="done", title="second done"),
+            item("D-03", status="in progress", title="still going"),
+        ])
+        kanban = text.split('<section class="kanban"', 1)[1]
+        self.assertIn('<div class="kcards" data-kanban-done hidden>', kanban)
+        self.assertIn('<button type="button" class="kdone-show" data-kanban-affordance>'
+                      '2 done — show them</button>', kanban)
+        # the column header count is the real, unhidden count -- 2, not 0
+        done_col = kanban.split('data-column="done"', 1)[1].split('data-column=', 1)[0]
+        self.assertIn('<span class="n">2</span>', done_col)
+        # the cards are still in the markup (readable with JS off), just
+        # server-rendered hidden by default
+        self.assertIn('data-id="D-01"', kanban)
+        self.assertIn('data-id="D-02"', kanban)
+
+    def test_a_column_with_no_done_items_has_no_affordance(self):
+        text = self.render([item("A-01", status="in progress")])
+        body = text.split("<script>", 1)[0]
+        kanban = body.split('<section class="kanban"', 1)[1]
+        self.assertNotIn('data-kanban-affordance', kanban)
+        self.assertNotIn('data-kanban-done', kanban)
+        done_col = kanban.split('data-column="done"', 1)[1].split('data-column=', 1)[0]
+        self.assertIn('<span class="n">0</span>', done_col)
+
+    def test_both_views_are_rendered_server_side(self):
+        # No page reload, no server round trip: the tree and the kanban board
+        # are both already in the markup: the inline script only toggles
+        # which is hidden.
+        text = self.render([item("A-01", status="in progress")])
+        self.assertIn('<div id="view-tree">', text)
+        self.assertIn('<div id="view-kanban">', text)
+        self.assertNotIn('id="view-tree" hidden', text)
+        self.assertNotIn('id="view-kanban" hidden', text)
+
+    def test_kanban_cards_are_never_counted_alongside_the_details_board(self):
+        # Sponsor correction, 2026-09-18: a kanban card is an <article
+        # data-item>, same as the Details section's own board card, so a
+        # bare tagName check in the page's script summed both -- "the
+        # numbers on that bar are exactly what the sponsor reads to trust
+        # the page". A kanban card's class is "kcard", never "card", and
+        # the script's own counting line checks class membership, not tag.
+        text = self.render([item("A-01", status="in progress")])
+        body = text.split("<script>", 1)[0]
+        script = text.split("<script>", 1)[1]
+        self.assertIn('class="kcard"', body)
+        self.assertNotIn('class="kcard card"', body)
+        self.assertNotIn('class="card kcard"', body)
+        self.assertIn('el.classList.contains(counted)', script)
+        self.assertNotIn('el.tagName === counted', script)
 
 
 if __name__ == "__main__":
