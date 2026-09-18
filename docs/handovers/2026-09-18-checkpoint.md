@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-18 10:08
+# Checkpoint — 2026-09-18 10:10
 
-Reason: manual · branch: p30-pull-forward · HEAD: 733ed06
+Reason: manual · branch: p30-pull-forward · HEAD: a780f68
 
-<!-- ledger-digest: e3a80f09c66417186690981231d9434c411ce5fd305727d99bcb7041b118b4bc -->
+<!-- ledger-digest: 578ca1c533ca50f789bbbad20691d45e0ef15c39d252ffc689a1448533ed79e1 -->
 
 ## Proposal 19 · Warm-up
 
@@ -83,7 +83,7 @@ Reason: manual · branch: p30-pull-forward · HEAD: 733ed06
 
 ## Proposal 32 · Semantic versions and a lock for the standard
 
-0 done / 0 in progress / 0 blocked / 4 not started
+2 done / 0 in progress / 0 blocked / 2 not started
 
 ### In progress
 
@@ -99,13 +99,11 @@ Reason: manual · branch: p30-pull-forward · HEAD: 733ed06
 
 ### Next unblocked
 
-- V-01 · [ruflo · high · sonnet] · A semantic version for the standard, beside the stamp it replaces
+- V-03 · [ruflo · high · sonnet] · A lock a project can trust: what it is aligned to, and what is pending
 
 ### Open work by group
 
 **finish now**
-- V-01 0%
-- V-02 0%
 - V-03 0%
 - V-04 0%
 
