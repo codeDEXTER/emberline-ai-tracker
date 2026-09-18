@@ -616,7 +616,10 @@ def main():
                     help="with --align: declare pending mandatory Standard change(s) implemented")
     ap.add_argument("--mandatory", action="store_true",
                     help="list the Standard change entries since the stamp; exit 1 while any is pending")
-    ap.add_argument("--version", action="store_true", help="print current version, exit")
+    ap.add_argument("--version", action="store_true",
+                    help="print the bare <count>-<sha> and exit -- machine-readable, parsed by bin/land")
+    ap.add_argument("--semver", action="store_true",
+                    help="with --version: print \"<semver> (<count>-<sha>)\" for a person to read")
     ap.add_argument("--quiet", action="store_true", help="say nothing when aligned")
     a = ap.parse_args()
     if a.align and a.mandatory:
@@ -630,7 +633,15 @@ def main():
               file=sys.stderr)
         return 2
     if a.version:
-        print(version_label(cur))
+        # The BARE `<count>-<sha>`, deliberately. This flag is machine-read:
+        # `bin/land` compares its output against the project's stamp file, and
+        # V-01 briefly printed the pretty label here, so land saw
+        # "0.9.0 (589-...)" against a stamp of "589-..." and told every
+        # project it was not aligned. A flag that a program parses is a
+        # contract; the semver belongs in the lines a person reads, which
+        # version_label() already handles. `--version --semver` asks for it
+        # explicitly.
+        print(version_label(cur) if a.semver else cur)
         return 0
 
     proj = Path(a.project).resolve() if a.project else find_project(os.getcwd())
