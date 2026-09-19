@@ -8,7 +8,7 @@ next steps connected across **Claude Code and OpenAI Codex**.
 
 ![The problem and solution: session context, shared proposals and decisions, and a generated tracker for Claude Code and Codex](docs/assets/product-overview.svg)
 
-[**Get started →**](docs/GETTING-STARTED.md) · [Explore the tracker](docs/proposals/tracker/index.html) · [Read the user guide](docs/user-guide/) · [Release 1.1.10](docs/RELEASE-1.1.10.md)
+[**Get started →**](docs/GETTING-STARTED.md) · [Explore the tracker](docs/proposals/tracker/index.html) · [Read the user guide](docs/user-guide/) · [Release 1.1.11](docs/RELEASE-1.1.11.md)
 
 ## Less catching up. More moving forward.
 
@@ -46,6 +46,35 @@ Run `/standard` in the adopting project's chat to review the shared contract,
 then use [`bin/derecord`](bin/derecord) to seed the project's handoff, tracker,
 and hooks without overwriting its existing rules. Start the next session with
 `/warmup` and use `/reheat` when a running session needs the latest delta.
+
+## Copy this into a project chat
+
+Give a project’s Claude Code or Codex chat this instruction to start an
+adoption review:
+
+```text
+We are adopting Emberline v1.1.11, an open-source workflow for keeping AI
+agent sessions aligned through shared context, proposals, decisions,
+checkpoints, and progress tracking.
+
+Read the release and user guide first:
+https://github.com/codeDEXTER/emberline-ai-tracker/releases/tag/v1.1.11
+
+Review this project’s existing rules before changing anything. Preserve
+project-specific instructions and explain any conflicts instead of silently
+overwriting them. Propose and then implement the smallest safe integration
+that supports:
+
+- /warmup for a fresh session
+- /reheat for a running session or resumed context
+- durable handoffs and checkpoints
+- proposal and task tracking with clear evidence and ownership
+- compatibility with both Claude Code and OpenAI Codex
+
+Use the Emberline release as the source of truth. Run the relevant project
+checks, record the adopted Emberline version, and report the exact files
+changed and any remaining gaps.
+```
 
 [**Get started →**](docs/GETTING-STARTED.md) · [Capabilities & boundaries](docs/GETTING-STARTED.md#boundaries) · [User guide](docs/user-guide/) · [Release history](CHANGELOG.md)
 

@@ -1,3 +1,9 @@
+## 1.1.11 · Copy-and-paste project adoption · 2026-09-19
+
+Added a ready-to-paste project-chat instruction set to the public README so
+Claude Code and Codex projects can understand Emberline, review their existing
+rules, adopt the shared workflow safely, and report their integration gaps.
+
 ## 1.1.10 · Release pin synchronization · 2026-09-19
 
 Synchronized the intentionally literal release-version regression test with
