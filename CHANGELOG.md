@@ -1,3 +1,12 @@
+## 1.1.4 · GitHub discoverability pass · 2026-09-19
+
+Clarified the README's search-facing introduction around open-source AI agent
+memory, session context, project tracking, Claude Code, and OpenAI Codex.
+Applied focused GitHub repository topics and a descriptive repository summary.
+Added a concise documentation map so the public story, getting-started guide,
+live tracker evidence, and maintainer reference surfaces are easy to find
+without moving contract-sensitive workflow paths.
+
 ## 1.1.3 · Public release licensing · 2026-09-19
 
 Added Apache-2.0 licensing for code, CC BY 4.0 terms for documentation and

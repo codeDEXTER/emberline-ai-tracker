@@ -2,7 +2,9 @@
 
 ### Keep the project moving when the chat changes.
 
-Shared project memory and a delivery tracker for **Claude Code + Codex**.
+Emberline is an open-source **AI agent memory and project tracker** for
+developer workflows. It keeps session context, proposals, decisions, and
+next steps connected across **Claude Code and OpenAI Codex**.
 
 ![The problem and solution: session context, shared proposals and decisions, and a generated tracker for Claude Code and Codex](docs/assets/product-overview.svg)
 

@@ -3,6 +3,19 @@
 Everything here is cross-project by nature. Anything specific to one project
 belongs in that project's own `docs/`, not here.
 
+## Start here
+
+The documentation has four clear surfaces:
+
+- **Public story:** [`../README.md`](../README.md), [`public-review.html`](public-review.html), and [`warmup-reheat.html`](warmup-reheat.html)
+- **Getting started:** [`GETTING-STARTED.md`](GETTING-STARTED.md) and [`OPERATING-RULES.md`](OPERATING-RULES.md)
+- **Live evidence:** [`proposals/tracker/index.html`](proposals/tracker/index.html), [`proposals/`](proposals/), and [`handovers/`](handovers/)
+- **Reports and reference:** the workflow pages, release notes, research, and the running story listed below
+
+The paths under `proposals/`, `handovers/`, and `OPERATING-RULES.md` are
+workflow contracts. Keep those locations stable; use this index to make the
+structure discoverable instead of duplicating or moving the sources of truth.
+
 ## `workflow.html` — the bird's-eye view
 
 The whole workflow on one page: idea to merged in the order it actually happens,
