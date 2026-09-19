@@ -1,8 +1,8 @@
 {
   "proposal": 30,
   "title": "Tracker shows how complete each item is, by lettered parts",
-  "status": "proposed",
-  "updated": "2026-09-18",
+  "status": "accepted",
+  "updated": "2026-09-19",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -547,7 +547,7 @@
       "status": "not started",
       "tier": "high",
       "model": "sonnet",
-      "tag": "[ruflo \u00b7 high \u00b7 sonnet]",
+      "tag": "[ruflo · high · sonnet]",
       "owner": "lead",
       "issue": null,
       "log": [],
@@ -630,6 +630,18 @@
       "owner": "lead",
       "source": "Common Rules rework session transcript 3cff917f…jsonl",
       "note": "P-01 built by the lead; P-02..P-06 dispatched in parallel on top of it"
+    },
+    {
+      "id": "A-08",
+      "at": "2026-09-17T15:30:27+02:00",
+      "by": "sponsor",
+      "kind": "decision",
+      "quote": "go with your recommendations",
+      "became": null,
+      "state": "answered",
+      "owner": "lead",
+      "source": "Common Rules rework session transcript 3cff917f…jsonl",
+      "note": "accepts D1-D5 as recommended"
     }
   ],
   "proposed_changes": [],
