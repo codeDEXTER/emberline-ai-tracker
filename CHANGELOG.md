@@ -1,3 +1,10 @@
+## 1.1.9 · Accurate hourly tracker history · 2026-09-19
+
+Fixed the hourly progress graph: tracker history now preserves each ledger
+commit's local timestamp and buckets hourly snapshots at the real commit hour
+instead of reducing every update to midnight. Added regression coverage for
+intraday snapshot changes.
+
 ## 1.1.8 · Release pin synchronization · 2026-09-19
 
 Synchronized the intentionally literal release-version regression test with

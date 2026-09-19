@@ -54,12 +54,12 @@ class Repo:
         return subprocess.run(["git", "-C", str(self.root), *args],
                               capture_output=True, text=True, check=True, env=env)
 
-    def commit_ledger(self, name: str, data: dict, day: datetime.date):
+    def commit_ledger(self, name: str, data: dict, day: datetime.date, hour: int = 10):
         path = self.root / "docs" / "proposals" / name
         path.write_text(json.dumps(data, indent=2) + "\n")
         self.git("add", "-A")
         env = dict(os.environ)
-        when = _iso(day)
+        when = _iso(day, hour)
         env["GIT_AUTHOR_DATE"] = when
         env["GIT_COMMITTER_DATE"] = when
         self.git("commit", "-qm", f"update {name}", env=env)
@@ -104,7 +104,7 @@ class TestHistorySeries(unittest.TestCase):
             item("W-01", "done"),
             item("W-02", "done"),
             item("W-03", "not started"),
-        ]), self.day_b)
+        ]), self.day_b, hour=15)
 
         # Day C: no commit at all -- must carry Day B forward.
 
@@ -121,7 +121,7 @@ class TestHistorySeries(unittest.TestCase):
                     {"id": "W-04.B.2", "title": "B2", "share": 50, "status": "not started"},
                 ]},
             ]),
-        ]), self.day_d)
+        ]), self.day_d, hour=17)
 
     def by_date(self, rows):
         return {r["date"]: r for r in rows}
@@ -194,8 +194,12 @@ class TestHistorySeries(unittest.TestCase):
         rows = history.series(self.repo.root, since=self.day_a.isoformat(), granularity="hour")
         self.assertTrue(rows)
         self.assertTrue(all("T" in row["date"] for row in rows))
-        self.assertEqual(rows[0]["date"], f"{self.day_a.isoformat()}T00:00:00+01:00")
-        day_d = next(row for row in rows if row["date"] == f"{self.day_d.isoformat()}T10:00:00+01:00")
+        self.assertEqual(rows[0]["date"], f"{self.day_a.isoformat()}T10:00:00+01:00")
+        day_b_before = next(row for row in rows if row["date"] == f"{self.day_b.isoformat()}T14:00:00+01:00")
+        day_b_at_commit = next(row for row in rows if row["date"] == f"{self.day_b.isoformat()}T15:00:00+01:00")
+        self.assertEqual(day_b_before["tickets_total"], 2)
+        self.assertEqual(day_b_at_commit["tickets_total"], 3)
+        day_d = next(row for row in rows if row["date"] == f"{self.day_d.isoformat()}T17:00:00+01:00")
         self.assertEqual(day_d["tickets_total"], 8)
         self.assertEqual(day_d["by_status"]["done"], 4)
 

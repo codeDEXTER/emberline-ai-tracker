@@ -72,7 +72,7 @@ def _repo_root(project: Path) -> Path:
 
 
 def _ledger_commits(repo: Path) -> list[tuple[str, datetime.datetime]]:
-    """(sha, Europe-local commit time), oldest first, for every commit that
+    """(sha, Europe-local commit datetime), oldest first, for every commit that
     touched a ledger file directly under docs/proposals."""
     out = _git(repo, "log", "--format=%H%x1f%cI", "--reverse", "--", f"docs/proposals/{LEDGER_GLOB}")
     commits = []
@@ -82,7 +82,7 @@ def _ledger_commits(repo: Path) -> list[tuple[str, datetime.datetime]]:
             continue
         sha, iso = line.split("\x1f")
         when = datetime.datetime.fromisoformat(iso).astimezone(TZ)
-        commits.append((sha, when.date()))
+        commits.append((sha, when))
     return commits
 
 
