@@ -1,3 +1,10 @@
+## 1.1.7 · CI release follow-up · 2026-09-19
+
+Followed the public 1.1.6 release with the final CI release boundary: the
+workflow now installs its renderer dependency explicitly, and the release
+version advances past the preparation commit so the merge gate can verify a
+new published patch release.
+
 ## 1.1.6 · Pipeline, user guide, and discoverability · 2026-09-19
 
 Repaired the merge gate's stale workflow stamp and synchronized the release
