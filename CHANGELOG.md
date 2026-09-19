@@ -1,3 +1,9 @@
+## 1.1.10 · Release pin synchronization · 2026-09-19
+
+Synchronized the intentionally literal release-version regression test with
+the hourly tracker fix release so the public CI gate checks the current
+version contract.
+
 ## 1.1.9 · Accurate hourly tracker history · 2026-09-19
 
 Fixed the hourly progress graph: tracker history now preserves each ledger
