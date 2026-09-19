@@ -30,6 +30,10 @@ __pycache__/
 .worktrees/
 .claude/worktrees/
 
+# Warm-up/reheat state is a session snapshot, not project content.
+.claude/warmup/
+.Codex/warmup/
+
 # Ruflo (claude-flow) runtime state. The CLI writes these wherever it runs --
 # daemon and policy state, logs, neural patterns, and its memory databases with
 # their WAL files -- and proposal 19 made the Ruflo loop mandatory, so every

@@ -1,3 +1,12 @@
+## 1.1.5 · Public repository cleanup · 2026-09-19
+
+Removed tracked warm-up session state and three orphaned presentation pages
+that were not referenced by the product, workflow, tests, or public docs.
+Ignored future warm-up snapshots so machine-local session state cannot return
+to the repository. Retained proposal-cited research evidence, runtime tools,
+tests, tracker pages, handovers, and the story snapshot because they remain
+part of the workflow or historical audit surface.
+
 ## 1.1.4 · GitHub discoverability pass · 2026-09-19
 
 Clarified the README's search-facing introduction around open-source AI agent
