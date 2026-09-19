@@ -1,3 +1,9 @@
+## 1.1.12 · Release pin synchronization · 2026-09-19
+
+Synchronized the literal release-version regression test with the README
+adoption-prompt release so the public Ubuntu merge gate verifies the current
+version contract.
+
 ## 1.1.11 · Copy-and-paste project adoption · 2026-09-19
 
 Added a ready-to-paste project-chat instruction set to the public README so
