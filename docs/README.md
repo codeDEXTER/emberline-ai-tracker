@@ -9,6 +9,7 @@ The documentation has four clear surfaces:
 
 - **Public story:** [`../README.md`](../README.md), [`public-review.html`](public-review.html), and [`warmup-reheat.html`](warmup-reheat.html)
 - **Getting started:** [`GETTING-STARTED.md`](GETTING-STARTED.md) and [`OPERATING-RULES.md`](OPERATING-RULES.md)
+- **User guide:** [`user-guide/`](user-guide/) for the product model, commands, tracker, integrations, structure, and discoverability
 - **Live evidence:** [`proposals/tracker/index.html`](proposals/tracker/index.html), [`proposals/`](proposals/), and [`handovers/`](handovers/)
 - **Reports and reference:** the workflow pages, release notes, research, and the running story listed below
 

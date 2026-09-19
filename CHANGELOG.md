@@ -1,3 +1,11 @@
+## 1.1.6 · Pipeline, user guide, and discoverability · 2026-09-19
+
+Repaired the merge gate's stale workflow stamp and synchronized the release
+version with the shipped changelog. Added a guided `docs/user-guide/` for the
+product model, session commands, tracker, integrations, repository layout,
+and search discoverability. Documented why operational root files and
+`.github/workflows/` remain in their conventional locations.
+
 ## 1.1.5 · Public repository cleanup · 2026-09-19
 
 Removed tracked warm-up session state and three orphaned presentation pages

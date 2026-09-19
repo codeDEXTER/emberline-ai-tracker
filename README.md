@@ -8,7 +8,7 @@ next steps connected across **Claude Code and OpenAI Codex**.
 
 ![The problem and solution: session context, shared proposals and decisions, and a generated tracker for Claude Code and Codex](docs/assets/product-overview.svg)
 
-[**Get started →**](docs/GETTING-STARTED.md) · [Explore the tracker](docs/proposals/tracker/index.html)
+[**Get started →**](docs/GETTING-STARTED.md) · [Explore the tracker](docs/proposals/tracker/index.html) · [Read the user guide](docs/user-guide/) · [Release 1.1.6](docs/RELEASE-1.1.6.md)
 
 ## Less catching up. More moving forward.
 
@@ -40,7 +40,7 @@ labels are cleaned for the public story. The live tracker remains available abov
 
 A shared record supports the workflow; human review still decides what is accepted.
 
-[**Get started →**](docs/GETTING-STARTED.md) · [Capabilities & boundaries](docs/GETTING-STARTED.md#boundaries) · [Release history](CHANGELOG.md)
+[**Get started →**](docs/GETTING-STARTED.md) · [Capabilities & boundaries](docs/GETTING-STARTED.md#boundaries) · [User guide](docs/user-guide/) · [Release history](CHANGELOG.md)
 
 ## Attribution
 
