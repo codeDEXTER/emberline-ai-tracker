@@ -1,3 +1,61 @@
+## 1.1.2 · Emberline public presentation · 2026-09-19
+
+Frozen the public presentation as version 1.1.2. The release keeps the actual
+tracker snapshot with cleaned Proposal 1–15 labels, removes the proposal-
+architecture image from public surfaces, and records the verified README and
+HTML review pages. No remote publication or repository rename is included.
+
+Sponsor accepted the presentation and requested publishing preparation. Finalized
+the public display name as Emberline — Shared Memory & Delivery Tracker for AI
+Agents across the README, HTML and diagrams. Recorded acceptance and a publishing
+handoff with licensing/privacy/name-clearance gates. No license adopted, repository
+renamed, or remote publication performed; operating behavior is unchanged.
+
+Removed the proposal-architecture image from the public README and HTML surfaces
+at the sponsor's request. The source asset remains available but is no longer part
+of the public story.
+
+Replaced internal-ID tracker captures with a lightly edited snapshot of the actual
+tracker, using a coherent Proposal 1–15 sample set. Kept the real UI, charts and
+layout intact; added the proposal-architecture map separately as the concept visual.
+Replaced the unreliable local marketing-page iframe in the sponsor review with a
+rendered preview and direct link to the HTML page.
+
+Following sponsor feedback, reduced the README to a short marketing story and
+moved commands and detailed boundaries into `docs/GETTING-STARTED.md`.
+Reworked the HTML highlight page into the same brief visual story, with
+real tracker panels and links to the supporting documentation.
+Proposed Agent Project Memory as the public display name and added a readable
+mobile introduction and full-size visual links. Repository paths are unchanged.
+Added `docs/public-review.html` as the durable review entry point, embedding the
+current marketing page and linking the current sources instead of old previews.
+Saved the complete Markdown-derived README rendering as a portable local review
+artifact and embedded it in the sponsor review page.
+
+Recorded the sponsor's expanded acceptance criteria and remaining review gaps
+in `docs/PUBLIC-EXPERIENCE-BRIEF.md`. Corrected the reheat card's overflowing
+text and labelled the generated workspace image as a concept illustration.
+These are presentation changes; the operating standard is unchanged.
+
+Added a product-overview hero explaining session continuity, the shared record,
+and generated tracking for Claude Code and Codex. The complete README preview
+is now generated from Markdown. Added a focused List screenshot and constrained
+the mobile image so it no longer stretches across its gallery column.
+
+The public front door is now named **Common Rules — Session Context & Delivery
+Tracker** so the product's purpose is clear to a new Claude Code or Codex
+reader. Reworked `README.md` and `docs/warmup-reheat.html` around the actual
+problem — chats lose decisions, state, and a safe next step — then tell the
+solution as one story: warm-up for a fresh session, reheat for a running
+session, and the generated tracker and proposal ledgers as the evidence
+surface. The first fold leads with an editorial overview photograph, followed
+by the corrected non-overlapping warm-up/reheat diagram and authentic tracker
+captures for overview, Kanban, Board, List, and responsive views.
+
+The public guidance also calls out the sponsor's commit-and-push cadence:
+accepted slices should land on `origin/main` regularly so the review surface
+stays small, with `7cd1d49` recorded as the recent Loom engine example.
+
 ## 1.1.1 · Claude/Codex workflow parity · 2026-09-18
 
 Updated the cookbook with one host-neutral workflow for Claude Code and Codex,

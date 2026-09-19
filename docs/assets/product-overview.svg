@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 760" role="img" aria-labelledby="title desc">
+<title id="title">Keep the project moving when the chat changes</title>
+<desc id="desc">Common Rules gives Claude Code and Codex a shared project record. Warm-up loads context, reheat checks changes, proposals record decisions, and a generated tracker shows work and evidence.</desc>
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#101f33"/><stop offset="1" stop-color="#091217"/></linearGradient></defs>
+<rect width="1440" height="760" rx="24" fill="url(#bg)"/>
+<g font-family="Arial,Helvetica,sans-serif">
+<text x="64" y="66" fill="#76d5b0" font-size="16" letter-spacing="3">EMBERLINE</text>
+<rect x="1090" y="38" width="286" height="44" rx="22" fill="#24364a"/>
+<text x="1233" y="66" text-anchor="middle" fill="#eef4fc" font-size="17">Claude Code + Codex</text>
+<text x="64" y="160" fill="#ffffff" font-size="64" font-weight="700" letter-spacing="-2">Keep the project moving</text>
+<text x="64" y="231" fill="#ffffff" font-size="64" font-weight="700" letter-spacing="-2">when the chat changes.</text>
+<text x="64" y="286" fill="#b8c9d8" font-size="24">Decisions get buried. Context goes stale. Tracking takes work.</text>
+<text x="64" y="321" fill="#b8c9d8" font-size="24">Give every session the same record — and everyone a view of progress.</text>
+<rect x="64" y="371" width="1312" height="245" rx="16" fill="#142330" stroke="#34495b"/>
+<text x="90" y="409" fill="#a8c5e9" font-size="15" letter-spacing="2">GET ORIENTED</text>
+<text x="90" y="453" fill="#ffffff" font-size="27" font-weight="700">/warmup</text>
+<text x="90" y="483" fill="#a8c5e9" font-size="19">Fresh chat · full context</text>
+<text x="90" y="539" fill="#ffffff" font-size="27" font-weight="700">/reheat</text>
+<text x="90" y="569" fill="#e5bc80" font-size="19">Running chat · changes</text>
+<path d="M385 490H439m-12-12 12 12-12 12" fill="none" stroke="#7bd5b4" stroke-width="3"/>
+<text x="470" y="409" fill="#7bd5b4" font-size="15" letter-spacing="2">SHARED PROJECT RECORD</text>
+<text x="470" y="455" fill="#ffffff" font-size="27" font-weight="700">Proposals + decisions</text>
+<text x="470" y="493" fill="#b8c9d8" font-size="20">Tasks · owners · evidence</text>
+<text x="470" y="529" fill="#b8c9d8" font-size="20">Handoffs · next steps</text>
+<text x="470" y="577" fill="#7bd5b4" font-size="17">Saved in the repository</text>
+<path d="M818 490H872m-12-12 12 12-12 12" fill="none" stroke="#7bd5b4" stroke-width="3"/>
+<text x="909" y="409" fill="#a8c5e9" font-size="15" letter-spacing="2">GENERATED TRACKER</text>
+<text x="909" y="455" fill="#ffffff" font-size="27" font-weight="700">See what needs attention</text>
+<text x="909" y="493" fill="#b8c9d8" font-size="20">Progress · blockers · review</text>
+<text x="909" y="529" fill="#b8c9d8" font-size="20">Tree · Kanban · Board · List</text>
+<text x="909" y="577" fill="#7bd5b4" font-size="17">Inspect the work behind the status</text>
+<text x="64" y="680" fill="#ffffff" font-size="24" font-weight="700">Start informed. Resume with context. Review with evidence.</text>
+<text x="64" y="717" fill="#8ea8bb" font-size="18">Session commands read and check the record. Ledger tools record work and generate the tracker.</text>
+</g></svg>

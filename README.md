@@ -1,120 +1,41 @@
-# common-rules
+# Emberline — Shared Memory & Delivery Tracker for AI Agents
 
-Workflow rules shared across every project under `/Users/the-sponsor/apps/`,
-kept in one place instead of duplicated into each project's `CLAUDE.md`.
+### Keep the project moving when the chat changes.
 
-**This folder is its own git repository, deliberately separate from every
-project's.** `apps/` itself is not a repo — each project underneath it
-(`finance-tracker/`, `pockets/`, etc.) is independent, and this folder sits
-outside all of them on purpose, so these rules aren't tied to any single
-project's history or branch. That separation is the point and hasn't
-changed; what changed on 2026-08-03 is that the folder gained a repo of its
-own (`github-owner/ai-common-rules`, private) rather than having no version
-control at all.
+Shared project memory and a delivery tracker for **Claude Code + Codex**.
 
-`CHANGELOG.md` remains the human-readable record of *why* each rule changed,
-and stays the thing to read first — `git log` records that a change
-happened, the changelog records what it was for.
+![The problem and solution: session context, shared proposals and decisions, and a generated tracker for Claude Code and Codex](docs/assets/product-overview.svg)
 
-## Consumers
+[**Get started →**](docs/GETTING-STARTED.md) · [Explore the tracker](docs/proposals/tracker/index.html)
 
-This is one shared standard consumed by both Claude Code and Codex. The
-rules, ledgers, templates, hooks, and tracker are the common contract; a
-consumer-specific command, UI, or integration may provide the entry point,
-but it must not create a second interpretation of the workflow. When a rule
-names a session, agent, tool, or host, read it as the role or capability it
-provides, independent of whether Claude Code or Codex is running it.
+## Less catching up. More moving forward.
 
-## Files
+Decisions get buried in chats. Context goes stale. Emberline gives every
+session a shared record — and you a clear view of what happens next.
 
-- **`agents/`** — the eight specialist agent definitions
-  (`research-agent`, `design-explorer`, `requirements-engineer`,
-  `design-engineer`, `proposal-auditor`, `code-engineer`,
-  `test-engineer`, `quality-manager`). **`~/.agent-data/agents` is a symlink to this
-  directory**, which is where Claude Code actually loads agent
-  definitions from — so editing a file here is editing the live agent,
-  and the definitions get the same version history as the rules that
-  govern them. Two things to know: they are machine-global (any session
-  on this Mac can invoke them, not just ones under `apps/`), and a
-  definition dropped into this directory **registers in already-running
-  sessions**, without a restart — measured 2026-08-06, when an agent added
-  mid-session became invokable immediately. What *is* fixed at session start
-  is which directories are searched, so a definition placed in a project's
-  `.claude/agents/` is invisible to a session rooted anywhere else.
-- **`CLAUDE-workflow.md`** — the actual rules: git worktree-per-task, the
-  pre-merge checklist shape, issue tracking (checklist file as source of
-  truth, GitHub issues as a one-way mirror), and the issue lifecycle (the
-  user is project manager and decides creation/scope/priority/picking/
-  closing; the AI researches, builds, reviews, and tests within that).
-- **`bin/rulecheck`** — answers "is this project on the current rules?"
-  before any work starts, and prints *what changed* if not. The rules move
-  several times a day, so a session working from what it read last week is
-  following a version that no longer exists. A project records the version
-  it last aligned with in `.common-rules-version` at its root, committed
-  like any other record. Best wired to a `SessionStart` hook per project
-  (`rulecheck --quiet`) so nobody has to remember.
-- **`bin/pulse`** — where you see the autopilot running: one page with every
-  project's features and their open issues (grouped by title prefix), each
-  worktree with its ahead/uncommitted state and how fresh its session is,
-  running app instances, and rules alignment. A derived snapshot, honest about
-  when it was taken; re-run to refresh. `docs/pulse.html`.
-- **`bin/whoelse`** — who else is working in this project, and do we collide?
-  Reads `git worktree list`, a `git status` in each, and whether any of it is
-  ahead of `main` — the three places that already knew and nobody consulted.
-  Overlap is a stop, not a warning. `--contested` gives the batch view for
-  sequencing issues before sessions are opened.
-- **`bin/apprun`** — the run registry. It exists because one rule in `CLAUDE-workflow.md` ("stop only what you
-  started") is unfollowable without a fact no agent otherwise has: who
-  started a given instance. It keeps `~/.agent-data/app-runs.jsonl`, keyed on
-  `CLAUDE_CODE_SESSION_ID`, so ownership is checked rather than assumed —
-  `stop` declines a live stranger's copy, an orphan, and the stable copy,
-  each with its reason. It also closes the browser window, which stopping
-  the process does not. Stdlib Python 3 only, no dependencies.
-  `apprun sweep` reports orphans from dead sessions and says outright when
-  no clean copy is running. A copy started with `--demo` — one the *user*
-  is looking at — survives a blanket `stop --all` and says so.
-- **`ASKS.md`** — an append-only log of what the user has asked for about
-  *how work is done* (not what to build), and the patterns found in it.
-  Sessions add to it; when entries rhyme, the pattern is proposed as a rule
-  or, more often, as an amendment to one that didn't reach far enough.
-  Adding an entry is not a rule change and needs no PR.
-- **`CHANGELOG.md`** — every change made to the files in this folder,
-  documented in plain language.
+## Pick up where the work left off.
 
-## How a project adopts this
+**Warm-up** gives a fresh chat its starting context. **Reheat** brings a running
+chat up to date. Your proposals, decisions, and next steps stay connected.
 
-**The sponsor runs `/standard`** in the project's session (see
-`skills/standard/SKILL.md`). That single command does the rest itself, via
-its own 12-item checklist — including the `CLAUDE.md` pointer below, and
-running `bin/derecord`, which installs the enforced rules.
+![Separate warm-up and reheat paths for fresh and running sessions](docs/assets/warmup-reheat-hero.svg)
 
-Add a short pointer near the top of the project's own `CLAUDE.md`:
+## See the whole project. Find the next step.
 
-> Shared workflow rules (git worktree-per-task, pre-merge checklist, issue
-> tracking, confirmation gates): `../common-rules/CLAUDE-workflow.md` —
-> read that first. This project's specifics for it: test command is
-> `<...>`, build/run is `<...>`, GitHub repo is `<owner/repo>`.
+From proposal to progress, the tracker puts the work where you can inspect it.
 
-Then keep only the project's own specifics in its `CLAUDE.md` — the exact
-test/build commands, its repo name, its label taxonomy, any gitignored
-files a fresh worktree needs copied in, and anything else genuinely
-specific to that project. Don't copy `CLAUDE-workflow.md`'s text inline;
-that defeats the point of sharing it.
+![Edited snapshot of the actual Emberline tracker with cleaned sample proposal labels](docs/assets/tracker-overview-edited.png)
 
-## Editing these rules
+## One record. Different ways to see it.
 
-**Reserved for the user, same as the issue lifecycle rules inside
-`CLAUDE-workflow.md` itself.** The AI does not edit any file in this
-folder on its own initiative — not to fix a typo, not because it noticed
-a stale note or a gotcha worth recording. It surfaces what it noticed and
-asks; a change only happens once the user has explicitly directed it in
-that conversation. The reason the bar is higher here than for an ordinary
-project file: if a rule here changes, every adopting project benefits (or
-is affected) automatically — that's the reason this folder exists, but it
-also means an unprompted change here silently changes behavior everywhere
-at once, not just in the one project a session happens to be in.
+Explore proposals in **Tree**, follow work in **Kanban**, inspect cards in
+**Board**, or scan the details in **List**.
 
-When the user does direct a change: add a `CHANGELOG.md` entry here
-explaining why, and if it actually affects behavior for an
-already-adopted project (not just wording), mention that to the user —
-worth a one-line heads-up next time you're working in that project too.
+_Edited tracker snapshot: the UI layout and data surface are preserved; proposal
+labels are cleaned for the public story. The live tracker remains available above._
+
+## Your agents share context. You keep the decisions.
+
+A shared record supports the workflow; human review still decides what is accepted.
+
+[**Get started →**](docs/GETTING-STARTED.md) · [Capabilities & boundaries](docs/GETTING-STARTED.md#boundaries) · [Release history](CHANGELOG.md)
