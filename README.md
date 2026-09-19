@@ -39,3 +39,13 @@ labels are cleaned for the public story. The live tracker remains available abov
 A shared record supports the workflow; human review still decides what is accepted.
 
 [**Get started →**](docs/GETTING-STARTED.md) · [Capabilities & boundaries](docs/GETTING-STARTED.md#boundaries) · [Release history](CHANGELOG.md)
+
+## Attribution
+
+Emberline is created and maintained by **Aashish Sud (codeDEXTER)**.
+
+## Licensing
+
+Code is available under [Apache-2.0](LICENSE). Documentation and visual
+assets are available under [CC BY 4.0](LICENSE-DOCS). The Emberline name and
+logo are project marks and are not licensed for implied endorsement.

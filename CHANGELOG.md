@@ -1,3 +1,9 @@
+## 1.1.3 · Public release licensing · 2026-09-19
+
+Added Apache-2.0 licensing for code, CC BY 4.0 terms for documentation and
+visual assets, and a NOTICE file crediting Aashish Sud. Reserved the Emberline
+name and logo against implied endorsement.
+
 ## 1.1.2 · Emberline public presentation · 2026-09-19
 
 Frozen the public presentation as version 1.1.2. The release keeps the actual
