@@ -21,6 +21,6 @@ Run the steps in `skills/warmup/SKILL.md` now, exactly as written there:
 
 `RULES/bin/warmup --project . --queue --state .claude/warmup/last.json`
 
-(`RULES` is `/Users/the-sponsor/apps/common-rules`, unless this project's
+(`RULES` is `common-rules`, unless this project's
 CLAUDE.md names a different checkout.) Read the card, fix or block every ✗
 line, and carry on — `skills/warmup/SKILL.md` section 3 says how.

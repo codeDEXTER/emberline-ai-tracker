@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/the-sponsor/apps/common-rules/hooks/posttooluse-agent"
+            "command": "common-rules/hooks/posttooluse-agent"
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/the-sponsor/apps/common-rules/hooks/precompact"
+            "command": "common-rules/hooks/precompact"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/the-sponsor/apps/common-rules/bin/rulecheck --quiet"
+            "command": "common-rules/bin/rulecheck --quiet"
           }
         ]
       },
@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/the-sponsor/apps/common-rules/hooks/sessionstart"
+            "command": "common-rules/hooks/sessionstart"
           }
         ]
       }
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/the-sponsor/apps/common-rules/hooks/stop"
+            "command": "common-rules/hooks/stop"
           }
         ]
       }

@@ -26,7 +26,7 @@ def measure(path):
                     out["calls_pre_edit"] += 1; out["chars_pre_edit"] += len(t)
     out["approx_tokens"] = out["chars"] // 4; out["approx_tokens_pre_edit"] = out["chars_pre_edit"] // 4
     return out
-base = os.path.expanduser("~/.agent-data/projects/-Users-the-sponsor-apps/3cff917f-aeff-41f8-9753-cac90d63512e/subagents")
+base = os.path.expanduser("~/.agent-data/projects/-Users-the sponsor-apps/3cff917f-aeff-41f8-9753-cac90d63512e/subagents")
 for label, aid in (("scout-fed 21/F-01", "ad4958655e084ffd3"), ("no scout 26/F-01", "aea3279f5674b3c87"), ("scout itself (haiku)", "ade7b40107946a2c2")):
     fs = glob.glob(f"{base}/agent-{aid}*.jsonl")
     print(label, fs and measure(fs[0]))

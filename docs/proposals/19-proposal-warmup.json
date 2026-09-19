@@ -68,7 +68,7 @@
       "id": "Q-04",
       "phase": "Q",
       "cx": "C2",
-      "title": "standard item 12 Card: warmup --check: 1 problem(s), first: checkpoint is stale -- run: tracker checkpoint --project /Users/the-sponsor/apps/common-rules",
+      "title": "standard item 12 Card: warmup --check: 1 problem(s), first: checkpoint is stale -- run: tracker checkpoint --project common-rules",
       "status": "done",
       "owner": "lead",
       "queue_source": "conformance:12",
@@ -214,7 +214,7 @@
           "at": "2026-09-13T20:57:26+02:00",
           "event": "finding",
           "by": "lead",
-          "evidence": "first run failed on import: `tools` resolved to /Users/the-sponsor/apps/Sangam/Sangam-engine/tools/__init__.py from the shared interpreter path, shadowing common-rules' namespace directory. Fixed with tools/__init__.py (a regular package wins at sys.path[0])."
+          "evidence": "first run failed on import: `tools` resolved to apps/Sangam/Sangam-engine/tools/__init__.py from the shared interpreter path, shadowing common-rules' namespace directory. Fixed with tools/__init__.py (a regular package wins at sys.path[0])."
         },
         {
           "at": "2026-09-13T20:57:26+02:00",
@@ -469,7 +469,7 @@
           "at": "2026-09-13T21:32:37+02:00",
           "event": "pilot, read-only",
           "by": "lead",
-          "evidence": "bin/warmup run on /Users/the-sponsor/apps/PhotoVault/engine with git status porcelain 0 lines before and after. First card printed three wrong lines: 'Prohibitions: none found' (heading 'Two prohibitions. Verbatim, non-negotiable.', lines '**1. Never ...**'), 'Proposal None · 0 done' (a data file read as a ledger), 'checkpoint · stale' for a hand-written checkpoint with no digest. Each fixed test-first. Second card: both prohibitions verbatim, proposal 71 at 28/2/1/9, two real problems (no tracker page; hand-written checkpoint), warm-up read 195,322 bytes (~48,830 tokens), down from 261,812 with the phantom ledger."
+          "evidence": "bin/warmup run on apps/PhotoVault/engine with git status porcelain 0 lines before and after. First card printed three wrong lines: 'Prohibitions: none found' (heading 'Two prohibitions. Verbatim, non-negotiable.', lines '**1. Never ...**'), 'Proposal None · 0 done' (a data file read as a ledger), 'checkpoint · stale' for a hand-written checkpoint with no digest. Each fixed test-first. Second card: both prohibitions verbatim, proposal 71 at 28/2/1/9, two real problems (no tracker page; hand-written checkpoint), warm-up read 195,322 bytes (~48,830 tokens), down from 261,812 with the phantom ledger."
         },
         {
           "at": "2026-09-13T21:32:37+02:00",
@@ -532,7 +532,7 @@
           "at": "2026-09-13T21:16:45+02:00",
           "event": "finding",
           "by": "lead",
-          "evidence": "the mandatory Ruflo loop did NOT run for this item: the agent reports memory search 'Database not found', post-task 'Unknown command', memory store 'Database not initialized', daemon 'was not running'. The CLI at ~/.npm/_npx/85fb20e3e7e3a233 worked for W-01, W-04, W-07 and the lead from /Users/the-sponsor/apps/common-rules; the report does not name which binary or directory it ran from, so the cause is unattributed. Recorded, not re-run."
+          "evidence": "the mandatory Ruflo loop did NOT run for this item: the agent reports memory search 'Database not found', post-task 'Unknown command', memory store 'Database not initialized', daemon 'was not running'. The CLI at ~/.npm/_npx/85fb20e3e7e3a233 worked for W-01, W-04, W-07 and the lead from common-rules; the report does not name which binary or directory it ran from, so the cause is unattributed. Recorded, not re-run."
         },
         {
           "at": "2026-09-13T21:16:45+02:00",
@@ -628,7 +628,7 @@
           "at": "2026-09-13T21:28:08+02:00",
           "event": "finished",
           "by": "subagent sonnet",
-          "evidence": "754b24c on p19-w08; red first 4 failures and 1 error of 12 (the 5 existing derecord tests passed); green test_derecord.py 12 OK; full suite 383 OK; ruflo loop ran clean with the named binary ~/.npm/_npx/85fb20e3e7e3a233 from /Users/the-sponsor/apps/common-rules (post-task SUCCESS, memory store ok, daemon stopped) -- which makes W-06's errors look like a different binary or directory, still unconfirmed"
+          "evidence": "754b24c on p19-w08; red first 4 failures and 1 error of 12 (the 5 existing derecord tests passed); green test_derecord.py 12 OK; full suite 383 OK; ruflo loop ran clean with the named binary ~/.npm/_npx/85fb20e3e7e3a233 from common-rules (post-task SUCCESS, memory store ok, daemon stopped) -- which makes W-06's errors look like a different binary or directory, still unconfirmed"
         },
         {
           "at": "2026-09-13T21:28:08+02:00",
@@ -692,7 +692,7 @@
           "at": "2026-09-13T21:43:59+02:00",
           "event": "finished",
           "by": "subagent sonnet",
-          "evidence": "397cb9a on p19-w11; red first 2 failures + 1 error in the new TestDerecordSkill (13 existing passed); green test_derecord.py 16 OK; full suite 408 OK; ruflo loop clean with ~/.npm/_npx/85fb20e3e7e3a233 from /Users/the-sponsor/apps/common-rules, memory search returned a usable hit (p19-w08, 0.35)"
+          "evidence": "397cb9a on p19-w11; red first 2 failures + 1 error in the new TestDerecordSkill (13 existing passed); green test_derecord.py 16 OK; full suite 408 OK; ruflo loop clean with ~/.npm/_npx/85fb20e3e7e3a233 from common-rules, memory search returned a usable hit (p19-w08, 0.35)"
         },
         {
           "at": "2026-09-13T21:43:59+02:00",
@@ -839,7 +839,7 @@
       "phase": "W",
       "cx": "C4",
       "title": "Migrate the PhotoVault app onto the standard",
-      "what": "Run warmup --migrate in /Users/the-sponsor/apps/PhotoVault/app the way the engine did: its own session runs the dry run and the real run at a checkpoint, commits by explicit path, leaves CLAUDE.md for the sponsor, declares its gate in .common-rules-test (sh tools/gate.sh).",
+      "what": "Run warmup --migrate in apps/PhotoVault/app the way the engine did: its own session runs the dry run and the real run at a checkpoint, commits by explicit path, leaves CLAUDE.md for the sponsor, declares its gate in .common-rules-test (sh tools/gate.sh).",
       "files": [],
       "tests": [],
       "done": "The app's warm card shows no problems: its ledger validates, its tracker page renders, its checkpoint carries a digest.",
@@ -874,7 +874,7 @@
         {
           "at": "2026-09-13T23:28:41+02:00",
           "event": "verified",
-          "by": "lead, read-only on /Users/the-sponsor/apps/PhotoVault/app",
+          "by": "lead, read-only on apps/PhotoVault/app",
           "evidence": "bin/warmup --check: ready, all five lines passing (HANDOFF 315 commits behind, OPERATING-RULES 2 behind, ledger well-formed, tracker page matches, checkpoint matches). bin/tracker validate: well-formed, 48 items, 11 done / 6 in progress / 3 blocked / 28 not started. Commits 941b479 and 36aa2dd exist. .claude/settings.json: Stop runs the app's gate.sh --quick and common-rules hooks/stop; SessionStart runs rulecheck --quiet and hooks/sessionstart; PreCompact runs hooks/precompact. The app's git status was byte-identical before and after the checks."
         },
         {
@@ -917,19 +917,19 @@
           "at": "2026-09-13T21:55:07+02:00",
           "event": "blocked",
           "by": "lead",
-          "evidence": "Needs the sponsor's go on two things. (1) Merge the proposal 19 branch into common-rules main: every project reaches the tools through the main checkout at /Users/the-sponsor/apps/common-rules, so until then nothing is installable. (2) Run `warmup --migrate` for real in /Users/the-sponsor/apps/PhotoVault/engine -- it writes that repository (derecord hooks, settings, the /warmup skill, the lead prompt, two rules moved to ## Superseded, a CLAUDE.md pointer), which has its own lead session that committed until 20:20 on 13 Sep. The dry run is logged on W-12."
+          "evidence": "Needs the sponsor's go on two things. (1) Merge the proposal 19 branch into common-rules main: every project reaches the tools through the main checkout at common-rules, so until then nothing is installable. (2) Run `warmup --migrate` for real in apps/PhotoVault/engine -- it writes that repository (derecord hooks, settings, the /warmup skill, the lead prompt, two rules moved to ## Superseded, a CLAUDE.md pointer), which has its own lead session that committed until 20:20 on 13 Sep. The dry run is logged on W-12."
         },
         {
           "at": "2026-09-13T21:57:35+02:00",
           "event": "correction",
           "by": "lead",
-          "evidence": "The blocked entry above says the engine's lead session 'committed until 20:20 on 13 Sep'. Wrong: its log shows commits at 21:44, 21:46 and 21:47. And bin/whoelse --project /Users/the-sponsor/apps/PhotoVault/engine run just before this entry was committed (f796d09, 21:57) shows it active then: worktree pv-e006 (p71/E0-06) 1 commit ahead, 21 minutes ago; pv-e109 (p71/E1-09) 6 commits ahead with 3 uncommitted files, 38 minutes ago; no overlap with the main checkout. Migrate writes the main checkout's CLAUDE.md, which that session reloads every turn, plus its hooks and operating rules. The request stands, with this added: tell the engine session before migrating."
+          "evidence": "The blocked entry above says the engine's lead session 'committed until 20:20 on 13 Sep'. Wrong: its log shows commits at 21:44, 21:46 and 21:47. And bin/whoelse --project apps/PhotoVault/engine run just before this entry was committed (f796d09, 21:57) shows it active then: worktree pv-e006 (p71/E0-06) 1 commit ahead, 21 minutes ago; pv-e109 (p71/E1-09) 6 commits ahead with 3 uncommitted files, 38 minutes ago; no overlap with the main checkout. Migrate writes the main checkout's CLAUDE.md, which that session reloads every turn, plus its hooks and operating rules. The request stands, with this added: tell the engine session before migrating."
         },
         {
           "at": "2026-09-13T22:04:50+02:00",
           "event": "sponsor decision",
           "by": "sponsor, directly in the lead session",
-          "evidence": "'merge 148 and wait for the engine' (A-07). The proposal 19 branch merges to common-rules main; the engine migration waits until the engine's lead session is idle. Stays blocked; the unblock check is bin/whoelse --project /Users/the-sponsor/apps/PhotoVault/engine showing no worktree with recent or uncommitted work, then telling that session before migrating."
+          "evidence": "'merge 148 and wait for the engine' (A-07). The proposal 19 branch merges to common-rules main; the engine migration waits until the engine's lead session is idle. Stays blocked; the unblock check is bin/whoelse --project apps/PhotoVault/engine showing no worktree with recent or uncommitted work, then telling that session before migrating."
         },
         {
           "at": "2026-09-13T22:29:59+02:00",
@@ -947,7 +947,7 @@
           "at": "2026-09-13T22:46:34+02:00",
           "event": "PhotoVault app dry run, read-only",
           "by": "lead, on the sponsor's instruction (A-08, A-09)",
-          "evidence": "bin/warmup --migrate --dry-run on /Users/the-sponsor/apps/PhotoVault/app at common-rules 8ec86b3: git status, CLAUDE.md and docs/OPERATING-RULES.md unchanged. It reported nothing to supersede -- a false negative: the app writes its rules as plain '- ' bullets and its §1 opens '- One plan, updated in place.' naming 53-proposal-one-big-bang.html as plan of record. derecord would also have seeded docs/handovers/lead-prompt.md beside the app's docs/proposals/70-lead-prompt.md. Its ledger 70-r9-delivery-plan.json (47 items) has its own vocabulary -- statuses todo 30, active 6, done 8, blocked 3; ids like F1 and Q1; no cx; done rows with empty logs -- 138 validation problems, so the card and tracker render would reject it after migration. Its merge gate is `sh tools/gate.sh` (Flutter), which land would not guess. With the two fixes, the re-run dry run names the One plan rule and its replacement; simulated on a copy of the app's rules, 0 original lines lost."
+          "evidence": "bin/warmup --migrate --dry-run on apps/PhotoVault/app at common-rules 8ec86b3: git status, CLAUDE.md and docs/OPERATING-RULES.md unchanged. It reported nothing to supersede -- a false negative: the app writes its rules as plain '- ' bullets and its §1 opens '- One plan, updated in place.' naming 53-proposal-one-big-bang.html as plan of record. derecord would also have seeded docs/handovers/lead-prompt.md beside the app's docs/proposals/70-lead-prompt.md. Its ledger 70-r9-delivery-plan.json (47 items) has its own vocabulary -- statuses todo 30, active 6, done 8, blocked 3; ids like F1 and Q1; no cx; done rows with empty logs -- 138 validation problems, so the card and tracker render would reject it after migration. Its merge gate is `sh tools/gate.sh` (Flutter), which land would not guess. With the two fixes, the re-run dry run names the One plan rule and its replacement; simulated on a copy of the app's rules, 0 original lines lost."
         },
         {
           "at": "2026-09-14T01:31:11+02:00",
@@ -958,7 +958,7 @@
         {
           "at": "2026-09-14T01:31:11+02:00",
           "event": "verified",
-          "by": "lead, read-only on /Users/the-sponsor/apps/PhotoVault/engine",
+          "by": "lead, read-only on apps/PhotoVault/engine",
           "evidence": "Both commits exist and carry exactly the files named. Uncommitted: only CLAUDE.md (+8, the pointer). bin/warmup --check: ready, all five lines passing. bin/tracker validate: 32 done / 0 in progress / 0 blocked / 11 not started. OPERATING-RULES.md: replacement rules at lines 11 and 189, ## Superseded with two 2026-09-14 entries, 0 original non-blank lines lost against 7cb0448^. The engine's git status was byte-identical before and after the checks. The pointer's read order (HANDOFF.md first) matches the engine, unlike the app's."
         },
         {
@@ -987,7 +987,7 @@
         },
         {
           "at": "2026-09-17T07:30:59+02:00",
-          "event": "interim reading of conditions 4 and 5, 2026-09-14 to 2026-09-16 22:47: common-rules NOT MET on both -- (4) 94 sponsor messages: 29 with an ask row, 11 answers, 54 unmatched; (5) 130 agent briefs, 74 with all five headings (missing CONTEXT 45, OWNS 54, MUST 48, MUST NOT 45, OUTPUT 44). Caveat: the -Users-the-sponsor-apps transcript slug mixes common-rules with other projects' sessions started in apps/. PhotoVault engine and app not measurable: no main-session transcripts in the window. Full-week measurement scheduled for 2026-09-21 09:00 (scheduled task common-rules-w10-pilot-week-measure)",
+          "event": "interim reading of conditions 4 and 5, 2026-09-14 to 2026-09-16 22:47: common-rules NOT MET on both -- (4) 94 sponsor messages: 29 with an ask row, 11 answers, 54 unmatched; (5) 130 agent briefs, 74 with all five headings (missing CONTEXT 45, OWNS 54, MUST 48, MUST NOT 45, OUTPUT 44). Caveat: the -Users-the sponsor-apps transcript slug mixes common-rules with other projects' sessions started in apps/. PhotoVault engine and app not measurable: no main-session transcripts in the window. Full-week measurement scheduled for 2026-09-21 09:00 (scheduled task common-rules-w10-pilot-week-measure)",
           "by": "lead",
           "evidence": "docs/research/w10-c45.py"
         },

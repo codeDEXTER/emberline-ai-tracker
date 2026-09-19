@@ -34,7 +34,7 @@ import os
 import re
 import sys
 
-COMMON_RULES = "/Users/the-sponsor/apps/common-rules"
+COMMON_RULES = "common-rules"
 sys.path.insert(0, os.path.join(COMMON_RULES, "tools"))
 import worklog  # noqa: E402  (iter_records, list_transcripts)
 
@@ -46,26 +46,26 @@ PROJECTS_ROOT = os.path.expanduser("~/.agent-data/projects")
 
 PROJECTS = {
     "photovault-engine": {
-        "slug_prefixes": ["-Users-the-sponsor-apps-PhotoVault-engine"],
+        "slug_prefixes": ["-Users-the sponsor-apps-PhotoVault-engine"],
         "ledger_globs": [
-            "/Users/the-sponsor/apps/PhotoVault/engine/docs/proposals/*.json",
+            "apps/PhotoVault/engine/docs/proposals/*.json",
         ],
     },
     "photovault-app": {
-        "slug_prefixes": ["-Users-the-sponsor-apps-PhotoVault-app"],
+        "slug_prefixes": ["-Users-the sponsor-apps-PhotoVault-app"],
         "ledger_globs": [
-            "/Users/the-sponsor/apps/PhotoVault/app/docs/proposals/*.json",
+            "apps/PhotoVault/app/docs/proposals/*.json",
         ],
     },
     "common-rules": {
-        # Lead sessions for common-rules started in /Users/the-sponsor/apps
-        # (slug -Users-the-sponsor-apps, exact -- that cwd is shared with
+        # Lead sessions for common-rules started in apps
+        # (slug -Users-the sponsor-apps, exact -- that cwd is shared with
         # every other project run from the apps root) and in
-        # -Users-the-sponsor-apps-common-rules (no main sessions found there
+        # -Users-the sponsor-apps-common-rules (no main sessions found there
         # as of this run, only worktree-suffixed slugs, kept for when one
         # exists).
-        "slug_exact": ["-Users-the-sponsor-apps"],
-        "slug_prefixes": ["-Users-the-sponsor-apps-common-rules"],
+        "slug_exact": ["-Users-the sponsor-apps"],
+        "slug_prefixes": ["-Users-the sponsor-apps-common-rules"],
         "ledger_globs": [
             os.path.join(COMMON_RULES, "docs/proposals/*.json"),
         ],

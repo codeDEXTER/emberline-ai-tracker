@@ -7,7 +7,7 @@ verification, and safety rules. References to a session, agent, tool, or host
 name the capability or role involved, not a requirement to use one specific
 consumer.
 
-Common to every project under `/Users/the-sponsor/apps/`. A project adopts them by
+Common to every project under `apps/`. A project adopts them by
 pointing here near the top of its own `CLAUDE.md` and layering its specifics
 (test command, build command, repo name) on top — never by copying this text in.
 
@@ -24,14 +24,14 @@ was load-bearing. Process about process is gone.
 A rule the AI cannot break needs no paragraph. Run it once per project:
 
 ```
-common-rules/bin/derecord /Users/the-sponsor/apps/<project>
+common-rules/bin/derecord apps/<project>
 ```
 
 ---
 
 ## The warm-up standard is mandatory
 
-Every project under `/Users/the-sponsor/apps/` follows proposals 19, 20 and 21 —
+Every project under `apps/` follows proposals 19, 20 and 21 —
 one ledger shape, one card, one proposal shape, one way to ask another
 session for something. Detail lives in `skills/standard/SKILL.md`; this is
 only the pointer.
@@ -820,5 +820,5 @@ enforceable by `derecord` — in which case it belongs in code, not here.
   `/Library/Developer/CommandLineTools/usr/bin/git`.
 - Directories under `~/.agent-data/projects/` start with `-`, so a globbed `grep`
   reads them as flags and silently finds nothing. Use Python `glob`.
-- Temp files go to the session scratchpad, never to `/Users/the-sponsor/apps/`.
+- Temp files go to the session scratchpad, never to `apps/`.
   Verify the `cd` succeeded — a failed one writes into the repo.

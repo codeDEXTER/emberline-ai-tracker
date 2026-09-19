@@ -355,7 +355,7 @@
           "at": "2026-09-14T15:04:24+02:00",
           "event": "reported",
           "by": "subagent sonnet (arrival time)",
-          "evidence": "375adfe on p21-s05. With no ledger of its own, the start folder looks one level down for child projects and prints one line per child (open ledgers, counts) plus /warmup --project <path>; compact uses the paraphrase wording; read-only, no git, values escaped. derecord --parent DIR installs only the SessionStart entry and refuses a git repo, no children, or malformed settings. 16 tests red, then green; 793 OK. Read-only preview for /Users/the-sponsor/apps/PhotoVault: app 22 done / 5 in progress / 11 blocked / 22 not started; engine 40 / 1 / 0 / 5. Ruflo memory search and store failed with database not found / not initialized from the main checkout; flagged."
+          "evidence": "375adfe on p21-s05. With no ledger of its own, the start folder looks one level down for child projects and prints one line per child (open ledgers, counts) plus /warmup --project <path>; compact uses the paraphrase wording; read-only, no git, values escaped. derecord --parent DIR installs only the SessionStart entry and refuses a git repo, no children, or malformed settings. 16 tests red, then green; 793 OK. Read-only preview for apps/PhotoVault: app 22 done / 5 in progress / 11 blocked / 22 not started; engine 40 / 1 / 0 / 5. Ruflo memory search and store failed with database not found / not initialized from the main checkout; flagged."
         },
         {
           "at": "2026-09-14T15:04:24+02:00",
@@ -367,7 +367,7 @@
           "at": "2026-09-14T15:26:06+02:00",
           "event": "review: fix-first",
           "by": "quality-manager sonnet, report-only, on 375adfe",
-          "evidence": "Passed: children edge cases (hidden, symlinked, malformed), 200 children in 0.105 s, escaping including newline injection in a child name, byte-identical behaviour with its own ledger across all four sources, derecord --parent refusals, idempotence, preservation and absolute path; 793 OK. Fix first: one unreadable (chmod 000) child raises PermissionError and silently drops the whole card for every sibling. Design gap: a folder like /Users/the-sponsor/apps would list every project. Untested: resume and clear on the parent path. No CHANGELOG. Ruflo: .swarm/ exists only in the main checkout, not in worktrees, which is the likely cause of the agent's 'Database not found'."
+          "evidence": "Passed: children edge cases (hidden, symlinked, malformed), 200 children in 0.105 s, escaping including newline injection in a child name, byte-identical behaviour with its own ledger across all four sources, derecord --parent refusals, idempotence, preservation and absolute path; 793 OK. Fix first: one unreadable (chmod 000) child raises PermissionError and silently drops the whole card for every sibling. Design gap: a folder like apps would list every project. Untested: resume and clear on the parent path. No CHANGELOG. Ruflo: .swarm/ exists only in the main checkout, not in worktrees, which is the likely cause of the agent's 'Database not found'."
         },
         {
           "at": "2026-09-14T15:26:06+02:00",
@@ -379,13 +379,13 @@
           "at": "2026-09-14T15:26:06+02:00",
           "event": "process note",
           "by": "lead",
-          "evidence": "The report-only reviewer wrote an untracked LESSONS.md into the main checkout (/Users/the-sponsor/apps/common-rules), breaking its report-only brief. The lead moved it out of the checkout into the session scratchpad; its content (the unreadable-child bug) is recorded in the entry above."
+          "evidence": "The report-only reviewer wrote an untracked LESSONS.md into the main checkout (common-rules), breaking its report-only brief. The lead moved it out of the checkout into the session scratchpad; its content (the unreadable-child bug) is recorded in the entry above."
         },
         {
           "at": "2026-09-14T15:26:30+02:00",
           "event": "correction",
           "by": "lead",
-          "evidence": "The previous 'process note' is wrong. The lead's script moved nothing: the main checkout had no LESSONS.md, its move branch never ran, and the checkout is clean. The reviewer's report named a main-checkout path, but the file is in the reviewer's own worktree (/Users/the-sponsor/apps/common-rules/.claude/worktrees/agent-a6cbd5b0dfbe31b3e), untracked. That worktree is the reviewer's own, so the report-only breach did not reach the repository."
+          "evidence": "The previous 'process note' is wrong. The lead's script moved nothing: the main checkout had no LESSONS.md, its move branch never ran, and the checkout is clean. The reviewer's report named a main-checkout path, but the file is in the reviewer's own worktree (common-rules/.claude/worktrees/agent-a6cbd5b0dfbe31b3e), untracked. That worktree is the reviewer's own, so the report-only breach did not reach the repository."
         },
         {
           "at": "2026-09-14T15:34:44+02:00",
@@ -403,13 +403,13 @@
           "at": "2026-09-14T15:55:10+02:00",
           "event": "done",
           "by": "lead",
-          "evidence": "merged origin/p21-s05 (28e2784) into p21; CHANGELOG entry written; full suite on the merged tree OK. Installing on /Users/the-sponsor/apps/PhotoVault waits for the sponsor's yes."
+          "evidence": "merged origin/p21-s05 (28e2784) into p21; CHANGELOG entry written; full suite on the merged tree OK. Installing on apps/PhotoVault waits for the sponsor's yes."
         },
         {
           "at": "2026-09-14T18:22:44+02:00",
           "event": "installed on PhotoVault",
           "by": "lead",
-          "evidence": "The sponsor answered 'Install it' (A-06). derecord --parent /Users/the-sponsor/apps/PhotoVault found 2 child projects and wrote only a SessionStart hook to PhotoVault/.claude/settings.json (none existed before; PhotoVault is not a git repo). The installed hook, fed the startup payload for that folder, prints the card: app 23 done / 2 in progress / 13 blocked / 22 not started; engine 42 / 1 / 0 / 3; each with /warmup --project. A second run said 'already present'. app and engine git status unchanged (19 and 2 lines). The sponsor answered 'Not now' for /Users/the-sponsor/apps (A-07)."
+          "evidence": "The sponsor answered 'Install it' (A-06). derecord --parent apps/PhotoVault found 2 child projects and wrote only a SessionStart hook to PhotoVault/.claude/settings.json (none existed before; PhotoVault is not a git repo). The installed hook, fed the startup payload for that folder, prints the card: app 23 done / 2 in progress / 13 blocked / 22 not started; engine 42 / 1 / 0 / 3; each with /warmup --project. A second run said 'already present'. app and engine git status unchanged (19 and 2 lines). The sponsor answered 'Not now' for apps (A-07)."
         }
       ],
       "points": 3,
@@ -690,7 +690,7 @@
       "phase": "S",
       "cx": "C4",
       "title": "common-rules on its own standard",
-      "what": "common-rules runs /standard's checklist on itself. Where it stands at 0469e40: the rules themselves need no stamp (rulecheck); ledgers 19/20/21 render; no .common-rules.json, no HANDOFF.md, no docs/OPERATING-RULES.md, no checkpoint, no derecord hooks, no lead prompt, no CLAUDE.md warm-up pointer; proposal 21 has a ledger but no page; the lead's sessions start in /Users/the-sponsor/apps, which is not a git repo, so project hooks would not load; cross-session asks went as messages, not requests.",
+      "what": "common-rules runs /standard's checklist on itself. Where it stands at 0469e40: the rules themselves need no stamp (rulecheck); ledgers 19/20/21 render; no .common-rules.json, no HANDOFF.md, no docs/OPERATING-RULES.md, no checkpoint, no derecord hooks, no lead prompt, no CLAUDE.md warm-up pointer; proposal 21 has a ledger but no page; the lead's sessions start in apps, which is not a git repo, so project hooks would not load; cross-session asks went as messages, not requests.",
       "files": [
         ".common-rules.json",
         "HANDOFF.md",
@@ -700,7 +700,7 @@
         "docs/proposals/21-standard-is-mandatory.html"
       ],
       "tests": [],
-      "done": "warmup --check ready on common-rules; conformance 12 of 12 (item 1 satisfied by being the rules); proposal 21 page from new-proposal; derecord --parent installed on /Users/the-sponsor/apps with the sponsor's yes.",
+      "done": "warmup --check ready on common-rules; conformance 12 of 12 (item 1 satisfied by being the rules); proposal 21 page from new-proposal; derecord --parent installed on apps with the sponsor's yes.",
       "depends": [
         "S-02",
         "S-03",
@@ -724,7 +724,7 @@
           "at": "2026-09-14T17:04:25+02:00",
           "event": "stage reached, held one item",
           "by": "lead",
-          "evidence": "The named stage is reached: S-02, S-03, S-05 and S-09 are on main (#161, #162), and S-06 too (#163). The refactor installs derecord's pre-commit hook into the repository's shared .git/hooks, which every worktree uses, including S-04's agent, which is mid-commit in its round 2. Rule 0 (never break work in flight): S-10 starts when S-04 merges. Waiting on the sponsor: the CLAUDE.md pointer diff (CLAUDE.md is his), and whether to install the start card on /Users/the-sponsor/apps, where this session starts."
+          "evidence": "The named stage is reached: S-02, S-03, S-05 and S-09 are on main (#161, #162), and S-06 too (#163). The refactor installs derecord's pre-commit hook into the repository's shared .git/hooks, which every worktree uses, including S-04's agent, which is mid-commit in its round 2. Rule 0 (never break work in flight): S-10 starts when S-04 merges. Waiting on the sponsor: the CLAUDE.md pointer diff (CLAUDE.md is his), and whether to install the start card on apps, where this session starts."
         },
         {
           "at": "2026-09-14T17:45:50+02:00",
@@ -736,7 +736,7 @@
           "at": "2026-09-14T17:45:50+02:00",
           "event": "refactored, pointer waiting",
           "by": "lead",
-          "evidence": "derecord run on the p21 worktree: hooks installed in the shared hooks dir with RULES=/Users/the-sponsor/apps/common-rules, the old guard chained as pre-commit.local; .gitattributes committed alone (b3198a0). .common-rules.json written; HANDOFF, OPERATING-RULES and lead prompt written for common-rules (derecord had named them after the worktree folder 'p21'); P21 page from new-proposal --page-for, accepted with D1-D4; checkpoint written. Two template defects fixed (the lead-prompt closing contradicted section 3; the OPERATING-RULES template carried proposal 19's superseded rule). Checks: proposalcheck clean, project problems none, warmup --check ready, bin/conformance 11 of 12. Item 11, the CLAUDE.md pointer, is regenerated in the declared order but uncommitted until the sponsor says yes."
+          "evidence": "derecord run on the p21 worktree: hooks installed in the shared hooks dir with RULES=common-rules, the old guard chained as pre-commit.local; .gitattributes committed alone (b3198a0). .common-rules.json written; HANDOFF, OPERATING-RULES and lead prompt written for common-rules (derecord had named them after the worktree folder 'p21'); P21 page from new-proposal --page-for, accepted with D1-D4; checkpoint written. Two template defects fixed (the lead-prompt closing contradicted section 3; the OPERATING-RULES template carried proposal 19's superseded rule). Checks: proposalcheck clean, project problems none, warmup --check ready, bin/conformance 11 of 12. Item 11, the CLAUDE.md pointer, is regenerated in the declared order but uncommitted until the sponsor says yes."
         },
         {
           "at": "2026-09-14T18:04:13+02:00",
@@ -768,7 +768,7 @@
       "what": "The sponsor typed /standard in the common-rules lead session. Section 1: project, in flight, refactor stage, measurement, record. Section 2 at that stage: the 12-item checklist.",
       "files": [],
       "tests": [],
-      "done": "bin/conformance --project /Users/the-sponsor/apps/common-rules reports 12 of 12; warmup --check ready.",
+      "done": "bin/conformance --project common-rules reports 12 of 12; warmup --check ready.",
       "depends": [
         "S-10"
       ],
@@ -783,13 +783,13 @@
           "at": "2026-09-14T18:44:53+02:00",
           "event": "section 1 answered",
           "by": "lead",
-          "evidence": "Project: /Users/the-sponsor/apps/common-rules. This session starts in /Users/the-sponsor/apps, above the project; a start card there was declined for now (A-07). In flight: nothing -- no agents, no gate run; the only worktrees are p20 and p21, both merged. Refactor stage: now, since nothing is in flight. bin/ruflo-item start S-11 stored item:S-11:start (namespace patterns)."
+          "evidence": "Project: common-rules. This session starts in apps, above the project; a start card there was declined for now (A-07). In flight: nothing -- no agents, no gate run; the only worktrees are p20 and p21, both merged. Refactor stage: now, since nothing is in flight. bin/ruflo-item start S-11 stored item:S-11:start (namespace patterns)."
         },
         {
           "at": "2026-09-14T18:44:53+02:00",
           "event": "done",
           "by": "lead",
-          "evidence": "The section 2 checklist was already carried out under S-10 (#165, #166). Measured at main 8981397: bin/conformance --project /Users/the-sponsor/apps/common-rules gives 'standard: 12 of 12 hold', exit 0; rulecheck: the rules repository itself, nothing to align (420-8981397); warmup --check ready. Section 3: common-rules carries no stamp; its own Standard change entries are what projects implement. No rule was dropped: the lead prompt was seeded fresh from the template under S-10, with no older prompt to carry over."
+          "evidence": "The section 2 checklist was already carried out under S-10 (#165, #166). Measured at main 8981397: bin/conformance --project common-rules gives 'standard: 12 of 12 hold', exit 0; rulecheck: the rules repository itself, nothing to align (420-8981397); warmup --check ready. Section 3: common-rules carries no stamp; its own Standard change entries are what projects implement. No rule was dropped: the lead prompt was seeded fresh from the template under S-10, with no older prompt to carry over."
         },
         {
           "at": "2026-09-16T07:47:00+02:00",
@@ -849,7 +849,7 @@
       "state": "answered",
       "at": "2026-09-14T18:16:03+02:00",
       "by": "sponsor",
-      "quote": "Asked: \"May I install the start card on the PhotoVault folder with derecord --parent /Users/the-sponsor/apps/PhotoVault? It writes only a SessionStart hook in PhotoVault/.claude/settings.json.\" Answered: \"Install it (Recommended)\""
+      "quote": "Asked: \"May I install the start card on the PhotoVault folder with derecord --parent apps/PhotoVault? It writes only a SessionStart hook in PhotoVault/.claude/settings.json.\" Answered: \"Install it (Recommended)\""
     },
     {
       "id": "A-07",
@@ -857,7 +857,7 @@
       "state": "answered",
       "at": "2026-09-14T18:16:03+02:00",
       "by": "sponsor",
-      "quote": "Asked: \"May I install the same start card on /Users/the-sponsor/apps, where this session, MacExplorer and most of your other sessions start?\" Answered: \"Not now (Recommended)\""
+      "quote": "Asked: \"May I install the same start card on apps, where this session, MacExplorer and most of your other sessions start?\" Answered: \"Not now (Recommended)\""
     },
     {
       "id": "A-08",

@@ -27,7 +27,7 @@ def apps_dir(start: Path | None = None) -> Path | None:
     """Where this checkout's sibling projects live, read at runtime.
 
     These checks used to resolve them as `ROOT.parent`, which is
-    `/Users/the-sponsor/apps` only from the main checkout. From a task worktree
+    `apps` only from the main checkout. From a task worktree
     (`<apps>/common-rules/.worktrees/<name>`) it is `.worktrees/`, which holds
     no projects -- so every real-project check found nothing and passed. That
     is both places the suite is actually run: `bin/land` tests the branch
@@ -43,7 +43,7 @@ def apps_dir(start: Path | None = None) -> Path | None:
     inside a worktree as readily as from the checkout itself, so the answer is
     read rather than assumed. It is the corrected form of what `ROOT.parent`
     was reaching for, not a new policy: `bin/milestones` and `bin/pulse` name
-    `/Users/the-sponsor/apps` outright, and rightly -- `--all` has to find every
+    `apps` outright, and rightly -- `--all` has to find every
     project on this Mac, which is a claim about the machine. A test only needs
     the projects beside *this* checkout, which is a fact about the repo.
 

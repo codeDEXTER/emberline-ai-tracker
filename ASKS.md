@@ -1,4 +1,4 @@
-# ASKS.md — what the-sponsor has asked for, and the patterns in it
+# ASKS.md — what the sponsor has asked for, and the patterns in it
 
 Append-only, one entry per instruction, newest last. See `CLAUDE-workflow.md`,
 "Notice the repeats". Log instructions about **how work is done**, not what to

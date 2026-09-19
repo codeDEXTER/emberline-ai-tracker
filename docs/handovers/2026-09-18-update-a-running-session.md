@@ -20,10 +20,10 @@ then tell me in one line what you had to change about how you were working.
    the same run, quoted as I typed it.
 
 2. Re-read these, because your copy predates them:
-   `/Users/the-sponsor/apps/common-rules/CLAUDE-workflow.md`,
+   `common-rules/CLAUDE-workflow.md`,
    `templates/brief.md`, `templates/lead-prompt.md`, and the skill you just
    ran. Then run
-   `/Users/the-sponsor/apps/common-rules/bin/rulecheck --project . --mandatory`
+   `common-rules/bin/rulecheck --project . --mandatory`
    and queue every pending entry as a ledger item owned by `lead`, ahead of
    other work. Do not `rulecheck --align` until each is implemented — it
    refuses anyway, and aligning early would make the stamp assert something

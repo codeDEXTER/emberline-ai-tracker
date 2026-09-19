@@ -252,14 +252,14 @@ class TestTheRealPlans(unittest.TestCase):
         self.assertEqual(before, porcelain(), f"import wrote into {project}")
         return d
 
-    @unittest.skipUnless(Path("/Users/the-sponsor/apps/pockets/CLAUDE-checklist.md").exists(), "pockets not on this machine")
+    @unittest.skipUnless(Path("apps/pockets/CLAUDE-checklist.md").exists(), "pockets not on this machine")
     def test_pockets(self):
-        self.import_real(Path("/Users/the-sponsor/apps/pockets"), 20)
+        self.import_real(Path("apps/pockets"), 20)
 
-    @unittest.skipUnless(Path("/Users/the-sponsor/apps/finance-tracker/CLAUDE-milestones.json").exists(),
+    @unittest.skipUnless(Path("apps/finance-tracker/CLAUDE-milestones.json").exists(),
                          "finance-tracker not on this machine")
     def test_finance_tracker(self):
-        self.import_real(Path("/Users/the-sponsor/apps/finance-tracker"), 70)
+        self.import_real(Path("apps/finance-tracker"), 70)
 
 
 if __name__ == "__main__":

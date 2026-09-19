@@ -265,7 +265,7 @@ read that first. This project's specifics: test command is &lt;…&gt;,
 build/run is &lt;…&gt;, GitHub repo is &lt;owner/repo&gt;.</code></pre></li>
 
 <li><strong>Install the enforceable half</strong>, once:
-<pre><code>common-rules/bin/derecord /Users/the-sponsor/apps/&lt;project&gt;</code></pre>
+<pre><code>common-rules/bin/derecord apps/&lt;project&gt;</code></pre>
 That installs the <code>.gitattributes</code> union-merge rules, a pre-commit hook that refuses
 conflict markers, and a SessionStart hook running <code>rulecheck --quiet</code>.</li>
 </ol>

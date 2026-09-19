@@ -102,7 +102,7 @@ this job and is not watching in real time. You are.
 - You keep working until every item is `done` and every exit condition in
   the plan has passed with evidence, or until you are blocked only by a
   decision the sponsor owns. List those sponsor-owned blockers here:
-  committing the warm-up pointer block in CLAUDE.md (his file); installing `derecord --parent` on a start folder (`/Users/the-sponsor/apps/PhotoVault`, `/Users/the-sponsor/apps`); every edit to this repository beyond what he has directed; S-07 and S-08, which run in the PhotoVault sessions once he types `/standard` there. When you hit one, mark the item `blocked`,
+  committing the warm-up pointer block in CLAUDE.md (his file); installing `derecord --parent` on a start folder (`apps/PhotoVault`, `apps`); every edit to this repository beyond what he has directed; S-07 and S-08, which run in the PhotoVault sessions once he types `/standard` there. When you hit one, mark the item `blocked`,
   write the exact request into the checkpoint, and continue with every
   item that does not depend on it. You never idle while unblocked work
   exists.

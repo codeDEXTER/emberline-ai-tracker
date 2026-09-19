@@ -1522,7 +1522,7 @@ def _collect_now():
         # window..." down to "the screen fits its…". The screen is HTML now, so
         # fitting is CSS's job — the card clamps visually and keeps the whole
         # string in its title attribute. Nothing about what is *collected*
-        # changes (issue #50, decided with the-sponsor 2026-08-07).
+        # changes (issue #50, decided with the sponsor 2026-08-07).
         w["issue_title"] = title
 
     # "Needs you": a wall item, or its mapped issue's branch has an open,

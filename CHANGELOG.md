@@ -778,8 +778,8 @@ stamps the log entry's `status` key regardless of `--event`'s wording,
 `--event` alone never does, and the ledger still validates).
 
 Verified read-only against the real repo (`bin/conformance --project
-/Users/the-sponsor/apps/common-rules`'s item 9 line, and `bin/warmup --project
-/Users/the-sponsor/apps/common-rules --no-recall --no-pull | grep -i ruflo`) --
+common-rules`'s item 9 line, and `bin/warmup --project
+common-rules --no-recall --no-pull | grep -i ruflo`) --
 never against a real Ruflo binary or a write to the real `.swarm/`.
 
 ## 2026-09-17 · `bin/ruflo-item` works from worktrees; `bin/spend` subcommands answer `--help` without running (P23 F-03, F-04)
@@ -1817,7 +1817,7 @@ child projects, or has malformed settings. It is idempotent and prints how many
 child projects it found.
 
 **Behaviour change:** none until `derecord --parent` is run on a folder. The
-lead runs it on `/Users/the-sponsor/apps/PhotoVault` with the sponsor's approval.
+lead runs it on `apps/PhotoVault` with the sponsor's approval.
 
 ## 2026-09-14 · A new proposal page must carry its status (P21 S-03)
 
@@ -2542,7 +2542,7 @@ as this bug existed, and that skip was the bug describing itself.
 
 
 `tests/test_proposal_lifecycle.py` resolved the projects it reads as
-`ROOT.parent` — `/Users/the-sponsor/apps` from the main checkout, and
+`ROOT.parent` — `apps` from the main checkout, and
 `.worktrees/` from a task worktree, where it holds no projects at all. So
 both blast-radius checks found nothing and passed.
 
@@ -2562,7 +2562,7 @@ per project, inside their `subTest`.
 `git rev-parse --git-common-dir`, which names the *main* checkout's `.git`
 from inside a worktree as readily as from the checkout itself. This is the
 corrected form of what `ROOT.parent` was reaching for, not a new policy —
-`bin/milestones` and `bin/pulse` name `/Users/the-sponsor/apps` outright and
+`bin/milestones` and `bin/pulse` name `apps` outright and
 are right to: `--all` has to find every project on this Mac, which is a
 claim about the machine. A test needs the projects beside *this* checkout,
 which is a fact about the repo. Outside a git repository it returns None
@@ -2634,7 +2634,7 @@ route** — set membership against the same vocabulary, with a docstring
 describing precisely the case it gets wrong. The sponsor asked for the two to
 match. **They cannot be made to match from a clean branch**: that function
 exists only in `ac3d3f4`, an unpushed commit in the shared
-`/Users/the-sponsor/apps/common-rules` checkout, under a further 130 uncommitted
+`common-rules` checkout, under a further 130 uncommitted
 lines of in-progress work. It is absent from `origin/main` entirely. Editing
 it means editing an unreconciled working tree, which would put real
 in-progress work at risk to fix a dormant bug.
@@ -2678,7 +2678,7 @@ vocabulary and the `done`→`completed` migration note.
 ## 2026-08-20 · rulecheck locates itself instead of guessing a home directory
 
 `bin/rulecheck`'s rules-repo default was the literal string
-`/Users/the-sponsor/apps/common-rules` — correct on exactly one machine. On a CI
+`common-rules` — correct on exactly one machine. On a CI
 runner that path does not exist, so `git -C <missing>` fails,
 `current_version()` returns `None`, and `--version` exits 2. That errored
 **11 gate tests** across `test_land_alignment`, `test_land_proposalcheck` and
@@ -2897,7 +2897,7 @@ assertion goes back to searching the whole dump, passing and testing nothing.
 Verified by neutralising `verdict()`: 4 failures, including the new one.
 
 **Why this survived so long, and it is not fixed here.** `RealProjectsStillCheck`
-resolves the projects as `ROOT.parent`, which is `/Users/the-sponsor/apps` only from
+resolves the projects as `ROOT.parent`, which is `apps` only from
 the main checkout. From any task worktree it resolves to `.worktrees/`, finds no
 projects, and **skips**. So the test is vacuous everywhere it is normally run:
 `bin/land` tests the branch worktree, and CI checks out a repo with no sibling
@@ -3594,7 +3594,7 @@ the window.
 
 ## 2026-08-08 · The screen was working and useless, which is not the same thing
 
-the-sponsor: *"this app doesnt work. i dont know what to do."*
+the sponsor: *"this app doesnt work. i dont know what to do."*
 
 I had verified every change with `curl` and never once opened the window. It
 renders fine. It is also useless, in three specific ways, all of which I built.
@@ -3854,7 +3854,7 @@ number the data cannot support and therefore the one most likely to be added
 back by someone who has not seen the 0%.
 ## 2026-08-07 · A render never waits for a collection
 
-Implements #86, reported by the-sponsor as *"this app is slow and time
+Implements #86, reported by the sponsor as *"this app is slow and time
 non-responsive. it also shows outdated data."*
 
 **The slowness was real and reproducible.** Measured against the running app:
@@ -4165,7 +4165,7 @@ Three structurally different answers were drawn, not three skins: **A** a
 cross-project feature ledger, **B** a board with columns by state, **C** a
 portfolio of one line per project with the whole-product figure first.
 
-**the-sponsor chose A and B.** Recorded plainly, because it went against the
+**the sponsor chose A and B.** Recorded plainly, because it went against the
 recommendation: the paper argued for C first with A later, and argued against
 building B at all on the grounds that it has no home for a completion
 percentage and three of its four columns are empty on today's data. He read
@@ -4316,7 +4316,7 @@ contested at once. Recorded on #65, which rewrites that function.
 
 ## 2026-08-07 · Proposal 10: the Tower has been reporting the plumbing
 
-the-sponsor, on the screen proposal 09 had just finished: *"it doesn't help when you
+the sponsor, on the screen proposal 09 had just finished: *"it doesn't help when you
 are saying some random branch name. What features are done, what is the degree of
 completion of the whole product, and what things are running. I don't want to
 know what internal communication is going on."*
@@ -4445,7 +4445,7 @@ That last part is the real point. The page height was a *function of how much
 work exists* — it went 1,721 → 1,792px during the hour #51 and #52 were being
 built, purely because worktrees were added. Any fix that works by cutting
 content would have gone out of budget again on its own the next busy week.
-the-sponsor chose this over cutting content for that reason.
+the sponsor chose this over cutting content for that reason.
 
 **Two CSS rules do all the load-bearing work, and both were wrong first.**
 `align-items:start`, inherited from the uncapped layout, makes a grid item size
@@ -4483,7 +4483,7 @@ mapped issue; eighteen were git ahead-counts wearing the same chip. In flight
 means a mapped issue now, and the ahead-of-main worktrees collapse into a
 `<details>` that expands in place — collapsed, not hidden, and no JavaScript.
 
-**The graph from concept 07 is retired, not deferred**, on the-sponsor's call. 615px
+**The graph from concept 07 is retired, not deferred**, on the sponsor's call. 615px
 bought 23 labels in a 4-column grid where position was enumeration order, size
 and fill were constant, and one edge ever rendered. It is a 117px strip of state
 dots — measured, against the ~118px the proposal estimated. Every worktree is
@@ -4540,7 +4540,7 @@ attribute, of which there are **85 where there were none**.
 were cut to 22 characters inside `collect()`, so no amount of CSS would have
 shown them in full — "Tower: the screen fits its window..." rendered as "the
 screen fits its…". That cut existed because the label had to fit inside a
-25px-radius circle. the-sponsor agreed to move it to CSS; nothing about what is
+25px-radius circle. the sponsor agreed to move it to CSS; nothing about what is
 *collected* changed, and `truncate_words` is gone with its only caller.
 
 **The 310px void is structurally impossible now, not merely fixed.** It came
@@ -4569,7 +4569,7 @@ clipped), stop lying about names, and stop reserving empty space.
 No behaviour change for any adopted project: this is `bin/tower` and its tests.
 ## 2026-08-07 · Proposal 09: the Tower is drawing the right data the wrong way
 
-the-sponsor asked for a proposal on the Tower's UI — "the ui is not clean". Measured
+the sponsor asked for a proposal on the Tower's UI — "the ui is not clean". Measured
 against the live tree rather than read off the source: `tower --port 8893`, 23
 worktrees across 6 projects, numbers read back out of the rendered DOM.
 
@@ -4596,7 +4596,7 @@ truncates, voids and overflows instead:
 780 of `bin/tower` — the hard part — stays exactly as it is, which is what keeps
 this a two-to-three day job rather than a rewrite.
 
-**The graph from concept 07 is retired, not deferred.** the-sponsor decided on
+**The graph from concept 07 is retired, not deferred.** the sponsor decided on
 2026-08-07 to compress the session grid to a strip. That is the honest reading of a
 measurement this repo already had: `message_edges()` (proposal 08) found handover
 edges almost never have both ends on screen, and today exactly one edge renders
@@ -5103,7 +5103,7 @@ is the thing to read first.
   mistaken "stopped" for "finished".
 
 - **`bin/tower`: live-graph nodes show what he's tracking, not git mechanics**
-  (issue #25, from the-sponsor at Look 3: "it's showing branch names, it doesn't
+  (issue #25, from the sponsor at Look 3: "it's showing branch names, it doesn't
   mean anything to me… I'm tracking features and what features are working,
   which requires my input. And then I can look at, okay, which issue number,
   which chat I need to go to."). Node label order inverted: primary is now
@@ -5136,7 +5136,7 @@ is the thing to read first.
   tickets, 1 active`; the one wall item (`proposals-status-refactor`) is the
   one purple-marked, "needs you"-tagged node.
 
-- **`bin/tower`: fixed false IN FLIGHT matches** (issue #24, found by the-sponsor
+- **`bin/tower`: fixed false IN FLIGHT matches** (issue #24, found by the sponsor
   on the live screen — #2, #5, #7, #8, #9 shown as in flight when only #27
   actually was). Root cause was matching issue numbers as bare digit
   substrings of branch names: `"stage2"` matched `#2`, `"v5"` matched `#5`,
@@ -5233,7 +5233,7 @@ is the thing to read first.
   3 (message edges + click-through) cut as vertical issues for the autopilot.
 
 - **A question to the user is a cost — and Autopilot** (enacts proposal 04,
-  decided by instruction). the-sponsor: sessions were all asking him whether to
+  decided by instruction). the sponsor: sessions were all asking him whether to
   message the other issue — "this is something that's not my problem"; and:
   "these things should run automatically with minimum input from my side."
 
@@ -5261,7 +5261,7 @@ is the thing to read first.
   2026-08-05. The target is not zero — it is zero *unnecessary*.
 
 - **The Idea Lab** (research 06, accepted same day; direction: the funnel with a
-  tournament heart). the-sponsor's ask: "I can just tell the idea. It should run
+  tournament heart). the sponsor's ask: "I can just tell the idea. It should run
   multiple iterations to make the idea finer and finer, and then let me know" —
   a v2, kept deliberately separate from these rules. Deep research first, per
   the research-in-management-sessions rule.
@@ -5289,7 +5289,7 @@ is the thing to read first.
   the pipeline. First trial waits for a real idea, which is his to bring.
 
 - **The user owns features; the AI owns issues** (proposal 05, accepted same
-  day). the-sponsor: "at the end of the day I am worried about the feature, not the
+  day). the sponsor: "at the end of the day I am worried about the feature, not the
   issue — issues are there to have parallel task, divide and conquer. It's not to
   increase my overhead that I have to trigger each and every issue." He also
   reported refereeing race conditions between finance-tracker's #30 and #31.
@@ -5332,7 +5332,7 @@ is the thing to read first.
 ## 2026-08-04
 
 - **Loops, research triggers, and where parallel is safe** (proposal 03, accepted
-  same day). the-sponsor asked what loops back, when research fires, and where
+  same day). the sponsor asked what loops back, when research fires, and where
   parallel work is possible. Reading the rules for *return* paths rather than
   forward ones found the workflow documented as almost one-directional: **three
   loops stated here, four buried in agent definitions the project manager never
@@ -5359,7 +5359,7 @@ is the thing to read first.
   Read-only roles fan out freely; writing roles run one per *artifact*, not per
   task; sequence is set by dependency, not ceremony.
 
-  Stepping back on the-sponsor's review added the class that the first pass missed
+  Stepping back on the sponsor's review added the class that the first pass missed
   entirely: **learning loops**, which correct the system rather than the work.
   A recurring lesson escalates on the third occurrence (the quality manager
   counts, it cannot fix — agent definitions are his); promotion is a return to
@@ -5373,7 +5373,7 @@ is the thing to read first.
   nobody has.
 
 - **Working alongside other sessions** (proposal 02, accepted same day) — plus
-  `bin/whoelse`. the-sponsor asked how to stop parallel sessions reaching different
+  `bin/whoelse`. the sponsor asked how to stop parallel sessions reaching different
   conclusions and conflicting later. Measuring finance-tracker before answering
   changed the answer: **43 uncommitted files across seven parallel worktrees,
   none of them ahead of `main`**, and **seven files held by more than one
@@ -5389,7 +5389,7 @@ is the thing to read first.
   start); inform the owning session rather than duplicating it; **commit or it
   doesn't exist**; parallelism granted **per surface, not per issue** — four
   issues touching `ledger.py` were never four parallel tasks, they were one queue
-  nobody drew; and R6, added when the-sponsor reviewed the draft and caught that
+  nobody drew; and R6, added when the sponsor reviewed the draft and caught that
   *informing is not handover*: a finding landing on another task's surface gets
   responsibility assigned explicitly — finder keeps it, owner takes it, or
   neither — recorded against both issues. That closes silent absorption and
@@ -5411,7 +5411,7 @@ is the thing to read first.
   reports that state on demand rather than requiring someone to go looking.
 
 - **`docs/workflow.html` — the whole workflow on one page, and a rule that keeps
-  it true.** the-sponsor asked for a bird's-eye view. `CLAUDE-workflow.md` is now
+  it true.** the sponsor asked for a bird's-eye view. `CLAUDE-workflow.md` is now
   long and reads in the order it was *written*, not the order work *happens* —
   which is fine as an authority and useless as a map. The page walks idea →
   merged in actual sequence, colour-coded by who acts (you / project manager /
@@ -5435,7 +5435,7 @@ is the thing to read first.
   cropping is what makes it a page rather than a page plus a mile of empty.
 
 - **How a proposal is delivered — artifact, then buttons** (proposal 01,
-  accepted same day; `docs/proposals/` starts here). the-sponsor's report: in pockets
+  accepted same day; `docs/proposals/` starts here). the sponsor's report: in pockets
   he had to ask for the rendered view and the decision buttons **every single
   time**; in finance-tracker he never did. Checking the two explained it, and it
   wasn't care or effort — finance-tracker has `docs/proposals/`, 13 numbered
@@ -5470,7 +5470,7 @@ is the thing to read first.
   Two halves. The first restates the existing rule at **session** scope rather
   than per-agent: agents within a task can share a running copy, but the task
   does not end with it still up, and the project manager is accountable for
-  that. The second is the new half and the reason the-sponsor asked: **an agent
+  that. The second is the new half and the reason the sponsor asked: **an agent
   stops only what its own session started.** Anything else running belongs to
   someone — the user reviewing a build, or a parallel session mid-validation —
   and killing it takes their work away silently. So cleanup is targeted (by
@@ -5491,7 +5491,7 @@ is the thing to read first.
   the framing this change exists to replace.
 
 - **`bin/rulecheck` — a session checks it is on the current rules before doing
-  anything.** the-sponsor's ask, and the reason is in the ask: he kept having to say
+  anything.** the sponsor's ask, and the reason is in the ask: he kept having to say
   "check common rules" again. These rules changed **five times today alone**, so
   a session working from what it read earlier is following a version that no
   longer exists, and nothing told it so.
@@ -5517,7 +5517,7 @@ is the thing to read first.
   as never-aligned until they do.
 
 - **`proposal-auditor`, an eighth agent — so L2 isn't the project manager's own
-  opinion.** the-sponsor's question, and it went straight at the weakness flagged in
+  opinion.** the sponsor's question, and it went straight at the weakness flagged in
   the L2 rule below: the project manager would be approving output from a
   pipeline it commissioned itself. So the comparison is done by someone else.
 
@@ -5552,7 +5552,7 @@ is the thing to read first.
   proposal that was vague to begin with; it can only report that it was.
 
 - **After acceptance: requirements, then design, then L2 — never straight to
-  code.** the-sponsor's rule, and it **corrects the paragraph merged a few hours
+  code.** the sponsor's rule, and it **corrects the paragraph merged a few hours
   earlier** which said a complete brief meant the upstream roles could be skipped
   and the tier was small-fix. Wrong, and the correction is stated in place rather
   than quietly edited: **an accepted proposal is not settled requirements.** It
@@ -5560,7 +5560,7 @@ is the thing to read first.
   work, not a replacement for it.
 
   So acceptance now starts a fixed sequence: `requirements-engineer` →
-  `design-engineer` → **L2** → code, test, gate. **L1 is the-sponsor accepting the
+  `design-engineer` → **L2** → code, test, gate. **L1 is the sponsor accepting the
   proposal; L2 is the project manager accepting the requirements and design
   produced from it** — two decisions about two artifacts. Collapsed, the second
   is never made by anyone; it gets inferred one file at a time by whoever writes
@@ -5586,7 +5586,7 @@ is the thing to read first.
   point was that the boundary between confirming a write and asking a question be
   obvious at a glance. No `REQUIREMENTS.md`, no screen spec, a layout problem
   handed over as prose. The session built all of it itself over 256 messages;
-  the-sponsor intervened; the session replied *"You're right, I broke the rule that
+  the sponsor intervened; the session replied *"You're right, I broke the rule that
   matters most here"* and **reverted all seven of its changes**. A whole session
   discarded. And the rework still ran only `code-engineer` — being told to use
   the agents did not produce requirements or design work, because nobody had said
@@ -5600,7 +5600,7 @@ is the thing to read first.
   named only the code engineer and gate, which would have reproduced #31 exactly.
 
 - **Named the dispatch mechanism, and fixed the briefs that bypassed it.**
-  the-sponsor asked why finance-tracker's issue sessions weren't using the agents.
+  the sponsor asked why finance-tracker's issue sessions weren't using the agents.
   They weren't: **#30, #31, #32, #35, #36 and #37 made zero agent calls** and
   implemented everything with `Edit` and `Bash` — which means **six merged
   features never saw a pre-merge gate.** The same project's open-ended session
@@ -5638,7 +5638,7 @@ is the thing to read first.
   which sessions had read this file.
 
   **Not fixed here, because it isn't this repo's file**: finance-tracker's own
-  `CLAUDE.md` says "the-sponsor is project manager here, **the AI is the developer**"
+  `CLAUDE.md` says "the sponsor is project manager here, **the AI is the developer**"
   — singular, and it is the file that auto-loads, while this one is read only
   when a prompt asks. It reads as permission for exactly the behaviour above.
   Raised separately as an issue draft.
@@ -5681,7 +5681,7 @@ is the thing to read first.
   hasn't been looked at in weeks. So the project manager now offers to *show*
   the thing first — of a draft issue, and of any proposal about an existing
   surface. The demo is of what is there now, not of the fix; nothing is built
-  yet, and its job is to put the-sponsor in front of the real screen so he decides
+  yet, and its job is to put the sponsor in front of the real screen so he decides
   against it rather than against a description.
 
   Deliberately **an offer, not a gate**: "just approve it" is a complete answer,
@@ -5698,7 +5698,7 @@ is the thing to read first.
   is still reading is precisely the failure the ownership rules exist to prevent,
   and end-of-task cleanup is the easiest place to commit it by reflex.
 
-- **`bin/apprun`, a run registry — and the reason it exists.** the-sponsor reported
+- **`bin/apprun`, a run registry — and the reason it exists.** the sponsor reported
   still seeing a lot of windows open despite the rule above. Checking the
   machine explained why: it was *clean* — one server (stable, :8502), one Safari
   window on it, nothing in the test or proto ranges. The sessions had stopped
@@ -5716,14 +5716,14 @@ is the thing to read first.
   registry: entries carry `CLAUDE_CODE_SESSION_ID` and that session's pid, so
   ownership is a lookup and "is the owner still alive" is a `kill -0` — exact,
   not a heuristic. An orphan is the one category a stranger may close, and only
-  with the-sponsor's explicit yes, because one of those windows may be the one he is
+  with the sponsor's explicit yes, because one of those windows may be the one he is
   looking at. `stop` declines a live stranger's copy, an orphan, and the stable
   copy, each with the reason.
 
   Judgment call worth flagging: this is the first executable in a folder that has
   only ever held rules. Written because "each agent hand-rolls the bookkeeping"
   is precisely how the drift returns — but it is a widening of what this repo is,
-  and reversible if the-sponsor would rather it lived in a project.
+  and reversible if the sponsor would rather it lived in a project.
 
 - **There is always a clean copy to open.** Protecting the stable copy is not the
   same as guaranteeing one exists, and only the second helps when he just wants
@@ -5769,7 +5769,7 @@ is the thing to read first.
   policy above.
 
   **Why it was superseded within the hour**: it gated every role transition,
-  which would have meant four sequential approvals per feature — and the-sponsor's
+  which would have meant four sequential approvals per feature — and the sponsor's
   call was one proposal per task instead. His reasoning, and the research
   agrees: a chain of gates a single sponsor approves in sequence decays into
   rubber stamps, and the defence large organisations use for that (a different
@@ -5787,7 +5787,7 @@ is the thing to read first.
   `CLAUDE-checklist.md` keeping its own parallel record, and proposal 04 having
   reversed its own conclusion by editing itself.
 
-  The load-bearing decision is the-sponsor's, and it went against what was
+  The load-bearing decision is the sponsor's, and it went against what was
   proposed: **one proposal per topic, not one per role — and not one per
   session.** A proposal stays open across conversations, gaining sections,
   until he decides; "one per task" was the first wording and it invited
@@ -5834,7 +5834,7 @@ is the thing to read first.
   machinery that enforces it was not.
 
 - **Added `docs/` and a running story**, with a **low-priority** rule adopted
-  by every project referencing this file. the-sponsor is a project manager by
+  by every project referencing this file. the sponsor is a project manager by
   profession and wants to present this experience to fellow managers in a few
   weeks — the arc from a single chat doing everything, through building an
   agent team, to measuring and trimming it. `docs/story/README.md` holds the
@@ -5850,13 +5850,13 @@ is the thing to read first.
   useless for a presentation and worse than useless for learning.
 
 - **Scoped the pull-request rule to this repo only** — projects keep
-  worktree, checklist, merge on approval, with no PR. the-sponsor's
+  worktree, checklist, merge on approval, with no PR. the sponsor's
   decision, made when the question came up on the first project branch
   after the PR rule landed. Written down explicitly because project
   sessions read `CLAUDE-workflow.md` too, and "every change goes
   through a pull request" reads as universal without the qualifier.
 
-- **Rule changes here now go via branch and pull request**, with the-sponsor
+- **Rule changes here now go via branch and pull request**, with the sponsor
   merging — the AI never merges its own rule change. Prompted by noticing
   that the first batch of changes went straight to `main`, contradicting
   the no-direct-to-main rule stated in this same file. Worth the overhead
@@ -5897,7 +5897,7 @@ is the thing to read first.
     improvising them.
 
 - **This folder is now its own git repository** —
-  `github-owner/ai-common-rules` (private), created by the-sponsor and adopted at
+  `github-owner/emberline-ai-tracker` (private), created by the sponsor and adopted at
   his direction. It reverses the earlier "deliberately not a git
   repository" note, and the three places that asserted it (`README.md`,
   `CLAUDE.md`, and the closing section here) were corrected in the same
@@ -5910,7 +5910,7 @@ is the thing to read first.
 - Add **`AGENT-LOG.md`** — a per-project record of which agents ran, in
   what order, what each returned, and what it cost, written by the project
   manager because it is the only role that sees the whole sequence
-  (agents cannot see each other). Directed by the-sponsor, who wants to be
+  (agents cannot see each other). Directed by the sponsor, who wants to be
   able to look back and analyse how a task was actually run without
   reading a transcript. Two payoffs beyond the record itself: it is the
   evidence base for the improve-the-agents loop — a role whose findings
@@ -5941,7 +5941,7 @@ is the thing to read first.
   `code-engineer` failed because it had been written minutes earlier).
 
 - Add **"Leave nothing running"** to the run-identity section, directed by
-  the-sponsor after watching the first real task go through the agents: any
+  the sponsor after watching the first real task go through the agents: any
   agent that starts an app instance must stop it before reporting, on the
   failure path included. Badges say which copy is which but do nothing to
   stop copies piling up, so without this the identity work only manages a
@@ -5950,7 +5950,7 @@ is the thing to read first.
   into the `code-engineer`, `test-engineer` and `quality-manager`
   definitions, since those are the roles that actually start things.
 
-- Add four sections to `CLAUDE-workflow.md`, all directed by the-sponsor after
+- Add four sections to `CLAUDE-workflow.md`, all directed by the sponsor after
   reviewing two proposals and a decision register in the same conversation:
   **the agent roles and who improves them**, **project phases**, **telling
   running copies apart**, and **findings become well-formed issue drafts**.
@@ -5978,7 +5978,7 @@ is the thing to read first.
 ## 2026-08-02
 
 - Add `CLAUDE.md` — a short pointer file so a session started with
-  this folder as its own working directory (the-sponsor wants to keep working
+  this folder as its own working directory (the sponsor wants to keep working
   on these rules directly, in a session separate from any one project)
   orients itself automatically: read `CLAUDE-workflow.md` first, and the
   edits-are-reserved-for-the-user rule applies here too.

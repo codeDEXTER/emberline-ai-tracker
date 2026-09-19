@@ -28,7 +28,7 @@ from pathlib import Path
 RULES = Path(__file__).resolve().parent.parent
 GIT = next((g for g in ("/Library/Developer/CommandLineTools/usr/bin/git",
                         "/usr/bin/git") if Path(g).exists()), "git")
-APPS = Path("/Users/the-sponsor/apps")
+APPS = Path(os.environ.get("APPS_ROOT", str(Path.home() / "apps")))
 TRANSCRIPTS = Path.home() / ".claude" / "projects"
 REGISTRY = Path.home() / ".claude" / "app-runs.jsonl"
 PROJECT_TTL = 60

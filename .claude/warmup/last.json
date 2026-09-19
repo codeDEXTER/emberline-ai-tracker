@@ -1,8 +1,8 @@
 {
-  "project": "/Users/the-sponsor/apps/common-rules",
+  "project": "common-rules",
   "name": "common-rules",
-  "branch": "p33-accept",
-  "head": "77476b0",
+  "branch": "w10-measured",
+  "head": "9ac6b64",
   "checkout": "main checkout",
   "prohibitions": [
     "**1. Never change common-rules on your own initiative.** Every edit, merge and",
@@ -16,10 +16,7 @@
     "HANDOFF.md",
     "docs/OPERATING-RULES.md"
   ],
-  "problems": [
-    "page docs/proposals/tracker/index.html is stale -- run: tracker board --project .",
-    "checkpoint is stale -- run: tracker checkpoint --project /Users/the-sponsor/apps/common-rules"
-  ],
+  "problems": [],
   "chain": [
     [
       "✓",
@@ -27,15 +24,15 @@
     ],
     [
       "✓",
-      "CLAUDE.md · 180 commits behind HEAD"
+      "CLAUDE.md · 199 commits behind HEAD"
     ],
     [
       "✓",
-      "HANDOFF.md · 101 commits behind HEAD"
+      "HANDOFF.md · 120 commits behind HEAD"
     ],
     [
       "✓",
-      "docs/OPERATING-RULES.md · 104 commits behind HEAD"
+      "docs/OPERATING-RULES.md · 123 commits behind HEAD"
     ],
     [
       "✓",
@@ -98,19 +95,19 @@
       "ledger docs/proposals/33-why-the-standard-gets-missed-and-what-to-cut.json · well-formed"
     ],
     [
-      "✗",
-      "page docs/proposals/tracker/index.html · stale -- run: tracker board --project ."
+      "✓",
+      "page docs/proposals/tracker/index.html · matches the ledgers"
     ],
     [
-      "✗",
-      "checkpoint docs/handovers/2026-09-18-checkpoint.md · stale"
+      "✓",
+      "checkpoint docs/handovers/2026-09-19-checkpoint.md · matches the open ledgers"
     ]
   ],
   "ledgers": {
     "docs/proposals/19-proposal-warmup.json": {
       "proposal": 19,
       "title": "Warm-up",
-      "status_line": "17 done / 1 in progress / 0 blocked / 1 not started",
+      "status_line": "18 done / 0 in progress / 0 blocked / 1 not started",
       "items": {
         "Q-05": {
           "status": "not started",
@@ -121,7 +118,7 @@
         },
         "Q-04": {
           "status": "done",
-          "title": "standard item 12 Card: warmup --check: 1 problem(s), first: checkpoint is stale -- run: tracker checkpoint --project /Users/the-sponsor/apps/common-rules",
+          "title": "standard item 12 Card: warmup --check: 1 problem(s), first: checkpoint is stale -- run: tracker checkpoint --project common-rules",
           "tag": "[ruflo · medium · sonnet]",
           "next": false,
           "parts": null
@@ -239,18 +236,14 @@
           "parts": null
         },
         "W-10": {
-          "status": "in progress",
+          "status": "done",
           "title": "Pilot on the PhotoVault engine; measure the exit conditions",
           "tag": "[ruflo · low · haiku]",
           "next": false,
           "parts": {
-            "completion": 20,
-            "group": "waiting",
-            "next": {
-              "id": "W-10.A",
-              "title": "warm-up --check passes in all four focus projects",
-              "waiting": "PhotoVault Engine"
-            }
+            "completion": 100,
+            "group": "done",
+            "next": null
           }
         }
       },
@@ -603,12 +596,12 @@
         "A-06": {
           "state": "answered",
           "kind": "decision",
-          "quote": "Asked: \"May I install the start card on the PhotoVault folder with derecord --parent /Users/the-sponsor/apps/PhotoVault? It writes only a SessionStart hook in PhotoVault/.claude/settings.json.\" Answered: \"Install it (Recommended)\""
+          "quote": "Asked: \"May I install the start card on the PhotoVault folder with derecord --parent apps/PhotoVault? It writes only a SessionStart hook in PhotoVault/.claude/settings.json.\" Answered: \"Install it (Recommended)\""
         },
         "A-07": {
           "state": "answered",
           "kind": "decision",
-          "quote": "Asked: \"May I install the same start card on /Users/the-sponsor/apps, where this session, MacExplorer and most of your other sessions start?\" Answered: \"Not now (Recommended)\""
+          "quote": "Asked: \"May I install the same start card on apps, where this session, MacExplorer and most of your other sessions start?\" Answered: \"Not now (Recommended)\""
         },
         "A-08": {
           "state": "answered",
@@ -1858,7 +1851,7 @@
     "docs/proposals/30-tracker-shows-how-complete-each-item-is-by-lettered-parts.json": {
       "proposal": 30,
       "title": "Tracker shows how complete each item is, by lettered parts",
-      "status_line": "13 done / 0 in progress / 0 blocked / 0 not started",
+      "status_line": "14 done / 0 in progress / 0 blocked / 1 not started",
       "items": {
         "P-01": {
           "status": "done",
@@ -1954,6 +1947,20 @@
           "tag": "[ruflo · high · sonnet]",
           "next": false,
           "parts": null
+        },
+        "P-14": {
+          "status": "done",
+          "title": "The board template's visual defects, seen on a project that is not common-rules",
+          "tag": "[ruflo · medium · sonnet]",
+          "next": false,
+          "parts": null
+        },
+        "P-15": {
+          "status": "not started",
+          "title": "Findings have nowhere to be seen: 21 recorded, 0 on the page",
+          "tag": "[ruflo · high · sonnet]",
+          "next": true,
+          "parts": null
         }
       },
       "asks": {
@@ -1991,6 +1998,11 @@
           "state": "answered",
           "kind": "decision",
           "quote": "okay, I see that uh, that's the same design implemented in the proposal as well. That's also fine. Please divide the tasks and implement it as fast as possible in parallel."
+        },
+        "A-08": {
+          "state": "answered",
+          "kind": "decision",
+          "quote": "go with your recommendations"
         }
       },
       "readiness": null,
@@ -2173,7 +2185,7 @@
     "docs/proposals/32-semantic-versions-and-a-lock-for-the-standard.json": {
       "proposal": 32,
       "title": "Semantic versions and a lock for the standard",
-      "status_line": "3 done / 0 in progress / 0 blocked / 1 not started",
+      "status_line": "3 done / 1 in progress / 0 blocked / 0 not started",
       "items": {
         "V-01": {
           "status": "done",
@@ -2190,10 +2202,10 @@
           "parts": null
         },
         "V-03": {
-          "status": "not started",
+          "status": "in progress",
           "title": "A lock a project can trust: what it is aligned to, and what is pending",
           "tag": "[ruflo · high · sonnet]",
-          "next": true,
+          "next": false,
           "parts": null
         },
         "V-04": {
@@ -2214,6 +2226,11 @@
           "state": "answered",
           "kind": "decision",
           "quote": "L7 will remain on back burner"
+        },
+        "A-03": {
+          "state": "open",
+          "kind": "feature",
+          "quote": "Make the common rules explicitly consumable by both Claude Code and Codex, update the tracker tasks, and ship a new semantic release after verifying the PhotoVault tracker template."
         }
       },
       "readiness": null,
@@ -2336,7 +2353,7 @@
     "CLAUDE.md": "910fee09af9671fc4f17b2431a21d3bd0bd667ce04904791bbd3dcb706763e04",
     "HANDOFF.md": "9cc82f1d60331a7c3e93935f1e3fb62013d06707b90f7a40b6672f087f9d85fa",
     "docs/OPERATING-RULES.md": "132bffeb8cd5a9f38ae4f82dfca074abcebf07472cfc2bd6c2f1e669bb250fe8",
-    "docs/proposals/19-proposal-warmup.json": "9058e6f9faaa04c4acf5c53d85694d5454339234ee75e309fade80c8a73eac35",
+    "docs/proposals/19-proposal-warmup.json": "697b46b5af816a8f82e65dc3365c366db3e16421ca3792a070bd0f2148bba187",
     "docs/proposals/20-proposal-warmup-from-the-app.json": "29ee707685588f2b33dcb57fbd654b6acc649acc39b18cdd8890ffefc9b48be7",
     "docs/proposals/21-standard-is-mandatory.json": "82bdaec0a0f436e5ed3cfbeb5373b7a1332b4e5abe37591274202eecc524c0e2",
     "docs/proposals/22-one-tracker-per-project.json": "07e47febc9c98f9c5b3e09b2e047d80928092d75934f2a447182283099454da9",
@@ -2347,27 +2364,27 @@
     "docs/proposals/27-time-and-tokens-per-task-in-one-place.json": "47eb8064573e1aca53e07d2cb3b6a17e419379dfc0a49a176db0592e05e550c6",
     "docs/proposals/28-two-commands-warmup-and-reheat.json": "817145a52e057b7304b26798a5714cb2d6c2db13a648387cf4efc18efe57106f",
     "docs/proposals/29-taking-over-the-common-rules-chat-v1-work.json": "2fdef272906cc9e6d0d0eca42e03597f1316f1a1aca09b86c682403dc0196412",
-    "docs/proposals/30-tracker-shows-how-complete-each-item-is-by-lettered-parts.json": "c0e8e88ac396c0ab72363174cb77868bbbf3c1c6427d14aee1ba8d4b488fa58a",
-    "docs/proposals/31-cheaper-turns-a-fast-gate-and-scripts-instead-of-bookkeeping.json": "dbefc00cba6ca708157e42c50eddc104adda5c56a5e85e12fd4f59ccfd0216ed",
-    "docs/proposals/32-semantic-versions-and-a-lock-for-the-standard.json": "57b47312a35d1074d924600071d99f945da9f240d3c52501d8cef454b5eafb75",
+    "docs/proposals/30-tracker-shows-how-complete-each-item-is-by-lettered-parts.json": "6d2349fa825c9e52f75d692ba60b3b571271db3b69ed5fd5578903c272de39f6",
+    "docs/proposals/31-cheaper-turns-a-fast-gate-and-scripts-instead-of-bookkeeping.json": "6874bddebff09242f16978270aba38c3fc201854aa2b8ca5fb67984a2875b88d",
+    "docs/proposals/32-semantic-versions-and-a-lock-for-the-standard.json": "bb37e4dacd46468fcf43442fc776426d9e2e9adcfecaa69e919890f8f3bdc3e8",
     "docs/proposals/33-why-the-standard-gets-missed-and-what-to-cut.json": "d01c630fc008d17737ecd37c0f28b0362de12fccd1afa67bc9d87dcc3df972e5",
-    "docs/handovers/2026-09-18-checkpoint.md": "d2d8ebf2c60a90158cb50d949f7e6a934ea61d0a375de4e46c213020497727a8"
+    "docs/handovers/2026-09-19-checkpoint.md": "95c62652e817cd651bc71087fda70bcf70d631be00c1fac994cb61492aa76dcb"
   },
   "groups": {
-    "finish now": 7,
+    "finish now": 8,
     "back burner": 1,
-    "waiting": 3
+    "waiting": 2
   },
   "test_command": "bin/workflow-stamp --check && bin/version-check --check && bin/quiet --label merge-gate --jobs auto -- python3 -m unittest discover -s tests -q",
   "quick_gate": "python3 -m unittest discover -s tests -q -p 'test_tracker*.py'",
   "merge_gate_declared": true,
   "rules": "not adopted (.common-rules-version absent) · 19 mandatory Standard change(s) in the rules CHANGELOG",
-  "ruflo": "/Users/the-sponsor/.npm/_npx/85fb20e3e7e3a233/node_modules/.bin/claude-flow",
+  "ruflo": "user/.npm/_npx/2ed56890c96f58f7/node_modules/.bin/ruflo",
   "ruflo_namespace": "patterns",
   "session": null,
   "conformance": {
-    "project": "/Users/the-sponsor/apps/common-rules",
-    "hold": 9,
+    "project": "common-rules",
+    "hold": 12,
     "total": 12,
     "items": [
       {
@@ -2380,9 +2397,9 @@
       {
         "n": 2,
         "name": "Migrated",
-        "state": "does not hold",
-        "why": "page docs/proposals/tracker/index.html is stale",
-        "fix": "fix what /Users/the-sponsor/apps/common-rules/bin/tracker validate names, then run /Users/the-sponsor/apps/common-rules/bin/tracker board --project /Users/the-sponsor/apps/common-rules, and /Users/the-sponsor/apps/common-rules/bin/tracker render <ledger> for a ledger that records its own tracker (the pre-commit hook does both on commit)"
+        "state": "holds",
+        "why": "15 ledger(s), each valid, the project page matching",
+        "fix": ""
       },
       {
         "n": 3,
@@ -2429,9 +2446,9 @@
       {
         "n": 9,
         "name": "Ruflo around items",
-        "state": "does not hold",
-        "why": "Q-03, Q-04 closed on or after 2026-09-17 without both item:<ID>:start and item:<ID>:done in Ruflo memory (namespace patterns) -- 92 item(s) closed before 2026-09-17 not checked, of which 15 have records",
-        "fix": "run /Users/the-sponsor/apps/common-rules/bin/ruflo-item start <ID> \"...\" and done <ID> \"...\" for each missing id, then re-run conformance"
+        "state": "holds",
+        "why": "35 item(s) closed on or after 2026-09-17 all have Ruflo start and done records (namespace patterns) -- 92 item(s) closed before 2026-09-17 not checked, of which 15 have records",
+        "fix": ""
       },
       {
         "n": 10,
@@ -2450,25 +2467,25 @@
       {
         "n": 12,
         "name": "Card",
-        "state": "does not hold",
-        "why": "warmup --check: 2 problem(s), first: page docs/proposals/tracker/index.html is stale -- run: tracker board --project .",
-        "fix": "run /Users/the-sponsor/apps/common-rules/bin/warmup --project /Users/the-sponsor/apps/common-rules --check and fix each problem it names"
+        "state": "holds",
+        "why": "warmup --check: ready",
+        "fix": ""
       }
     ]
   },
   "mandatory_pending": [],
-  "rules_head": "77476b05c65698738cee52b301ee918d0686fe9f",
+  "rules_head": "9ac6b64159349e1ca8fd74eb968ea0935a8fa198",
   "published": {
     "page": "docs/proposals/tracker/index.html",
     "url": "https://claude.ai/artifact/QfwZgrGYQtJYmM75mbeogb",
-    "digest": "5f580c24c254c9b03f9f5c10faf1d5ac6df49bf5aa02ede827bc441ebaed8327",
-    "ledgers": "[[\"19-proposal-warmup.json\",\"345520b4d32dc0c6a9ec3a8a3d54b1948ba8db16b72a81387d45a3b7ec4c7338\"],[\"20-proposal-warmup-from-the-app.json\",\"29ee707685588f2b33dcb57fbd654b6acc649acc39b18cdd8890ffefc9b48be7\"],[\"21-standard-is-mandatory.json\",\"82bdaec0a0f436e5ed3cfbeb5373b7a1332b4e5abe37591274202eecc524c0e2\"],[\"22-one-tracker-per-project.json\",\"07e47febc9c98f9c5b3e09b2e047d80928092d75934f2a447182283099454da9\"],[\"23-eight-levers-for-token-spend.json\",\"c7a8b61864910c1c5da40aa13b00a5497e47d48e07fc98123060aeecd567e30e\"],[\"24-autonomous-work-without-missing-anything.json\",\"90e73e0a34d14ed995750b4a4c013198195fd63bfcfcd09264da51864bd19825\"],[\"25-sizing-items-by-value-points-and-risk.json\",\"72bb06aafd1750f9b8b0760235a68627f6480e69ddd711c5b2f17d38757e4fc7\"],[\"26-cluster-work-by-contribution-and-risk.json\",\"748342dc94b65cce4255e74105dfae52c1f51260ac3d94e3cc8c45707c481bf5\"],[\"27-time-and-tokens-per-task-in-one-place.json\",\"47eb8064573e1aca53e07d2cb3b6a17e419379dfc0a49a176db0592e05e550c6\"],[\"28-two-commands-warmup-and-reheat.json\",\"817145a52e057b7304b26798a5714cb2d6c2db13a648387cf4efc18efe57106f\"],[\"29-taking-over-the-common-rules-chat-v1-work.json\",\"2fdef272906cc9e6d0d0eca42e03597f1316f1a1aca09b86c682403dc0196412\"],[\"30-tracker-shows-how-complete-each-item-is-by-lettered-parts.json\",\"c0e8e88ac396c0ab72363174cb77868bbbf3c1c6427d14aee1ba8d4b488fa58a\"],[\"31-cheaper-turns-a-fast-gate-and-scripts-instead-of-bookkeeping.json\",\"d99b09e0c49caeb955758651d1ea5b14537667c012ced2760b91289c997ba7d1\"],[\"32-semantic-versions-and-a-lock-for-the-standard.json\",\"57b47312a35d1074d924600071d99f945da9f240d3c52501d8cef454b5eafb75\"]]",
-    "at": "2026-09-18T10:27:22+02:00",
+    "digest": "edd6e4031435513bec5fbbcd8e8aa63f88160ac34e51339ecf426098a8683f8c",
+    "ledgers": "[[\"19-proposal-warmup.json\",\"9058e6f9faaa04c4acf5c53d85694d5454339234ee75e309fade80c8a73eac35\"],[\"20-proposal-warmup-from-the-app.json\",\"29ee707685588f2b33dcb57fbd654b6acc649acc39b18cdd8890ffefc9b48be7\"],[\"21-standard-is-mandatory.json\",\"82bdaec0a0f436e5ed3cfbeb5373b7a1332b4e5abe37591274202eecc524c0e2\"],[\"22-one-tracker-per-project.json\",\"07e47febc9c98f9c5b3e09b2e047d80928092d75934f2a447182283099454da9\"],[\"23-eight-levers-for-token-spend.json\",\"c7a8b61864910c1c5da40aa13b00a5497e47d48e07fc98123060aeecd567e30e\"],[\"24-autonomous-work-without-missing-anything.json\",\"90e73e0a34d14ed995750b4a4c013198195fd63bfcfcd09264da51864bd19825\"],[\"25-sizing-items-by-value-points-and-risk.json\",\"72bb06aafd1750f9b8b0760235a68627f6480e69ddd711c5b2f17d38757e4fc7\"],[\"26-cluster-work-by-contribution-and-risk.json\",\"748342dc94b65cce4255e74105dfae52c1f51260ac3d94e3cc8c45707c481bf5\"],[\"27-time-and-tokens-per-task-in-one-place.json\",\"47eb8064573e1aca53e07d2cb3b6a17e419379dfc0a49a176db0592e05e550c6\"],[\"28-two-commands-warmup-and-reheat.json\",\"817145a52e057b7304b26798a5714cb2d6c2db13a648387cf4efc18efe57106f\"],[\"29-taking-over-the-common-rules-chat-v1-work.json\",\"2fdef272906cc9e6d0d0eca42e03597f1316f1a1aca09b86c682403dc0196412\"],[\"30-tracker-shows-how-complete-each-item-is-by-lettered-parts.json\",\"513fbaa8835c33ecad02906187f60b94bbbab53f36e123cd22bb000982076b0d\"],[\"31-cheaper-turns-a-fast-gate-and-scripts-instead-of-bookkeeping.json\",\"dbefc00cba6ca708157e42c50eddc104adda5c56a5e85e12fd4f59ccfd0216ed\"],[\"32-semantic-versions-and-a-lock-for-the-standard.json\",\"57b47312a35d1074d924600071d99f945da9f240d3c52501d8cef454b5eafb75\"],[\"33-why-the-standard-gets-missed-and-what-to-cut.json\",\"d01c630fc008d17737ecd37c0f28b0362de12fccd1afa67bc9d87dcc3df972e5\"]]",
+    "at": "2026-09-18T14:42:09+02:00",
     "by": "session:common-rules lead",
-    "page_digest": "02bf0e11994bed813bf05fb50bc8834d5778ada4cd6583c0ab25fcb71f1dd7c0",
+    "page_digest": "ad93a5198ea787cf30756b3bf1dbaa9479b9139b264af86b033caa69eb5719cc",
     "changed": true
   },
-  "checkpoint": "stale",
+  "checkpoint": "ok",
   "superseded": [],
   "read_order": [
     "CLAUDE.md",
@@ -2489,12 +2506,122 @@
     "docs/proposals/31-cheaper-turns-a-fast-gate-and-scripts-instead-of-bookkeeping.json",
     "docs/proposals/32-semantic-versions-and-a-lock-for-the-standard.json",
     "docs/proposals/33-why-the-standard-gets-missed-and-what-to-cut.json",
-    "docs/handovers/2026-09-18-checkpoint.md",
+    "docs/handovers/2026-09-19-checkpoint.md",
     "CLAUDE-workflow.md"
   ],
-  "read_bytes": 544615,
-  "recall": [],
-  "context": "picking up the engine work — does this reach the session?",
-  "rules_pull": "rules pull: skipped (--no-pull)",
+  "read_bytes": 554374,
+  "recall": [
+    {
+      "item": "Q-05",
+      "words": [
+        "standard",
+        "item",
+        "migrated",
+        "page"
+      ],
+      "hits": [
+        "3  2026-09-16T21:34:04+02:00  common-rules/docs/proposals/19-proposal-warmup.json#W-10.log[11]  exit conditions re-measured 2026-09-16 20:5x, read-only (git status of each project byte-identical before and after): (1) NOT MET -- warmup --check exits 1 in a",
+        "3  2026-09-15T12:46:37+02:00  common-rules/docs/proposals/29-taking-over-the-common-rules-chat-v1-work.json#K-05.log[1]  measured Proposal 19 'What completes this', re-measured by the lead read-only on 15 Sep: (1) warmup passes in all four focus projects: not met today, both Photo",
+        "3  2026-09-14T22:10:49+02:00  common-rules/docs/proposals/22-one-tracker-per-project.json#T-04.log[0]  started, wording only While T-02 round 2 runs, on p22 (no file T-02 or T-03 owns): skills/standard/SKILL.md now names proposals 19 to 22; checklist item 2 rende"
+      ]
+    },
+    {
+      "item": "S-07",
+      "words": [
+        "photovault",
+        "standard"
+      ],
+      "hits": [
+        "2  2026-09-16T21:34:04+02:00  common-rules/docs/proposals/19-proposal-warmup.json#W-10.log[11]  exit conditions re-measured 2026-09-16 20:5x, read-only (git status of each project byte-identical before and after): (1) NOT MET -- warmup --check exits 1 in a",
+        "2  2026-09-15T12:46:37+02:00  common-rules/docs/proposals/29-taking-over-the-common-rules-chat-v1-work.json#K-05.log[1]  measured Proposal 19 'What completes this', re-measured by the lead read-only on 15 Sep: (1) warmup passes in all four focus projects: not met today, both Photo",
+        "2  2026-09-15T12:46:37+02:00  common-rules/docs/proposals/29-taking-over-the-common-rules-chat-v1-work.json#K-04.log[1]  measured Haiku agent, bin/conformance and rulecheck --mandatory from origin/main 32cd0b9: PhotoVault app 6 of 12 (not holding 1, 2, 4, 6 row Q-16 untagged, 10,"
+      ]
+    },
+    {
+      "item": "S-08",
+      "words": [
+        "photovault",
+        "engine",
+        "standard"
+      ],
+      "hits": [
+        "3  2026-09-16T21:34:04+02:00  common-rules/docs/proposals/19-proposal-warmup.json#W-10.log[11]  exit conditions re-measured 2026-09-16 20:5x, read-only (git status of each project byte-identical before and after): (1) NOT MET -- warmup --check exits 1 in a",
+        "3  2026-09-15T12:46:37+02:00  common-rules/docs/proposals/29-taking-over-the-common-rules-chat-v1-work.json#K-05.log[1]  measured Proposal 19 'What completes this', re-measured by the lead read-only on 15 Sep: (1) warmup passes in all four focus projects: not met today, both Photo",
+        "3  2026-09-15T12:46:37+02:00  common-rules/docs/proposals/29-taking-over-the-common-rules-chat-v1-work.json#K-04.log[1]  measured Haiku agent, bin/conformance and rulecheck --mandatory from origin/main 32cd0b9: PhotoVault app 6 of 12 (not holding 1, 2, 4, 6 row Q-16 untagged, 10,"
+      ]
+    },
+    {
+      "item": "L-07",
+      "words": [
+        "existing",
+        "tool",
+        "inline",
+        "copy"
+      ],
+      "hits": [
+        "3  2026-09-13T15:58:37+02:00  apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json#E0-02.log[1]  committed red: tests/test_upgrade_rehearsal.py 6 failed with no tool; green 6 passed. Real catalogue copied through sqlite backup API over mode=ro, source sha25",
+        "3  2026-09-13T15:58:37+02:00  apps/Loom/main/docs/proposals/71-engine-1-3-programme.json#E0-02.log[1]  committed red: tests/test_upgrade_rehearsal.py 6 failed with no tool; green 6 passed. Real catalogue copied through sqlite backup API over mode=ro, source sha25",
+        "3  2026-09-13T15:58:37+02:00  apps/Loom/codex-engine/docs/proposals/71-engine-1-3-programme.json#E0-02.log[1]  committed red: tests/test_upgrade_rehearsal.py 6 failed with no tool; green 6 passed. Real catalogue copied through sqlite backup API over mode=ro, source sha25"
+      ]
+    },
+    {
+      "item": "P-15",
+      "words": [
+        "findings",
+        "have",
+        "nowhere",
+        "seen"
+      ],
+      "hits": [
+        "2  2026-09-15T12:23:45+02:00  common-rules/docs/proposals/29-taking-over-the-common-rules-chat-v1-work.json#K-01.log[1]  review: fix-first quality-manager (sonnet) on a202087: 598 touched tests OK; merge kept every change from main; T-01 to T-03 behave as decided on a scratch copy",
+        "2  2026-09-15T15:58:12+02:00  common-rules/docs/proposals/26-cluster-work-by-contribution-and-risk.json#A-10  So review findings and test findings can have similar uh, you know mathematical formula for priority deciding and then both low priority things can be handled l",
+        "2  2026-09-15T15:57:13+02:00  common-rules/docs/proposals/26-cluster-work-by-contribution-and-risk.json#A-09  Also, I think reviews can have in groups. And the low priority findings are still getting cataloged. And they can have a light path once I decide or once it's d"
+      ]
+    },
+    {
+      "item": "V-03",
+      "words": [
+        "lock",
+        "project",
+        "trust",
+        "aligned"
+      ],
+      "hits": [
+        "3  2026-09-14T15:29:55+02:00  common-rules/docs/proposals/21-standard-is-mandatory.json#S-09.log[2]  review: fix-first Passed: a marker added then removed is not pending; two markers in one entry give one entry; a side-branch stamp compares trees; the sha wins ",
+        "3  2026-09-14T19:22:41+02:00  apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json#Q-02.log[2]  done standard: 12 of 12 hold (common-rules bin/conformance --project ., at 4863eec); warmup --check: ready; rulecheck stamp aligned 422-0bd48e6. Commits: 6bc9b5",
+        "3  2026-09-14T19:22:41+02:00  apps/Loom/main/docs/proposals/71-engine-1-3-programme.json#Q-02.log[2]  done standard: 12 of 12 hold (common-rules bin/conformance --project ., at 4863eec); warmup --check: ready; rulecheck stamp aligned 422-0bd48e6. Commits: 6bc9b5"
+      ]
+    },
+    {
+      "item": "R-01",
+      "words": [
+        "closing",
+        "item",
+        "refuses",
+        "without"
+      ],
+      "hits": [
+        "3  15 Sep 2026  ~/.agent-data/projects/common-rules-proposals-23-25.md:13  - **24 Autonomy** (https://claude.ai/artifact/TPd4ZRMQbedgMEFzKpHRow, collection answers): thin dispatcher that never ends + short item leads; four-point closin",
+        "3  2026-09-14T23:20:42+02:00  common-rules/docs/proposals/22-one-tracker-per-project.json#T-03.log[1]  reported origin/p22-t03 = ea45cbc4956d2129e3b6c6e75bdd77f421ca5f13 (git rev-parse), one commit on 64b735e, 11 files. tracker published --project [DIR] records i",
+        "3  2026-09-14T19:22:41+02:00  apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json#Q-02.log[2]  done standard: 12 of 12 hold (common-rules bin/conformance --project ., at 4863eec); warmup --check: ready; rulecheck stamp aligned 422-0bd48e6. Commits: 6bc9b5"
+      ]
+    },
+    {
+      "item": "R-02",
+      "words": [
+        "builder",
+        "gate",
+        "runs",
+        "checks"
+      ],
+      "hits": [
+        "3  2026-09-18T14:19:03+02:00  apps/PhotoVault/app/docs/proposals/70-r9-delivery-plan.json#F-02.log[16]  F-02c merged; the external gate is met, the live checks are not run Runner 3.0.0 with engine version 1.3.0 is installed (pvr --engine-version), so F-02's remain",
+        "3  2026-09-17T22:06:16+02:00  common-rules/docs/proposals/31-cheaper-turns-a-fast-gate-and-scripts-instead-of-bookkeeping.json#O-09.log[0]  Item 12 and item 7 now call bin/warmup and bin/proposalcheck in process instead of as subprocesses; the 12 checks run concurrently in a thread pool, order prese",
+        "3  2026-09-15T17:21:10+02:00  common-rules/docs/proposals/23-eight-levers-for-token-spend.json#M-02.log[0]  New tools/affected_tests.py maps changed files (git diff, --base REF, or explicit args) to the tests/test_*.py files that plausibly touch them, for a builder's"
+      ]
+    }
+  ],
+  "context": "I want you to look into this folder structure and update the context and also create a tracker and everything for testing all the different AI agents. There is a create a visual proposal for me to visualize what kind of tests you would be running for all the agents and everything and what you would need. So let's start this activity.",
+  "rules_pull": "rules pull: not pulled -- not on main (on w10-measured)",
   "queue_report": "queue: nothing new (19-proposal-warmup.json)"
 }

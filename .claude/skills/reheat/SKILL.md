@@ -12,7 +12,7 @@ state `/warmup` (or the last `/reheat`) already saved, with the standard's own
 status appended every time — a running lead needs to be told what it did not
 just ask about.
 
-`RULES` below is `/Users/the-sponsor/apps/common-rules`, unless this project's
+`RULES` below is `common-rules`, unless this project's
 CLAUDE.md names a different common-rules checkout.
 
 **A session that has not warmed up in this run, or cannot tell whether it

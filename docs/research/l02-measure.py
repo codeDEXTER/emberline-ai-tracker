@@ -2,12 +2,12 @@
 """L-02 rerun (interim reading, 2026-09-16). Reuses tools/worklog.py's
 list_transcripts/iter_records/dedupe_messages/usage_tokens.
 
-Difference from the prior run (/private/tmp/claude-501/-Users-the-sponsor-apps/
+Difference from the prior run (/tmp/agent-session/-Users-the sponsor-apps/
 3cff917f-aeff-41f8-9753-cac90d63512e/scratchpad/measure-L01-L02-L06-H02.py):
 that run excluded the parent session 3cff917f-aeff-41f8-9753-cac90d63512e
 entirely because its measurement briefs contained the classifier keywords.
 This run does NOT exclude any session. Instead every subagent transcript
-(in every -Users-the-sponsor-apps* project, including 3cff917f's own subagents
+(in every -Users-the sponsor-apps* project, including 3cff917f's own subagents
 and the new lead session 26c10928-63bb-4b8d-993b-4ad09a3f6653) is classified
 by its brief's first line (tag + title):
   - first line contains "measure"/"scout"/"size" (case-insensitive, word
@@ -25,7 +25,7 @@ Rerunnable unchanged later: python3 measure-L02-rerun.py
 """
 import sys, os, re, json
 
-sys.path.insert(0, "/Users/the-sponsor/apps/common-rules/tools")
+sys.path.insert(0, "common-rules/tools")
 import worklog as W
 
 AFTER_START = "2026-09-16"
@@ -96,7 +96,7 @@ def main():
     per_transcript = []
 
     for proj, sess, path in W.list_transcripts():
-        if not proj.startswith("-Users-the-sponsor-apps"):
+        if not proj.startswith("-Users-the sponsor-apps"):
             continue
         if not is_subagent_path(path):
             continue

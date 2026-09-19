@@ -2,7 +2,7 @@
 (proposal 28, R-05).
 
 Every case here runs against temp clones only -- never the real
-/Users/the-sponsor/apps/common-rules checkout's git state, per the bundle's own
+common-rules checkout's git state, per the bundle's own
 MUST: no fetch or pull on it, ever, from a test.
 
 Run:  python3 -m unittest discover -s tests -p 'test_rules_pull.py' -v

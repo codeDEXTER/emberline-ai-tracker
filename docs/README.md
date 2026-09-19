@@ -81,7 +81,7 @@ A chronological record of how working with Claude Code on these projects has
 actually gone — starting from a single chat window doing everything, through
 building a team of agents, to trying to make that team cheaper and sharper.
 
-The audience is the-sponsor's fellow managers, some weeks from now. He is a project
+The audience is the sponsor's fellow managers, some weeks from now. He is a project
 manager by profession and wants to be able to explain this experience with
 evidence rather than impressions: what was tried, what it cost, what broke, and
 what the numbers actually showed.

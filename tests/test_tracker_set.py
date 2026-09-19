@@ -87,14 +87,14 @@ class TestCustomEvent(TrackerSetCase):
 
     def test_event_evidence_by_and_at_are_all_honoured(self):
         r = self.run_set("W-01", "--status", "in progress", "--event", "started",
-                          "--evidence", "kickoff call", "--by", "the-sponsor", "--at",
+                          "--evidence", "kickoff call", "--by", "the sponsor", "--at",
                           "2026-01-02T09:00:00+05:30")
         self.assertEqual(0, r.returncode, r.stderr)
         item = self.item("W-01")
         entry = item["log"][-1]
         self.assertEqual("started", entry["event"])
         self.assertEqual("kickoff call", entry["evidence"])
-        self.assertEqual("the-sponsor", entry["by"])
+        self.assertEqual("the sponsor", entry["by"])
         self.assertEqual("2026-01-02T09:00:00+05:30", entry["at"])
         self.assertIn('log "started"', r.stdout)
 
@@ -218,14 +218,14 @@ class TestSetOnAPart(TrackerSetPartsCase):
 
     def test_the_log_entry_lands_on_the_part_not_the_item(self):
         self.write(with_parts([part("A", 60), part("B", 40)]))
-        r = self.run_set("W-10.A", "--status", "done", "--evidence", "PR #1", "--by", "the-sponsor")
+        r = self.run_set("W-10.A", "--status", "done", "--evidence", "PR #1", "--by", "the sponsor")
         self.assertEqual(0, r.returncode, r.stderr)
         item = self.item("W-10")
         self.assertEqual(1, len(item["parts"][0]["log"]))
         entry = item["parts"][0]["log"][0]
         self.assertEqual("done", entry["status"])
         self.assertEqual("PR #1", entry["evidence"])
-        self.assertEqual("the-sponsor", entry["by"])
+        self.assertEqual("the sponsor", entry["by"])
         self.assertEqual([], item.get("log") or [], "no item-level log entry while a part remains open")
 
     def test_field_on_a_part_writes_the_part_not_the_item(self):

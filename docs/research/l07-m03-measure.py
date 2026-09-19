@@ -30,17 +30,17 @@ def in_window(dt, start, end):
 
 def relevant_projects():
     for name in sorted(os.listdir(PROJECTS)):
-        if name.startswith("-Users-the-sponsor-apps"):
+        if name.startswith("-Users-the sponsor-apps"):
             yield name
 
 
 def iter_project_transcripts():
-    """Yield (project, session, path, kind) restricted to -Users-the-sponsor-apps* slugs."""
-    for path in glob.glob(os.path.join(PROJECTS, "-Users-the-sponsor-apps*", "*.jsonl")):
+    """Yield (project, session, path, kind) restricted to -Users-the sponsor-apps* slugs."""
+    for path in glob.glob(os.path.join(PROJECTS, "-Users-the sponsor-apps*", "*.jsonl")):
         session = os.path.splitext(os.path.basename(path))[0]
         proj = os.path.basename(os.path.dirname(path))
         yield proj, session, path, "main"
-    for path in glob.glob(os.path.join(PROJECTS, "-Users-the-sponsor-apps*", "*", "subagents", "*.jsonl")):
+    for path in glob.glob(os.path.join(PROJECTS, "-Users-the sponsor-apps*", "*", "subagents", "*.jsonl")):
         parts = path.split(os.sep)
         proj, session = parts[-4], parts[-3]
         yield proj, session, path, "subagent"

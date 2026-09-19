@@ -10,7 +10,7 @@ The rules are already on disk. This skill loads them in the same order every
 time, so the sponsor never has to type "reread the handoff", "are you using
 ruflo" or "what is the current status" again. It asks nothing.
 
-`RULES` below is `/Users/the-sponsor/apps/common-rules`, unless this project's
+`RULES` below is `common-rules`, unless this project's
 CLAUDE.md names a different common-rules checkout.
 
 **A session already running does not use this skill again — it uses

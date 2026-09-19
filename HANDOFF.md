@@ -13,9 +13,9 @@ there is lost, it just costs no extra words to read. The standard was
 seeded here on 2026-09-14 (proposal 21, S-10).
 
 common-rules is the shared workflow standard for every project under
-`/Users/the-sponsor/apps`: the rules (`CLAUDE-workflow.md`), the tools (`bin/`), the
+`apps`: the rules (`CLAUDE-workflow.md`), the tools (`bin/`), the
 templates, and the `/warmup` and `/standard` skills. It is **not** a project
-with a product. Each project under `/Users/the-sponsor/apps` is its own repository,
+with a product. Each project under `apps` is its own repository,
 worked on by its own session. A session here reads those projects, and never
 writes into them: it asks their sessions, and it tells the sponsor what they
 need.

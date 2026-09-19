@@ -38,8 +38,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 TRACKER = ROOT / "bin" / "tracker"
-ENGINE_71 = Path("/Users/the-sponsor/apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json")
-APP_70 = Path("/Users/the-sponsor/apps/PhotoVault/app/docs/proposals/70-r9-delivery-plan.json")
+ENGINE_71 = Path("apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json")
+APP_70 = Path("apps/PhotoVault/app/docs/proposals/70-r9-delivery-plan.json")
 
 # The commit V-01 landed the ledger contract v2 on, and the exact base V-03
 # branched from -- pinned so this test does not drift if origin/p20 moves

@@ -217,7 +217,7 @@ class RulecheckLocatesItselfRatherThanGuessing(unittest.TestCase):
     """`rulecheck --version` must work from any checkout, on any machine.
 
     The default for RULES was the literal string
-    "/Users/the-sponsor/apps/common-rules" -- correct on exactly one machine. On a
+    "common-rules" -- correct on exactly one machine. On a
     CI runner that path does not exist, so `git -C <missing>` fails,
     current_version() returns None, and `--version` exits 2, erroring every
     gate test that asks for the current version (11 of them, on every CI run

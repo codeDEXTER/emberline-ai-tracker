@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-19 12:04
+# Checkpoint — 2026-09-19 12:50
 
-Reason: manual · branch: w10-measured · HEAD: 9ac6b64
+Reason: manual · branch: w10-measured · HEAD: 2aa44c0
 
-<!-- ledger-digest: f391b4db3ef7360d2329cc2e5b5943633790e873d7f3415193c3e95bda2c568b -->
+<!-- ledger-digest: d0ca6a462fb3c4067753c3ae68baae5648837a78a9edf24dd93da928c37a70c0 -->
 
 ## Proposal 19 · Warm-up
 

@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT))
 
 from tools.tracker import ledger  # noqa: E402
 
-ENGINE_71 = Path("/Users/the-sponsor/apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json")
+ENGINE_71 = Path("apps/PhotoVault/engine/docs/proposals/71-engine-1-3-programme.json")
 TRACKER = ROOT / "bin" / "tracker"
 
 
@@ -195,7 +195,7 @@ class TestTheCommand(unittest.TestCase):
         self.assertNotIn("Traceback", r.stderr)
 
 
-APP_70 = Path("/Users/the-sponsor/apps/PhotoVault/app/docs/proposals/70-r9-delivery-plan.json")
+APP_70 = Path("apps/PhotoVault/app/docs/proposals/70-r9-delivery-plan.json")
 
 
 def v2(**over):
@@ -605,8 +605,8 @@ class TestProposalAndLogHoles(unittest.TestCase):
         self.assertIn("W-02: `log` must be a list", self.problems(d))
 
 
-REAL_LEDGER_PROJECTS = (Path("/Users/the-sponsor/apps/common-rules"), Path("/Users/the-sponsor/apps/PhotoVault/engine"),
-                        Path("/Users/the-sponsor/apps/PhotoVault/app"))
+REAL_LEDGER_PROJECTS = (Path("common-rules"), Path("apps/PhotoVault/engine"),
+                        Path("apps/PhotoVault/app"))
 
 
 class TestEveryRealLedgerStillValidates(unittest.TestCase):

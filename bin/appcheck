@@ -27,7 +27,7 @@ import plistlib
 import subprocess
 import sys
 
-APPS = "/Users/the-sponsor/apps"
+APPS = os.environ.get("APPS_ROOT", os.path.join(os.path.expanduser("~"), "apps"))
 INSTALLED = "/Applications"
 
 

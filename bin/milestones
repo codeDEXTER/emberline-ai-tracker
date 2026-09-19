@@ -51,7 +51,7 @@ RULES = pathlib.Path(__file__).resolve().parent.parent
 # same resolution trap that let tests/test_rulecheck.py's real-project subtests
 # skip everywhere they were actually run (#113). bin/pulse names it for the
 # same reason.
-APPS = pathlib.Path("/Users/the-sponsor/apps")
+APPS = pathlib.Path(os.environ.get("APPS_ROOT", str(pathlib.Path.home() / "apps")))
 
 # The register's vocabulary, mapped to what the drawing does with each. Order
 # is the plan's order, never sorted -- a milestone plan reordered by state

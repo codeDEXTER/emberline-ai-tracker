@@ -77,7 +77,7 @@
     <li>Two commands exist today, <span class="m">/warmup</span> and <span class="m">/standard</span> (skills/warmup, skills/standard). "Reheat" is not a command: it is the sponsor's word for re-warming a running session (proposal 20, ask A-02, "reheat the photovault app and engine"). <span class="m">/warmup</span> already has a mid-session mode (<span class="m">bin/warmup --since</span>).</li>
     <li><span class="m">/standard</span> is typed once per project by the sponsor: conformance, a 12-item refactor, and every later Standard change queued first.</li>
     <li>Nothing runs by itself. <span class="m">hooks/sessionstart</span> only nudges toward <span class="m">/warmup</span>; <span class="m">hooks/precompact</span> writes the checkpoint before a compaction.</li>
-    <li>The shared checkout projects read rules from, <span class="m">/Users/the-sponsor/apps/common-rules</span>, sat 14 commits behind <span class="m">origin/main</span> on 15 September, so no project saw proposal 23's Standard change until it was pulled by hand.</li>
+    <li>The shared checkout projects read rules from, <span class="m">common-rules</span>, sat 14 commits behind <span class="m">origin/main</span> on 15 September, so no project saw proposal 23's Standard change until it was pulled by hand.</li>
     <li>Proposal 24 (accepted) already decided a thin dispatcher, short item leads, a closing check before a lead ends, and that the dispatcher starts the next lead without asking.</li>
     <li>Not verified: that a SessionStart hook can run a full warm-up within Claude Code's hook time limit. R-03 measures it first.</li>
   </ul>
@@ -137,7 +137,7 @@
   </ul>
 </section>
 
-<p class="src">Sources: the sponsor's message (ask A-01) and answers (Warmup &amp; Reheat page, collection answers); skills/warmup/SKILL.md and skills/standard/SKILL.md; hooks/sessionstart and hooks/precompact docstrings; proposal 20 ask A-02; proposal 24 decisions; git -C /Users/the-sponsor/apps/common-rules rev-list --count HEAD..origin/main = 14 on 15 September 2026. Not verified: hook time limits for a full warm-up.</p>
+<p class="src">Sources: the sponsor's message (ask A-01) and answers (Warmup &amp; Reheat page, collection answers); skills/warmup/SKILL.md and skills/standard/SKILL.md; hooks/sessionstart and hooks/precompact docstrings; proposal 20 ask A-02; proposal 24 decisions; git -C common-rules rev-list --count HEAD..origin/main = 14 on 15 September 2026. Not verified: hook time limits for a full warm-up.</p>
 
 </div>
 </body>

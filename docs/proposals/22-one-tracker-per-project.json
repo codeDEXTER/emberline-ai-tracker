@@ -135,7 +135,7 @@
           "at": "2026-09-14T20:55:26+02:00",
           "event": "ruflo done",
           "by": "lead",
-          "evidence": "bin/ruflo-item --project /Users/the-sponsor/apps/common-rules done T-01 on the main checkout at 4614013: gate python3 -m unittest discover -s tests -q, Ran 1062 tests, OK; stored item:T-01:done (namespace patterns)."
+          "evidence": "bin/ruflo-item --project common-rules done T-01 on the main checkout at 4614013: gate python3 -m unittest discover -s tests -q, Ran 1062 tests, OK; stored item:T-01:done (namespace patterns)."
         }
       ],
       "points": 5,
@@ -217,7 +217,7 @@
           "at": "2026-09-14T23:20:42+02:00",
           "event": "T-02 done, merged into p22",
           "by": "lead",
-          "evidence": "Round 2 verdict merge (quality-manager opus, on 64b735e). Two low findings recorded, not fixed: git rebase/cherry-pick run no pre-commit hook (warmup --check is the safety net that still catches a stale page); a sub-millisecond window around SIGTERM's stop-handler installation, not reproduced by the reviewer. origin/p22-t02 merged into p22 as 1e5f042 (--no-ff). First full-suite run after the merge: Ran 1118, FAILED (failures=1), tracker render on the live PhotoVault app ledger /Users/the-sponsor/apps/PhotoVault/app/docs/proposals/70-r9-delivery-plan.json -- RQ-03 read with state 'accepted', not a valid request state, while the App session was mid-edit. Re-read moments later: RQ-03 state 'in progress', valid. Not this branch's defect: the test reads that file directly and the app session corrected it independently. Full suite re-run: Ran 1118 tests, OK."
+          "evidence": "Round 2 verdict merge (quality-manager opus, on 64b735e). Two low findings recorded, not fixed: git rebase/cherry-pick run no pre-commit hook (warmup --check is the safety net that still catches a stale page); a sub-millisecond window around SIGTERM's stop-handler installation, not reproduced by the reviewer. origin/p22-t02 merged into p22 as 1e5f042 (--no-ff). First full-suite run after the merge: Ran 1118, FAILED (failures=1), tracker render on the live PhotoVault app ledger apps/PhotoVault/app/docs/proposals/70-r9-delivery-plan.json -- RQ-03 read with state 'accepted', not a valid request state, while the App session was mid-edit. Re-read moments later: RQ-03 state 'in progress', valid. Not this branch's defect: the test reads that file directly and the app session corrected it independently. Full suite re-run: Ran 1118 tests, OK."
         }
       ],
       "points": 5,
