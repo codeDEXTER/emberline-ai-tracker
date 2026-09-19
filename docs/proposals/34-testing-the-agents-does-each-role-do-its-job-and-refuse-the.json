@@ -1,0 +1,56 @@
+{
+  "proposal": 34,
+  "title": "Testing the agents: does each role do its job, and refuse the work that is not its own",
+  "status": "proposed",
+  "updated": "2026-09-19",
+  "tiers": {
+    "C1": {
+      "tier": "low",
+      "model": "haiku",
+      "effort": "low",
+      "rule": "Mechanical, one owned file, fully specified, no design choice"
+    },
+    "C2": {
+      "tier": "medium",
+      "model": "sonnet",
+      "effort": "medium",
+      "rule": "Bounded implementation or tests, clear spec, one or two owned files and their tests"
+    },
+    "C3": {
+      "tier": "high",
+      "model": "sonnet",
+      "effort": "high",
+      "rule": "Cross-module design; changes a gate or the ledger contract; wrong means every project inherits it"
+    },
+    "C4": {
+      "tier": "lead",
+      "model": "opus",
+      "effort": "low or medium",
+      "rule": "Planning, merging, reconciling, anything in a project's real data, a sponsor decision"
+    }
+  },
+  "phases": [
+    {
+      "id": "X",
+      "name": "Research",
+      "goal": "Questions that need reading, not writing, before they become items, a proposal, or a decline.",
+      "exit": "Every X row is done only when it becomes items, a numbered proposal, or a recorded decline with the reason -- never a report nobody acted on."
+    }
+  ],
+  "items": [],
+  "asks": [
+    {
+      "id": "A-01",
+      "at": "2026-09-19T12:01:54+02:00",
+      "by": "sponsor",
+      "kind": "feature",
+      "quote": "I want you to look into this folder structure and update the context and also create a tracker and everything for testing all the different AI agents. There is a create a visual proposal for me to visualize what kind of tests you would be running for all the agents and everything and what you would need. So let's start this activity.",
+      "became": null,
+      "state": "open",
+      "source": "session /warmup argument, 2026-09-19",
+      "note": "Created proposal 34 and its ledger; the visual proposal is the page beside this ledger."
+    }
+  ],
+  "proposed_changes": [],
+  "execution": {}
+}

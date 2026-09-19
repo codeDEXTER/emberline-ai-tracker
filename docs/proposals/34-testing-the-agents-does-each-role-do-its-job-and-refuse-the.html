@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>34 · proposed · Testing the agents: does each role do its job, and refuse the work that is not its own</title>
+<meta name="proposal-id" content="34">
+<meta name="proposal-status" content="proposed">
+<meta name="common-rules-template" content="proposal/21">
+<!--
+  Written by common-rules bin/new-proposal from templates/proposal.html
+  (proposal 21, S-02). Replace every highlighted passage; delete none of
+  the sections. The status appears in four places that must agree: the
+  proposal-status meta above, the <title>, the <h1><span class="num">34</span> · <span class="status">proposed</span> · Testing the agents: does each role do its job, and refuse the work that is not its own</h1>
+<p class="sub">Proposal 34 · proposed 2026-09-19. Eight role agents have been dispatched 2,756 times across three projects and not one line of test covers any of them. This asks the sponsor to decide whether to build an agent test harness, how far it goes — from a free static check to real runs against a seeded fixture — and what may block a merge.</p>
+
+<h2>The ask</h2>
+<blockquote>
+  I want you to look into this folder structure and update the context and also create a tracker and everything for testing all the different AI agents. There is a create a visual proposal for me to visualize what kind of tests you would be running for all the agents and everything and what you would need. So let's start this activity.
+  <cite>The sponsor, 2026-09-19, as the argument to <span class="m">/warmup</span> in this session. Recorded verbatim as A-01 in the ledger beside this page.</cite>
+</blockquote>
+
+<h2>What was found</h2>
+<div class="card">
+  <ul>
+    <li><b>Eight role agents, one copy.</b> <span class="m">common-rules/agents/*.md</span> holds code-engineer, design-engineer, design-explorer, proposal-auditor, quality-manager, requirements-engineer, research-agent, test-engineer. All eight are byte-identical to the <span class="m">~/.agent-data/agents/</span> mirror every session actually loads (<span class="m">diff</span>, 8 of 8 same, 2026-09-19). No project keeps its own copy — so drift is possible and today is zero.</li>
+    <li><b>2,756 dispatches, zero tests.</b> <span class="m">bin/spend report --by-agent</span>: common-rules 1,566, PhotoVault app 455, PhotoVault engine 735. code-engineer alone accounts for 1,162 of them; quality-manager 417; proposal-auditor 7.</li>
+    <li><b>Nothing loads an agent file.</b> 87 test files under <span class="m">tests/</span>; <span class="m">grep -rn "agents/[a-z-]*\.md" tests/</span> returns nothing. The 12 items of <span class="m">bin/conformance</span> do not mention agents at all.</li>
+    <li><b>One of eight pins a model.</b> Only code-engineer carries <span class="m">model: sonnet</span>. The other seven inherit whatever the dispatcher passes, so the C1–C4 tier table in every ledger is honoured by convention, not by the file.</li>
+    <li><b>The agents carry contracts nothing checks.</b> quality-manager must close every report with a verbatim line — <span class="m">"This is a recommendation — merge approval is the sponsor's decision."</span> — and must never edit a file. Both are assertable. Neither has ever been asserted.</li>
+    <li><b>A second, unowned population.</b> 17 further agent files sit under PhotoVault app <span class="m">.claude/agents/</span> (consensus 7, sparc 4, swarm 3, testing 2, core 1), shipped by claude-flow, outside the standard. The spend log shows them being picked anyway: code-analyzer 15, sparc-coder 8, coder 7, system-architect 6, researcher 4, tester 3, hierarchical-coordinator 1, planner 1.</li>
+    <li><b>Not verified.</b> Whether any of the 2,756 calls ever broke a role boundary — a test-engineer patching code, a read-only agent writing — is unknown. No transcript has been asserted against. The failure rate today is unmeasured, not zero.</li>
+  </ul>
+</div>
+
+<h2>What the tests would be</h2>
+<p class="sub">Six layers. The cheap ones run on every commit and cost no model calls; only the bottom two dispatch a real agent, and only when an agent file changes.</p>
+
+<svg viewBox="0 0 860 300" role="img" aria-label="Six test layers, from free static checks on every commit to real agent runs on change" style="width:100%;height:auto;margin-top:12px;background:var(--surface);border:1px solid var(--border)">
+  <g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif" font-size="13">
+    <text x="24" y="26" fill="var(--dim)" font-size="11" letter-spacing="1.2">LAYER</text>
+    <text x="250" y="26" fill="var(--dim)" font-size="11" letter-spacing="1.2">WHAT IT PROVES</text>
+    <text x="620" y="26" fill="var(--dim)" font-size="11" letter-spacing="1.2">COST</text>
+    <text x="740" y="26" fill="var(--dim)" font-size="11" letter-spacing="1.2">WHEN</text>
+
+    <rect x="24" y="36" width="812" height="38" fill="var(--ground)" stroke="var(--border)"/>
+    <text x="36" y="60" fill="var(--ink)" font-weight="600">L0 · Shape</text>
+    <text x="250" y="60" fill="var(--ink)">frontmatter parses; name matches filename; every tool in <tspan font-family="ui-monospace,Menlo,monospace">tools:</tspan> exists; a model is pinned</text>
+    <text x="620" y="60" fill="var(--dim)">0 tokens</text>
+    <text x="740" y="60" fill="var(--dim)">every commit</text>
+
+    <rect x="24" y="78" width="812" height="38" fill="var(--ground)" stroke="var(--border)"/>
+    <text x="36" y="102" fill="var(--ink)" font-weight="600">L1 · Drift</text>
+    <text x="250" y="102" fill="var(--ink)">repo copy, <tspan font-family="ui-monospace,Menlo,monospace">~/.agent-data/agents</tspan> mirror and any project copy are identical</text>
+    <text x="620" y="102" fill="var(--dim)">0 tokens</text>
+    <text x="740" y="102" fill="var(--dim)">every commit</text>
+
+    <rect x="24" y="120" width="812" height="38" fill="var(--ground)" stroke="var(--border)"/>
+    <text x="36" y="144" fill="var(--ink)" font-weight="600">L2 · Routing</text>
+    <text x="250" y="144" fill="var(--ink)">a labelled task sentence picks the intended role — and the wrong roles it must not pick</text>
+    <text x="620" y="144" fill="var(--dim)">~1 cheap call</text>
+    <text x="740" y="144" fill="var(--dim)">nightly</text>
+
+    <rect x="24" y="162" width="812" height="38" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="36" y="186" fill="var(--ink)" font-weight="600">L3 · Does the job</text>
+    <text x="250" y="186" fill="var(--ink)">run for real on a fixture with planted defects; the known ones are found and cited</text>
+    <text x="620" y="186" fill="var(--dim)">1 run / agent</text>
+    <text x="740" y="186" fill="var(--dim)">on agent change</text>
+
+    <rect x="24" y="204" width="812" height="38" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="36" y="228" fill="var(--ink)" font-weight="600">L4 · Refuses</text>
+    <text x="250" y="228" fill="var(--ink)">fixture stays byte-identical where it must; no write from a read-only role; no self-certifying</text>
+    <text x="620" y="228" fill="var(--dim)">same run</text>
+    <text x="740" y="228" fill="var(--dim)">on agent change</text>
+
+    <rect x="24" y="246" width="812" height="38" fill="var(--ground)" stroke="var(--border)"/>
+    <text x="36" y="270" fill="var(--ink)" font-weight="600">L5 · Cost</text>
+    <text x="250" y="270" fill="var(--ink)">spend per role against its tier's median — the calibration <tspan font-family="ui-monospace,Menlo,monospace">bin/spend calibrate</tspan> already does</text>
+    <text x="620" y="270" fill="var(--dim)">0 tokens</text>
+    <text x="740" y="270" fill="var(--dim)">every 20 items</text>
+  </g>
+</svg>
+
+<h2>What each agent must prove</h2>
+<p class="sub">One thing it must do, and one thing it must refuse. The refusal half is the point: every role in this standard exists because some other role must not do that work.</p>
+<table>
+  <thead><tr><th>Agent</th><th>Must do</th><th>Must refuse</th></tr></thead>
+  <tbody>
+    <tr><td class="m">research-agent</td><td>three structurally different approaches, each with its cost, plus the open questions</td><td>writing REQUIREMENTS.md; picking the direction</td></tr>
+    <tr><td class="m">requirements-engineer</td><td>numbered requirements, each with a criterion someone else could later prove</td><td>designing the solution; choosing between directions</td></tr>
+    <tr><td class="m">design-explorer</td><td>three concepts that differ in structure, not in colour</td><td>producing a buildable spec</td></tr>
+    <tr><td class="m">design-engineer</td><td>states and edge cases named; tokens, not hex values</td><td>opening a new direction</td></tr>
+    <tr><td class="m">proposal-auditor</td><td>every divergence found and classified</td><td>fixing requirements; approving anything</td></tr>
+    <tr><td class="m">code-engineer</td><td>the change and its test, inside its own worktree</td><td>calling itself done; touching <span class="m">common-rules/</span></td></tr>
+    <tr><td class="m">test-engineer</td><td>a structured bug report with file and line</td><td>patching the code it just found broken</td></tr>
+    <tr><td class="m">quality-manager</td><td>verdict, evidence per criterion, and the verbatim closing line</td><td>editing any file; approving the merge</td></tr>
+  </tbody>
+</table>
+
+<h2>What would be needed</h2>
+<div class="card">
+  <ul>
+    <li><b>A fixture — the gym.</b> <span class="m">tests/fixtures/agent-gym/</span>: a small repository with a REQUIREMENTS.md of six numbered criteria, an implementation that meets four and breaks two in known ways, a locked design artifact, and a LESSONS.md. Every planted defect is recorded with the layer and agent it is there to catch.</li>
+    <li><b>A runner.</b> <span class="m">bin/agentcheck</span>: copies the fixture to a throwaway directory, dispatches one agent against it at a real model, and captures three things — the transcript, the tool calls, and <span class="m">git status</span> before and after.</li>
+    <li><b>A scorer that asserts first.</b> Deterministic wherever it can be: a diff, a tool name, a verbatim string. An LLM judge only for the rubric lines that cannot be asserted — "are these three concepts structurally different?" — with the judging model and date recorded beside the verdict.</li>
+    <li><b>A results file the tracker renders.</b> One row per agent per layer: pass, fail, or not run, with the date, the model and the cost. The tracker page already renders findings; this is the same shape.</li>
+    <li><b>A budget.</b> L0, L1 and L5 are free. L2 is one cheap call. L3 and L4 are eight real runs, one per agent, and run only when <span class="m">agents/*.md</span> changes — not on every commit.</li>
+    <li><b>A decision on the 17 unowned files.</b> The claude-flow agents under PhotoVault app are being picked by dispatchers today and are covered by nothing. They are adopted, deleted, or explicitly excluded — leaving them unowned is the one option that keeps the gap.</li>
+  </ul>
+</div>
+
+<h2>Options</h2>
+<div class="opt">
+  <div class="card">
+    <h3>A · Static only</h3>
+    <p>L0, L1 and L5 as a 13th conformance item every project inherits. No model calls, no fixture, runs on every commit. Catches drift, a missing model pin, a tool that no longer exists. Proves nothing about behaviour — the 2,756 dispatches stay unmeasured.</p>
+  </div>
+  <div class="card">
+    <h3>B · Static plus routing</h3>
+    <p>A, plus a labelled corpus of task sentences scored against the descriptions, with negative cases. Catches the most common real failure — the wrong role picked — for about one cheap call a night. Still says nothing about what an agent does once it is running.</p>
+  </div>
+  <div class="card">
+    <h3>C · The gym</h3>
+    <p>A and B, plus real runs against the seeded fixture scored on both halves: does the job, refuses what is not its own. The only option that can catch a test-engineer that patches code. Costs a fixture, a runner, a scorer, and eight runs per agent change.</p>
+  </div>
+</div>
+<p><b>Recommended:</b> C, built in that order — A first because it is free and is the only layer that can gate every commit, then B, then the gym behind them. Building the gym first would mean the expensive layer is the only one running.</p>
+
+<h2>Decisions</h2>
+<p class="sub">Each numbered line is one thing the sponsor answers. Keep the numbers stable once shown: answers and ledger items cite them.</p>
+<ol class="decisions">
+  <li><b>D1.</b> How far: A, B, or C? (Recommended: C, phased A → B → C.)</li>
+  <li><b>D2.</b> Scope: the eight role agents only, or the 17 claude-flow files under PhotoVault app as well — and if the latter, adopted or deleted?</li>
+  <li><b>D3.</b> Is an LLM judge allowed for the rubric lines that cannot be asserted, and at which model? (Sonnet, per the no-Opus-for-subagents ruling.)</li>
+  <li><b>D4.</b> Does a failing agent test block a merge, or report only? Per layer, if the answer differs — L0 and L1 are safe to block; L3 and L4 are not, until their false-positive rate is known.</li>
+  <li><b>D5.</b> Does this live in common-rules as a 13th conformance item every project inherits, or as a common-rules-only test suite?</li>
+  <li><b>D6.</b> What is the ceiling on a full gym run, and how often may the behavioural layers run — on every agent-file change, or weekly?</li>
+</ol>
+
+<h2>Decided</h2>
+<section class="slot">
+  <p>Not decided yet. When the sponsor answers, change this page in this order.</p>
+  <ol>
+    <li><b>The date, first.</b> Copy this line into the head, directly under the status meta, and put the real date in place of YYYY-MM-DD:
+      <pre class="m">&lt;meta name="proposal-decided" content="YYYY-MM-DD"&gt;</pre>
+      Without it, bin/proposalcheck treats the page as decided before its rules existed and checks nothing.</li>
+    <li><b>Then the status.</b> Replace the proposed status meta with this line:
+      <pre class="m">&lt;meta name="proposal-status" content="accepted"&gt;</pre>
+      and change "proposed" to "accepted" in the title, the heading, and the "Proposal NN · proposed DATE" line under it.</li>
+    <li>Write both lines exactly as shown. Do not self-close them with <span class="m">/&gt;</span>: bin/proposalcheck does not read that form, and the page would read as undecided.</li>
+    <li>Give this section the id <span class="m">decided</span>, and replace this text with the sponsor's answer quoted from disk, the date, and what each of D1, D2 ... was decided as.</li>
+    <li>Add the items to the ledger beside this page (same number, <span class="m">.json</span>).</li>
+  </ol>
+  <p>The id is added by hand, on purpose. A page that shipped with an empty answers block would pass bin/proposalcheck while recording nothing.</p>
+  <p><b>Completed in part.</b> A proposal closed as <span class="m">completed in part</span> also needs a block with the id exceptions beside the <span class="m">&lt;ol class="decisions"&gt;</span> list, naming what was not built and why. The same rule applies: add it when it is true, never in advance.</p>
+</section>
+
+<p class="src">Sources, all measured 2026-09-19 on branch <span class="m">w10-measured</span> @ <span class="m">9ac6b64</span>, read-only.
+Agent inventory: <span class="m">ls common-rules/agents/*.md</span> (8) and <span class="m">find PhotoVault/app/.claude/agents -name '*.md'</span> (17).
+Mirror drift: <span class="m">diff agents/&lt;name&gt;.md ~/.agent-data/agents/&lt;name&gt;.md</span> for all eight, 8 of 8 identical.
+Model pins: <span class="m">grep '^model:' agents/*.md</span>, 1 of 8.
+Dispatch counts: <span class="m">bin/spend report --by-agent</span> run in each of common-rules (1,566), PhotoVault app (455) and PhotoVault engine (735); the tool reads session transcripts under <span class="m">~/.agent-data/projects</span>.
+Test coverage: <span class="m">ls tests | wc -l</span> = 87 and <span class="m">grep -rn "agents/[a-z-]*\.md" tests/</span> = 0 hits.
+quality-manager's closing line and its "never edit" rule are quoted from <span class="m">agents/quality-manager.md</span>, "What you never do" and "Report format".
+<b>Not verified:</b> the real-world failure rate of any agent — no transcript has been asserted against, so nothing here claims the agents are currently wrong, only that nothing would notice if they were. The six layers, the fixture and the cost figures are a design, not a measurement; none of them has been built or run.</p>
+
+</div>
+</body>
+</html>
