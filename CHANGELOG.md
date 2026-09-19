@@ -1,3 +1,9 @@
+## 1.1.8 · Release pin synchronization · 2026-09-19
+
+Synchronized the intentionally literal release-version regression test with
+the published patch version so the Ubuntu merge gate exercises the same
+release contract as the working tree.
+
 ## 1.1.7 · CI release follow-up · 2026-09-19
 
 Followed the public 1.1.6 release with the final CI release boundary: the
