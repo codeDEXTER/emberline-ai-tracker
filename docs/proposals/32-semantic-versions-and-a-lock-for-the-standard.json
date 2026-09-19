@@ -2,7 +2,7 @@
   "proposal": 32,
   "title": "Semantic versions and a lock for the standard",
   "status": "proposed",
-  "updated": "2026-09-18",
+  "updated": "2026-09-19",
   "tiers": {
     "C1": {
       "tier": "low",
@@ -122,7 +122,16 @@
         }
       ],
       "points": 5,
-      "value": "high"
+      "value": "high",
+      "parts": [
+        {
+          "id": "V-03.A",
+          "title": "Complete and verify the public release lock",
+          "share": 100,
+          "status": "in progress",
+          "owner": "lead"
+        }
+      ]
     },
     {
       "id": "V-04",

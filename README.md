@@ -40,6 +40,13 @@ labels are cleaned for the public story. The live tracker remains available abov
 
 A shared record supports the workflow; human review still decides what is accepted.
 
+## How a project adopts this
+
+Run `/standard` in the adopting project's chat to review the shared contract,
+then use [`bin/derecord`](bin/derecord) to seed the project's handoff, tracker,
+and hooks without overwriting its existing rules. Start the next session with
+`/warmup` and use `/reheat` when a running session needs the latest delta.
+
 [**Get started →**](docs/GETTING-STARTED.md) · [Capabilities & boundaries](docs/GETTING-STARTED.md#boundaries) · [User guide](docs/user-guide/) · [Release history](CHANGELOG.md)
 
 ## Attribution

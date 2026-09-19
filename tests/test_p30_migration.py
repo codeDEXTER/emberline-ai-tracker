@@ -83,7 +83,7 @@ class TestApprovedShares(unittest.TestCase):
         ps = self._parts("19-proposal-warmup.json", "W-10")
         self.assertEqual(EXPECTED_SHARES["W-10"], [p["share"] for p in ps])
         self.assertEqual(["W-10.A", "W-10.B", "W-10.C", "W-10.D", "W-10.E"], [p["id"] for p in ps])
-        self.assertEqual("in progress", ps[1]["status"])  # B: whole parts, so "in progress"
+        self.assertEqual("done", ps[1]["status"])  # B was completed after the approved split was recorded
         self.assertEqual("done", ps[2]["status"])
 
     def test_l02_shares(self):

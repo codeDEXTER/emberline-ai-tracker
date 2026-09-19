@@ -1,10 +1,15 @@
 ## 1.1.6 · Pipeline, user guide, and discoverability · 2026-09-19
 
 Repaired the merge gate's stale workflow stamp and synchronized the release
-version with the shipped changelog. Added a guided `docs/user-guide/` for the
-product model, session commands, tracker, integrations, repository layout,
-and search discoverability. Documented why operational root files and
+version with the shipped changelog. Added the renderer dependency required by
+the workflow-stamp tests and fixed the milestone renderer's missing standard
+library import. Added a guided `docs/user-guide/` for the product model,
+session commands, tracker, integrations, repository layout, and search
+discoverability. Documented why operational root files and
 `.github/workflows/` remain in their conventional locations.
+Updated the release-version test pin, refreshed the public tracker and
+checkpoint after recording the release lock, and restored the README's tested
+adoption path.
 
 ## 1.1.5 · Public repository cleanup · 2026-09-19
 

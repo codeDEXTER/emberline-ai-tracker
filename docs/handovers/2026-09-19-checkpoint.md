@@ -1,8 +1,8 @@
-# Checkpoint — 2026-09-19 12:50
+# Checkpoint — 2026-09-19 16:50
 
-Reason: manual · branch: w10-measured · HEAD: 2aa44c0
+Reason: manual · branch: w10-measured · HEAD: b70fc28
 
-<!-- ledger-digest: d0ca6a462fb3c4067753c3ae68baae5648837a78a9edf24dd93da928c37a70c0 -->
+<!-- ledger-digest: e61c1f8d3d2cf9d4f8ac5dbfaf07de622fc9f7c4bd0c90e0b64773950fbe5b0a -->
 
 ## Proposal 19 · Warm-up
 
@@ -129,7 +129,7 @@ Reason: manual · branch: w10-measured · HEAD: 2aa44c0
 ### Open work by group
 
 **finish now**
-- V-03 0%
+- V-03 0% · next V-03.A
 
 ## Proposal 33 · Why the standard gets missed, and what to cut
 

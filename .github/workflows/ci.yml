@@ -39,9 +39,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      # No dependency install step: the suite is stdlib-only by design, so
-      # anything that needs a package is a test that would not run on a fresh
-      # machine either. Keep it that way -- a rules repo that cannot be checked
-      # out and tested in one step is a rules repo nobody checks.
+      # workflow-stamp's browser capture is cropped with Pillow; its hermetic
+      # renderer tests use the same dependency. Install it explicitly so the
+      # declared runner and local test behavior agree.
+      - name: Install renderer test dependency
+        run: python -m pip install --disable-pip-version-check --no-input Pillow
+
       - name: Run test suite
         run: bin/workflow-stamp --check && bin/version-check --check && bin/quiet --label merge-gate --jobs auto -- python3 -m unittest discover -s tests -q
