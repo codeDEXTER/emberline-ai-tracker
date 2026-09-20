@@ -39,6 +39,24 @@ A proposal normally records:
 - asks, decisions, findings, and evidence;
 - the next item that should be worked.
 
+### Visual by default
+
+A proposal is a decision page, not a transcript. Put a compact visual summary
+before `Decisions` so the sponsor can understand the recommendation without
+reading every paragraph:
+
+- `.verdict` for the one-line recommendation;
+- `.big` containing `.stat` blocks for headline figures;
+- `.tk` for comparisons, with a single-word verdict column such as `TAKE`,
+  `LEAVE`, or `OPEN`;
+- `.ev` directly beneath the claim it supports.
+
+`bin/new-proposal` includes these primitives in every new page. Run
+`bin/proposalcheck --project .` to receive a warning when a page has no table,
+inline SVG, or headline-figure block before `Decisions`. The warning is
+advisory for existing pages; no chart library or screenshot is required.
+Inline SVG should use the page's CSS variables so it works in dark mode.
+
 Keep the ledger as the source of truth. Use the supported tracker commands to
 validate or render it rather than editing generated HTML by hand.
 

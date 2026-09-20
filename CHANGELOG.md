@@ -1,3 +1,13 @@
+## 1.2.0 · Visual proposals by default · 2026-09-20
+
+**Standard change (mandatory):** a proposal must be answerable from its
+visuals. New proposal pages should place at least one table, diagram, or
+headline-figure block before the Decisions list; verdicts should be single
+coloured words in their own column; evidence should sit under the claim it
+supports. `bin/proposalcheck` warns when a page has none, without failing
+existing pages, and `templates/proposal.html` now ships `.tk`, `.big`, `.stat`,
+`.verdict`, and `.ev` so projects stop hand-rolling them.
+
 ## 1.1.13 · First-class deferred state · 2026-09-20
 
 Added the first-class `deferred` item state. It is terminal and green,

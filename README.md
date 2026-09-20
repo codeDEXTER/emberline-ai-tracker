@@ -8,7 +8,7 @@ next steps connected across **Claude Code and OpenAI Codex**.
 
 ![The problem and solution: session context, shared proposals and decisions, and a generated tracker for Claude Code and Codex](docs/assets/product-overview.svg)
 
-[**Get started →**](docs/GETTING-STARTED.md) · [Explore the tracker](docs/proposals/tracker/index.html) · [Read the user guide](docs/user-guide/) · [Release 1.1.13](docs/RELEASE-1.1.13.md)
+[**Get started →**](docs/GETTING-STARTED.md) · [Explore the tracker](docs/proposals/tracker/index.html) · [Read the user guide](docs/user-guide/) · [Release 1.2.0](docs/RELEASE-1.2.0.md)
 
 ## Less catching up. More moving forward.
 
@@ -53,12 +53,12 @@ Give a project’s Claude Code or Codex chat this instruction to start an
 adoption review:
 
 ```text
-We are adopting Emberline v1.1.13, an open-source workflow for keeping AI
+We are adopting Emberline v1.2.0, an open-source workflow for keeping AI
 agent sessions aligned through shared context, proposals, decisions,
 checkpoints, and progress tracking.
 
 Read the release and user guide first:
-https://github.com/codeDEXTER/emberline-ai-tracker/releases/tag/v1.1.13
+https://github.com/codeDEXTER/emberline-ai-tracker/releases/tag/v1.2.0
 
 Review this project’s existing rules before changing anything. Preserve
 project-specific instructions and explain any conflicts instead of silently
