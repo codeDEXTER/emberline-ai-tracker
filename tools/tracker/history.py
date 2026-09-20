@@ -149,7 +149,7 @@ def _summarize(items: list[dict]) -> dict:
     ids_all: set = set()
     ids_done: set = set()
     by_proposal: dict = {}
-    by_status = {key: 0 for key in ("done", "in progress", "in review", "in testing", "blocked", "not started")}
+    by_status = {key: 0 for key in ("done", "in progress", "in review", "in testing", "blocked", "not started", "deferred")}
     for it in items:
         prop = str(it["proposal"])
         agg = by_proposal.setdefault(prop, {"tickets_total": 0, "tickets_done": 0})
@@ -494,7 +494,7 @@ def _line_chart(width: int, height: int, series_list, dates: list[str], title: s
 def _status_line_chart(width: int, height: int, rows: list[dict]) -> str:
     """Plot one line per status; separate lines keep status changes readable
     without the visual occlusion of a stacked area/bar chart."""
-    keys = ("done", "in progress", "in review", "in testing", "blocked", "not started")
+    keys = ("done", "in progress", "in review", "in testing", "blocked", "not started", "deferred")
     colors = {
         "done": "var(--tracker-status-done, #2FB170)",
         "in progress": "var(--tracker-status-progress, #D97706)",
@@ -502,6 +502,7 @@ def _status_line_chart(width: int, height: int, rows: list[dict]) -> str:
         "in testing": "var(--tracker-status-testing, #0891B2)",
         "blocked": "var(--tracker-status-blocked, #E05263)",
         "not started": "var(--tracker-status-todo, #64748B)",
+        "deferred": "var(--tracker-status-deferred, #2FB170)",
     }
     dates = [r["date"] for r in rows]
     series = []

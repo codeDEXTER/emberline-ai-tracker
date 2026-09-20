@@ -1,3 +1,23 @@
+## 1.1.13 · First-class deferred state · 2026-09-20
+
+Added the first-class `deferred` item state. It is terminal and green,
+requires a reason, is excluded from active-work and blocker counts, remains in
+history, and can only be reopened explicitly.
+
+Added an optional `.common-rules.json` goal contract with an outcome,
+constraints, and verification criteria. Warm-up now shows that compact
+repository-side mirror of the host's native `/goal`, so sessions can recover
+the current intent without reconstructing it from chat history. Existing
+projects are unchanged unless they opt in; the native goal remains the
+execution control. When opted in, the generated project tracker shows the
+same contract and detects goal edits as page-staleness.
+
+Warm-up now validates and summarizes auto-discovered ledgers without adding
+every raw ledger JSON file to the session read order. A project may still name
+a ledger explicitly in `read_order`; otherwise a lead opens only the ledger
+for the item being worked, reducing repeated context without hiding status.
+
+
 ## 1.1.12 · Release pin synchronization · 2026-09-19
 
 Synchronized the literal release-version regression test with the README

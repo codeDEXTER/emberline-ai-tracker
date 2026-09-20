@@ -37,7 +37,9 @@ from pathlib import Path
 # and "done" -- the code is written and it is now elsewhere, waiting on a
 # reviewer or a red-first test to go green. Purely additive: a ledger using
 # only the original four statuses stays valid and unaffected.
-STATUSES = ("not started", "in progress", "in review", "in testing", "blocked", "done")
+STATUSES = ("not started", "in progress", "in review", "in testing", "blocked", "done", "deferred")
+TERMINAL_STATUSES = frozenset(("done", "deferred"))
+DEFERRED_REASON = "deferred_reason"
 ASK_KINDS = ("research", "feature", "defect", "decision", "question")
 ASK_STATES = ("open", "answered", "became-item", "declined")
 CLASSES = ("C1", "C2", "C3", "C4")
@@ -169,7 +171,10 @@ def counts(ledger: dict) -> dict[str, int]:
     buckets sit beside the original four so a caller that only ever knew the
     original four keys (`c["done"]`, `c["in progress"]`, ...) still gets
     exactly what it always got."""
-    c = {"done": 0, "in progress": 0, "in review": 0, "in testing": 0, "blocked": 0, "not started": 0}
+    # Preserve the established six-key order; deferred is additive so callers
+    # that render the compact line or serialize these counters keep their
+    # existing shape unless a deferred row is actually present.
+    c = {s: 0 for s in ("done", "in progress", "in review", "in testing", "blocked", "not started", "deferred")}
     for i in items(ledger):
         s = i.get("status")
         if s in c:
@@ -185,7 +190,7 @@ def status_line(ledger: dict) -> str:
     line every reader has learned to scan."""
     c = counts(ledger)
     line = f'{c["done"]} done / {c["in progress"]} in progress / {c["blocked"]} blocked / {c["not started"]} not started'
-    extra = [f'{c[s]} {s}' for s in ("in review", "in testing") if c[s]]
+    extra = [f'{c[s]} {s}' for s in ("in review", "in testing", "deferred") if c[s]]
     return line + (" / " + " / ".join(extra) if extra else "")
 
 
@@ -197,7 +202,7 @@ def unblocked(ledger: dict) -> list[dict]:
         if i.get("status") != "not started":
             continue
         deps = [d for d in as_list(i.get("depends")) if d in ids]
-        if all(ids[d].get("status") == "done" for d in deps):
+        if all(ids[d].get("status") in TERMINAL_STATUSES for d in deps):
             out.append(i)
     return out
 
@@ -237,6 +242,12 @@ def validate(ledger: dict) -> list[str]:
             seen.add(iid)
         if i.get("status") and i["status"] not in STATUSES:
             problems.append(f"{name}: status {i['status']!r} is not one of {', '.join(STATUSES)}")
+        if i.get("status") == "deferred":
+            reason = i.get(DEFERRED_REASON)
+            if not isinstance(reason, str) or not reason.strip() or not _one_line(reason):
+                problems.append(f"{name}: deferred requires a non-empty one-line `deferred_reason`")
+        elif DEFERRED_REASON in i:
+            problems.append(f"{name}: `{DEFERRED_REASON}` is only valid while status is deferred")
         if i.get("cx") and i["cx"] not in CLASSES:
             problems.append(f"{name}: class {i['cx']!r} is not one of {', '.join(CLASSES)}")
         if phases and i.get("phase") and i["phase"] not in phases:
@@ -640,7 +651,7 @@ def open_requests(ledger: dict) -> list[dict]:
 
 def merged_waiting(ledger: dict) -> list[str]:
     """Rows merged but not yet done: awaiting their evidence (D8)."""
-    return [i["id"] for i in items(ledger) if i.get("merged") not in (None, False, "") and i.get("status") != "done"]
+    return [i["id"] for i in items(ledger) if i.get("merged") not in (None, False, "") and i.get("status") not in TERMINAL_STATUSES]
 
 
 def readiness(ledger: dict) -> dict | None:

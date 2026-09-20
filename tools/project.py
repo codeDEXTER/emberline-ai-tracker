@@ -55,6 +55,13 @@ module does not know is ignored, because later proposals add keys.
       main when it does not exist yet) and `land --advance-staging` runs
       the merge gate on it and fast-forwards main only on a green verdict.
       Default: None -- straight to main, exactly as before this key existed.
+
+  "goal": {"outcome": "...", "constraints": ["..."],
+           "verification": ["..."]}
+      The project's compact, durable goal contract. The native `/goal` remains
+      the execution control; this declaration is the repository-side summary
+      that warm-up and the tracker can verify after a context switch. All
+      three fields are required when the key is present. Default: None.
       No project under apps/ declares it yet; the switch is the sponsor's
       to throw.
 
@@ -133,6 +140,7 @@ DEFAULTS: dict = {
     "risk_always": None,
     "ruflo_namespace": None,
     "staging_branch": None,
+    "goal": None,
 }
 
 VALUES = ("high", "medium", "low")  # tools/tracker/ledger.py VALUES, proposal 25
@@ -167,6 +175,32 @@ def _utf8(s: str) -> bool:
 def _one_line(s: str) -> bool:
     """No control character (C0, DEL, C1). bin/land's test_cmd() uses the same test."""
     return not any(ord(c) < 32 or 127 <= ord(c) < 160 for c in s)
+
+
+def _goal_problem(value) -> str | None:
+    """Validate the small project-side mirror of a native `/goal`.
+
+    The mirror is deliberately optional: projects that rely only on the
+    host's goal UI keep the old contract. When present, it must be useful to a
+    cold session without importing the whole chat transcript.
+    """
+    if not isinstance(value, dict):
+        return f"{FILE}: goal must be an object with outcome, constraints and verification"
+    outcome = value.get("outcome")
+    if not isinstance(outcome, str) or not outcome.strip() or not _utf8(outcome) or not _one_line(outcome):
+        return f"{FILE}: goal.outcome must be non-empty, valid UTF-8 and one line"
+    for key in ("constraints", "verification"):
+        rows = value.get(key)
+        if not isinstance(rows, list) or not rows:
+            return f"{FILE}: goal.{key} must be a non-empty list of one-line strings"
+        for row in rows:
+            if not isinstance(row, str) or not row.strip() or not _utf8(row) or not _one_line(row):
+                return f"{FILE}: goal.{key} entries must be non-empty, valid UTF-8 and one line"
+    if "updated" in value:
+        updated = value["updated"]
+        if not isinstance(updated, str) or not _utf8(updated) or not _one_line(updated):
+            return f"{FILE}: goal.updated must be a one-line date"
+    return None
 
 
 def _relative(rel: str) -> bool:
@@ -411,6 +445,12 @@ def _checked(data: dict) -> tuple[dict, list[str]]:
             bad.append(f"{FILE}: staging_branch must be one line")
         else:
             ok["staging_branch"] = v.strip()
+    if "goal" in data:
+        why = _goal_problem(data["goal"])
+        if why:
+            bad.append(why)
+        else:
+            ok["goal"] = copy.deepcopy(data["goal"])
     return ok, bad
 
 

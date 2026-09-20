@@ -38,6 +38,7 @@ import sys
 import time
 from pathlib import Path
 
+from tools import project as P
 from tools.tracker import cluster as CLUSTER
 from tools.tracker import history as HIST
 from tools.tracker import lanes as LANES
@@ -50,9 +51,9 @@ OUT_NAME = "index.html"
 PUBLISHED_NAME = "index.published.json"
 # Attention order: what is moving, what is elsewhere waiting (C-06), what is
 # stuck, what is next, what is done.
-COLUMNS = ("in progress", "in review", "in testing", "blocked", "not started", "done")
+COLUMNS = ("in progress", "in review", "in testing", "blocked", "not started", "done", "deferred")
 LABEL = {"in progress": "In progress", "in review": "In review", "in testing": "In testing",
-         "blocked": "Blocked", "not started": "Not started", "done": "Done"}
+         "blocked": "Blocked", "not started": "Not started", "done": "Done", "deferred": "Deferred"}
 
 
 def e(value) -> str:
@@ -104,6 +105,22 @@ def digests(paths: list[Path]) -> str:
                        for p in sorted(paths, key=lambda p: p.name)], ensure_ascii=True, separators=(",", ":"))
 
 
+def goal_digest(project: Path | None) -> str | None:
+    """Digest only the optional repository goal contract.
+
+    The board remains ledger-driven, but a goal change must also make the
+    generated project page stale; otherwise the page can show old acceptance
+    criteria while all task-ledger digests still match.
+    """
+    if project is None:
+        return None
+    goal = P.load(Path(project)).get("goal")
+    if goal is None:
+        return None
+    payload = json.dumps(goal, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def page_digests(page: Path) -> str | None:
     """The ledger digests the page itself carries, or None when there is no
     page or it is not one this tool wrote (proposal 22, T-03). `tracker
@@ -117,11 +134,22 @@ def page_digests(page: Path) -> str | None:
     return html.unescape(m.group(1)) if m else None
 
 
-def freshness(paths: list[Path], page: Path) -> str:
+def freshness(paths: list[Path], page: Path, project: Path | None = None) -> str:
     if not page.exists():
         return "missing"
     carried = page_digests(page)
-    return "ok" if carried is not None and carried == digests(paths) else "stale"
+    if carried is None or carried != digests(paths):
+        return "stale"
+    if project is not None:
+        try:
+            text = page.read_text(errors="replace")
+        except OSError:
+            return "stale"
+        match = re.search(r'<meta name="goal-digest" content="([^"]*)">', text)
+        carried_goal = html.unescape(match.group(1)) if match else None
+        if carried_goal != goal_digest(project):
+            return "stale"
+    return "ok"
 
 
 def published_path(project) -> Path:
@@ -142,7 +170,19 @@ def project_page_state(project: Path) -> tuple[str, Path]:
     paths = ledger_paths(Path(project))
     if not paths:
         return "none", page
-    return freshness(paths, page), page
+    return freshness(paths, page, project), page
+
+
+def goal_contract(goal: dict | None) -> str:
+    """The compact goal story shown above the tracker filters."""
+    if not goal:
+        return ""
+    constraints = " · ".join(b(row) for row in goal["constraints"])
+    verification = " · ".join(b(row) for row in goal["verification"])
+    return (f'<section class="goal-contract" id="goal"><p class="eyebrow">Current goal</p>'
+            f'<h2>{b(goal["outcome"])}</h2>'
+            f'<p><strong>Constraints</strong> · {constraints}</p>'
+            f'<p><strong>Verify</strong> · {verification}</p></section>')
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +193,7 @@ def mini_bar(counts: dict) -> str:
     if not total:
         return '<span class="bar"><span class="seg s-empty" style="width:100%"></span></span>'
     segs = "".join(f'<span class="seg {slug(s)}" style="width:{counts[s] * 100 / total:.2f}%"></span>'
-                   for s in ("done", "in progress", "in review", "in testing", "blocked", "not started") if counts[s])
+                   for s in ("done", "in progress", "in review", "in testing", "blocked", "not started", "deferred") if counts[s])
     return f'<span class="bar">{segs}</span>'
 
 
@@ -194,8 +234,10 @@ def item_card(item: dict, number, repo) -> str:
         meta.append(f'<span class="owner">{e(owner)}</span>')
     if item.get("issue"):
         meta.append(f'<span class="issue">{R.issue_cell(item.get("issue"), repo)}</span>')
-    reason = (f'<p class="why">{e(last.get("evidence"))}</p>'
-              if status == "blocked" and last.get("evidence") else "")
+    reason_text = item.get("deferred_reason") if status == "deferred" else last.get("evidence")
+    reason_class = "why deferred-why" if status == "deferred" else "why"
+    reason = (f'<p class="{reason_class}">{e(reason_text)}</p>'
+              if status in ("blocked", "deferred") and reason_text else "")
     lastline = (f'<p class="last"><span class="event">{b(last.get("event"))}</span> '
                 f'<time>{e(when(last.get("at")))}</time></p>' if last else '<p class="last dim">no entries yet</p>')
     log = log_entries(item)
@@ -230,6 +272,11 @@ def item_row(item: dict, number, repo) -> str:
     status = item.get("status", "")
     last = last_entry(item)
     owner = item.get("owner") or ""
+    deferred_reason = (
+        f'<div class="dep">reason: {e(item.get("deferred_reason"))}</div>'
+        if status == "deferred" and item.get("deferred_reason")
+        else ""
+    )
     # No data-search here (round 2): the page's script gives each row its
     # card's string, so the text is stored once and the views cannot drift.
     group = PARTS.group(item)
@@ -238,7 +285,7 @@ def item_row(item: dict, number, repo) -> str:
             f'data-status="{e(status)}" data-owner="{e(owner)}" data-tier="{e(item.get("tier") or "")}" '
             f'data-group="{e(group)}"{hidden}>'
             f'<td class="id">{e(item.get("id"))}</td><td class="pnum">P{e(number)}</td>'
-            f'<td>{e(item.get("title"))}</td>'
+            f'<td>{e(item.get("title"))}{deferred_reason}</td>'
             f'<td><span class="pill {slug(status)}">{e(status)}</span></td>'
             f'<td class="mono">{e(owner) or "—"}</td>'
             f'<td class="mono">{e(item.get("tag") or item.get("cx"))}</td>'
@@ -408,6 +455,8 @@ def display_parts(item: dict) -> list[dict]:
             "status": item.get("status") or "not started"}
     if item.get("owner"):
         part["owner"] = item["owner"]
+    if item.get("deferred_reason"):
+        part["deferred_reason"] = item["deferred_reason"]
     return [part]
 
 
@@ -416,6 +465,8 @@ def part_pill(p: dict) -> tuple[str, str, str | None]:
     status = p.get("status")
     if status == "done":
         return "done", "done", None
+    if status == "deferred":
+        return "deferred", "deferred", p.get("deferred_reason")
     owner = p.get("owner")
     if isinstance(owner, str) and owner.startswith("session:"):
         return "other", "other project", None
@@ -435,7 +486,7 @@ def part_pill(p: dict) -> tuple[str, str, str | None]:
 def part_bar_class(p: dict) -> str:
     """done green / in progress blue / waiting amber / not started empty --
     the four buckets the segmented bar shows, widths as the part's share."""
-    if p.get("status") == "done":
+    if p.get("status") in PARTS.TERMINAL_STATUSES:
         return "seg-done"
     if PARTS.is_waiting(p):
         return "seg-waiting"
@@ -739,7 +790,7 @@ def feature_children(item: dict) -> list[dict]:
     if ps:
         return [PARTS.tree(p) for p in ps]
     node = dict(display_parts(item)[0])
-    node["completion"] = 100 if node.get("status") == "done" else 0
+    node["completion"] = 100 if node.get("status") in PARTS.TERMINAL_STATUSES else 0
     node["parts"] = []
     return [node]
 
@@ -880,29 +931,31 @@ def kanban_card(item: dict, number) -> str:
             f'{body}</article>')
 
 
-def kanban_section(entries) -> str:
+def kanban_section(entries, include_deferred: bool = True) -> str:
     """One column per `tools/tracker/ledger.py` status, in that module's own
     order -- a column with no cards still renders, with a count of 0, so
     the board's shape does not jump around as work moves between columns."""
     if not entries:
         return ""
-    by_status: dict[str, list] = {s: [] for s in L.STATUSES}
+    statuses = L.STATUSES
+    by_status: dict[str, list] = {s: [] for s in statuses}
     for _, item, number, _ in entries:
         by_status.setdefault(item.get("status") or "not started", []).append((item, number))
     cols = []
-    for status in L.STATUSES:
+    for status in statuses:
         rows = by_status.get(status) or []
         cards = "".join(kanban_card(item, number) for item, number in rows)
-        if status == "done" and rows:
+        if status in L.TERMINAL_STATUSES and rows:
             # Sponsor correction, 2026-09-18: a "done" column of 112 cards is
             # unusable and only grows. The page's own show-finished toggle
             # already exists for exactly this -- reuse it, rather than a
             # second on/off switch: the cards start hidden behind a "show
             # them" affordance, and the column keeps its place and its real
             # count either way, the same reason an empty column still shows.
-            body = (f'<div class="kcards" data-kanban-done hidden>{cards}</div>'
+            terminal_attr = "data-kanban-done" if status == "done" else "data-kanban-terminal"
+            body = (f'<div class="kcards" {terminal_attr} hidden>{cards}</div>'
                     f'<button type="button" class="kdone-show" data-kanban-affordance>'
-                    f'{len(rows)} done — show them</button>')
+                    f'{len(rows)} {e(status)} — show them</button>')
         else:
             body = f'<div class="kcards">{cards}</div>'
         cols.append(f'<section class="kcol {slug(status)}" data-column="{e(status)}">'
@@ -952,8 +1005,9 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
     current_history = history_current(project)
     display_totals = (current_history.get("by_status", {}) if current_history else task_totals)
     display_total = (current_history.get("tickets_total", 0) if current_history else sum(task_totals.values()))
+    status_columns = COLUMNS
     status_line = " / ".join(f"{display_totals.get(s, 0)} {s}" for s in ("done", "in progress", "blocked", "not started"))
-    extra_line = [f"{display_totals.get(s, 0)} {s}" for s in ("in review", "in testing")
+    extra_line = [f"{display_totals.get(s, 0)} {s}" for s in ("in review", "in testing", "deferred")
                   if display_totals.get(s, 0)]
     if extra_line:
         status_line += " / " + " / ".join(extra_line)
@@ -978,7 +1032,7 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
     chips = "".join(
         f'<button class="chip" data-filter="status" data-value="{e(s)}" data-task-count="{display_totals.get(s, 0)}" aria-pressed="false" type="button">'
         f'<span class="dot {slug(s)}"></span>{LABEL[s]} <span class="n">{display_totals.get(s, 0)}</span></button>'
-        for s in COLUMNS)
+        for s in status_columns)
     owner_opts = '<option value="">Anyone</option>' + "".join(
         f'<option value="{e(o)}">{e(o)}</option>' for o in sorted(owners))
     tier_opts = '<option value="">Any tier</option>' + "".join(
@@ -1008,7 +1062,7 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
     lanes = lanes_section(lane_state(ledgers, project)) if project is not None else ""
 
     columns = []
-    for status in COLUMNS:
+    for status in status_columns:
         its = column_order(status, [t for t in entries if t[1].get("status") == status])
         cards = "".join(item_card(item, number, repo) for _, item, number, _ in its)
         columns.append(
@@ -1028,12 +1082,16 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
                           f'<ul class="asks">{rows}</ul></details>')
 
     title = f"{name} tracker"
+    goal = P.load(Path(project)).get("goal") if project is not None else None
+    goal_meta = (f'<meta name="goal-digest" content="{e(goal_digest(Path(project)))}">\n'
+                 if goal else "")
     return (
         "<!doctype html>\n"
         '<meta charset="utf-8">\n'
         f"<!-- generated by bin/tracker board from every ledger in docs/proposals -- edit the ledgers, not this page -->\n"
         f"<title>{e(title)}</title>\n"
         f'<meta name="ledger-digests" content="{e(digests([p for p, _ in ledgers]))}">\n'
+        + goal_meta +
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
@@ -1047,8 +1105,10 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         f'<h1>Tracker</h1>'
         f'<section class="totals" data-task-total="{display_total}" data-done="{display_totals.get("done", 0)}" data-in-progress="{display_totals.get("in progress", 0)}" '
         f'data-blocked="{display_totals.get("blocked", 0)}" data-not-started="{display_totals.get("not started", 0)}" '
-        f'data-in-review="{display_totals.get("in review", 0)}" data-in-testing="{display_totals.get("in testing", 0)}">'
+        f'data-in-review="{display_totals.get("in review", 0)}" data-in-testing="{display_totals.get("in testing", 0)}" '
+        f'data-deferred="{display_totals.get("deferred", 0)}">'
         f'<p class="line">{e(status_line)}</p>{mini_bar(display_totals)}</section></header>'
+        + goal_contract(goal) +
         '<div class="filters" role="search">'
         '<div class="views" role="group" aria-label="View">'
         '<button type="button" data-view="tree" aria-pressed="true">Tree</button>'
@@ -1116,8 +1176,12 @@ h1{font:600 34px/1.1 var(--sans);letter-spacing:-.015em;margin:4px 0 0;text-wrap
 .line{font:500 14px var(--mono);margin:0 0 8px;font-variant-numeric:tabular-nums}
 .bar{display:flex;height:8px;background:var(--rule);border-radius:2px;overflow:hidden}
 .totals .bar{height:12px}
+.goal-contract{background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 35%,var(--rule));border-radius:8px;padding:16px 18px;max-width:920px}
+.goal-contract h2{font-size:22px;line-height:1.2;margin:4px 0 10px}
+.goal-contract p:not(.eyebrow){margin:5px 0;color:var(--dim)}
+.goal-contract strong{color:var(--ink);font-weight:600}
 .seg{display:block;height:100%}
-.seg.s-done,.dot.s-done{background:var(--done)}.seg.s-in-progress,.dot.s-in-progress{background:var(--prog)}
+.seg.s-done,.dot.s-done,.seg.s-deferred,.dot.s-deferred{background:var(--done)}.seg.s-in-progress,.dot.s-in-progress{background:var(--prog)}
 .seg.s-blocked,.dot.s-blocked{background:var(--block)}.seg.s-not-started,.dot.s-not-started{background:var(--todo)}
 .seg.s-in-review,.dot.s-in-review{background:var(--review)}.seg.s-in-testing,.dot.s-in-testing{background:var(--test)}
 .seg.s-empty{background:var(--rule)}
@@ -1201,7 +1265,7 @@ h2{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;margi
 .card .issue a{color:var(--accent)}
 .card .last{margin:0;font:12px var(--mono);color:var(--dim)}
 .card .last .event{color:var(--ink)}
-.card .why{margin:2px 0 0;font-size:13px;line-height:1.4;color:var(--block)}
+.card .why{margin:2px 0 0;font-size:13px;line-height:1.4;color:var(--block)}.card .deferred-why{color:var(--done)}
 .card[data-status="blocked"]{background:var(--block-soft);border-color:color-mix(in srgb,var(--block) 35%,var(--rule))}
 .card[data-status="done"]{padding:7px 12px 8px;gap:3px;background:var(--surface)}
 .card[data-status="done"] h3{font-size:13.5px;color:var(--dim)}
@@ -1223,7 +1287,7 @@ td.pnum{border-radius:0;border-left:0;border-right:0;border-bottom:0}
 td.mono a{color:var(--accent)}
 .pill{display:inline-block;font:500 11.5px var(--mono);padding:1px 7px;border-radius:9px;border:1px solid currentColor;white-space:nowrap}
 .pill.s-done{color:var(--done)}.pill.s-in-progress{color:var(--prog)}.pill.s-blocked{color:var(--block)}.pill.s-not-started{color:var(--dim)}
-.pill.s-in-review{color:var(--review)}.pill.s-in-testing{color:var(--test)}
+.pill.s-in-review{color:var(--review)}.pill.s-in-testing{color:var(--test)}.pill.s-deferred{color:var(--done)}
 .none{margin:0;padding:18px;text-align:center;color:var(--dim);background:var(--surface);border:1px dashed var(--rule);border-radius:6px}
 .none button{border:0;background:none;color:var(--accent);cursor:pointer;padding:0}
 .answered summary{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--dim);padding:6px 0}
@@ -1339,12 +1403,14 @@ padding:7px 8px;cursor:pointer;list-style:none;font-size:14px}
 .state-dot.s-in-review{background:var(--review);box-shadow:0 0 0 2px color-mix(in srgb,var(--review) 18%,transparent)}
 .state-dot.s-in-testing{background:var(--test);box-shadow:0 0 0 2px color-mix(in srgb,var(--test) 18%,transparent)}
 .state-dot.s-blocked{background:var(--block);box-shadow:0 0 0 2px color-mix(in srgb,var(--block) 18%,transparent)}
+.state-dot.s-deferred{background:var(--done);box-shadow:0 0 0 2px color-mix(in srgb,var(--done) 18%,transparent)}
 .item-row[data-status="done"]>.ihead{border-left:3px solid var(--done);padding-left:5px;background:color-mix(in srgb,var(--done) 8%,var(--raise))}
 .item-row[data-status="in progress"]>.ihead{border-left:3px solid var(--prog);padding-left:5px;background:color-mix(in srgb,var(--prog) 8%,var(--raise))}
 .item-row[data-status="in review"]>.ihead{border-left:3px solid var(--review);padding-left:5px;background:color-mix(in srgb,var(--review) 8%,var(--raise))}
 .item-row[data-status="in testing"]>.ihead{border-left:3px solid var(--test);padding-left:5px;background:color-mix(in srgb,var(--test) 8%,var(--raise))}
 .item-row[data-status="blocked"]>.ihead{border-left:3px solid var(--block);padding-left:5px;background:color-mix(in srgb,var(--block) 8%,var(--raise))}
 .item-row[data-status="not started"]>.ihead{border-left:3px solid var(--todo);padding-left:5px;background:color-mix(in srgb,var(--todo) 8%,var(--raise))}
+.item-row[data-status="deferred"]>.ihead{border-left:3px solid var(--done);padding-left:5px;background:color-mix(in srgb,var(--done) 8%,var(--raise))}
 .item-row .pill{white-space:normal;line-height:1.25}
 .item-row .group-pill{color:var(--dim);border-color:var(--rule);background:transparent}
 .item-row .status-pill{font-weight:600}
@@ -1361,6 +1427,7 @@ max-height:4em;white-space:normal;overflow-wrap:anywhere}
 .item-row .pill.s-in-testing{border-color:var(--test);color:var(--test);background:color-mix(in srgb,var(--test) 10%,transparent)}
 .item-row .pill.s-blocked{border-color:var(--block);color:var(--block);background:color-mix(in srgb,var(--block) 10%,transparent)}
 .item-row .pill.s-not-started{border-color:var(--todo);color:var(--todo);background:color-mix(in srgb,var(--todo) 10%,transparent)}
+.item-row .pill.s-deferred{border-color:var(--done);color:var(--done);background:color-mix(in srgb,var(--done) 10%,transparent)}
 .prow-details,.item-row .fitems .prow{margin-left:14px}
 .prow-details>summary.prow,.fitems>.prow{list-style:none;cursor:pointer}
 .prow-details>summary.prow::-webkit-details-marker{display:none}
@@ -1390,6 +1457,7 @@ display:flex;flex-direction:column;gap:5px}
 .kcard[data-status="in testing"]{border-top:3px solid var(--test)}
 .kcard[data-status="blocked"]{border-top:3px solid var(--block)}
 .kcard[data-status="not started"]{border-top:3px solid var(--todo)}
+.kcard[data-status="deferred"]{border-top:3px solid var(--done)}
 .kcard header{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .kcard .kid{font:600 12px var(--mono);color:var(--dim)}
 .ktitle{margin:0;font:500 13.5px/1.35 var(--sans);display:-webkit-box;-webkit-line-clamp:3;
@@ -1406,12 +1474,14 @@ display:flex;flex-direction:column;gap:5px}
 .kparts .prow[data-pstatus="in testing"]{border-left-color:var(--test)}
 .kparts .prow[data-pstatus="blocked"]{border-left-color:var(--block)}
 .kparts .prow[data-pstatus="not started"]{border-left-color:var(--todo)}
+.kparts .prow[data-pstatus="deferred"]{border-left-color:var(--done)}
 .pill.p-done,.pill.p-s-done{color:var(--done);border-color:var(--done);background:color-mix(in srgb,var(--done) 12%,transparent)}
 .pill.p-s-in-progress{color:var(--prog);border-color:var(--prog);background:color-mix(in srgb,var(--prog) 12%,transparent)}
 .pill.p-s-in-review{color:var(--review);border-color:var(--review);background:color-mix(in srgb,var(--review) 12%,transparent)}
 .pill.p-s-in-testing{color:var(--test);border-color:var(--test);background:color-mix(in srgb,var(--test) 12%,transparent)}
 .pill.p-s-blocked{color:var(--block);border-color:var(--block);background:color-mix(in srgb,var(--block) 12%,transparent)}
 .pill.p-s-not-started{color:var(--todo);border-color:var(--todo);background:color-mix(in srgb,var(--todo) 12%,transparent)}
+.pill.p-s-deferred{color:var(--done);border-color:var(--done);background:color-mix(in srgb,var(--done) 12%,transparent)}
 .kdone-show{width:100%;text-align:left;padding:8px 10px;border:1px dashed var(--rule);border-radius:6px;
 background:var(--surface);color:var(--accent);font:500 12.5px var(--sans);cursor:pointer}
 @media (prefers-reduced-motion:no-preference){.card,.proposal,.chip{transition:border-color .12s,background-color .12s}}
@@ -1457,12 +1527,13 @@ SCRIPT = r"""
       }));
     } catch (e) {}
   }
-  // Pending hides everything already done, at every level, and always wins
+  // Pending hides everything terminal (done or deferred), at every level, and always wins
   // over "Show finished" -- the two controls can never disagree because
   // "Show finished" is forced off (and disabled) for as long as Pending is
   // on. With Pending off, "Show finished" decides done work exactly as
   // before.
   function hideFinished(){ return state.pending || !state.showFinished; }
+  function isTerminal(el){ return el && (el.dataset.group === "done" || el.dataset.status === "deferred"); }
   var items = $$("[data-item]");
   var searchById = {};
   $$("article[data-item],[data-item].item-row").forEach(function(card){ searchById[card.dataset.id] = card.dataset.search || ""; });
@@ -1475,7 +1546,7 @@ SCRIPT = r"""
     if (state.owner && d.owner !== state.owner) return false;
     if (state.tier && d.tier !== state.tier) return false;
     if (state.group && d.group !== state.group) return false;
-    if (!ignoreFinished && hideFinished() && d.group === "done" && state.group !== "done") return false;
+    if (!ignoreFinished && hideFinished() && isTerminal(el) && state.group !== "done") return false;
     if (state.q && (d.search || "").indexOf(state.q) < 0) return false;
     return true;
   }
@@ -1487,7 +1558,7 @@ SCRIPT = r"""
   function partOwnMatches(row){
     if (!row) return true;
     if (state.statuses.length && state.statuses.indexOf(row.dataset.pstatus) < 0) return false;
-    if (state.pending && row.dataset.pstatus === "done") return false;
+    if (state.pending && (row.dataset.pstatus === "done" || row.dataset.pstatus === "deferred")) return false;
     if (state.q && (row.dataset.psearch || "").indexOf(state.q) < 0) return false;
     return true;
   }
@@ -1599,8 +1670,7 @@ SCRIPT = r"""
     // while Pending is on. The column itself and its real count never move
     // either way.
     var hideDone = hideFinished();
-    var kdone = $("[data-kanban-done]");
-    if (kdone) { kdone.hidden = hideDone; }
+    $$('[data-kanban-done],[data-kanban-terminal]').forEach(function(kdone){ kdone.hidden = hideDone; });
     var kshow = $("[data-kanban-affordance]");
     if (kshow) { kshow.hidden = state.pending || !hideDone; }
     $$("[data-ask],[data-request]").forEach(function(el){
@@ -1739,7 +1809,7 @@ def main(argv) -> int:
     out = args.out or default_out(project)
 
     if args.check:
-        fresh = freshness(paths, out)
+        fresh = freshness(paths, out, project)
         if fresh == "missing":
             print(f"stale: {out} is missing -- run: tracker board --project {project}")
             return 1

@@ -54,13 +54,14 @@ class TestShape(unittest.TestCase):
         self.assertEqual([], ledger.as_list(""))
         self.assertEqual([], ledger.as_list(None))
 
-    def test_counts_always_carry_all_six_states_in_order(self):
-        # C-06: two more buckets, purely additive -- a ledger using only the
+    def test_counts_always_carry_all_states_in_order(self):
+        # Deferred is additive -- a ledger using only the existing statuses
         # original four statuses still counts and reads exactly as before.
         c = ledger.counts(minimal())
-        self.assertEqual(["done", "in progress", "in review", "in testing", "blocked", "not started"], list(c))
+        self.assertEqual(["done", "in progress", "in review", "in testing", "blocked", "not started", "deferred"], list(c))
         self.assertEqual(0, c["in review"])
         self.assertEqual(0, c["in testing"])
+        self.assertEqual(0, c["deferred"])
         self.assertEqual("1 done / 0 in progress / 0 blocked / 2 not started", ledger.status_line(minimal()))
 
     def test_in_review_and_in_testing_are_valid_statuses(self):
@@ -81,6 +82,16 @@ class TestShape(unittest.TestCase):
         self.assertEqual(1, c["in testing"])
         self.assertEqual("1 done / 0 in progress / 0 blocked / 0 not started / 1 in review / 1 in testing",
                           ledger.status_line(d))
+
+    def test_deferred_is_terminal_and_has_its_own_count(self):
+        d = minimal()
+        d["items"][1].update(status="deferred", deferred_reason="not needed this release",
+                              log=[{"at": "2026-09-20", "event": "deferred", "by": "lead",
+                                    "evidence": "not needed this release", "status": "deferred"}])
+        self.assertEqual([], ledger.validate(d))
+        self.assertEqual(1, ledger.counts(d)["deferred"])
+        self.assertIn("1 deferred", ledger.status_line(d))
+        self.assertEqual(["W-03"], [i["id"] for i in ledger.unblocked(d)])
 
     def test_the_original_four_statuses_still_validate_and_are_unrenamed(self):
         # Nothing renamed or removed: "not started", "in progress", "blocked"
@@ -115,6 +126,18 @@ class TestProblemsAreNamed(unittest.TestCase):
     def test_done_with_no_log_is_a_claim_without_evidence(self):
         d = minimal(); d["items"][0]["log"] = []
         self.assertIn("W-01: done with an empty log", self.problems(d))
+
+    def test_deferred_requires_a_reason(self):
+        d = minimal(); d["items"][1]["status"] = "deferred"
+        self.assertIn("W-02: deferred requires", self.problems(d))
+        d["items"][1]["deferred_reason"] = ""
+        self.assertIn("W-02: deferred requires", self.problems(d))
+        d["items"][1]["deferred_reason"] = "parked for later"
+        self.assertNotIn("deferred requires", self.problems(d))
+
+    def test_deferred_reason_cannot_linger_after_reopen(self):
+        d = minimal(); d["items"][1].update(status="in progress", deferred_reason="parked")
+        self.assertIn("deferred_reason` is only valid", self.problems(d))
 
     def test_discovered_from_must_resolve(self):
         d = minimal(); d["items"][2]["discovered_from"] = "X-09"
