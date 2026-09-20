@@ -57,6 +57,22 @@ inline SVG, or headline-figure block before `Decisions`. The warning is
 advisory for existing pages; no chart library or screenshot is required.
 Inline SVG should use the page's CSS variables so it works in dark mode.
 
+### Guide-to-architecture traceability
+
+When an item changes a supported capability, add a traceability row to its
+proposal ledger. The row is deliberately explicit:
+
+```text
+requirement IDs → guide section → architecture section → implementation files
+→ tests/commands → receipt or refusal → owner → status
+```
+
+The generated tracker renders these rows in its Traceability table. This makes
+it possible to start from a user-facing promise, inspect the architecture
+boundary and implementation, then verify the result or understand the named
+refusal. A row is not a prose note: `bin/tracker validate` checks every link
+field, the owner, the status, and the item it belongs to.
+
 Keep the ledger as the source of truth. Use the supported tracker commands to
 validate or render it rather than editing generated HTML by hand.
 

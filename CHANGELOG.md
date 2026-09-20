@@ -1,3 +1,12 @@
+## 1.3.0 · Guide and architecture traceability · 2026-09-20
+
+**Standard change (mandatory):** projects can now keep a validated
+requirement-to-evidence traceability row in each proposal ledger:
+requirement IDs → guide section → architecture section → implementation files
+→ tests/commands → receipt or refusal → owner → status. The generated tracker
+renders these rows as a first-class Traceability table so a task is not complete
+while its documentation, implementation, verification, and evidence disagree.
+
 ## 1.2.0 · Visual proposals by default · 2026-09-20
 
 **Standard change (mandatory):** a proposal must be answerable from its

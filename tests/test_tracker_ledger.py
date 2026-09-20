@@ -105,6 +105,27 @@ class TestShape(unittest.TestCase):
     def test_open_asks_are_found(self):
         self.assertEqual(["A-01"], [a["id"] for a in ledger.open_asks(minimal())])
 
+    def test_traceability_rows_are_read_and_validated(self):
+        row = {
+            "id": "TR-01", "item": "W-02", "requirement_ids": ["REQ-01"],
+            "guide_section": "docs/guides/operator.md#commands",
+            "architecture_section": "docs/architecture/system.md#boundary",
+            "implementation_files": ["src/runner.py"],
+            "tests_commands": ["pytest tests/test_runner.py"],
+            "receipt_or_refusal": "receipt: run-01", "owner": "lead",
+            "status": "in progress",
+        }
+        d = minimal(traceability=[row])
+        self.assertEqual([row], ledger.traceability(d))
+        self.assertEqual([], ledger.validate(d))
+
+    def test_traceability_rows_require_the_full_chain(self):
+        d = minimal(traceability=[{"id": "TR-01", "item": "W-02"}])
+        problems = "\n".join(ledger.validate(d))
+        self.assertIn("guide_section must be non-empty one-line text", problems)
+        self.assertIn("implementation_files must be a non-empty list", problems)
+        self.assertIn("owner is not sponsor, lead or session:<name>", problems)
+
 
 class TestProblemsAreNamed(unittest.TestCase):
 

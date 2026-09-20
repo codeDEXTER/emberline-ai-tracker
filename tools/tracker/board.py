@@ -892,6 +892,37 @@ def features_section(ledgers: list[tuple[Path, dict]]) -> str:
             f'<div class="frows">{rows}</div></section>')
 
 
+def traceability_section(ledgers: list[tuple[Path, dict]]) -> str:
+    """Render guide/architecture/code/evidence links as a readable contract map."""
+    rows = []
+    for _, data in ledgers:
+        number = data.get("proposal")
+        for row in L.traceability(data):
+            def joined(key):
+                return "<br>".join(e(v) for v in row.get(key, []))
+            rows.append(
+                f'<tr data-traceability="{e(row.get("id"))}" data-trace-item="{e(row.get("item"))}">'
+                f'<td><b>{e(row.get("id"))}</b><br><span class="dim">P{e(number)} · {e(row.get("item"))}</span></td>'
+                f'<td><code>{e(row.get("requirement_ids", ["-"])[0])}</code>'
+                f'<div class="trace-more">{e(", ".join(row.get("requirement_ids", [])[1:]))}</div></td>'
+                f'<td><code>{e(row.get("guide_section"))}</code><br><code>{e(row.get("architecture_section"))}</code></td>'
+                f'<td>{joined("implementation_files")}</td>'
+                f'<td>{joined("tests_commands")}</td>'
+                f'<td>{e(row.get("receipt_or_refusal"))}</td>'
+                f'<td><span class="trace-owner">{e(row.get("owner"))}</span><br>'
+                f'<span class="trace-status s-{e(str(row.get("status")).replace(" ", "-"))}">{e(row.get("status"))}</span></td>'
+                '</tr>'
+            )
+    if not rows:
+        return ""
+    return ('<section class="traceability" id="traceability"><h2>Traceability</h2>'
+            '<p class="trace-note">Requirement → guide and architecture → implementation → verification → receipt/refusal.</p>'
+            '<div class="scroll"><table><thead><tr><th>Row / item</th><th>Requirement IDs</th>'
+            '<th>Guide · architecture</th><th>Implementation</th><th>Tests / commands</th>'
+            '<th>Receipt or refusal</th><th>Owner · status</th></tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table></div></section>')
+
+
 def column_order(status: str, entries: list) -> list:
     """Cards inside a column: newest activity first where there is activity;
     not-started work by newest proposal, then ledger order."""
@@ -1042,6 +1073,7 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
 
     tiles_block = completion_tiles_block(entries, display_totals)
     features = features_section(ledgers)
+    traceability = traceability_section(ledgers)
     progress = progress_block(project)
     completion_groups_block = completion_groups_section(entries)
     kanban = kanban_section(entries)
@@ -1131,6 +1163,7 @@ def render(ledgers: list[tuple[Path, dict]], name: str, repo, project=None) -> s
         + (f'<nav class="proposals" aria-label="Proposal scope">{blocks}</nav>' if blocks else "")
         + f'{tiles_block}'
         + f'<div id="view-tree">{features}{completion_groups_block}</div>'
+        + traceability
         + f'<div id="view-kanban" hidden>{kanban}</div>'
         + '<h2 id="details">Details</h2>'
         + f'{attention}'
@@ -1266,6 +1299,7 @@ h2{font:600 13px var(--sans);letter-spacing:.06em;text-transform:uppercase;margi
 .card .last{margin:0;font:12px var(--mono);color:var(--dim)}
 .card .last .event{color:var(--ink)}
 .card .why{margin:2px 0 0;font-size:13px;line-height:1.4;color:var(--block)}.card .deferred-why{color:var(--done)}
+.traceability{margin-top:28px}.traceability table{min-width:1080px}.traceability td,.traceability th{vertical-align:top}.traceability td{font-size:12px}.traceability code{font-size:11px;color:var(--accent)}.trace-note{color:var(--dim);margin:-4px 0 10px}.trace-more{color:var(--dim);font-size:11px;margin-top:3px}.trace-owner{color:var(--ink)}.trace-status{font-size:11px;font-weight:700;text-transform:uppercase}.trace-status.s-done{color:var(--done)}.trace-status.s-deferred{color:var(--done)}.trace-status.s-blocked{color:var(--block)}.trace-status.s-in-progress,.trace-status.s-in-review,.trace-status.s-in-testing{color:var(--prog)}
 .card[data-status="blocked"]{background:var(--block-soft);border-color:color-mix(in srgb,var(--block) 35%,var(--rule))}
 .card[data-status="done"]{padding:7px 12px 8px;gap:3px;background:var(--surface)}
 .card[data-status="done"] h3{font-size:13.5px;color:var(--dim)}

@@ -7,13 +7,21 @@ Shape, as the PhotoVault engine's proposal 71 already writes it, plus `asks`:
       "proposal": 71, "title": "...", "status": "accepted", "updated": "2026-09-13",
       "tiers":  {"C1": {"tier": "low", "model": "haiku", "effort": "low", "rule": "..."}, ...},
       "phases": [{"id": "R", "name": "...", "goal": "...", "exit": "..."}],
-      "items":  [{"id": "R-01", "phase": "R", "cx": "C3", "title": "...",
+    "items":  [{"id": "R-01", "phase": "R", "cx": "C3", "title": "...",
                   "what": "...", "files": "...", "tests": "...", "done": "...",
                   "depends": "R-01 R-02", "status": "done",
                   "tier": "high", "model": "opus", "tag": "[ruflo · high · opus]",
                   "issue": 229, "discovered_from": "X-03",
                   "log": [{"at": "...", "event": "...", "by": "...", "evidence": "...",
                            "status": "done"}]}],
+      "traceability": [{"id": "TR-01", "item": "R-01",
+                         "requirement_ids": ["REQ-01"],
+                         "guide_section": "docs/guides/guide.md#contract",
+                         "architecture_section": "docs/architecture/system.md#boundary",
+                         "implementation_files": ["src/feature.py"],
+                         "tests_commands": ["pytest tests/test_feature.py"],
+                         "receipt_or_refusal": "receipt: test-run-01",
+                         "owner": "lead", "status": "in progress"}],
       "asks":   [{"id": "A-07", "at": "...", "kind": "research", "quote": "...",
                   "became": null, "state": "open"}],
       "proposed_changes": [...], "priority": {...}, "execution": {"ruflo_route": "..."}
@@ -76,6 +84,16 @@ FINDING_SOURCES = ("review", "test")
 FINDING_STATES = ("catalogued", "decided", "deferred", "declined")
 FINDING_SEVERITIES = ("low", "medium", "high", "critical")
 
+# Proposal 35: every implementation-facing requirement can keep one compact,
+# source-bound row connecting the user-facing guide to architecture, code and
+# verification. Optional so existing projects adopt it without a migration.
+TRACEABILITY_ID = re.compile(r"^TR-\d{2,}\Z")
+TRACEABILITY_FIELDS = (
+    "requirement_ids", "guide_section", "architecture_section",
+    "implementation_files", "tests_commands", "receipt_or_refusal",
+    "owner", "status",
+)
+
 
 def load(path) -> dict:
     """Read a ledger. Raises ValueError naming the file when it is not JSON."""
@@ -112,6 +130,11 @@ def findings(ledger: dict) -> list[dict]:
 
 def findings_by_id(ledger: dict) -> dict[str, dict]:
     return {f["id"]: f for f in findings(ledger) if "id" in f}
+
+
+def traceability(ledger: dict) -> list[dict]:
+    """The ledger's requirement-to-evidence rows, if the project uses them."""
+    return list(ledger.get("traceability") or [])
 
 
 def _last_log_date(row: dict, *, matches) -> "datetime.date | None":
@@ -292,6 +315,7 @@ def validate(ledger: dict) -> list[str]:
     problems.extend(_validate_v2(ledger, ids, ask_ids))
     problems.extend(_validate_tracker(ledger))
     problems.extend(_validate_findings(ledger))
+    problems.extend(_validate_traceability(ledger))
     # A message can quote a malformed id; every problem is printed as one line
     # (V-02 final review: "Z-01\\nwarmup --check: ready" split a problem in two).
     return [_printable(p) for p in problems]
@@ -455,6 +479,53 @@ def _validate_findings(ledger: dict) -> list[str]:
             for k, entry in enumerate(f.get("log") or []):
                 if not isinstance(entry, dict):
                     problems.append(f"{name}: log[{k}] is not an object {{at, event, by, evidence}}")
+    return problems
+
+
+def _validate_traceability(ledger: dict) -> list[str]:
+    """Validate optional guide/architecture-to-evidence rows.
+
+    The fields are intentionally explicit instead of one long string: the
+    tracker can render the row as a table, and a reviewer can follow each link
+    without guessing which part of a sentence names the implementation or the
+    proof. Existing ledgers with no rows remain unchanged.
+    """
+    if "traceability" in ledger and not isinstance(ledger["traceability"], list):
+        return ["traceability: must be a list"]
+    problems: list[str] = []
+    ids = {i.get("id") for i in items(ledger)}
+    seen: set[str] = set()
+    for n, row in enumerate(traceability(ledger)):
+        name = row.get("id") if isinstance(row, dict) and row.get("id") else f"traceability[{n}]"
+        if not isinstance(row, dict):
+            problems.append(f"{name}: a traceability row must be an object")
+            continue
+        rid = row.get("id")
+        if not rid or not TRACEABILITY_ID.match(rid):
+            problems.append(f"{name}: traceability id is not TR-NN")
+        elif rid in seen:
+            problems.append(f"{rid}: traceability id appears more than once")
+        else:
+            seen.add(rid)
+        item_id = row.get("item")
+        if not item_id or item_id not in ids:
+            problems.append(f"{name}: item {item_id!r} is not an item in this ledger")
+        requirements = row.get("requirement_ids")
+        if not isinstance(requirements, list) or not requirements or not all(
+                isinstance(v, str) and _one_line(v) and v.strip() for v in requirements):
+            problems.append(f"{name}: requirement_ids must be a non-empty list of one-line ids")
+        for field in ("guide_section", "architecture_section", "receipt_or_refusal"):
+            if not isinstance(row.get(field), str) or not _one_line(row[field]) or not row[field].strip():
+                problems.append(f"{name}: {field} must be non-empty one-line text")
+        for field in ("implementation_files", "tests_commands"):
+            value = row.get(field)
+            if not isinstance(value, list) or not value or not all(
+                    isinstance(v, str) and _one_line(v) and v.strip() for v in value):
+                problems.append(f"{name}: {field} must be a non-empty list of one-line strings")
+        if not isinstance(row.get("owner"), str) or not OWNER.match(row.get("owner", "")):
+            problems.append(f"{name}: owner is not sponsor, lead or session:<name>")
+        if row.get("status") not in STATUSES:
+            problems.append(f"{name}: status {row.get('status')!r} is not one of {', '.join(STATUSES)}")
     return problems
 
 

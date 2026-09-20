@@ -34,13 +34,13 @@ TRACKER = ROOT / "bin" / "tracker"
 from tools.tracker import board  # noqa: E402
 
 
-def ledger(number, title, items, asks=(), status="accepted"):
+def ledger(number, title, items, asks=(), status="accepted", traceability=()):
     return {
         "proposal": number, "title": title, "status": status, "updated": "2026-09-14",
         "tiers": {"C2": {"tier": "medium", "model": "sonnet", "effort": "medium", "rule": "bounded"},
                   "C4": {"tier": "lead", "model": "lead model", "effort": "-", "rule": "lead"}},
         "phases": [{"id": "W", "name": "Build", "goal": "the goal", "exit": "the exit"}],
-        "items": list(items), "asks": list(asks),
+        "items": list(items), "traceability": list(traceability), "asks": list(asks),
     }
 
 
@@ -195,6 +195,27 @@ class TestBoardPage(unittest.TestCase):
         self.assertIn('data-column="deferred"', text)
         self.assertIn("not part of this release", text)
         self.assertIn("s-deferred", text)
+
+    def test_traceability_is_rendered_as_a_contract_map(self):
+        row = {
+            "id": "TR-01", "item": "W-02", "requirement_ids": ["REQ-01", "REQ-02"],
+            "guide_section": "docs/guides/operator.md#commands",
+            "architecture_section": "docs/architecture/system.md#boundary",
+            "implementation_files": ["src/runner.py", "src/receipt.py"],
+            "tests_commands": ["pytest tests/test_runner.py"],
+            "receipt_or_refusal": "receipt: run-2026-09-20-01",
+            "owner": "lead", "status": "in progress",
+        }
+        self.p.write("22-traceability.json", ledger(22, "Traceability", [item("W-02", "in progress")],
+                                                      traceability=[row]))
+        r = self.p.run()
+        self.assertEqual(0, r.returncode, r.stderr)
+        text = self.p.page.read_text()
+        self.assertIn('id="traceability"', text)
+        self.assertIn("REQ-01", text)
+        self.assertIn("docs/guides/operator.md#commands", text)
+        self.assertIn("receipt: run-2026-09-20-01", text)
+        self.assertIn('data-traceability="TR-01"', text)
 
     def test_filtered_blocks_hide_outside_the_artifact_wrapper(self):
         # A card is display:flex, which beats the browser's own [hidden] rule, so a
